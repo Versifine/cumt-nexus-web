@@ -11,7 +11,7 @@
 当前固定视觉方向：
 
 ```text
-modern dark SaaS / Linear / Vercel / Raycast inspired
+dark editorial product / magazine-grade campus community interface
 ```
 
 长期约束：

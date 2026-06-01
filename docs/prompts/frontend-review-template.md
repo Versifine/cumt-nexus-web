@@ -17,7 +17,7 @@
 请重点检查：
 
 1. 风格统一性
-- 是否符合 dark SaaS / Linear / Vercel / Raycast 风格。
+- 是否符合 dark editorial product / magazine-grade campus community interface 风格。
 - 是否深色模式优先。
 - 是否出现每个页面一种风格的问题。
 - 是否有彩虹渐变、光污染、玻璃拟态泛滥、模板化 hero。
