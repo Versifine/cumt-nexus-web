@@ -13,3 +13,27 @@ export type Community = {
 export type ListCommunitiesResponse = {
   communities: Community[];
 };
+
+export type CommunityApplication = {
+  id: string;
+  applicant_id: string;
+  requested_slug: string;
+  requested_name: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected" | "canceled" | string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  reject_reason?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SubmitCommunityApplicationInput = {
+  requested_slug: string;
+  requested_name: string;
+  reason: string;
+};
+
+export type SubmitCommunityApplicationResponse = {
+  application: CommunityApplication;
+};
