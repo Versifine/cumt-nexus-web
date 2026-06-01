@@ -18,3 +18,12 @@ export type ListPostsResponse = {
   limit: number;
   offset: number;
 };
+
+export type PublishPostInput = {
+  title: string;
+  body: string;
+};
+
+export type PublishPostResponse = {
+  post: Post;
+};

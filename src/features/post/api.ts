@@ -1,6 +1,6 @@
 import { apiRequest } from "@/lib/api/client";
 
-import type { ListPostsResponse } from "./types";
+import type { ListPostsResponse, PublishPostInput, PublishPostResponse } from "./types";
 
 type ListCommunityPostsInput = {
   slug: string;
@@ -20,5 +20,15 @@ export function listCommunityPosts({
 
   return apiRequest<ListPostsResponse>(
     `/api/v1/communities/${encodeURIComponent(slug)}/posts?${params.toString()}`,
+  );
+}
+
+export function publishPost(slug: string, input: PublishPostInput) {
+  return apiRequest<PublishPostResponse>(
+    `/api/v1/communities/${encodeURIComponent(slug)}/posts`,
+    {
+      method: "POST",
+      body: input,
+    },
   );
 }
