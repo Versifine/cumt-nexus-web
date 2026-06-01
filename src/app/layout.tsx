@@ -7,7 +7,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "CUMT Nexus",
-  description: "Campus community workspace for CUMT Nexus.",
+  description: "CUMT Nexus 校园社区工作区。",
 };
 
 export default function RootLayout({
@@ -16,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="zh-CN" className="dark">
       <body>
         <Providers>{children}</Providers>
         <Toaster />

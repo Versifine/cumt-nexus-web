@@ -72,7 +72,7 @@ export function VoteControl({
           {downvoteCount}
         </Button>
         <span className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs text-muted-foreground">
-          score {score}
+          分数 {score}
         </span>
       </div>
       {error ? (
@@ -93,5 +93,5 @@ function getVoteError(error: Error | null) {
     return error.message;
   }
 
-  return "Vote failed. Please try again.";
+  return "投票失败，请稍后重试。";
 }

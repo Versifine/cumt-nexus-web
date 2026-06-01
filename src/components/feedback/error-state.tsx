@@ -9,7 +9,7 @@ type ErrorStateProps = {
 };
 
 export function ErrorState({
-  title = "Something went wrong",
+  title = "出现了一些问题",
   description,
   action,
 }: ErrorStateProps) {

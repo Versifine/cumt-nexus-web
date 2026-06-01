@@ -44,7 +44,7 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
           className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
-          Communities
+          社区
         </Link>
 
         <section className="mt-6">
@@ -52,12 +52,12 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
             <LoadingState rows={1} />
           ) : communityQuery.isError ? (
             <ErrorState
-              title={getErrorTitle(communityQuery.error, "Could not load community")}
+              title={getErrorTitle(communityQuery.error, "无法加载社区")}
               description={getErrorDescription(communityQuery.error)}
               action={
                 isUnauthenticated(communityQuery.error) ? (
                   <Button asChild variant="outline" size="sm">
-                    <Link href="/login">Sign in</Link>
+                    <Link href="/login">登录</Link>
                   </Button>
                 ) : (
                   <Button
@@ -65,7 +65,7 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
                     size="sm"
                     onClick={() => communityQuery.refetch()}
                   >
-                    Retry
+                    重试
                   </Button>
                 )
               }
@@ -85,21 +85,21 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
                             : "secondary"
                         }
                       >
-                        {community.kind}
+                        {formatCommunityKind(community.kind)}
                       </Badge>
                       <Badge variant="outline">
-                        {community.visibility}
+                        {formatCommunityVisibility(community.visibility)}
                       </Badge>
                     </CardDescription>
                   </div>
                   <Button asChild>
-                    <Link href={`/communities/${slug}/new`}>New post</Link>
+                    <Link href={`/communities/${slug}/new`}>发帖</Link>
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  {community.description || "No description yet."}
+                  {community.description || "暂无描述。"}
                 </p>
               </CardContent>
             </Card>
@@ -109,9 +109,9 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
         <section className="mt-6">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold">Posts</h2>
+              <h2 className="text-lg font-semibold">帖子</h2>
               <p className="text-sm text-muted-foreground">
-                Latest visible posts in this community.
+                这个社区中的最新可见帖子。
               </p>
             </div>
           </div>
@@ -120,12 +120,12 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
 
           {postsQuery.isError ? (
             <ErrorState
-              title={getErrorTitle(postsQuery.error, "Could not load posts")}
+              title={getErrorTitle(postsQuery.error, "无法加载帖子")}
               description={getErrorDescription(postsQuery.error)}
               action={
                 isUnauthenticated(postsQuery.error) ? (
                   <Button asChild variant="outline" size="sm">
-                    <Link href="/login">Sign in</Link>
+                    <Link href="/login">登录</Link>
                   </Button>
                 ) : (
                   <Button
@@ -133,7 +133,7 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
                     size="sm"
                     onClick={() => postsQuery.refetch()}
                   >
-                    Retry
+                    重试
                   </Button>
                 )
               }
@@ -142,11 +142,11 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
 
           {postsQuery.isSuccess && postsQuery.data.posts.length === 0 ? (
             <EmptyState
-              title="No posts yet"
-              description="Visible posts from this board will appear here."
+              title="还没有帖子"
+              description="这个社区发布可见帖子后，会出现在这里。"
               action={
                 <Button asChild variant="outline" size="sm">
-                  <Link href={`/communities/${slug}/new`}>Create post</Link>
+                  <Link href={`/communities/${slug}/new`}>发布第一条帖子</Link>
                 </Button>
               }
             />
@@ -173,7 +173,7 @@ function PostCard({ post }: { post: Post }) {
           <div className="min-w-0">
             <CardTitle className="truncate text-base">{post.title}</CardTitle>
             <CardDescription className="mt-2">
-              Created {formatDate(post.created_at)}
+              发布于 {formatDate(post.created_at)}
             </CardDescription>
           </div>
           <Badge variant={post.my_vote === 1 ? "default" : "secondary"}>
@@ -195,14 +195,14 @@ function PostCard({ post }: { post: Post }) {
             </span>
             <span className="inline-flex items-center gap-1.5">
               <MessageSquare className="size-4" aria-hidden="true" />
-              Comments
+              评论
             </span>
           </div>
           <Link
             href={`/posts/${post.id}`}
             className="inline-flex items-center gap-1 text-primary transition-colors hover:text-primary/80"
           >
-            Open
+            打开
             <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         </div>
@@ -212,7 +212,7 @@ function PostCard({ post }: { post: Post }) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat("zh-CN", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -225,7 +225,7 @@ function isUnauthenticated(error: Error | null) {
 
 function getErrorTitle(error: Error | null, fallback: string) {
   if (isUnauthenticated(error)) {
-    return "Sign in required";
+    return "需要登录";
   }
 
   return fallback;
@@ -236,5 +236,27 @@ function getErrorDescription(error: Error | null) {
     return error.message;
   }
 
-  return "Request failed. Please try again.";
+  return "请求失败，请稍后重试。";
+}
+
+function formatCommunityKind(kind: string) {
+  switch (kind) {
+    case "system":
+      return "系统社区";
+    case "user":
+      return "用户社区";
+    default:
+      return kind;
+  }
+}
+
+function formatCommunityVisibility(visibility: string) {
+  switch (visibility) {
+    case "public":
+      return "公开";
+    case "private":
+      return "私密";
+    default:
+      return visibility;
+  }
 }

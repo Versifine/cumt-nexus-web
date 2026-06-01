@@ -18,16 +18,16 @@ export default async function NewPostPage({ params }: NewPostPageProps) {
           href={`/communities/${slug}`}
           className="text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
-          Back to /{slug}
+          返回 /{slug}
         </Link>
 
         <header className="mt-6 border-b border-border pb-5">
-          <div className="text-sm font-medium text-muted-foreground">New post</div>
+          <div className="text-sm font-medium text-muted-foreground">新帖子</div>
           <h1 className="mt-1 text-2xl font-semibold tracking-normal">
-            Start a discussion
+            发起讨论
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Publish a visible post to this active public community.
+            在这个公开社区发布一条可见帖子。
           </p>
         </header>
 

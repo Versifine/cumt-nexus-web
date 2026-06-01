@@ -14,7 +14,7 @@ import { publishComment } from "./api";
 import { commentQueryKeys } from "./queries";
 
 const commentSchema = z.object({
-  body: z.string().trim().min(1, "Comment body is required."),
+  body: z.string().trim().min(1, "请输入评论内容。"),
 });
 
 type CommentFormValues = z.infer<typeof commentSchema>;
@@ -51,17 +51,17 @@ export function CommentForm({ postId }: CommentFormProps) {
     >
       {submitError ? (
         <Alert variant="destructive">
-          <AlertTitle>Could not publish comment</AlertTitle>
+          <AlertTitle>评论发布失败</AlertTitle>
           <AlertDescription>{submitError}</AlertDescription>
         </Alert>
       ) : null}
 
       <div className="space-y-2">
         <Textarea
-          aria-label="Comment body"
+          aria-label="评论内容"
           aria-invalid={Boolean(form.formState.errors.body)}
           disabled={commentMutation.isPending}
-          placeholder="Write a comment."
+          placeholder="写下你的评论。"
           {...form.register("body")}
         />
         {form.formState.errors.body ? (
@@ -73,7 +73,7 @@ export function CommentForm({ postId }: CommentFormProps) {
 
       <div className="flex justify-end">
         <Button type="submit" disabled={commentMutation.isPending}>
-          {commentMutation.isPending ? "Publishing..." : "Publish comment"}
+          {commentMutation.isPending ? "正在发布..." : "发布评论"}
         </Button>
       </div>
     </form>
@@ -89,5 +89,5 @@ function getSubmitError(error: Error | null) {
     return error.message;
   }
 
-  return "Request failed. Please try again.";
+  return "请求失败，请稍后重试。";
 }

@@ -10,19 +10,18 @@ export default function NewCommunityApplicationPage() {
           href="/communities"
           className="text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
-          Back to communities
+          返回社区列表
         </Link>
 
         <header className="mt-6 border-b border-border pb-5">
           <div className="text-sm font-medium text-muted-foreground">
-            Community application
+            社区申请
           </div>
           <h1 className="mt-1 text-2xl font-semibold tracking-normal">
-            Apply for a new board
+            申请新社区
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Submitted applications enter platform review. Approval creates the
-            community and makes you its owner.
+            提交后会进入平台审核。审核通过后，系统会创建社区并将你设为负责人。
           </p>
         </header>
 

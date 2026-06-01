@@ -1,5 +1,4 @@
 import { apiRequest } from "@/lib/api/client";
-import { writeAccessToken } from "@/lib/auth/token-storage";
 
 import type { AuthCredentials, AuthResult, CurrentUser } from "./types";
 
@@ -10,8 +9,6 @@ export async function register(input: AuthCredentials) {
     token: null,
   });
 
-  writeAccessToken(result.access_token);
-
   return result;
 }
 
@@ -21,8 +18,6 @@ export async function login(input: AuthCredentials) {
     body: input,
     token: null,
   });
-
-  writeAccessToken(result.access_token);
 
   return result;
 }

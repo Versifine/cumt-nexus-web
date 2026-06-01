@@ -16,8 +16,8 @@ import { publishPost } from "./api";
 import { postQueryKeys } from "./queries";
 
 const postSchema = z.object({
-  title: z.string().trim().min(1, "Title is required."),
-  body: z.string().trim().min(1, "Body is required."),
+  title: z.string().trim().min(1, "请输入标题。"),
+  body: z.string().trim().min(1, "请输入正文。"),
 });
 
 type PostFormValues = z.infer<typeof postSchema>;
@@ -56,21 +56,21 @@ export function PostForm({ slug }: PostFormProps) {
     >
       {submitError ? (
         <Alert variant="destructive">
-          <AlertTitle>Could not publish post</AlertTitle>
+          <AlertTitle>发布失败</AlertTitle>
           <AlertDescription>{submitError}</AlertDescription>
         </Alert>
       ) : null}
 
       <div className="space-y-2">
         <label className="text-sm font-medium" htmlFor="title">
-          Title
+          标题
         </label>
         <Input
           id="title"
           autoComplete="off"
           aria-invalid={Boolean(form.formState.errors.title)}
           disabled={postMutation.isPending}
-          placeholder="What do you want to discuss?"
+          placeholder="想讨论什么？"
           {...form.register("title")}
         />
         {form.formState.errors.title ? (
@@ -82,13 +82,13 @@ export function PostForm({ slug }: PostFormProps) {
 
       <div className="space-y-2">
         <label className="text-sm font-medium" htmlFor="body">
-          Body
+          正文
         </label>
         <Textarea
           id="body"
           aria-invalid={Boolean(form.formState.errors.body)}
           disabled={postMutation.isPending}
-          placeholder="Write the first version clearly. Editing is not available yet."
+          placeholder="先把第一版写清楚。当前版本暂不支持编辑。"
           {...form.register("body")}
         />
         {form.formState.errors.body ? (
@@ -100,7 +100,7 @@ export function PostForm({ slug }: PostFormProps) {
 
       <div className="flex justify-end">
         <Button type="submit" disabled={postMutation.isPending}>
-          {postMutation.isPending ? "Publishing..." : "Publish post"}
+          {postMutation.isPending ? "正在发布..." : "发布帖子"}
         </Button>
       </div>
     </form>
@@ -116,5 +116,5 @@ function getSubmitError(error: Error | null) {
     return error.message;
   }
 
-  return "Request failed. Please try again.";
+  return "请求失败，请稍后重试。";
 }

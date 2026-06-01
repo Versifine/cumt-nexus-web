@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { AuthSessionProvider } from "@/features/auth/auth-session";
 import { QueryProvider } from "@/lib/query/query-provider";
 
 type ProvidersProps = {
@@ -9,5 +10,9 @@ type ProvidersProps = {
 };
 
 export function Providers({ children }: ProvidersProps) {
-  return <QueryProvider>{children}</QueryProvider>;
+  return (
+    <QueryProvider>
+      <AuthSessionProvider>{children}</AuthSessionProvider>
+    </QueryProvider>
+  );
 }

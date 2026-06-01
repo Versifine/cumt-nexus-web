@@ -40,7 +40,7 @@ export function PostDetail({ id }: PostDetailProps) {
           className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
-          Back
+          返回
         </Link>
 
         <section className="mt-6">
@@ -48,16 +48,16 @@ export function PostDetail({ id }: PostDetailProps) {
             <LoadingState rows={1} />
           ) : postQuery.isError ? (
             <ErrorState
-              title={getErrorTitle(postQuery.error, "Could not load post")}
+              title={getErrorTitle(postQuery.error, "无法加载帖子")}
               description={getErrorDescription(postQuery.error)}
               action={
                 isUnauthenticated(postQuery.error) ? (
                   <Button asChild variant="outline" size="sm">
-                    <Link href="/login">Sign in</Link>
+                    <Link href="/login">登录</Link>
                   </Button>
                 ) : (
                   <Button variant="outline" size="sm" onClick={() => postQuery.refetch()}>
-                    Retry
+                    重试
                   </Button>
                 )
               }
@@ -69,11 +69,11 @@ export function PostDetail({ id }: PostDetailProps) {
                   <div className="min-w-0">
                     <CardTitle className="text-2xl">{post.title}</CardTitle>
                     <CardDescription className="mt-2">
-                      Created {formatDate(post.created_at)}
+                      发布于 {formatDate(post.created_at)}
                     </CardDescription>
                   </div>
                   <Badge variant={post.my_vote === 1 ? "default" : "secondary"}>
-                    score {post.score}
+                    分数 {post.score}
                   </Badge>
                 </div>
               </CardHeader>
@@ -91,7 +91,7 @@ export function PostDetail({ id }: PostDetailProps) {
                   />
                   <span className="inline-flex items-center gap-1.5">
                     <MessageSquare className="size-4" aria-hidden="true" />
-                    Comments
+                    评论
                   </span>
                 </div>
               </CardContent>
@@ -102,9 +102,9 @@ export function PostDetail({ id }: PostDetailProps) {
         <section className="mt-6 grid gap-4">
           <Card>
             <CardHeader>
-              <CardTitle>Comment</CardTitle>
+              <CardTitle>评论</CardTitle>
               <CardDescription>
-                Add a visible comment to this post.
+                给这条帖子添加一条可见评论。
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -114,9 +114,9 @@ export function PostDetail({ id }: PostDetailProps) {
 
           <div>
             <div className="mb-3">
-              <h2 className="text-lg font-semibold">Comments</h2>
+              <h2 className="text-lg font-semibold">评论</h2>
               <p className="text-sm text-muted-foreground">
-                Latest visible comments on this post.
+                这条帖子下的最新评论。
               </p>
             </div>
 
@@ -124,7 +124,7 @@ export function PostDetail({ id }: PostDetailProps) {
 
             {commentsQuery.isError ? (
               <ErrorState
-                title="Could not load comments"
+                title="无法加载评论"
                 description={getErrorDescription(commentsQuery.error)}
                 action={
                   <Button
@@ -132,7 +132,7 @@ export function PostDetail({ id }: PostDetailProps) {
                     size="sm"
                     onClick={() => commentsQuery.refetch()}
                   >
-                    Retry
+                    重试
                   </Button>
                 }
               />
@@ -140,8 +140,8 @@ export function PostDetail({ id }: PostDetailProps) {
 
             {commentsQuery.isSuccess && commentsQuery.data.comments.length === 0 ? (
               <EmptyState
-                title="No comments yet"
-                description="Be the first to add a comment."
+                title="还没有评论"
+                description="来发布第一条评论。"
               />
             ) : null}
 
@@ -165,7 +165,7 @@ function CommentCard({ comment }: { comment: Comment }) {
       <CardContent>
         <p className="whitespace-pre-wrap text-sm leading-6">{comment.body}</p>
         <p className="mt-3 text-xs text-muted-foreground">
-          Created {formatDate(comment.created_at)}
+          发布于 {formatDate(comment.created_at)}
         </p>
       </CardContent>
     </Card>
@@ -173,7 +173,7 @@ function CommentCard({ comment }: { comment: Comment }) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat("zh-CN", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -186,7 +186,7 @@ function isUnauthenticated(error: Error | null) {
 
 function getErrorTitle(error: Error | null, fallback: string) {
   if (isUnauthenticated(error)) {
-    return "Sign in required";
+    return "需要登录";
   }
 
   return fallback;
@@ -197,5 +197,5 @@ function getErrorDescription(error: Error | null) {
     return error.message;
   }
 
-  return "Request failed. Please try again.";
+  return "请求失败，请稍后重试。";
 }

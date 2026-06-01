@@ -12,24 +12,24 @@ export default function RegisterPage() {
           </div>
           <div>
             <div className="text-sm font-semibold">CUMT Nexus</div>
-            <div className="text-xs text-muted-foreground">Campus community</div>
+            <div className="text-xs text-muted-foreground">校园社区</div>
           </div>
         </Link>
 
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="mb-5">
-            <h1 className="text-xl font-semibold tracking-normal">Create account</h1>
+            <h1 className="text-xl font-semibold tracking-normal">注册账号</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Start with a username and password.
+              先设置用户名和密码。
             </p>
           </div>
 
           <RegisterForm />
 
           <p className="mt-5 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
+            已有账号？{" "}
             <Link href="/login" className="text-primary hover:underline">
-              Sign in
+              去登录
             </Link>
           </p>
         </section>

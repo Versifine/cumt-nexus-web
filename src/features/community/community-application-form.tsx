@@ -17,10 +17,10 @@ const applicationSchema = z.object({
   requested_slug: z
     .string()
     .trim()
-    .min(1, "Slug is required.")
-    .regex(/^[a-z0-9-]+$/, "Use lowercase letters, numbers, and hyphens."),
-  requested_name: z.string().trim().min(1, "Name is required."),
-  reason: z.string().trim().min(1, "Reason is required."),
+    .min(1, "请输入社区 URL 标识。")
+    .regex(/^[a-z0-9-]+$/, "只能使用小写字母、数字和连字符。"),
+  requested_name: z.string().trim().min(1, "请输入社区名称。"),
+  reason: z.string().trim().min(1, "请输入申请理由。"),
 });
 
 type ApplicationFormValues = z.infer<typeof applicationSchema>;
@@ -45,10 +45,10 @@ export function CommunityApplicationForm() {
   if (applicationMutation.isSuccess) {
     return (
       <Alert variant="success">
-        <AlertTitle>Application submitted</AlertTitle>
+        <AlertTitle>申请已提交</AlertTitle>
         <AlertDescription>
-          Status: {applicationMutation.data.application.status}. The community is
-          not created until platform review approves it.
+          当前状态：{formatApplicationStatus(applicationMutation.data.application.status)}
+          。平台审核通过后才会创建社区。
         </AlertDescription>
       </Alert>
     );
@@ -63,14 +63,14 @@ export function CommunityApplicationForm() {
     >
       {submitError ? (
         <Alert variant="destructive">
-          <AlertTitle>Could not submit application</AlertTitle>
+          <AlertTitle>提交申请失败</AlertTitle>
           <AlertDescription>{submitError}</AlertDescription>
         </Alert>
       ) : null}
 
       <div className="space-y-2">
         <label className="text-sm font-medium" htmlFor="requested_slug">
-          Slug
+          URL 标识
         </label>
         <Input
           id="requested_slug"
@@ -86,21 +86,21 @@ export function CommunityApplicationForm() {
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">
-            This becomes the board URL identifier.
+            这会成为社区页面地址的一部分，只能使用小写字母、数字和连字符。
           </p>
         )}
       </div>
 
       <div className="space-y-2">
         <label className="text-sm font-medium" htmlFor="requested_name">
-          Name
+          社区名称
         </label>
         <Input
           id="requested_name"
           autoComplete="off"
           aria-invalid={Boolean(form.formState.errors.requested_name)}
           disabled={applicationMutation.isPending}
-          placeholder="Campus Life"
+          placeholder="校园生活"
           {...form.register("requested_name")}
         />
         {form.formState.errors.requested_name ? (
@@ -112,13 +112,13 @@ export function CommunityApplicationForm() {
 
       <div className="space-y-2">
         <label className="text-sm font-medium" htmlFor="reason">
-          Reason
+          申请理由
         </label>
         <Textarea
           id="reason"
           aria-invalid={Boolean(form.formState.errors.reason)}
           disabled={applicationMutation.isPending}
-          placeholder="Explain why this board should exist."
+          placeholder="说明为什么需要这个社区。"
           {...form.register("reason")}
         />
         {form.formState.errors.reason ? (
@@ -130,7 +130,7 @@ export function CommunityApplicationForm() {
 
       <div className="flex justify-end">
         <Button type="submit" disabled={applicationMutation.isPending}>
-          {applicationMutation.isPending ? "Submitting..." : "Submit application"}
+          {applicationMutation.isPending ? "正在提交..." : "提交申请"}
         </Button>
       </div>
     </form>
@@ -146,5 +146,18 @@ function getSubmitError(error: Error | null) {
     return error.message;
   }
 
-  return "Request failed. Please try again.";
+  return "请求失败，请稍后重试。";
+}
+
+function formatApplicationStatus(status: string) {
+  switch (status) {
+    case "pending":
+      return "待审核";
+    case "approved":
+      return "已通过";
+    case "rejected":
+      return "已拒绝";
+    default:
+      return status;
+  }
 }

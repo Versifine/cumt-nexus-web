@@ -14,7 +14,7 @@ export class ApiError extends Error {
   readonly code: string;
 
   constructor(status: number, error: ApiErrorBody) {
-    super(error.message);
+    super(getClientErrorMessage(error));
     this.name = "ApiError";
     this.status = status;
     this.code = error.code;
@@ -76,6 +76,25 @@ async function readApiError(response: Response): Promise<ApiErrorBody> {
 
   return {
     code: "internal",
-    message: "Request failed. Please try again.",
+    message: "请求失败，请稍后重试。",
   };
+}
+
+function getClientErrorMessage(error: ApiErrorBody) {
+  switch (error.code) {
+    case "invalid_argument":
+      return "提交内容不正确，请检查后重试。";
+    case "unauthenticated":
+      return "请先登录后再继续。";
+    case "forbidden":
+      return "当前账号没有权限执行此操作。";
+    case "not_found":
+      return "没有找到对应内容。";
+    case "conflict":
+      return "当前内容已存在或状态冲突。";
+    case "internal":
+      return "服务暂时不可用，请稍后重试。";
+    default:
+      return error.message || "请求失败，请稍后重试。";
+  }
 }

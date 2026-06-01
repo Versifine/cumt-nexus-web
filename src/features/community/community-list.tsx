@@ -28,18 +28,18 @@ export function CommunityList() {
       <div className="mx-auto w-full max-w-5xl">
         <header className="mb-6 flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="text-sm font-medium text-muted-foreground">Communities</div>
+            <div className="text-sm font-medium text-muted-foreground">社区</div>
             <h1 className="mt-1 text-2xl font-semibold tracking-normal">
-              Browse campus boards
+              浏览校园社区
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Active public communities from the CUMT Nexus API.
+              这里展示 CUMT Nexus 中已启用的公开社区。
             </p>
           </div>
           <Button asChild>
             <Link href="/community-applications/new">
               <Plus className="size-4" aria-hidden="true" />
-              Apply
+              申请社区
             </Link>
           </Button>
         </header>
@@ -53,7 +53,7 @@ export function CommunityList() {
             action={
               isUnauthenticated(communitiesQuery.error) ? (
                 <Button asChild variant="outline" size="sm">
-                  <Link href="/login">Sign in</Link>
+                  <Link href="/login">登录</Link>
                 </Button>
               ) : (
                 <Button
@@ -61,7 +61,7 @@ export function CommunityList() {
                   size="sm"
                   onClick={() => communitiesQuery.refetch()}
                 >
-                  Retry
+                  重试
                 </Button>
               )
             }
@@ -71,8 +71,8 @@ export function CommunityList() {
         {communitiesQuery.isSuccess &&
         communitiesQuery.data.communities.length === 0 ? (
           <EmptyState
-            title="No communities yet"
-            description="Once active public communities exist, they will appear here."
+            title="还没有社区"
+            description="公开社区创建并启用后，会出现在这里。"
           />
         ) : null}
 
@@ -101,31 +101,31 @@ function CommunityCard({ community }: { community: Community }) {
           <CardDescription className="mt-2 flex flex-wrap items-center gap-2">
             <span>/{community.slug}</span>
             <Badge variant={community.kind === "system" ? "default" : "secondary"}>
-              {community.kind}
+              {formatCommunityKind(community.kind)}
             </Badge>
-            <Badge variant="outline">{community.visibility}</Badge>
+            <Badge variant="outline">{formatCommunityVisibility(community.visibility)}</Badge>
           </CardDescription>
         </div>
         {community.status === "active" ? (
-          <Badge variant="success">active</Badge>
+          <Badge variant="success">已启用</Badge>
         ) : (
-          <Badge variant="warning">{community.status}</Badge>
+          <Badge variant="warning">{formatCommunityStatus(community.status)}</Badge>
         )}
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">
-          {community.description || "No description yet."}
+          {community.description || "暂无描述。"}
         </p>
         <div className="mt-4 flex items-center justify-between gap-3 text-sm">
           <span className="inline-flex items-center gap-2 text-muted-foreground">
             <Lock className="size-4" aria-hidden="true" />
-            Created {formatDate(community.created_at)}
+            创建于 {formatDate(community.created_at)}
           </span>
           <Link
             href={`/communities/${community.slug}`}
             className="inline-flex items-center gap-1 text-primary transition-colors hover:text-primary/80"
           >
-            Open
+            打开
             <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         </div>
@@ -135,7 +135,7 @@ function CommunityCard({ community }: { community: Community }) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat("zh-CN", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -148,10 +148,10 @@ function isUnauthenticated(error: Error | null) {
 
 function getErrorTitle(error: Error | null) {
   if (isUnauthenticated(error)) {
-    return "Sign in required";
+    return "需要登录";
   }
 
-  return "Could not load communities";
+  return "无法加载社区列表";
 }
 
 function getErrorDescription(error: Error | null) {
@@ -159,5 +159,40 @@ function getErrorDescription(error: Error | null) {
     return error.message;
   }
 
-  return "Request failed. Please try again.";
+  return "请求失败，请稍后重试。";
+}
+
+function formatCommunityKind(kind: string) {
+  switch (kind) {
+    case "system":
+      return "系统社区";
+    case "user":
+      return "用户社区";
+    default:
+      return kind;
+  }
+}
+
+function formatCommunityVisibility(visibility: string) {
+  switch (visibility) {
+    case "public":
+      return "公开";
+    case "private":
+      return "私密";
+    default:
+      return visibility;
+  }
+}
+
+function formatCommunityStatus(status: string) {
+  switch (status) {
+    case "active":
+      return "已启用";
+    case "archived":
+      return "已归档";
+    case "pending":
+      return "待审核";
+    default:
+      return status;
+  }
 }

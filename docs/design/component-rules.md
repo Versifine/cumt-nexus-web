@@ -8,6 +8,7 @@
 - Tailwind CSS 负责样式。
 - lucide-react 负责图标。
 - Motion 只做克制动效。
+- 组件的用户可见文案默认使用简体中文，包括 `aria-label`、placeholder、表单校验、空状态和错误兜底。
 - 不允许重复造多个风格不同的 Button、Card、Dialog、Form。
 - 不允许引入第二套 UI 库解决单个组件问题。
 

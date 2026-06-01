@@ -8,7 +8,7 @@ type LoadingStateProps = {
 
 export function LoadingState({ rows = 3, className }: LoadingStateProps) {
   return (
-    <div className={cn("space-y-4", className)} aria-label="Loading content">
+    <div className={cn("space-y-4", className)} aria-label="正在加载内容">
       {Array.from({ length: rows }).map((_, index) => (
         <div key={index} className="flex items-start gap-4">
           <Skeleton className="size-9 shrink-0 rounded-lg" />
