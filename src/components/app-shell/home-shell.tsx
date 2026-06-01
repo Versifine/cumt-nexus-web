@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import {
   ArrowDown,
+  ArrowRight,
   ArrowUp,
   ChevronDown,
   FilePlus2,
@@ -12,7 +13,6 @@ import {
   Home,
   LogOut,
   MessageSquare,
-  Plus,
   User,
 } from "lucide-react";
 
@@ -120,16 +120,13 @@ export function HomeShell() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button asChild variant="outline" className="hidden sm:inline-flex">
-                  <Link href="/communities">浏览社区</Link>
-                </Button>
-                <Button asChild>
-                  <Link href="/communities">
-                    <Plus className="size-4" aria-hidden="true" />
-                    <span className="hidden sm:inline">发帖</span>
-                  </Link>
-                </Button>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <TextAction href="/communities" className="hidden sm:inline-flex">
+                  浏览社区
+                </TextAction>
+                <TextAction href="/communities" tone="primary">
+                  发帖
+                </TextAction>
                 <HeaderAuthControls />
               </div>
             </div>
@@ -216,9 +213,7 @@ export function HomeShell() {
                       title="还没有帖子"
                       description="公开社区开始发布内容后，最新帖子会出现在这里。"
                       action={
-                        <Button asChild variant="outline" size="sm">
-                          <Link href="/communities">去社区看看</Link>
-                        </Button>
+                        <TextAction href="/communities">去社区看看</TextAction>
                       }
                     />
                   </div>
@@ -270,11 +265,7 @@ function HeaderAuthControls() {
       );
     }
 
-    return (
-      <Button asChild variant="outline">
-        <Link href="/login">登录</Link>
-      </Button>
-    );
+    return <TextAction href="/login">登录</TextAction>;
   }
 
   const user = currentUserQuery.data;
@@ -282,9 +273,9 @@ function HeaderAuthControls() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="h-10 max-w-44 gap-2 px-2"
+        <button
+          type="button"
+          className="group inline-flex h-10 max-w-44 items-center gap-2 border border-border px-2 text-sm font-semibold transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           aria-label="打开用户菜单"
         >
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-xs font-semibold text-primary">
@@ -293,8 +284,11 @@ function HeaderAuthControls() {
           <span className="hidden min-w-0 truncate text-sm sm:inline">
             {user.username}
           </span>
-          <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
-        </Button>
+          <ChevronDown
+            className="size-4 text-muted-foreground transition-transform group-hover:translate-y-0.5"
+            aria-hidden="true"
+          />
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>
@@ -409,13 +403,13 @@ function RightRail({ posts }: { posts: Post[] }) {
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             这里放和社区使用相关的上下文，不再展示开发状态。
           </p>
-          <div className="mt-4 flex gap-2">
-            <Button asChild size="sm">
-              <Link href="/communities">选择社区</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/community-applications/new">申请社区</Link>
-            </Button>
+          <div className="mt-4 flex flex-col border-y border-border">
+            <TextAction href="/communities" tone="primary" variant="bar">
+              选择社区
+            </TextAction>
+            <TextAction href="/community-applications/new" variant="bar">
+              申请社区
+            </TextAction>
           </div>
         </section>
 
@@ -470,6 +464,101 @@ function RightRail({ posts }: { posts: Post[] }) {
 
 function getUserInitial(username: string) {
   return username.trim().charAt(0).toUpperCase() || "U";
+}
+
+type TextActionProps = {
+  children: React.ReactNode;
+  className?: string;
+  href: string;
+  tone?: "default" | "primary";
+  variant?: "inline" | "bar";
+};
+
+function TextAction({
+  children,
+  className,
+  href,
+  tone = "default",
+  variant = "inline",
+}: TextActionProps) {
+  const isPrimary = tone === "primary";
+
+  if (variant === "bar") {
+    return (
+      <Link
+        href={href}
+        className={cn(
+          "group relative flex items-center justify-between overflow-hidden border-b border-border py-3 text-sm font-semibold last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          className,
+        )}
+      >
+        <span
+          className={cn(
+            "absolute inset-y-0 left-0 w-1 transition-all duration-200 group-hover:w-full",
+            isPrimary ? "bg-primary" : "bg-foreground",
+          )}
+          aria-hidden="true"
+        />
+        <span
+          className={cn(
+            "relative z-10 pl-3 transition-colors",
+            isPrimary
+              ? "text-foreground group-hover:text-primary-foreground"
+              : "text-foreground group-hover:text-background",
+          )}
+        >
+          {children}
+        </span>
+        <ArrowRight
+          className={cn(
+            "relative z-10 mr-3 size-4 transition-transform group-hover:translate-x-1",
+            isPrimary
+              ? "text-primary group-hover:text-primary-foreground"
+              : "text-muted-foreground group-hover:text-background",
+          )}
+          aria-hidden="true"
+        />
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "group relative inline-flex h-10 items-center gap-2 overflow-hidden border border-border px-3 text-sm font-semibold transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        className,
+      )}
+    >
+      <span
+        className={cn(
+          "absolute inset-y-0 left-0 w-1 transition-all duration-200 group-hover:w-full",
+          isPrimary ? "bg-primary" : "bg-foreground",
+        )}
+        aria-hidden="true"
+      />
+      <span
+        className={cn(
+          "relative z-10 inline-flex items-center gap-2 transition-colors",
+          isPrimary
+            ? "text-foreground group-hover:text-primary-foreground"
+            : "text-foreground group-hover:text-background",
+        )}
+      >
+        {children}
+      </span>
+      <span
+        className={cn(
+          "relative z-10 font-mono transition-colors",
+          isPrimary
+            ? "text-primary group-hover:text-primary-foreground"
+            : "text-muted-foreground group-hover:text-background",
+        )}
+      >
+        +
+      </span>
+    </Link>
+  );
 }
 
 function formatShortId(value: string) {
