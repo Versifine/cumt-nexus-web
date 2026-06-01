@@ -19,6 +19,10 @@ export type ListPostsResponse = {
   offset: number;
 };
 
+export type GetPostResponse = {
+  post: Post;
+};
+
 export type PublishPostInput = {
   title: string;
   body: string;
