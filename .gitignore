@@ -10,7 +10,6 @@ tasks.md
 # Next.js
 .next/
 out/
-next-env.d.ts
 
 # Production builds and caches
 dist/
