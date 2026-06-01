@@ -1,31 +1,27 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
+  ArrowDown,
   ArrowLeft,
   ArrowRight,
+  ArrowUp,
   MessageSquare,
-  ThumbsDown,
-  ThumbsUp,
 } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { ApiError } from "@/lib/api/client";
+import { TextAction } from "@/components/ui/text-action";
 import { useCommunityPostsQuery } from "@/features/post/queries";
 import type { Post } from "@/features/post/types";
+import { ApiError } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 
 import { useCommunityQuery } from "./queries";
+import type { Community } from "./types";
 
 type CommunityDetailProps = {
   slug: string;
@@ -35,21 +31,27 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
   const communityQuery = useCommunityQuery(slug);
   const postsQuery = useCommunityPostsQuery(slug);
   const community = communityQuery.data?.community;
+  const posts = postsQuery.data?.posts ?? [];
 
   return (
-    <main className="min-h-screen bg-background px-4 py-6 text-foreground md:px-6">
-      <div className="mx-auto w-full max-w-5xl">
-        <Link
-          href="/communities"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          社区
-        </Link>
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-6">
+        <div className="border-b border-border pb-4">
+          <Link
+            href="/communities"
+            className="group inline-flex h-10 items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <ArrowLeft
+              className="size-4 transition-transform group-hover:-translate-x-1"
+              aria-hidden="true"
+            />
+            返回社区索引
+          </Link>
+        </div>
 
-        <section className="mt-6">
+        <section className="py-6">
           {communityQuery.isLoading ? (
-            <LoadingState rows={1} />
+            <LoadingState rows={2} />
           ) : communityQuery.isError ? (
             <ErrorState
               title={getErrorTitle(communityQuery.error, "无法加载社区")}
@@ -71,144 +73,324 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
               }
             />
           ) : community ? (
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <CardTitle className="text-2xl">{community.name}</CardTitle>
-                    <CardDescription className="mt-2 flex flex-wrap items-center gap-2">
-                      <span>/{community.slug}</span>
-                      <Badge
-                        variant={
-                          community.kind === "system"
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {formatCommunityKind(community.kind)}
-                      </Badge>
-                      <Badge variant="outline">
-                        {formatCommunityVisibility(community.visibility)}
-                      </Badge>
-                    </CardDescription>
-                  </div>
-                  <Button asChild>
-                    <Link href={`/communities/${slug}/new`}>发帖</Link>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {community.description || "暂无描述。"}
-                </p>
-              </CardContent>
-            </Card>
+            <CommunityHero community={community} slug={slug} posts={posts} />
           ) : null}
         </section>
 
-        <section className="mt-6">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold">帖子</h2>
-              <p className="text-sm text-muted-foreground">
-                这个社区中的最新可见帖子。
-              </p>
+        <section className="grid gap-8 border-t border-border pt-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0">
+            <div className="border-b border-border pb-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <div className="font-mono text-xs uppercase text-primary">
+                    POSTS / 社区帖子
+                  </div>
+                  <h2 className="mt-2 text-2xl font-black tracking-normal">
+                    最新讨论
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    按当前后端返回顺序展示这个社区中的可见帖子，进入帖子后再参与投票和评论。
+                  </p>
+                </div>
+                <TextAction href={`/communities/${slug}/new`} tone="primary">
+                  发布帖子
+                </TextAction>
+              </div>
+            </div>
+
+            <div className="py-5">
+              {postsQuery.isLoading ? (
+                <div className="border-b border-border pb-5">
+                  <LoadingState rows={5} />
+                </div>
+              ) : null}
+
+              {postsQuery.isError ? (
+                <ErrorState
+                  title={getErrorTitle(postsQuery.error, "无法加载帖子")}
+                  description={getErrorDescription(postsQuery.error)}
+                  action={
+                    isUnauthenticated(postsQuery.error) ? (
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/login">登录</Link>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => postsQuery.refetch()}
+                      >
+                        重试
+                      </Button>
+                    )
+                  }
+                />
+              ) : null}
+
+              {postsQuery.isSuccess && posts.length === 0 ? (
+                <EmptyState
+                  title="还没有帖子"
+                  description="发布第一条帖子，让这个社区开始形成讨论。"
+                  action={
+                    <TextAction href={`/communities/${slug}/new`} tone="primary">
+                      发布第一条帖子
+                    </TextAction>
+                  }
+                />
+              ) : null}
+
+              {postsQuery.isSuccess && posts.length > 0 ? (
+                <div className="divide-y divide-border border-b border-border">
+                  {posts.map((post, index) => (
+                    <PostRow key={post.id} index={index} post={post} />
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
 
-          {postsQuery.isLoading ? <LoadingState rows={4} /> : null}
-
-          {postsQuery.isError ? (
-            <ErrorState
-              title={getErrorTitle(postsQuery.error, "无法加载帖子")}
-              description={getErrorDescription(postsQuery.error)}
-              action={
-                isUnauthenticated(postsQuery.error) ? (
-                  <Button asChild variant="outline" size="sm">
-                    <Link href="/login">登录</Link>
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => postsQuery.refetch()}
-                  >
-                    重试
-                  </Button>
-                )
-              }
-            />
-          ) : null}
-
-          {postsQuery.isSuccess && postsQuery.data.posts.length === 0 ? (
-            <EmptyState
-              title="还没有帖子"
-              description="这个社区发布可见帖子后，会出现在这里。"
-              action={
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/communities/${slug}/new`}>发布第一条帖子</Link>
-                </Button>
-              }
-            />
-          ) : null}
-
-          {postsQuery.isSuccess && postsQuery.data.posts.length > 0 ? (
-            <div className="grid gap-3">
-              {postsQuery.data.posts.map((post) => (
-                <PostCard key={post.id} post={post} />
-              ))}
-            </div>
-          ) : null}
+          <CommunityRail community={community} posts={posts} isPostsLoading={postsQuery.isLoading} />
         </section>
       </div>
     </main>
   );
 }
 
-function PostCard({ post }: { post: Post }) {
+function CommunityHero({
+  community,
+  slug,
+  posts,
+}: {
+  community: Community;
+  slug: string;
+  posts: Post[];
+}) {
+  const totalScore = posts.reduce((total, post) => total + post.score, 0);
+  const authors = new Set(posts.map((post) => post.author_id)).size;
+
   return (
-    <Card className="transition-colors hover:border-border/80 hover:bg-card/90">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <CardTitle className="truncate text-base">{post.title}</CardTitle>
-            <CardDescription className="mt-2">
-              发布于 {formatDate(post.created_at)}
-            </CardDescription>
-          </div>
-          <Badge variant={post.my_vote === 1 ? "default" : "secondary"}>
-            {post.score}
-          </Badge>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+      <div className="min-w-0">
+        <div className="font-mono text-xs uppercase text-primary">
+          CUMT NEXUS / 社区现场
         </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">{post.body}</p>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center gap-1.5">
-              <ThumbsUp className="size-4" aria-hidden="true" />
-              {post.upvote_count}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <ThumbsDown className="size-4" aria-hidden="true" />
-              {post.downvote_count}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <MessageSquare className="size-4" aria-hidden="true" />
-              评论
-            </span>
-          </div>
-          <Link
-            href={`/posts/${post.id}`}
-            className="inline-flex items-center gap-1 text-primary transition-colors hover:text-primary/80"
-          >
-            打开
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <StatusToken tone="primary">/{community.slug}</StatusToken>
+          <StatusToken>{formatCommunityKind(community.kind)}</StatusToken>
+          <StatusToken>{formatCommunityVisibility(community.visibility)}</StatusToken>
+          <StatusToken tone={getStatusTone(community.status)}>
+            {formatCommunityStatus(community.status)}
+          </StatusToken>
         </div>
-      </CardContent>
-    </Card>
+        <h1 className="mt-4 break-words text-5xl font-black leading-[0.95] tracking-normal text-foreground md:text-6xl">
+          {community.name}
+        </h1>
+        <p className="mt-5 max-w-3xl text-sm leading-6 text-muted-foreground">
+          {community.description || "暂无描述。"}
+        </p>
+        <div className="mt-5 flex flex-col gap-3 border-y border-border py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            当前社区内容会在这里形成线性讨论流，发帖入口保持可见但不压过阅读焦点。
+          </p>
+          <TextAction href={`/communities/${slug}/new`} tone="primary">
+            发布帖子
+          </TextAction>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 border border-border text-center">
+        <MetricBlock label="帖子" value={String(posts.length)} />
+        <MetricBlock label="总分" value={String(totalScore)} />
+        <MetricBlock label="作者" value={String(authors)} />
+      </div>
+    </div>
   );
+}
+
+function PostRow({ index, post }: { index: number; post: Post }) {
+  return (
+    <Link
+      href={`/posts/${post.id}`}
+      className="group grid gap-4 py-5 transition-colors hover:bg-background-soft/70 md:grid-cols-[72px_minmax(0,1fr)_112px]"
+    >
+      <div className="flex items-center gap-3 md:block">
+        <div className="font-mono text-xs text-muted-foreground">
+          {String(index + 1).padStart(2, "0")}
+        </div>
+        <div className="mt-0 flex items-center gap-1 text-xs text-muted-foreground md:mt-4">
+          <ArrowUp
+            className={cn("size-3", post.my_vote === 1 ? "text-primary" : null)}
+            aria-hidden="true"
+          />
+          <span className="font-mono">{post.upvote_count}</span>
+          <ArrowDown
+            className={cn("size-3", post.my_vote === -1 ? "text-primary" : null)}
+            aria-hidden="true"
+          />
+        </div>
+      </div>
+
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="border border-border px-2 py-0.5 font-mono">
+            作者 {formatShortId(post.author_id)}
+          </span>
+          <span>发布于 {formatDate(post.created_at)}</span>
+          <span>{formatPostStatus(post.status)}</span>
+        </div>
+        <h3 className="mt-3 text-xl font-semibold leading-7 tracking-normal text-foreground transition-colors group-hover:text-primary">
+          {post.title}
+        </h3>
+        <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+          {post.body}
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3 text-sm text-muted-foreground md:flex-col md:items-end md:justify-center">
+        <span className="border border-border bg-background px-2.5 py-1 font-mono text-foreground">
+          {post.score}
+        </span>
+        <span className="inline-flex items-center gap-1 text-xs">
+          <MessageSquare className="size-3" aria-hidden="true" />
+          详情
+        </span>
+        <ArrowRight
+          className="hidden size-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary md:block"
+          aria-hidden="true"
+        />
+      </div>
+    </Link>
+  );
+}
+
+function CommunityRail({
+  community,
+  posts,
+  isPostsLoading,
+}: {
+  community?: Community;
+  posts: Post[];
+  isPostsLoading: boolean;
+}) {
+  const topPosts = posts.slice(0, 3);
+
+  return (
+    <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+      <div className="sticky top-6 space-y-8">
+        <section className="border-b border-border pb-6">
+          <div className="font-mono text-xs uppercase text-muted-foreground">
+            社区上下文
+          </div>
+          <div className="mt-3 divide-y divide-border border-y border-border">
+            <InfoRow label="状态" value={community ? formatCommunityStatus(community.status) : "--"} />
+            <InfoRow label="可见性" value={community ? formatCommunityVisibility(community.visibility) : "--"} />
+            <InfoRow label="创建" value={community ? formatDate(community.created_at) : "--"} />
+            <InfoRow label="更新" value={community ? formatDate(community.updated_at) : "--"} />
+          </div>
+        </section>
+
+        <section className="border-b border-border pb-6">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold">高分帖子</h2>
+            <span className="font-mono text-xs text-muted-foreground">
+              TOP {topPosts.length}
+            </span>
+          </div>
+          {isPostsLoading ? (
+            <LoadingState rows={2} />
+          ) : topPosts.length > 0 ? (
+            <div className="divide-y divide-border">
+              {topPosts.map((post) => (
+                <Link
+                  key={post.id}
+                  href={`/posts/${post.id}`}
+                  className="block py-3 transition-colors hover:text-primary"
+                >
+                  <div className="font-mono text-xs text-muted-foreground">
+                    {post.score} 分
+                  </div>
+                  <div className="mt-1 line-clamp-2 text-sm font-medium">
+                    {post.title}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm leading-6 text-muted-foreground">
+              还没有可展示的帖子。
+            </p>
+          )}
+        </section>
+
+        <section>
+          <h2 className="text-sm font-semibold">发布前确认</h2>
+          <div className="mt-3 divide-y divide-border border-y border-border">
+            {["标题具体，便于被搜索和理解。", "正文写清背景、问题或观点。", "内容应属于当前社区的讨论范围。"].map(
+              (item, index) => (
+                <div key={item} className="flex gap-3 py-3 text-sm leading-6">
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="text-muted-foreground">{item}</span>
+                </div>
+              ),
+            )}
+          </div>
+        </section>
+      </div>
+    </aside>
+  );
+}
+
+function MetricBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-r border-border px-3 py-4 last:border-r-0">
+      <div className="font-mono text-[11px] uppercase text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-2 text-2xl font-black leading-none text-foreground">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate text-right font-medium text-foreground">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function StatusToken({
+  children,
+  tone = "default",
+}: {
+  children: ReactNode;
+  tone?: "default" | "primary" | "success" | "warning" | "danger";
+}) {
+  return (
+    <span
+      className={cn(
+        "border px-2 py-0.5 text-xs font-medium",
+        tone === "default" && "border-border bg-background text-muted-foreground",
+        tone === "primary" && "border-primary/40 bg-primary/10 text-primary",
+        tone === "success" && "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
+        tone === "warning" && "border-amber-400/30 bg-amber-500/10 text-amber-300",
+        tone === "danger" && "border-red-400/30 bg-red-500/10 text-red-300",
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function formatShortId(value: string) {
+  return value.slice(0, 8);
 }
 
 function formatDate(value: string) {
@@ -244,6 +426,7 @@ function formatCommunityKind(kind: string) {
     case "system":
       return "系统社区";
     case "user":
+    case "user_created":
       return "用户社区";
     default:
       return kind;
@@ -254,9 +437,54 @@ function formatCommunityVisibility(visibility: string) {
   switch (visibility) {
     case "public":
       return "公开";
+    case "restricted":
+      return "受限";
     case "private":
       return "私密";
     default:
       return visibility;
+  }
+}
+
+function formatCommunityStatus(status: string) {
+  switch (status) {
+    case "active":
+      return "已启用";
+    case "archived":
+      return "已归档";
+    case "suspended":
+      return "已暂停";
+    case "pending":
+      return "待审核";
+    default:
+      return status;
+  }
+}
+
+function getStatusTone(
+  status: string,
+): "default" | "primary" | "success" | "warning" | "danger" {
+  switch (status) {
+    case "active":
+      return "success";
+    case "archived":
+      return "warning";
+    case "suspended":
+      return "danger";
+    default:
+      return "default";
+  }
+}
+
+function formatPostStatus(status: string) {
+  switch (status) {
+    case "visible":
+      return "可见";
+    case "archived":
+      return "已归档";
+    case "hidden":
+      return "已隐藏";
+    default:
+      return status;
   }
 }
