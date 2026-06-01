@@ -1,27 +1,27 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  MessageSquare,
+} from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { ApiError } from "@/lib/api/client";
 import { CommentForm } from "@/features/comment/comment-form";
 import { usePostCommentsQuery } from "@/features/comment/queries";
 import type { Comment } from "@/features/comment/types";
 import { VoteControl } from "@/features/vote/vote-control";
+import { ApiError } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 
 import { usePostQuery } from "./queries";
+import type { Post } from "./types";
 
 type PostDetailProps = {
   id: string;
@@ -31,145 +31,367 @@ export function PostDetail({ id }: PostDetailProps) {
   const postQuery = usePostQuery(id);
   const commentsQuery = usePostCommentsQuery(id);
   const post = postQuery.data?.post;
+  const comments = commentsQuery.data?.comments ?? [];
 
   return (
-    <main className="min-h-screen bg-background px-4 py-6 text-foreground md:px-6">
-      <div className="mx-auto w-full max-w-4xl">
-        <Link
-          href="/communities"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          返回
-        </Link>
-
-        <section className="mt-6">
-          {postQuery.isLoading ? (
-            <LoadingState rows={1} />
-          ) : postQuery.isError ? (
-            <ErrorState
-              title={getErrorTitle(postQuery.error, "无法加载帖子")}
-              description={getErrorDescription(postQuery.error)}
-              action={
-                isUnauthenticated(postQuery.error) ? (
-                  <Button asChild variant="outline" size="sm">
-                    <Link href="/login">登录</Link>
-                  </Button>
-                ) : (
-                  <Button variant="outline" size="sm" onClick={() => postQuery.refetch()}>
-                    重试
-                  </Button>
-                )
-              }
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
+        <div className="border-b border-border pb-4">
+          <Link
+            href="/communities"
+            className="group inline-flex h-10 items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <ArrowLeft
+              className="size-4 transition-transform group-hover:-translate-x-1"
+              aria-hidden="true"
             />
-          ) : post ? (
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <CardTitle className="text-2xl">{post.title}</CardTitle>
-                    <CardDescription className="mt-2">
-                      发布于 {formatDate(post.created_at)}
-                    </CardDescription>
+            返回社区索引
+          </Link>
+        </div>
+
+        <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0">
+            <section>
+              {postQuery.isLoading ? (
+                <LoadingState rows={3} />
+              ) : postQuery.isError ? (
+                <ErrorState
+                  title={getErrorTitle(postQuery.error, "无法加载帖子")}
+                  description={getErrorDescription(postQuery.error)}
+                  action={
+                    isUnauthenticated(postQuery.error) ? (
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/login">登录</Link>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => postQuery.refetch()}
+                      >
+                        重试
+                      </Button>
+                    )
+                  }
+                />
+              ) : post ? (
+                <PostArticle post={post} commentCount={comments.length} />
+              ) : null}
+            </section>
+
+            {post ? (
+              <section className="mt-8 border-t border-border pt-6">
+                <div className="border-b border-border pb-4">
+                  <div className="font-mono text-xs uppercase text-primary">
+                    COMMENTS / 帖子评论
                   </div>
-                  <Badge variant={post.my_vote === 1 ? "default" : "secondary"}>
-                    分数 {post.score}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
-                  {post.body}
-                </p>
-                <div className="mt-5 flex flex-col gap-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                  <VoteControl
-                    postId={post.id}
-                    upvoteCount={post.upvote_count}
-                    downvoteCount={post.downvote_count}
-                    score={post.score}
-                    myVote={post.my_vote}
-                  />
-                  <span className="inline-flex items-center gap-1.5">
-                    <MessageSquare className="size-4" aria-hidden="true" />
+                  <h2 className="mt-2 text-2xl font-black tracking-normal">
                     评论
-                  </span>
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    用评论补充信息、提出问题或回应观点。当前版本保持单层评论，不伪造楼中楼结构。
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          ) : null}
-        </section>
 
-        <section className="mt-6 grid gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>评论</CardTitle>
-              <CardDescription>
-                给这条帖子添加一条可见评论。
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CommentForm postId={id} />
-            </CardContent>
-          </Card>
+                <div className="border-b border-border py-5">
+                  <CommentForm postId={id} />
+                </div>
 
-          <div>
-            <div className="mb-3">
-              <h2 className="text-lg font-semibold">评论</h2>
-              <p className="text-sm text-muted-foreground">
-                这条帖子下的最新评论。
-              </p>
-            </div>
+                <div className="py-5">
+                  {commentsQuery.isLoading ? (
+                    <div className="border-b border-border pb-5">
+                      <LoadingState rows={3} />
+                    </div>
+                  ) : null}
 
-            {commentsQuery.isLoading ? <LoadingState rows={3} /> : null}
+                  {commentsQuery.isError ? (
+                    <ErrorState
+                      title={getErrorTitle(commentsQuery.error, "无法加载评论")}
+                      description={getErrorDescription(commentsQuery.error)}
+                      action={
+                        isUnauthenticated(commentsQuery.error) ? (
+                          <Button asChild variant="outline" size="sm">
+                            <Link href="/login">登录</Link>
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => commentsQuery.refetch()}
+                          >
+                            重试
+                          </Button>
+                        )
+                      }
+                    />
+                  ) : null}
 
-            {commentsQuery.isError ? (
-              <ErrorState
-                title="无法加载评论"
-                description={getErrorDescription(commentsQuery.error)}
-                action={
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => commentsQuery.refetch()}
-                  >
-                    重试
-                  </Button>
-                }
-              />
-            ) : null}
+                  {commentsQuery.isSuccess && comments.length === 0 ? (
+                    <EmptyState
+                      title="还没有评论"
+                      description="发布第一条评论，让这条讨论继续展开。"
+                    />
+                  ) : null}
 
-            {commentsQuery.isSuccess && commentsQuery.data.comments.length === 0 ? (
-              <EmptyState
-                title="还没有评论"
-                description="来发布第一条评论。"
-              />
-            ) : null}
-
-            {commentsQuery.isSuccess && commentsQuery.data.comments.length > 0 ? (
-              <div className="grid gap-3">
-                {commentsQuery.data.comments.map((comment) => (
-                  <CommentCard key={comment.id} comment={comment} />
-                ))}
-              </div>
+                  {commentsQuery.isSuccess && comments.length > 0 ? (
+                    <div className="divide-y divide-border border-b border-border">
+                      {comments.map((comment, index) => (
+                        <CommentRow
+                          key={comment.id}
+                          comment={comment}
+                          index={index}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </section>
             ) : null}
           </div>
-        </section>
+
+          {post ? (
+            <PostRail
+              post={post}
+              commentCount={comments.length}
+              isCommentsLoading={commentsQuery.isLoading}
+            />
+          ) : null}
+        </div>
       </div>
     </main>
   );
 }
 
-function CommentCard({ comment }: { comment: Comment }) {
+function PostArticle({
+  post,
+  commentCount,
+}: {
+  post: Post;
+  commentCount: number;
+}) {
   return (
-    <Card>
-      <CardContent>
-        <p className="whitespace-pre-wrap text-sm leading-6">{comment.body}</p>
-        <p className="mt-3 text-xs text-muted-foreground">
-          发布于 {formatDate(comment.created_at)}
+    <article>
+      <div className="border-b border-border pb-6">
+        <div className="font-mono text-xs uppercase text-primary">
+          CUMT NEXUS / 讨论详情
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <StatusToken tone="primary">
+            社区 {formatShortId(post.community_id)}
+          </StatusToken>
+          <StatusToken>{formatPostStatus(post.status)}</StatusToken>
+          <StatusToken>作者 {formatShortId(post.author_id)}</StatusToken>
+        </div>
+        <h1 className="mt-4 break-words text-4xl font-black leading-tight tracking-normal text-foreground md:text-5xl">
+          {post.title}
+        </h1>
+        <p className="mt-4 text-sm text-muted-foreground">
+          发布于 {formatDate(post.created_at)}，更新于 {formatDate(post.updated_at)}
         </p>
-      </CardContent>
-    </Card>
+      </div>
+
+      <div className="border-b border-border py-6">
+        <p className="whitespace-pre-wrap text-base leading-8 text-foreground">
+          {post.body}
+        </p>
+      </div>
+
+      <div className="border-b border-border py-4">
+        <div className="flex flex-col gap-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <VoteControl
+            postId={post.id}
+            upvoteCount={post.upvote_count}
+            downvoteCount={post.downvote_count}
+            score={post.score}
+            myVote={post.my_vote}
+          />
+          <span className="inline-flex items-center gap-1.5">
+            <MessageSquare className="size-4" aria-hidden="true" />
+            {commentCount} 条评论
+          </span>
+        </div>
+      </div>
+    </article>
   );
+}
+
+function CommentRow({
+  comment,
+  index,
+}: {
+  comment: Comment;
+  index: number;
+}) {
+  return (
+    <div className="grid gap-4 py-5 md:grid-cols-[72px_minmax(0,1fr)_120px]">
+      <div className="font-mono text-xs text-muted-foreground">
+        {String(index + 1).padStart(2, "0")}
+      </div>
+
+      <div className="min-w-0">
+        <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">
+          {comment.body}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="border border-border px-2 py-0.5 font-mono">
+            作者 {formatShortId(comment.author_id)}
+          </span>
+          <span>{formatCommentStatus(comment.status)}</span>
+        </div>
+      </div>
+
+      <div className="text-left text-xs text-muted-foreground md:text-right">
+        {formatDate(comment.created_at)}
+      </div>
+    </div>
+  );
+}
+
+function PostRail({
+  post,
+  commentCount,
+  isCommentsLoading,
+}: {
+  post?: Post;
+  commentCount: number;
+  isCommentsLoading: boolean;
+}) {
+  return (
+    <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+      <div className="sticky top-6 space-y-8">
+        <section className="border-b border-border pb-6">
+          <div className="font-mono text-xs uppercase text-muted-foreground">
+            帖子数据
+          </div>
+          <div className="mt-3 grid grid-cols-2 border border-border text-center">
+            <MetricBlock label="分数" value={post ? String(post.score) : "--"} />
+            <MetricBlock
+              label="评论"
+              value={isCommentsLoading ? "--" : String(commentCount)}
+            />
+          </div>
+          <div className="mt-4 divide-y divide-border border-y border-border">
+            <InfoRow label="状态" value={post ? formatPostStatus(post.status) : "--"} />
+            <InfoRow label="社区" value={post ? formatShortId(post.community_id) : "--"} />
+            <InfoRow label="作者" value={post ? formatShortId(post.author_id) : "--"} />
+            <InfoRow label="创建" value={post ? formatDate(post.created_at) : "--"} />
+          </div>
+        </section>
+
+        <section className="border-b border-border pb-6">
+          <h2 className="text-sm font-semibold">投票概览</h2>
+          <div className="mt-3 divide-y divide-border border-y border-border">
+            <VoteInfoRow
+              icon={<ArrowUp className="size-4" aria-hidden="true" />}
+              label="赞成"
+              value={post ? String(post.upvote_count) : "--"}
+              active={post?.my_vote === 1}
+            />
+            <VoteInfoRow
+              icon={<ArrowDown className="size-4" aria-hidden="true" />}
+              label="反对"
+              value={post ? String(post.downvote_count) : "--"}
+              active={post?.my_vote === -1}
+            />
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-sm font-semibold">参与提示</h2>
+          <div className="mt-3 divide-y divide-border border-y border-border">
+            {["先阅读正文，再投票或评论。", "评论只补充真实信息和明确观点。", "遇到争议内容时优先描述事实。"].map(
+              (item, index) => (
+                <div key={item} className="flex gap-3 py-3 text-sm leading-6">
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="text-muted-foreground">{item}</span>
+                </div>
+              ),
+            )}
+          </div>
+        </section>
+      </div>
+    </aside>
+  );
+}
+
+function MetricBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-r border-border px-3 py-4 last:border-r-0">
+      <div className="font-mono text-[11px] uppercase text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-2 text-2xl font-black leading-none text-foreground">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate text-right font-medium text-foreground">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function VoteInfoRow({
+  active,
+  icon,
+  label,
+  value,
+}: {
+  active?: boolean;
+  icon: ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-4 py-3 text-sm",
+        active ? "text-primary" : "text-muted-foreground",
+      )}
+    >
+      <span className="inline-flex items-center gap-2">
+        {icon}
+        {label}
+      </span>
+      <span className="font-mono text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function StatusToken({
+  children,
+  tone = "default",
+}: {
+  children: ReactNode;
+  tone?: "default" | "primary" | "success" | "warning" | "danger";
+}) {
+  return (
+    <span
+      className={cn(
+        "border px-2 py-0.5 text-xs font-medium",
+        tone === "default" && "border-border bg-background text-muted-foreground",
+        tone === "primary" && "border-primary/40 bg-primary/10 text-primary",
+        tone === "success" && "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
+        tone === "warning" && "border-amber-400/30 bg-amber-500/10 text-amber-300",
+        tone === "danger" && "border-red-400/30 bg-red-500/10 text-red-300",
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function formatShortId(value: string) {
+  return value.slice(0, 8);
 }
 
 function formatDate(value: string) {
@@ -198,4 +420,30 @@ function getErrorDescription(error: Error | null) {
   }
 
   return "请求失败，请稍后重试。";
+}
+
+function formatPostStatus(status: string) {
+  switch (status) {
+    case "visible":
+      return "可见";
+    case "archived":
+      return "已归档";
+    case "hidden":
+      return "已隐藏";
+    default:
+      return status;
+  }
+}
+
+function formatCommentStatus(status: string) {
+  switch (status) {
+    case "visible":
+      return "可见";
+    case "archived":
+      return "已归档";
+    case "hidden":
+      return "已隐藏";
+    default:
+      return status;
+  }
 }
