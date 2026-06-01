@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import {
   ArrowDown,
-  ArrowRight,
   ArrowUp,
   ChevronDown,
   FilePlus2,
@@ -28,6 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { useLatestPostsQuery } from "@/features/post/queries";
@@ -464,101 +464,6 @@ function RightRail({ posts }: { posts: Post[] }) {
 
 function getUserInitial(username: string) {
   return username.trim().charAt(0).toUpperCase() || "U";
-}
-
-type TextActionProps = {
-  children: React.ReactNode;
-  className?: string;
-  href: string;
-  tone?: "default" | "primary";
-  variant?: "inline" | "bar";
-};
-
-function TextAction({
-  children,
-  className,
-  href,
-  tone = "default",
-  variant = "inline",
-}: TextActionProps) {
-  const isPrimary = tone === "primary";
-
-  if (variant === "bar") {
-    return (
-      <Link
-        href={href}
-        className={cn(
-          "group relative flex items-center justify-between overflow-hidden border-b border-border py-3 text-sm font-semibold last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-          className,
-        )}
-      >
-        <span
-          className={cn(
-            "absolute inset-y-0 left-0 w-1 transition-all duration-200 group-hover:w-full",
-            isPrimary ? "bg-primary" : "bg-foreground",
-          )}
-          aria-hidden="true"
-        />
-        <span
-          className={cn(
-            "relative z-10 pl-3 transition-colors",
-            isPrimary
-              ? "text-foreground group-hover:text-primary-foreground"
-              : "text-foreground group-hover:text-background",
-          )}
-        >
-          {children}
-        </span>
-        <ArrowRight
-          className={cn(
-            "relative z-10 mr-3 size-4 transition-transform group-hover:translate-x-1",
-            isPrimary
-              ? "text-primary group-hover:text-primary-foreground"
-              : "text-muted-foreground group-hover:text-background",
-          )}
-          aria-hidden="true"
-        />
-      </Link>
-    );
-  }
-
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "group relative inline-flex h-10 items-center gap-2 overflow-hidden border border-border px-3 text-sm font-semibold transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        className,
-      )}
-    >
-      <span
-        className={cn(
-          "absolute inset-y-0 left-0 w-1 transition-all duration-200 group-hover:w-full",
-          isPrimary ? "bg-primary" : "bg-foreground",
-        )}
-        aria-hidden="true"
-      />
-      <span
-        className={cn(
-          "relative z-10 inline-flex items-center gap-2 transition-colors",
-          isPrimary
-            ? "text-foreground group-hover:text-primary-foreground"
-            : "text-foreground group-hover:text-background",
-        )}
-      >
-        {children}
-      </span>
-      <span
-        className={cn(
-          "relative z-10 font-mono transition-colors",
-          isPrimary
-            ? "text-primary group-hover:text-primary-foreground"
-            : "text-muted-foreground group-hover:text-background",
-        )}
-      >
-        +
-      </span>
-    </Link>
-  );
 }
 
 function formatShortId(value: string) {
