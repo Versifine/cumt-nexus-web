@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, MessageSquare, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ArrowLeft, MessageSquare } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -19,6 +19,7 @@ import { ApiError } from "@/lib/api/client";
 import { CommentForm } from "@/features/comment/comment-form";
 import { usePostCommentsQuery } from "@/features/comment/queries";
 import type { Comment } from "@/features/comment/types";
+import { VoteControl } from "@/features/vote/vote-control";
 
 import { usePostQuery } from "./queries";
 
@@ -80,15 +81,14 @@ export function PostDetail({ id }: PostDetailProps) {
                 <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
                   {post.body}
                 </p>
-                <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5">
-                    <ThumbsUp className="size-4" aria-hidden="true" />
-                    {post.upvote_count}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <ThumbsDown className="size-4" aria-hidden="true" />
-                    {post.downvote_count}
-                  </span>
+                <div className="mt-5 flex flex-col gap-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                  <VoteControl
+                    postId={post.id}
+                    upvoteCount={post.upvote_count}
+                    downvoteCount={post.downvote_count}
+                    score={post.score}
+                    myVote={post.my_vote}
+                  />
                   <span className="inline-flex items-center gap-1.5">
                     <MessageSquare className="size-4" aria-hidden="true" />
                     Comments
