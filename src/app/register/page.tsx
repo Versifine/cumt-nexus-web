@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-import { LoginForm } from "@/features/auth/login-form";
+import { RegisterForm } from "@/features/auth/register-form";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10 text-foreground">
       <div className="w-full max-w-md">
@@ -18,18 +18,18 @@ export default function LoginPage() {
 
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="mb-5">
-            <h1 className="text-xl font-semibold tracking-normal">Sign in</h1>
+            <h1 className="text-xl font-semibold tracking-normal">Create account</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Use your CUMT Nexus username and password.
+              Start with a username and password.
             </p>
           </div>
 
-          <LoginForm />
+          <RegisterForm />
 
           <p className="mt-5 text-center text-sm text-muted-foreground">
-            Need an account?{" "}
-            <Link href="/register" className="text-primary hover:underline">
-              Create one
+            Already have an account?{" "}
+            <Link href="/login" className="text-primary hover:underline">
+              Sign in
             </Link>
           </p>
         </section>
