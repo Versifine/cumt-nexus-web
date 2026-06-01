@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -120,9 +121,9 @@ export function HomeShell() {
                           />
                         </div>
                         <div className="min-w-0 flex-1 space-y-3">
-                          <div className={cn("h-4 rounded bg-muted", row.width)} />
-                          <div className={cn("h-3 rounded bg-muted/70", row.meta)} />
-                          <div className="h-3 w-full max-w-xl rounded bg-muted/50" />
+                          <Skeleton className={cn("h-4", row.width)} />
+                          <Skeleton className={cn("h-3 bg-muted/70", row.meta)} />
+                          <Skeleton className="h-3 w-full max-w-xl bg-muted/50" />
                         </div>
                         <div className="hidden h-8 w-14 rounded-lg border border-border bg-background-soft sm:block" />
                       </div>
