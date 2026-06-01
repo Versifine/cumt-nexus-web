@@ -23,8 +23,9 @@
 - 参考 docs/design/page-patterns.md 中的 [Landing/Auth/Dashboard/List/Detail/Form/Settings] Page。
 
 视觉要求：
-- 必须符合 dark SaaS / Linear / Vercel / Raycast 风格。
+- 必须符合 dark editorial product / magazine-grade campus community interface 风格。
 - 深色模式优先。
+- Web 界面默认使用简体中文；除品牌名、技术名、URL slug、API 字段名和用户生成内容外，不要混用英文产品文案。
 - 使用 shadcn/ui + Tailwind CSS。
 - 图标使用 lucide-react。
 - Motion 只做克制的状态过渡。
