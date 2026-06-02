@@ -34,6 +34,7 @@ console.log("");
 
 await checkFrontendHealth();
 await checkBackendHealth();
+await checkBackendCors();
 await checkReadyz();
 await checkPublicEntrypoints();
 await checkSecurityHeaders();
@@ -136,6 +137,51 @@ async function checkBackendHealth() {
   addBackendUnavailable("backend health", `/healthz returned HTTP ${response.status}`);
 }
 
+async function checkBackendCors() {
+  const response = await fetchText(`${apiBaseUrl}/api/v1/posts`, {
+    headers: {
+      "Access-Control-Request-Headers": "Authorization, Content-Type",
+      "Access-Control-Request-Method": "GET",
+      Origin: frontendUrl,
+    },
+    method: "OPTIONS",
+  });
+
+  if (!response.ok) {
+    addBackendUnavailable("backend CORS", response.detail);
+    return;
+  }
+
+  const allowedOrigin = response.headers.get("access-control-allow-origin");
+  const allowedMethods = response.headers.get("access-control-allow-methods") ?? "";
+  const allowedHeaders = response.headers.get("access-control-allow-headers") ?? "";
+  const normalizedMethods = allowedMethods.toLowerCase();
+  const normalizedHeaders = allowedHeaders.toLowerCase();
+
+  if (response.status !== 204) {
+    addBackendUnavailable("backend CORS", `preflight returned HTTP ${response.status}`);
+    return;
+  }
+
+  if (allowedOrigin !== frontendUrl && allowedOrigin !== "*") {
+    addBackendUnavailable(
+      "backend CORS",
+      `Access-Control-Allow-Origin must allow ${frontendUrl}; received ${allowedOrigin ?? "<missing>"}`,
+    );
+    return;
+  }
+
+  if (!normalizedMethods.includes("get") || !normalizedHeaders.includes("authorization")) {
+    addBackendUnavailable(
+      "backend CORS",
+      `preflight missing required method/header support: methods=${allowedMethods || "<missing>"}, headers=${allowedHeaders || "<missing>"}`,
+    );
+    return;
+  }
+
+  addPass("backend CORS", `preflight allows browser requests from ${frontendUrl}`);
+}
+
 async function checkReadyz() {
   const response = await fetchText(`${frontendUrl}/readyz`);
   if (!response.ok) {
@@ -234,12 +280,12 @@ async function checkSecurityHeaders() {
   addFail("security headers", `missing or unexpected headers: ${missing.join(", ")}`);
 }
 
-async function fetchText(url) {
+async function fetchText(url, init = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, { ...init, signal: controller.signal });
     const body = await response.text();
 
     return {

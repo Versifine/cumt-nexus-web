@@ -73,6 +73,14 @@ http://localhost:3000
 
 前端默认依赖后端 CORS 已配置完成，不使用 Next dev proxy。
 
+本地联调时，后端必须允许当前前端 origin：
+
+```powershell
+$env:HTTP_CORS_ALLOWED_ORIGINS='http://localhost:3000'
+```
+
+如果后端没有配置该 origin，Node.js 脚本仍可能直连接口，但浏览器会被 CORS 拦截。严格 `check:readiness` 会用 `OPTIONS /api/v1/posts` 预检确认浏览器请求可用。
+
 API client 统一处理：
 
 - `Authorization: Bearer <access_token>`
@@ -102,7 +110,7 @@ API client 统一处理：
 npm run check:readiness
 ```
 
-严格模式会检查前端 `/healthz`、后端 `/healthz`、前端 `/readyz`、`robots.txt`、`sitemap.xml`、`manifest.webmanifest`、`icon.svg` 和基础安全响应头。任何 blocker 都会让命令失败。
+严格模式会检查前端 `/healthz`、后端 `/healthz`、后端 CORS 预检、前端 `/readyz`、`robots.txt`、`sitemap.xml`、`manifest.webmanifest`、`icon.svg` 和基础安全响应头。任何 blocker 都会让命令失败。
 
 环境变量检查：
 

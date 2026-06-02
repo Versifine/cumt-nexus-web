@@ -10,7 +10,7 @@
 npm run check:readiness
 ```
 
-严格模式用于正式验收。只要后端不可达、`/readyz` 降级、公开入口缺失或基础安全响应头缺失，就必须失败。
+严格模式用于正式验收。只要后端不可达、后端 CORS 预检不允许当前前端 origin、`/readyz` 降级、公开入口缺失或基础安全响应头缺失，就必须失败。
 
 本地宽松模式：
 
@@ -86,6 +86,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 - 前端 `/healthz` 是否返回 `cumt-nexus-web` 和 `ok`。
 - 后端 `NEXT_PUBLIC_API_BASE_URL/healthz` 是否可达。
+- 后端 `OPTIONS /api/v1/posts` 是否允许当前 `NEXT_PUBLIC_SITE_URL` origin、`GET` 方法和 `Authorization` 请求头。
 - 前端 `/readyz` 是否返回 `ready`；严格模式下 degraded 是阻塞。
 - `robots.txt` 是否包含 sitemap 声明。
 - `sitemap.xml` 是否包含站点 URL。
@@ -159,6 +160,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `npm run check:routes` 未通过。
 - `npm run check:readiness` 未通过。
 - 后端 `/healthz` 不可达，或前端 `/readyz` 仍为 degraded。
+- 后端 CORS 未允许当前前端 origin、`GET` 方法或 `Authorization` 请求头，导致浏览器无法访问 API。
 - 注册、登录、获取当前用户、社区列表、社区详情、发帖、帖子详情、评论、投票主链路没有用真实后端验证。
 - 生产环境未配置正式 `NEXT_PUBLIC_API_BASE_URL`。
 - 生产环境未配置正式 `NEXT_PUBLIC_SITE_URL`。
@@ -192,4 +194,4 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 后端联调要求
 
-严格上线验收要求后端服务已启动，并且 `http://localhost:8080/healthz` 或目标环境的后端健康检查可达。后端不可达时，`/readyz` 会返回 degraded，`npm run check:readiness` 和 `npm run check:main-path` 都不能作为通过证据。
+严格上线验收要求后端服务已启动，并且 `http://localhost:8080/healthz` 或目标环境的后端健康检查可达。本地联调时，后端还需要配置 `HTTP_CORS_ALLOWED_ORIGINS=http://localhost:3000` 或对应前端地址。后端不可达或 CORS 预检失败时，`npm run check:readiness` 和 `npm run check:main-path` 都不能作为通过证据。
