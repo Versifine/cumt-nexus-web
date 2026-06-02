@@ -22,6 +22,7 @@
 - 受保护动作登录门禁：未登录访问发帖或社区申请时，引导登录/注册并保留 `next` 回跳。
 - 全局 404 和页面错误状态页。
 - 页面级标题、描述、`robots.txt` 和 `sitemap.xml`。
+- 基础 favicon、Web App Manifest、Open Graph 和 Twitter 分享元信息。
 - 主要数据页覆盖 loading、empty、error、未登录、提交中和成功/失败状态。
 
 首版暂不做：
@@ -81,6 +82,7 @@ API client 统一处理：
 - `NEXT_PUBLIC_SITE_URL` 用于生成 `robots.txt` 和 `sitemap.xml` 中的绝对 URL。
 - 本地默认值是 `http://localhost:3000`；生产部署时必须改为正式域名。
 - sitemap 当前只包含不依赖后端数据即可访问的静态主入口。社区详情和帖子详情需要真实数据源稳定后再扩展动态 sitemap。
+- `manifest.webmanifest`、favicon 和分享元信息复用同一套站点 URL 和品牌文案；当前只提供基础 SVG 图标，不包含大尺寸 Open Graph 封面图。
 
 当前首版依赖的主要接口：
 
