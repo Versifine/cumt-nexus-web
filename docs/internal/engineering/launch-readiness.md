@@ -37,6 +37,14 @@ npm run check:api-boundary
 
 该命令用于确认源码仍遵守前后端 HTTP contract 边界：页面和组件不直接写后端 URL，业务 API 路径集中在 feature API 模块，统一 client 负责 base URL、认证头、错误解析和超时兜底。
 
+依赖与 UI 库边界检查：
+
+```powershell
+npm run check:dependencies
+```
+
+该命令用于确认项目仍遵守固定技术栈和唯一主组件系统边界：直接依赖必须在批准清单内，`package-lock.json` 根依赖必须与 `package.json` 一致，源码和锁文件中不允许出现 Ant Design、MUI、Mantine、Chakra、DaisyUI 等第二套 UI 库。确需新增依赖时，必须先说明用途、替代方案和影响范围，再在同一切片中更新批准清单。
+
 公开页面冒烟检查：
 
 ```powershell
@@ -50,6 +58,7 @@ npm run check:routes
 ```powershell
 node scripts/check-readiness.mjs --frontend-url=http://localhost:3000 --api-base-url=http://localhost:8080 --timeout-ms=8000
 node scripts/check-api-boundary.mjs
+node scripts/check-dependency-boundary.mjs
 node scripts/check-env.mjs --production
 node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --timeout-ms=8000
 ```
@@ -84,6 +93,14 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `/api/v1` 后端路径是否只出现在 `src/features/*/api.ts`。
 - feature API 模块里的 `apiRequest(...)` 路径是否都以 `/api/v1` 开头。
 
+`scripts/check-dependency-boundary.mjs` 当前检查：
+
+- `package.json` 和 `package-lock.json` 是否存在且 JSON 合法。
+- `dependencies` 和 `devDependencies` 是否仍是批准的直接依赖和版本。
+- `package-lock.json` 根依赖声明是否与 `package.json` 完全一致。
+- 直接依赖和锁文件中是否出现被禁止的第二套 UI 库。
+- `src/` 源码 import 是否绕过 shadcn/ui 边界引入被禁止的 UI 库。
+
 `scripts/check-public-routes.mjs` 当前检查：
 
 - `/`：包含 `CUMT Nexus`、`最新讨论`、`浏览社区`。
@@ -101,6 +118,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `npm run typecheck` 未通过。
 - `npm run build` 未通过。
 - `npm run check:api-boundary` 未通过。
+- `npm run check:dependencies` 未通过。
 - `npm run check:env` 未通过。
 - `npm run check:routes` 未通过。
 - `npm run check:readiness` 未通过。

@@ -121,6 +121,14 @@ npm run check:api-boundary
 
 该命令会静态检查源码中的后端调用边界：业务接口路径必须留在 `src/features/*/api.ts`，`apiRequest` 路径必须以 `/api/v1` 开头，`NEXT_PUBLIC_API_BASE_URL` 只能由统一 API client 读取，源码中不允许绕过批准位置直接 `fetch()` 后端。
 
+依赖与 UI 库边界检查：
+
+```powershell
+npm run check:dependencies
+```
+
+该命令会检查 `package.json` 的直接依赖是否仍在批准清单内，`package-lock.json` 根依赖是否与 `package.json` 一致，并阻止 Ant Design、MUI、Mantine、Chakra、DaisyUI 等第二套 UI 库进入依赖或源码 import。确需新增依赖时，必须在明确切片里说明用途、替代方案和影响范围，并同步更新该检查。
+
 公开页面冒烟检查：
 
 ```powershell
@@ -170,6 +178,7 @@ npm run lint
 npm run typecheck
 npm run build
 npm run check:api-boundary
+npm run check:dependencies
 npm run check:env
 npm run check:routes
 npm run check:readiness
