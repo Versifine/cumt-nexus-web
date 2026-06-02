@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { TextAction } from "@/components/ui/text-action";
+import { AuthRequired } from "@/features/auth/auth-required";
 import { CommunityApplicationForm } from "@/features/community/community-application-form";
 
 export default function NewCommunityApplicationPage() {
@@ -44,7 +45,13 @@ export default function NewCommunityApplicationPage() {
 
         <section className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
-            <CommunityApplicationForm />
+            <AuthRequired
+              authenticatedLabel="可以提交社区申请"
+              title="登录后申请新社区"
+              description="社区申请会绑定到当前账号，用于审核、后续维护和负责人设置。登录后会回到本页继续填写申请。"
+            >
+              <CommunityApplicationForm />
+            </AuthRequired>
           </div>
 
           <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">

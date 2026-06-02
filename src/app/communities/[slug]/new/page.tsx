@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { TextAction } from "@/components/ui/text-action";
+import { AuthRequired } from "@/features/auth/auth-required";
 import { PostForm } from "@/features/post/post-form";
 
 type NewPostPageProps = {
@@ -52,7 +53,13 @@ export default async function NewPostPage({ params }: NewPostPageProps) {
 
         <section className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
-            <PostForm slug={slug} />
+            <AuthRequired
+              authenticatedLabel="可以发布帖子"
+              title="登录后发起讨论"
+              description={`帖子会发布到 /${slug}，并绑定到当前账号。登录后会回到本页继续编辑。`}
+            >
+              <PostForm slug={slug} />
+            </AuthRequired>
           </div>
 
           <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">

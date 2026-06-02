@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { login } from "./api";
 import { useAuthSession } from "./auth-session";
 import { authQueryKeys } from "./query-keys";
+import { getSafeAuthRedirectPath } from "./redirect";
 
 const loginSchema = z.object({
   username: z.string().trim().min(1, "请输入用户名。"),
@@ -44,7 +45,7 @@ export function LoginForm({ className }: LoginFormProps) {
     onSuccess: (result) => {
       setToken(result.access_token);
       queryClient.setQueryData(authQueryKeys.me(), result.user);
-      router.push("/");
+      router.push(getSafeNextPath());
     },
   });
 
@@ -202,4 +203,12 @@ function getSubmitError(error: Error | null) {
   }
 
   return "请求失败，请稍后重试。";
+}
+
+function getSafeNextPath() {
+  if (typeof window === "undefined") {
+    return "/";
+  }
+
+  return getSafeAuthRedirectPath(window.location.search);
 }
