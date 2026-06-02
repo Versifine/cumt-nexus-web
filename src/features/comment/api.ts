@@ -10,16 +10,25 @@ type ListPostCommentsInput = {
   postId: string;
   limit?: number;
   offset?: number;
+  view?: "flat" | "tree";
+  sort?: "new" | "old";
+  maxDepth?: number;
 };
 
 export function listPostComments({
   postId,
   limit = 20,
   offset = 0,
+  view = "tree",
+  sort = "new",
+  maxDepth = 6,
 }: ListPostCommentsInput) {
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
+    view,
+    sort,
+    max_depth: String(maxDepth),
   });
 
   return apiRequest<ListCommentsResponse>(

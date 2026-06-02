@@ -14,8 +14,8 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
 import { CommentForm } from "@/features/comment/comment-form";
+import { CommentTree } from "@/features/comment/comment-tree";
 import { usePostCommentsQuery } from "@/features/comment/queries";
-import type { Comment } from "@/features/comment/types";
 import { VoteControl } from "@/features/vote/vote-control";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -79,7 +79,7 @@ export function PostDetail({ id }: PostDetailProps) {
                     评论
                   </h2>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                    用评论补充信息、提出问题或回应观点。当前版本保持单层评论，不伪造楼中楼结构。
+                    用评论补充信息、提出问题或回应观点。回复会以树状结构展开，深层讨论可以折叠。
                   </p>
                 </div>
 
@@ -124,15 +124,7 @@ export function PostDetail({ id }: PostDetailProps) {
                   ) : null}
 
                   {commentsQuery.isSuccess && comments.length > 0 ? (
-                    <div className="divide-y divide-border border-b border-border">
-                      {comments.map((comment, index) => (
-                        <CommentRow
-                          key={comment.id}
-                          comment={comment}
-                          index={index}
-                        />
-                      ))}
-                    </div>
+                    <CommentTree comments={comments} maxDepth={6} postId={id} />
                   ) : null}
                 </div>
               </section>
@@ -202,38 +194,6 @@ function PostArticle({
         </div>
       </div>
     </article>
-  );
-}
-
-function CommentRow({
-  comment,
-  index,
-}: {
-  comment: Comment;
-  index: number;
-}) {
-  return (
-    <div className="grid gap-4 py-5 md:grid-cols-[72px_minmax(0,1fr)_120px]">
-      <div className="font-mono text-xs text-muted-foreground">
-        {String(index + 1).padStart(2, "0")}
-      </div>
-
-      <div className="min-w-0">
-        <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">
-          {comment.body}
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="border border-border px-2 py-0.5 font-mono">
-            作者 {formatShortId(comment.author_id)}
-          </span>
-          <span>{formatCommentStatus(comment.status)}</span>
-        </div>
-      </div>
-
-      <div className="text-left text-xs text-muted-foreground md:text-right">
-        {formatDate(comment.created_at)}
-      </div>
-    </div>
   );
 }
 
@@ -413,19 +373,6 @@ function getErrorDescription(error: Error | null) {
 }
 
 function formatPostStatus(status: string) {
-  switch (status) {
-    case "visible":
-      return "可见";
-    case "archived":
-      return "已归档";
-    case "hidden":
-      return "已隐藏";
-    default:
-      return status;
-  }
-}
-
-function formatCommentStatus(status: string) {
   switch (status) {
     case "visible":
       return "可见";
