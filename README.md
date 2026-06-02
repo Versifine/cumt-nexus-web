@@ -24,6 +24,7 @@
 - 页面级标题、描述、`robots.txt` 和 `sitemap.xml`。
 - 基础 favicon、Web App Manifest、Open Graph 和 Twitter 分享元信息。
 - 前端健康检查端点 `/healthz`。
+- 前后端就绪检查端点 `/readyz`。
 - 主要数据页覆盖 loading、empty、error、未登录、提交中和成功/失败状态。
 
 首版暂不做：
@@ -89,7 +90,8 @@ API client 统一处理：
 
 - `GET /healthz` 返回前端应用自身状态，可用于部署平台或反向代理探测 Next 服务是否可响应。
 - `/healthz` 不会请求后端，也不代表 `NEXT_PUBLIC_API_BASE_URL` 对应的后端 API 可用。
-- 真实上线前仍需要单独验证后端 `/healthz` 和主链路接口。
+- `GET /readyz` 会检查前端自身和后端 `/healthz`，后端不可达时返回 `503` 与 `degraded` 状态。
+- 真实上线前仍需要在 `/readyz` 通过后验证登录、注册、社区、发帖、评论和投票主链路。
 
 当前首版依赖的主要接口：
 
