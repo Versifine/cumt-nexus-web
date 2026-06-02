@@ -3,9 +3,12 @@ import { clearAccessToken, readAccessToken } from "@/lib/auth/token-storage";
 import type { ApiErrorBody, ApiErrorResponse } from "./types";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8080";
+const DEFAULT_API_TIMEOUT_MS = 15_000;
+const TIMEOUT_ABORT_REASON = "api-request-timeout";
 
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
+  timeoutMs?: number;
   token?: string | null;
 };
 
@@ -29,8 +32,16 @@ export async function apiRequest<TResponse>(
   path: string,
   options: ApiRequestOptions = {},
 ): Promise<TResponse> {
-  const { body, headers, token = readAccessToken(), ...requestInit } = options;
+  const {
+    body,
+    headers,
+    signal,
+    timeoutMs = DEFAULT_API_TIMEOUT_MS,
+    token = readAccessToken(),
+    ...requestInit
+  } = options;
   const requestHeaders = new Headers(headers);
+  const abortHandle = createRequestAbortHandle(signal, timeoutMs);
 
   if (body !== undefined && !requestHeaders.has("Content-Type")) {
     requestHeaders.set("Content-Type", "application/json");
@@ -40,11 +51,20 @@ export async function apiRequest<TResponse>(
     requestHeaders.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...requestInit,
-    headers: requestHeaders,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`, {
+      ...requestInit,
+      headers: requestHeaders,
+      signal: abortHandle.signal,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (error) {
+    throw createApiRequestError(error, abortHandle.signal);
+  } finally {
+    abortHandle.clear();
+  }
 
   if (!response.ok) {
     const error = await readApiError(response);
@@ -61,6 +81,69 @@ export async function apiRequest<TResponse>(
   }
 
   return (await response.json()) as TResponse;
+}
+
+function createRequestAbortHandle(
+  callerSignal: AbortSignal | null | undefined,
+  timeoutMs: number,
+) {
+  const controller = new AbortController();
+  const timeoutId =
+    timeoutMs > 0
+      ? globalThis.setTimeout(() => {
+          controller.abort(TIMEOUT_ABORT_REASON);
+        }, timeoutMs)
+      : undefined;
+
+  const abortFromCaller = () => {
+    controller.abort(callerSignal?.reason);
+  };
+
+  if (callerSignal?.aborted) {
+    abortFromCaller();
+  } else {
+    callerSignal?.addEventListener("abort", abortFromCaller, { once: true });
+  }
+
+  return {
+    clear: () => {
+      if (timeoutId !== undefined) {
+        globalThis.clearTimeout(timeoutId);
+      }
+
+      callerSignal?.removeEventListener("abort", abortFromCaller);
+    },
+    signal: controller.signal,
+  };
+}
+
+function createApiRequestError(error: unknown, signal: AbortSignal) {
+  if (signal.reason === TIMEOUT_ABORT_REASON) {
+    return new ApiError(0, {
+      code: "timeout",
+      message: "请求等待时间过长，请稍后重试。",
+    });
+  }
+
+  if (isAbortError(error)) {
+    return new ApiError(0, {
+      code: "network",
+      message: "请求已中断，请稍后重试。",
+    });
+  }
+
+  return new ApiError(0, {
+    code: "network",
+    message: "服务暂时无法连接，请稍后重试。",
+  });
+}
+
+function isAbortError(error: unknown) {
+  return (
+    typeof DOMException !== "undefined" &&
+    error instanceof DOMException &&
+    error.name === "AbortError"
+  );
 }
 
 async function readApiError(response: Response): Promise<ApiErrorBody> {
@@ -94,6 +177,10 @@ function getClientErrorMessage(error: ApiErrorBody) {
       return "当前内容已存在或状态冲突。";
     case "internal":
       return "服务暂时不可用，请稍后重试。";
+    case "network":
+      return error.message || "服务暂时无法连接，请稍后重试。";
+    case "timeout":
+      return error.message || "请求等待时间过长，请稍后重试。";
     default:
       return error.message || "请求失败，请稍后重试。";
   }

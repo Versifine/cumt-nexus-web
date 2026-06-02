@@ -4,7 +4,9 @@ export type ApiErrorCode =
   | "forbidden"
   | "not_found"
   | "conflict"
-  | "internal";
+  | "internal"
+  | "network"
+  | "timeout";
 
 export type ApiErrorBody = {
   code: ApiErrorCode | string;
