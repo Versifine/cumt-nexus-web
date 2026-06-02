@@ -1,54 +1,27 @@
 # CUMT Nexus Web
 
-`cumt-nexus-web` 是 CUMT Nexus 的前端仓库，面向校园社区内容产品。前端对接后端仓库 `D:\Projects\cumt-nexus-api`，后端当前主线是阶段 6：全站最新帖子流 + 帖子 upvote/downvote 基础。
+`cumt-nexus-web` 是 CUMT Nexus 的前端仓库，面向校园社区内容产品。前端直连后端仓库 `D:\Projects\cumt-nexus-api`，默认后端地址为 `http://localhost:8080`。
 
 ## 当前状态
 
-- 阶段：`阶段 0 前端规划与视觉基线`
-- 技术栈：`Next.js + Tailwind CSS + shadcn/ui + Motion`
-- 产品形态：登录后内容社区，不做营销落地页。
-- 设计方向：暗色 editorial product，借鉴杂志/报告式版式的线条、分栏、编号和数据感，保留校园社区产品的可用性。
-- 界面语言：简体中文优先，品牌名、技术名、URL slug、API 字段名和用户生成内容保留原文。
+- 技术栈：Next.js App Router + React + TypeScript + Tailwind CSS + shadcn/ui + Motion。
+- 视觉方向：dark editorial product / magazine-grade campus community interface。
+- 界面语言：用户可见文案默认使用简体中文，品牌名、技术名、URL slug、API 字段和用户生成内容保留原文。
+- 当前分支：`stage/0-web-planning`。
+- 当前目标：持续推进到可上线版本，保持小的纵向切片逐步收口。
 
-阶段 0 已完成文档基线、Next.js 工程初始化和首版社区主链路骨架。当前页面已接入业务 API、登录态和中文界面，下一步重点是打磨产品质感与真实联调。
+## 已实现范围
 
-## 技术选择
-
-```text
-Next.js App Router
-React
-TypeScript
-Tailwind CSS
-shadcn/ui
-Motion
-TanStack Query
-react-hook-form
-zod
-lucide-react
-```
-
-选择理由：
-
-- Next.js App Router 提供稳定的布局、路由和后续公开内容 SEO 空间。
-- shadcn/ui 基于 Radix 和 Tailwind，可定制空间大，适合做出自己的产品气质。
-- Tailwind CSS 用于沉淀设计 token 和状态样式。
-- Motion 只用于微交互、列表进入、弹窗和状态反馈，不做大面积炫技动效。
-- TanStack Query 承担服务端状态、缓存、重试和失效刷新。
-- react-hook-form + zod 承担登录、注册、发帖、评论和社区申请表单。
-
-## 首版产品范围
-
-首版先覆盖后端已经具备或阶段 6 正在收口的主链路：
-
-- 注册、登录、当前用户识别。
-- 社区列表和社区详情。
-- 社区帖子列表。
-- 发布帖子。
-- 帖子详情。
-- 评论列表和发布评论。
-- 社区创建申请。
+- 注册、登录、当前用户识别和本地 token 会话。
 - 全站最新帖子流。
-- 帖子 upvote/downvote 状态展示和操作。
+- 社区列表、社区详情和社区帖子列表。
+- 帖子详情、评论列表和评论发布。
+- 帖子 upvote / downvote 状态展示和操作。
+- 在指定社区发布帖子。
+- 提交社区创建申请。
+- 受保护动作登录门禁：未登录访问发帖或社区申请时，引导登录/注册并保留 `next` 回跳。
+- 全局 404 和页面错误状态页。
+- 主要数据页覆盖 loading、empty、error、未登录、提交中和成功/失败状态。
 
 首版暂不做：
 
@@ -56,38 +29,97 @@ lucide-react
 - 申请列表和申请取消。
 - 个人资料编辑、头像、邮箱。
 - 图片上传、帖子编辑、删除、搜索。
-- hot feed、推荐排序、评论投票、通知、防刷策略。
+- hot feed、推荐排序、评论投票、通知、私信和实时能力。
+
+## 本地运行
+
+安装依赖：
+
+```powershell
+npm install
+```
+
+准备环境变量：
+
+```powershell
+Copy-Item .env.example .env.local
+```
+
+`.env.example` 当前只包含：
+
+```text
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+```
+
+启动开发服务器：
+
+```powershell
+npm run dev
+```
+
+默认访问：
+
+```text
+http://localhost:3000
+```
 
 ## 后端依赖
 
-默认后端地址：
+前端默认依赖后端 CORS 已配置完成，不使用 Next dev proxy。
 
-```text
-http://localhost:8080
-```
-
-前端按后端 CORS 已配置处理，不默认依赖 Vite/Next dev proxy。API 客户端统一处理：
+API client 统一处理：
 
 - `Authorization: Bearer <access_token>`
-- `401 unauthenticated` 清理登录态并引导登录
+- `401 unauthenticated` 清理本地登录态
 - 错误响应 `{ "error": { "code": "...", "message": "..." } }`
-- 分页参数 `limit` / `offset`
+- `NEXT_PUBLIC_API_BASE_URL` 配置后端地址
 
-## 文档
+当前首版依赖的主要接口：
 
-- `tasks.md`：当前阶段工单板。
-- `AGENTS.md`：Codex 后续在本项目中的工作约束。
+```text
+POST   /api/v1/auth/register
+POST   /api/v1/auth/login
+GET    /api/v1/me
+GET    /api/v1/communities
+GET    /api/v1/communities/:slug
+GET    /api/v1/communities/:slug/posts
+POST   /api/v1/communities/:slug/posts
+GET    /api/v1/posts
+GET    /api/v1/posts/:id
+GET    /api/v1/posts/:id/comments
+POST   /api/v1/posts/:id/comments
+PUT    /api/v1/posts/:id/vote
+DELETE /api/v1/posts/:id/vote
+POST   /api/v1/community-applications
+```
+
+## 验证命令
+
+每个实现切片至少运行：
+
+```powershell
+npm run lint
+npm run typecheck
+npm run build
+```
+
+涉及页面和交互时，还需要浏览器检查：
+
+- 桌面和移动断点。
+- loading、empty、error 状态。
+- 未登录和登录态入口。
+- 表单校验、提交中、提交失败和提交成功路径。
+- 是否有横向溢出和控制台错误。
+
+## 项目文档
+
+- `AGENTS.md`：Codex 后续工作约束。
 - `docs/design/DESIGN.md`：长期 UI/UX 风格规范。
 - `docs/design/page-patterns.md`：常见页面结构规范。
 - `docs/design/component-rules.md`：组件使用规则。
-- `docs/prompts/frontend-task-template.md`：前端实现任务提示词模板。
-- `docs/prompts/frontend-review-template.md`：前端审查提示词模板。
-- `docs/internal/README.md`：内部文档索引。
+- `docs/prompts/frontend-task-template.md`：前端实现任务模板。
+- `docs/prompts/frontend-review-template.md`：前端审查任务模板。
 - `docs/internal/architecture/frontend-v1.md`：前端 V1 架构、路由和 API 边界。
-- `docs/internal/design/product-visual-direction.md`：内部设计索引，指向 `docs/design/`。
 - `docs/internal/engineering/workflow.md`：阶段推进、分支、文档和验证规则。
-- `.ai/slices/stage-00-planning/`：阶段 0 切片记录。
 
-## 下一步
-
-推进 `W0-003`：继续沉淀设计 token 和基础组件基线，补齐常用 shadcn/ui 组件与 loading、empty、error 状态组件。
+页面实现前必须先阅读 `AGENTS.md` 和 `docs/design/*`，并且每次只推进一个小的纵向切片。
