@@ -1,9 +1,10 @@
 "use client";
 
+import { useRef } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
 import { ApiError } from "@/lib/api/client";
 
 import { publishComment } from "./api";
@@ -42,6 +44,7 @@ export function CommentForm({
   const pathname = usePathname();
   const { isReady, token } = useAuthSession();
   const queryClient = useQueryClient();
+  const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const form = useForm<CommentFormValues>({
     resolver: zodResolver(commentSchema),
     defaultValues: {
@@ -68,6 +71,8 @@ export function CommentForm({
   const next = pathname || `/posts/${postId}`;
   const loginHref = `/login?next=${encodeURIComponent(next)}`;
   const registerHref = `/register?next=${encodeURIComponent(next)}`;
+  const bodyValue = useWatch({ control: form.control, name: "body" }) ?? "";
+  const bodyField = form.register("body");
 
   if (!isReady) {
     return (
@@ -123,13 +128,29 @@ export function CommentForm({
       ) : null}
 
       <div className="space-y-2">
+        <MarkdownToolbar
+          disabled={commentMutation.isPending}
+          onChange={(nextValue) =>
+            form.setValue("body", nextValue, {
+              shouldDirty: true,
+              shouldTouch: true,
+              shouldValidate: true,
+            })
+          }
+          textareaRef={bodyTextareaRef}
+          value={bodyValue}
+        />
         <Textarea
           aria-label="评论内容"
           aria-invalid={Boolean(form.formState.errors.body)}
           disabled={commentMutation.isPending}
           placeholder={placeholder ?? (parentId ? "回复这条评论。" : "写下你的评论。")}
           className={compact ? "min-h-28" : undefined}
-          {...form.register("body")}
+          {...bodyField}
+          ref={(element) => {
+            bodyField.ref(element);
+            bodyTextareaRef.current = element;
+          }}
         />
         {form.formState.errors.body ? (
           <p className="text-sm text-destructive">
