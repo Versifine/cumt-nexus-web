@@ -422,7 +422,7 @@ POST /api/v1/embeds/resolve
 
 交付：
 
-- 选定 Markdown renderer 和 sanitizer 方案。
+- 按 `docs/internal/architecture/markdown-rendering.md` 选定 Markdown renderer 和 sanitizer 方案。
 - 明确是否新增依赖。
 - 写 dependency boundary 更新方案。
 - 不改帖子数据模型。
@@ -544,7 +544,8 @@ POST /api/v1/embeds/resolve
 推荐结论：
 
 - 结构上学习 Reddit，视觉上保持 CUMT Nexus 自己的暗色 editorial product 风格。
-- 先做安全 Markdown 和 spoiler，再做评论树。
+- 当前已先落地 spoiler / 涂黑的最小安全渲染；完整 Markdown renderer 的选型和安全边界见 `docs/internal/architecture/markdown-rendering.md`。
+- 下一步如要做完整 Markdown，应先获得新增依赖批准，再更新依赖边界检查。
 - 图片和 embed 晚于评论树，避免一次性扩大后端、存储、安全和前端渲染范围。
 - 外链播放器必须走 provider 白名单，不开放任意 iframe。
 - 后续任何实现都要以后端契约为准，先定数据模型和安全边界，再写前端 UI。

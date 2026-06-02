@@ -229,6 +229,8 @@ npm run check:readiness
 - `docs/prompts/frontend-task-template.md`：前端实现任务模板。
 - `docs/prompts/frontend-review-template.md`：前端审查任务模板。
 - `docs/internal/architecture/frontend-v1.md`：前端 V1 架构、路由和 API 边界。
+- `docs/internal/architecture/content-system.md`：内容系统产品形态、评论树、图片和 embed 边界。
+- `docs/internal/architecture/markdown-rendering.md`：Markdown renderer 选型、安全边界和实施切片。
 - `docs/internal/engineering/workflow.md`：阶段推进、分支、文档和验证规则。
 - `docs/internal/engineering/launch-readiness.md`：上线前自检、阻塞项和人工 QA 范围。
 - `docs/internal/engineering/deployment.md`：生产部署、环境变量、CORS、发布后验证和回滚标准。
