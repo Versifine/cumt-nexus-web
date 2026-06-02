@@ -2,6 +2,8 @@
 
 本文记录 `cumt-nexus-web` 从“本地可运行”推进到“可以上线”的检查边界。它不替代人工 QA，也不替代真实后端联调；它用于把每次收口前必须证明的事项固定下来。
 
+生产部署步骤、环境变量、CORS、发布后验证和回滚标准见 `docs/internal/engineering/deployment.md`。
+
 ## 自检命令
 
 严格模式：
@@ -178,6 +180,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 生产环境未配置正式 `NEXT_PUBLIC_SITE_URL`。
 - 主要页面没有完成桌面和移动端人工检查。
 - 登录后首页、社区详情、发帖、帖子详情、评论和投票还没有在真实可输入浏览器中完成端到端人工 QA。
+- `docs/internal/engineering/deployment.md` 中的生产部署前检查、发布后验证和回滚标准没有完成。
 
 ## 人工 QA 范围
 

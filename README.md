@@ -101,6 +101,7 @@ API client 统一处理：
 - `/healthz` 不会请求后端，也不代表 `NEXT_PUBLIC_API_BASE_URL` 对应的后端 API 可用。
 - `GET /readyz` 会检查前端自身和后端 `/healthz`，后端可达时返回 `200` 与 `ready` 状态，后端不可达时返回 `503` 与 `degraded` 状态。
 - 真实上线前仍需要在 `/readyz` 通过后验证登录、注册、社区、发帖、评论和投票主链路。
+- 生产部署步骤、环境变量、CORS、发布后验证和回滚标准见 `docs/internal/engineering/deployment.md`。
 
 ## 上线前自检
 
@@ -228,6 +229,7 @@ npm run check:readiness
 - `docs/internal/architecture/frontend-v1.md`：前端 V1 架构、路由和 API 边界。
 - `docs/internal/engineering/workflow.md`：阶段推进、分支、文档和验证规则。
 - `docs/internal/engineering/launch-readiness.md`：上线前自检、阻塞项和人工 QA 范围。
+- `docs/internal/engineering/deployment.md`：生产部署、环境变量、CORS、发布后验证和回滚标准。
 - `docs/internal/engineering/browser-qa.md`：真实浏览器人工 QA 步骤、失败分级和记录模板。
 
 页面实现前必须先阅读 `AGENTS.md` 和 `docs/design/*`，并且每次只推进一个小的纵向切片。
