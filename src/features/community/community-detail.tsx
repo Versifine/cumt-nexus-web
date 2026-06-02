@@ -29,7 +29,8 @@ type CommunityDetailProps = {
 
 export function CommunityDetail({ slug }: CommunityDetailProps) {
   const communityQuery = useCommunityQuery(slug);
-  const postsQuery = useCommunityPostsQuery(slug);
+  const canShowCommunityContent = communityQuery.isSuccess && Boolean(communityQuery.data?.community);
+  const postsQuery = useCommunityPostsQuery(slug, 20, 0, canShowCommunityContent);
   const community = communityQuery.data?.community;
   const posts = postsQuery.data?.posts ?? [];
 
@@ -50,7 +51,7 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
         </div>
 
         <section className="py-6">
-          {communityQuery.isLoading ? (
+          {communityQuery.isPending ? (
             <LoadingState rows={2} />
           ) : communityQuery.isError ? (
             <ErrorState
@@ -77,80 +78,86 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
           ) : null}
         </section>
 
-        <section className="grid gap-8 border-t border-border pt-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="min-w-0">
-            <div className="border-b border-border pb-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <div className="font-mono text-xs uppercase text-primary">
-                    POSTS / 社区帖子
+        {canShowCommunityContent ? (
+          <section className="grid gap-8 border-t border-border pt-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="min-w-0">
+              <div className="border-b border-border pb-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <div className="font-mono text-xs uppercase text-primary">
+                      POSTS / 社区帖子
+                    </div>
+                    <h2 className="mt-2 text-2xl font-black tracking-normal">
+                      最新讨论
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                      按当前后端返回顺序展示这个社区中的可见帖子，进入帖子后再参与投票和评论。
+                    </p>
                   </div>
-                  <h2 className="mt-2 text-2xl font-black tracking-normal">
-                    最新讨论
-                  </h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                    按当前后端返回顺序展示这个社区中的可见帖子，进入帖子后再参与投票和评论。
-                  </p>
+                  <TextAction href={`/communities/${slug}/new`} tone="primary">
+                    发布帖子
+                  </TextAction>
                 </div>
-                <TextAction href={`/communities/${slug}/new`} tone="primary">
-                  发布帖子
-                </TextAction>
+              </div>
+
+              <div className="py-5">
+                {postsQuery.isPending ? (
+                  <div className="border-b border-border pb-5">
+                    <LoadingState rows={5} />
+                  </div>
+                ) : null}
+
+                {postsQuery.isError ? (
+                  <ErrorState
+                    title={getErrorTitle(postsQuery.error, "无法加载帖子")}
+                    description={getErrorDescription(postsQuery.error)}
+                    action={
+                      isUnauthenticated(postsQuery.error) ? (
+                        <Button asChild variant="outline" size="sm">
+                          <Link href="/login">登录</Link>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => postsQuery.refetch()}
+                        >
+                          重试
+                        </Button>
+                      )
+                    }
+                  />
+                ) : null}
+
+                {postsQuery.isSuccess && posts.length === 0 ? (
+                  <EmptyState
+                    title="还没有帖子"
+                    description="发布第一条帖子，让这个社区开始形成讨论。"
+                    action={
+                      <TextAction href={`/communities/${slug}/new`} tone="primary">
+                        发布第一条帖子
+                      </TextAction>
+                    }
+                  />
+                ) : null}
+
+                {postsQuery.isSuccess && posts.length > 0 ? (
+                  <div className="divide-y divide-border border-b border-border">
+                    {posts.map((post, index) => (
+                      <PostRow key={post.id} index={index} post={post} />
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
 
-            <div className="py-5">
-              {postsQuery.isLoading ? (
-                <div className="border-b border-border pb-5">
-                  <LoadingState rows={5} />
-                </div>
-              ) : null}
-
-              {postsQuery.isError ? (
-                <ErrorState
-                  title={getErrorTitle(postsQuery.error, "无法加载帖子")}
-                  description={getErrorDescription(postsQuery.error)}
-                  action={
-                    isUnauthenticated(postsQuery.error) ? (
-                      <Button asChild variant="outline" size="sm">
-                        <Link href="/login">登录</Link>
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => postsQuery.refetch()}
-                      >
-                        重试
-                      </Button>
-                    )
-                  }
-                />
-              ) : null}
-
-              {postsQuery.isSuccess && posts.length === 0 ? (
-                <EmptyState
-                  title="还没有帖子"
-                  description="发布第一条帖子，让这个社区开始形成讨论。"
-                  action={
-                    <TextAction href={`/communities/${slug}/new`} tone="primary">
-                      发布第一条帖子
-                    </TextAction>
-                  }
-                />
-              ) : null}
-
-              {postsQuery.isSuccess && posts.length > 0 ? (
-                <div className="divide-y divide-border border-b border-border">
-                  {posts.map((post, index) => (
-                    <PostRow key={post.id} index={index} post={post} />
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          <CommunityRail community={community} posts={posts} isPostsLoading={postsQuery.isLoading} />
-        </section>
+            <CommunityRail
+              community={community}
+              posts={posts}
+              isPostsLoading={postsQuery.isPending}
+            />
+          </section>
+        ) : null}
       </div>
     </main>
   );

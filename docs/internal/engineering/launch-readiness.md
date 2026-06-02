@@ -146,6 +146,16 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `/community-applications/new`：包含 `CUMT Nexus`、`申请新社区`、`返回社区索引`。
 - 所有页面都必须包含 `zh-CN` 语言标记，且不能渲染常见错误页标记。
 
+## 最新浏览器 QA 记录
+
+2026-06-02 本地浏览器检查记录：
+
+- 桌面端验证 `/`、`/communities`、`/community-applications/new`、`/login`、`/register`：页面为中文、没有 Next.js 错误页、没有横向溢出、控制台没有 error。
+- 移动端 `390px` 宽度验证 `/`、`/communities`、`/communities/public`、`/communities/public/new`、`/community-applications/new`、`/login`、`/register`：没有横向溢出，没有错误页。
+- 未登录首页已验证：不再请求需要认证的最新帖子接口，不再展示“需要登录”错误面板，改为“登录后查看最新讨论”引导状态。
+- 未登录社区详情已验证：只展示单一登录提示，不再重复显示帖子区错误，也不显示 `--` 占位上下文。
+- 当前浏览器自动化环境无法输入表单，也无法写入本地 storage；登录后页面的真实浏览器人工 QA 仍需在可输入浏览器环境中补齐。
+
 ## 上线阻塞项
 
 以下任意一项未完成时，不允许把目标标记为可上线：
@@ -165,6 +175,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 生产环境未配置正式 `NEXT_PUBLIC_API_BASE_URL`。
 - 生产环境未配置正式 `NEXT_PUBLIC_SITE_URL`。
 - 主要页面没有完成桌面和移动端人工检查。
+- 登录后首页、社区详情、发帖、帖子详情、评论和投票还没有在真实可输入浏览器中完成端到端人工 QA。
 
 ## 人工 QA 范围
 

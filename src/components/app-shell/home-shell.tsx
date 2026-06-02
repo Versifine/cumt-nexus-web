@@ -48,7 +48,9 @@ const guideItems = [
 ];
 
 export function HomeShell() {
-  const latestPostsQuery = useLatestPostsQuery();
+  const { isReady, token } = useAuthSession();
+  const canLoadLatestPosts = isReady && Boolean(token);
+  const latestPostsQuery = useLatestPostsQuery(20, 0, canLoadLatestPosts);
   const posts = latestPostsQuery.data?.posts ?? [];
 
   return (
@@ -157,7 +159,10 @@ export function HomeShell() {
                       label="总分"
                       value={String(posts.reduce((total, post) => total + post.score, 0))}
                     />
-                    <MetricBlock label="状态" value="实时" />
+                    <MetricBlock
+                      label="状态"
+                      value={canLoadLatestPosts ? "实时" : "待登录"}
+                    />
                   </div>
                 </div>
               </section>
@@ -165,9 +170,11 @@ export function HomeShell() {
               <section className="border-b border-border py-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold">公开社区信息流</h2>
+                    <h2 className="text-lg font-semibold">社区信息流</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      来自后端最新帖子接口，按当前可见数据呈现。
+                      {canLoadLatestPosts
+                        ? "来自后端最新帖子接口，按当前可见数据呈现。"
+                        : "登录后读取最新帖子、投票状态和评论入口。"}
                     </p>
                   </div>
                   <span className="w-fit border border-primary/40 bg-primary/10 px-2.5 py-1 font-mono text-xs text-primary">
@@ -177,13 +184,29 @@ export function HomeShell() {
               </section>
 
               <section>
-                {latestPostsQuery.isLoading ? (
+                {!isReady ? (
                   <div className="border-b border-border py-5">
                     <LoadingState rows={5} />
                   </div>
                 ) : null}
 
-                {latestPostsQuery.isError ? (
+                {isReady && !token ? (
+                  <div className="py-5">
+                    <EmptyState
+                      title="登录后查看最新讨论"
+                      description="最新帖子需要身份上下文来展示投票状态。登录后即可查看社区里的实时讨论。"
+                      action={<TextAction href="/login">去登录</TextAction>}
+                    />
+                  </div>
+                ) : null}
+
+                {canLoadLatestPosts && latestPostsQuery.isLoading ? (
+                  <div className="border-b border-border py-5">
+                    <LoadingState rows={5} />
+                  </div>
+                ) : null}
+
+                {canLoadLatestPosts && latestPostsQuery.isError ? (
                   <div className="py-5">
                     <ErrorState
                       title={getErrorTitle(latestPostsQuery.error)}
@@ -207,7 +230,7 @@ export function HomeShell() {
                   </div>
                 ) : null}
 
-                {latestPostsQuery.isSuccess && posts.length === 0 ? (
+                {canLoadLatestPosts && latestPostsQuery.isSuccess && posts.length === 0 ? (
                   <div className="py-5">
                     <EmptyState
                       title="还没有帖子"
@@ -219,7 +242,7 @@ export function HomeShell() {
                   </div>
                 ) : null}
 
-                {latestPostsQuery.isSuccess && posts.length > 0 ? (
+                {canLoadLatestPosts && latestPostsQuery.isSuccess && posts.length > 0 ? (
                   <div className="divide-y divide-border border-b border-border">
                     {posts.map((post, index) => (
                       <LatestPostRow key={post.id} index={index} post={post} />
@@ -229,7 +252,7 @@ export function HomeShell() {
               </section>
             </motion.section>
 
-            <RightRail posts={posts} />
+            <RightRail canLoadLatestPosts={canLoadLatestPosts} posts={posts} />
           </div>
         </section>
       </div>
@@ -387,7 +410,13 @@ function LatestPostRow({ index, post }: { index: number; post: Post }) {
   );
 }
 
-function RightRail({ posts }: { posts: Post[] }) {
+function RightRail({
+  canLoadLatestPosts,
+  posts,
+}: {
+  canLoadLatestPosts: boolean;
+  posts: Post[];
+}) {
   const topPosts = posts.slice(0, 3);
 
   return (
@@ -439,7 +468,9 @@ function RightRail({ posts }: { posts: Post[] }) {
             </div>
           ) : (
             <p className="text-sm leading-6 text-muted-foreground">
-              等待帖子数据加载后展示。
+              {canLoadLatestPosts
+                ? "等待帖子数据加载后展示。"
+                : "登录后展示高分讨论。"}
             </p>
           )}
         </section>
