@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="CUMT Nexus">
+  <rect width="512" height="512" fill="#09090B"/>
+  <rect x="48" y="48" width="416" height="416" fill="#FAFAFA"/>
+  <rect x="72" y="72" width="368" height="368" fill="#09090B"/>
+  <path d="M118 158h94v42h-48v112h48v42h-94V158Zm181 0 92 152V158h46v196h-59L286 202v152h-46V158h59Z" fill="#FAFAFA"/>
+  <rect x="72" y="392" width="368" height="24" fill="#2DD4BF"/>
+</svg>

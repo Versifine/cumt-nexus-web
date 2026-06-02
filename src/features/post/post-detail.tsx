@@ -4,11 +4,11 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   ArrowDown,
-  ArrowLeft,
   ArrowUp,
   MessageSquare,
 } from "lucide-react";
 
+import { PageNav } from "@/components/app-shell/page-nav";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -32,22 +32,12 @@ export function PostDetail({ id }: PostDetailProps) {
   const commentsQuery = usePostCommentsQuery(id);
   const post = postQuery.data?.post;
   const comments = commentsQuery.data?.comments ?? [];
+  const loginHref = `/login?next=${encodeURIComponent(`/posts/${id}`)}`;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <div className="border-b border-border pb-4">
-          <Link
-            href="/communities"
-            className="group inline-flex h-10 items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <ArrowLeft
-              className="size-4 transition-transform group-hover:-translate-x-1"
-              aria-hidden="true"
-            />
-            返回社区索引
-          </Link>
-        </div>
+        <PageNav backHref="/communities" backLabel="返回社区索引" />
 
         <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
@@ -61,7 +51,7 @@ export function PostDetail({ id }: PostDetailProps) {
                   action={
                     isUnauthenticated(postQuery.error) ? (
                       <Button asChild variant="outline" size="sm">
-                        <Link href="/login">登录</Link>
+                        <Link href={loginHref}>登录</Link>
                       </Button>
                     ) : (
                       <Button
@@ -111,7 +101,7 @@ export function PostDetail({ id }: PostDetailProps) {
                       action={
                         isUnauthenticated(commentsQuery.error) ? (
                           <Button asChild variant="outline" size="sm">
-                            <Link href="/login">登录</Link>
+                            <Link href={loginHref}>登录</Link>
                           </Button>
                         ) : (
                           <Button

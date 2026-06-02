@@ -17,16 +17,23 @@ export function usePostQuery(id: string) {
   });
 }
 
-export function useLatestPostsQuery(limit = 20, offset = 0) {
+export function useLatestPostsQuery(limit = 20, offset = 0, enabled = true) {
   return useQuery({
     queryKey: postQueryKeys.latest(limit, offset),
     queryFn: () => listLatestPosts(limit, offset),
+    enabled,
   });
 }
 
-export function useCommunityPostsQuery(slug: string, limit = 20, offset = 0) {
+export function useCommunityPostsQuery(
+  slug: string,
+  limit = 20,
+  offset = 0,
+  enabled = true,
+) {
   return useQuery({
     queryKey: postQueryKeys.communityPosts(slug, limit, offset),
     queryFn: () => listCommunityPosts({ slug, limit, offset }),
+    enabled,
   });
 }

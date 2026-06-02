@@ -1,7 +1,8 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 
+import { PageNav } from "@/components/app-shell/page-nav";
 import { TextAction } from "@/components/ui/text-action";
+import { AuthRequired } from "@/features/auth/auth-required";
 import { PostForm } from "@/features/post/post-form";
 
 type NewPostPageProps = {
@@ -10,24 +11,24 @@ type NewPostPageProps = {
   }>;
 };
 
+export async function generateMetadata({
+  params,
+}: NewPostPageProps): Promise<Metadata> {
+  const { slug } = await params;
+
+  return {
+    title: `在 /${slug} 发起讨论`,
+    description: `在 /${slug} 社区发布新的帖子，补充标题和正文后提交。`,
+  };
+}
+
 export default async function NewPostPage({ params }: NewPostPageProps) {
   const { slug } = await params;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <div className="border-b border-border pb-4">
-          <Link
-            href={`/communities/${slug}`}
-            className="group inline-flex h-10 items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <ArrowLeft
-              className="size-4 transition-transform group-hover:-translate-x-1"
-              aria-hidden="true"
-            />
-            返回 /{slug}
-          </Link>
-        </div>
+        <PageNav backHref={`/communities/${slug}`} backLabel={`返回 /${slug}`} />
 
         <header className="border-b border-border py-6">
           <div className="font-mono text-xs uppercase text-primary">
@@ -52,7 +53,13 @@ export default async function NewPostPage({ params }: NewPostPageProps) {
 
         <section className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
-            <PostForm slug={slug} />
+            <AuthRequired
+              authenticatedLabel="可以发布帖子"
+              title="登录后发起讨论"
+              description={`帖子会发布到 /${slug}，并绑定到当前账号。登录后会回到本页继续编辑。`}
+            >
+              <PostForm slug={slug} />
+            </AuthRequired>
           </div>
 
           <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">

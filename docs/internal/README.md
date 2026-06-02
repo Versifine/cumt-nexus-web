@@ -5,8 +5,12 @@
 ## 文档索引
 
 - `architecture/frontend-v1.md`：前端 V1 架构、路由、模块和 API 协作边界。
+- `architecture/content-system.md`：Markdown-like 帖子、Reddit-style 评论树、图片和外链嵌入的产品/架构讨论稿。
 - `design/product-visual-direction.md`：内部设计索引，指向 `docs/design/` 的权威规范。
 - `engineering/workflow.md`：阶段、分支、工单、验证和后端同步规则。
+- `engineering/launch-readiness.md`：上线前自检命令、阻塞项和人工 QA 范围。
+- `engineering/deployment.md`：生产部署、环境变量、CORS、发布后验证和回滚标准。
+- `engineering/browser-qa.md`：真实浏览器人工 QA 步骤、失败分级和记录模板。
 
 ## 设计规范
 

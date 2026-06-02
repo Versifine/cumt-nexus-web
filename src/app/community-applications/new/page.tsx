@@ -1,25 +1,20 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 
+import { PageNav } from "@/components/app-shell/page-nav";
 import { TextAction } from "@/components/ui/text-action";
+import { AuthRequired } from "@/features/auth/auth-required";
 import { CommunityApplicationForm } from "@/features/community/community-application-form";
+
+export const metadata: Metadata = {
+  title: "申请新社区",
+  description: "提交 CUMT Nexus 社区申请，说明新社区的使用场景和维护方式。",
+};
 
 export default function NewCommunityApplicationPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <div className="border-b border-border pb-4">
-          <Link
-            href="/communities"
-            className="group inline-flex h-10 items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <ArrowLeft
-              className="size-4 transition-transform group-hover:-translate-x-1"
-              aria-hidden="true"
-            />
-            返回社区索引
-          </Link>
-        </div>
+        <PageNav backHref="/communities" backLabel="返回社区索引" />
 
         <header className="border-b border-border py-6">
           <div className="font-mono text-xs uppercase text-primary">
@@ -44,7 +39,13 @@ export default function NewCommunityApplicationPage() {
 
         <section className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
-            <CommunityApplicationForm />
+            <AuthRequired
+              authenticatedLabel="可以提交社区申请"
+              title="登录后申请新社区"
+              description="社区申请会绑定到当前账号，用于审核、后续维护和负责人设置。登录后会回到本页继续填写申请。"
+            >
+              <CommunityApplicationForm />
+            </AuthRequired>
           </div>
 
           <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">

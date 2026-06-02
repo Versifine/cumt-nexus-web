@@ -7,7 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:api-boundary": "node scripts/check-api-boundary.mjs",
+    "check:dependencies": "node scripts/check-dependency-boundary.mjs",
+    "check:env": "node scripts/check-env.mjs",
+    "check:env:production": "node scripts/check-env.mjs --production",
+    "check:main-path": "node scripts/check-main-path.mjs",
+    "check:main-path:local": "node scripts/check-main-path.mjs --allow-unavailable",
+    "check:routes": "node scripts/check-public-routes.mjs",
+    "check:readiness": "node scripts/check-readiness.mjs",
+    "check:readiness:local": "node scripts/check-readiness.mjs --allow-degraded"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
