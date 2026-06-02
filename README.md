@@ -21,6 +21,7 @@
 - 提交社区创建申请。
 - 受保护动作登录门禁：未登录访问发帖或社区申请时，引导登录/注册并保留 `next` 回跳。
 - 全局 404 和页面错误状态页。
+- 页面级标题、描述、`robots.txt` 和 `sitemap.xml`。
 - 主要数据页覆盖 loading、empty、error、未登录、提交中和成功/失败状态。
 
 首版暂不做：
@@ -45,10 +46,11 @@ npm install
 Copy-Item .env.example .env.local
 ```
 
-`.env.example` 当前只包含：
+`.env.example` 当前包含：
 
 ```text
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
 启动开发服务器：
@@ -73,6 +75,12 @@ API client 统一处理：
 - `401 unauthenticated` 清理本地登录态
 - 错误响应 `{ "error": { "code": "...", "message": "..." } }`
 - `NEXT_PUBLIC_API_BASE_URL` 配置后端地址
+
+## 站点公开入口
+
+- `NEXT_PUBLIC_SITE_URL` 用于生成 `robots.txt` 和 `sitemap.xml` 中的绝对 URL。
+- 本地默认值是 `http://localhost:3000`；生产部署时必须改为正式域名。
+- sitemap 当前只包含不依赖后端数据即可访问的静态主入口。社区详情和帖子详情需要真实数据源稳定后再扩展动态 sitemap。
 
 当前首版依赖的主要接口：
 
