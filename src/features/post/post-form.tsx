@@ -10,7 +10,9 @@ import { z } from "zod";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ContentPreview } from "@/features/content/content-preview";
 import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -104,30 +106,43 @@ export function PostForm({ className, slug }: PostFormProps) {
           title="正文"
         />
         <div className="min-w-0 space-y-2">
-          <MarkdownToolbar
-            disabled={postMutation.isPending}
-            onChange={(nextValue) =>
-              form.setValue("body", nextValue, {
-                shouldDirty: true,
-                shouldTouch: true,
-                shouldValidate: true,
-              })
-            }
-            textareaRef={bodyTextareaRef}
-            value={bodyValue}
-          />
-          <Textarea
-            id="body"
-            aria-invalid={Boolean(form.formState.errors.body)}
-            disabled={postMutation.isPending}
-            placeholder="支持加粗、引用、代码、链接和涂黑。"
-            className="min-h-72 border-border bg-background text-base leading-7"
-            {...bodyField}
-            ref={(element) => {
-              bodyField.ref(element);
-              bodyTextareaRef.current = element;
-            }}
-          />
+          <Tabs defaultValue="edit">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <MarkdownToolbar
+                disabled={postMutation.isPending}
+                onChange={(nextValue) =>
+                  form.setValue("body", nextValue, {
+                    shouldDirty: true,
+                    shouldTouch: true,
+                    shouldValidate: true,
+                  })
+                }
+                textareaRef={bodyTextareaRef}
+                value={bodyValue}
+              />
+              <TabsList className="rounded-none bg-background">
+                <TabsTrigger value="edit">编辑</TabsTrigger>
+                <TabsTrigger value="preview">预览</TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="edit" className="mt-2">
+              <Textarea
+                id="body"
+                aria-invalid={Boolean(form.formState.errors.body)}
+                disabled={postMutation.isPending}
+                placeholder="支持加粗、引用、代码、链接和涂黑。"
+                className="min-h-72 border-border bg-background text-base leading-7"
+                {...bodyField}
+                ref={(element) => {
+                  bodyField.ref(element);
+                  bodyTextareaRef.current = element;
+                }}
+              />
+            </TabsContent>
+            <TabsContent value="preview" className="mt-2">
+              <ContentPreview value={bodyValue} minHeightClassName="min-h-72" />
+            </TabsContent>
+          </Tabs>
           <FieldMeta
             count={bodyLength}
             error={form.formState.errors.body?.message}

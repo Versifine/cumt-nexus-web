@@ -9,9 +9,11 @@ import { z } from "zod";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { ContentPreview } from "@/features/content/content-preview";
 import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
 import { ApiError } from "@/lib/api/client";
 
@@ -128,30 +130,46 @@ export function CommentForm({
       ) : null}
 
       <div className="space-y-2">
-        <MarkdownToolbar
-          disabled={commentMutation.isPending}
-          onChange={(nextValue) =>
-            form.setValue("body", nextValue, {
-              shouldDirty: true,
-              shouldTouch: true,
-              shouldValidate: true,
-            })
-          }
-          textareaRef={bodyTextareaRef}
-          value={bodyValue}
-        />
-        <Textarea
-          aria-label="评论内容"
-          aria-invalid={Boolean(form.formState.errors.body)}
-          disabled={commentMutation.isPending}
-          placeholder={placeholder ?? (parentId ? "回复这条评论。" : "写下你的评论。")}
-          className={compact ? "min-h-28" : undefined}
-          {...bodyField}
-          ref={(element) => {
-            bodyField.ref(element);
-            bodyTextareaRef.current = element;
-          }}
-        />
+        <Tabs defaultValue="edit">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <MarkdownToolbar
+              disabled={commentMutation.isPending}
+              onChange={(nextValue) =>
+                form.setValue("body", nextValue, {
+                  shouldDirty: true,
+                  shouldTouch: true,
+                  shouldValidate: true,
+                })
+              }
+              textareaRef={bodyTextareaRef}
+              value={bodyValue}
+            />
+            <TabsList className="rounded-none bg-background">
+              <TabsTrigger value="edit">编辑</TabsTrigger>
+              <TabsTrigger value="preview">预览</TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value="edit" className="mt-2">
+            <Textarea
+              aria-label="评论内容"
+              aria-invalid={Boolean(form.formState.errors.body)}
+              disabled={commentMutation.isPending}
+              placeholder={placeholder ?? (parentId ? "回复这条评论。" : "写下你的评论。")}
+              className={compact ? "min-h-28" : undefined}
+              {...bodyField}
+              ref={(element) => {
+                bodyField.ref(element);
+                bodyTextareaRef.current = element;
+              }}
+            />
+          </TabsContent>
+          <TabsContent value="preview" className="mt-2">
+            <ContentPreview
+              value={bodyValue}
+              minHeightClassName={compact ? "min-h-28" : "min-h-36"}
+            />
+          </TabsContent>
+        </Tabs>
         {form.formState.errors.body ? (
           <p className="text-sm text-destructive">
             {form.formState.errors.body.message}

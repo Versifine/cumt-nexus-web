@@ -10,6 +10,7 @@
 - 帖子正文和评论正文通过 `src/features/content/content-body.tsx` 渲染。
 - 当前渲染器只识别 `>! ... !<` spoiler / 涂黑语法。
 - 其它内容全部按纯文本显示。
+- 发帖表单、根评论表单和回复评论表单已经提供轻量预览，预览复用 `ContentBody`。
 - 不使用 `dangerouslySetInnerHTML`。
 - 不存用户 HTML。
 - 未新增 Markdown 相关依赖。
@@ -17,7 +18,7 @@
 未实现：
 
 - 加粗、斜体、引用、列表、代码块和链接的 Markdown 渲染。
-- Markdown 预览。
+- 完整 Markdown 预览。
 - GFM 表格和任务列表。
 - 图片附件渲染。
 - 白名单 embed。
@@ -202,10 +203,20 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 
 ### Slice D：编辑预览
 
+当前已落地的最小子集：
+
+- 发帖表单提供编辑/预览切换。
+- 根评论和回复评论表单提供编辑/预览切换。
+- 预览使用同一个 `ContentBody`。
+- 预览只渲染 spoiler / 涂黑，其余内容仍保持纯文本。
+- 提交 payload 仍是后端当前支持的 `body` 字段。
+
+后续完整 Markdown renderer 批准后，再把该预览升级为完整 Markdown 预览。
+
 交付：
 
 - 发帖表单提供编辑/预览切换。
-- 评论表单可后续再做轻量预览，不阻塞帖子预览。
+- 根评论和回复评论表单提供编辑/预览切换。
 
 验证：
 
