@@ -6,8 +6,12 @@ import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CUMT Nexus",
-  description: "CUMT Nexus 校园社区工作区。",
+  applicationName: "CUMT Nexus",
+  title: {
+    default: "CUMT Nexus",
+    template: "%s | CUMT Nexus",
+  },
+  description: "面向校园社区的讨论、发帖和社区申请工作区。",
 };
 
 export default function RootLayout({
