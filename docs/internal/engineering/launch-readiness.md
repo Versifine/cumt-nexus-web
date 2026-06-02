@@ -162,7 +162,8 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 移动端 `390px` 宽度验证 `/`、`/communities`、`/communities/public`、`/communities/public/new`、`/community-applications/new`、`/login`、`/register`：没有横向溢出，没有错误页。
 - 未登录首页已验证：不再请求需要认证的最新帖子接口，不再展示“需要登录”错误面板，改为“登录后查看最新讨论”引导状态。
 - 未登录社区详情已验证：只展示单一登录提示，不再重复显示帖子区错误，也不显示 `--` 占位上下文。
-- 当前浏览器自动化环境无法输入表单，也无法写入本地 storage；登录后页面的真实浏览器人工 QA 仍需在可输入浏览器环境中补齐。
+- 评论表单和投票控件已补组件级登录门禁；会话缺失时提供登录/注册入口，并保留当前帖子 `next` 回跳。
+- 当前浏览器可以输入登录表单，但本地后端 `OPTIONS /api/v1/posts` 预检返回 `404`，导致浏览器跨端口 API 请求失败；登录后页面的真实浏览器端到端 QA 需要后端 CORS 完成后复验。
 
 ## 上线阻塞项
 

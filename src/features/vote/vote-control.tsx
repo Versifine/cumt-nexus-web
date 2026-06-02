@@ -2,9 +2,12 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { TextAction } from "@/components/ui/text-action";
+import { useAuthSession } from "@/features/auth/auth-session";
 import { ApiError } from "@/lib/api/client";
 import { postQueryKeys } from "@/features/post/queries";
 
@@ -26,6 +29,8 @@ export function VoteControl({
   score,
   myVote,
 }: VoteControlProps) {
+  const pathname = usePathname();
+  const { isReady, token } = useAuthSession();
   const queryClient = useQueryClient();
   const voteMutation = useMutation({
     mutationFn: async (nextVote: VoteValue) => {
@@ -45,6 +50,20 @@ export function VoteControl({
 
   const error = getVoteError(voteMutation.error);
   const isPending = voteMutation.isPending;
+  const next = pathname || `/posts/${postId}`;
+  const loginHref = `/login?next=${encodeURIComponent(next)}`;
+  const registerHref = `/register?next=${encodeURIComponent(next)}`;
+
+  if (!isReady) {
+    return (
+      <div
+        className="text-sm text-muted-foreground"
+        aria-label="正在读取登录状态"
+      >
+        正在确认投票状态...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
@@ -53,7 +72,7 @@ export function VoteControl({
           type="button"
           variant={myVote === 1 ? "default" : "outline"}
           size="sm"
-          disabled={isPending}
+          disabled={isPending || !token}
           onClick={() => voteMutation.mutate(1)}
           aria-pressed={myVote === 1}
         >
@@ -64,7 +83,7 @@ export function VoteControl({
           type="button"
           variant={myVote === -1 ? "default" : "outline"}
           size="sm"
-          disabled={isPending}
+          disabled={isPending || !token}
           onClick={() => voteMutation.mutate(-1)}
           aria-pressed={myVote === -1}
         >
@@ -75,6 +94,16 @@ export function VoteControl({
           分数 {score}
         </span>
       </div>
+      {!token ? (
+        <div className="border-y border-border">
+          <TextAction href={loginHref} tone="primary" variant="bar">
+            登录后投票
+          </TextAction>
+          <TextAction href={registerHref} variant="bar">
+            创建账号
+          </TextAction>
+        </div>
+      ) : null}
       {error ? (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
