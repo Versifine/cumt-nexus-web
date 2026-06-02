@@ -163,7 +163,8 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 未登录首页已验证：不再请求需要认证的最新帖子接口，不再展示“需要登录”错误面板，改为“登录后查看最新讨论”引导状态。
 - 未登录社区详情已验证：只展示单一登录提示，不再重复显示帖子区错误，也不显示 `--` 占位上下文。
 - 评论表单和投票控件已补组件级登录门禁；会话缺失时提供登录/注册入口，并保留当前帖子 `next` 回跳。
-- 当前浏览器可以输入登录表单，但本地后端 `OPTIONS /api/v1/posts` 预检返回 `404`，导致浏览器跨端口 API 请求失败；登录后页面的真实浏览器端到端 QA 需要后端 CORS 完成后复验。
+- 本地后端以 `HTTP_CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000` 启动后，严格 `npm run check:readiness` 已通过，后端 CORS 预检允许 `http://localhost:3000`。
+- 浏览器端到端已验证：注册成功后进入首页，进入 `/communities/public/new` 发帖，成功跳转帖子详情，发表评论，upvote，再次点击取消投票；帖子详情保留首页、社区索引和社区申请出口。
 
 ## 上线阻塞项
 
