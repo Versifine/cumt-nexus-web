@@ -129,6 +129,22 @@ npm run check:dependencies
 
 该命令会检查 `package.json` 的直接依赖是否仍在批准清单内，`package-lock.json` 根依赖是否与 `package.json` 一致，并阻止 Ant Design、MUI、Mantine、Chakra、DaisyUI 等第二套 UI 库进入依赖或源码 import。确需新增依赖时，必须在明确切片里说明用途、替代方案和影响范围，并同步更新该检查。
 
+后端主链路检查：
+
+```powershell
+npm run check:main-path
+```
+
+该命令会直接请求 `NEXT_PUBLIC_API_BASE_URL` 对应的真实后端，创建带 `smoke` 前缀的测试用户、社区申请、帖子、评论和投票，验证注册、登录、`/me`、社区列表/详情、发帖、帖子详情、评论列表/发布、upvote、downvote 和取消投票。它用于本地或预发布环境验收，会写入测试数据；后端未启动时该命令必须失败。
+
+如果后端暂时未启动，只用于前端本地收口，可以运行：
+
+```powershell
+npm run check:main-path:local
+```
+
+本地宽松模式只会把后端不可达记录为 warning，不是上线通过依据。
+
 公开页面冒烟检查：
 
 ```powershell
@@ -180,6 +196,7 @@ npm run build
 npm run check:api-boundary
 npm run check:dependencies
 npm run check:env
+npm run check:main-path
 npm run check:routes
 npm run check:readiness
 ```

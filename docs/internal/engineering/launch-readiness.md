@@ -45,6 +45,22 @@ npm run check:dependencies
 
 该命令用于确认项目仍遵守固定技术栈和唯一主组件系统边界：直接依赖必须在批准清单内，`package-lock.json` 根依赖必须与 `package.json` 一致，源码和锁文件中不允许出现 Ant Design、MUI、Mantine、Chakra、DaisyUI 等第二套 UI 库。确需新增依赖时，必须先说明用途、替代方案和影响范围，再在同一切片中更新批准清单。
 
+后端主链路检查：
+
+```powershell
+npm run check:main-path
+```
+
+该命令用于确认首版真实后端主链路可用。它会直接请求 `NEXT_PUBLIC_API_BASE_URL`，创建带 `smoke` 前缀的测试用户、社区申请、帖子、评论和投票，并验证注册、登录、`/me`、社区列表、社区详情、社区帖子列表、发帖、全站最新流、帖子详情、评论列表、评论发布、upvote、downvote 和取消投票。该命令会写入测试数据，应在本地或预发布环境运行；后端不可达时严格模式必须失败。
+
+后端暂未启动但仍要做前端本地收口时，可以使用：
+
+```powershell
+npm run check:main-path:local
+```
+
+本地宽松模式只把后端不可达记录为 warning，不能作为上线通过证据。
+
 公开页面冒烟检查：
 
 ```powershell
@@ -60,6 +76,7 @@ node scripts/check-readiness.mjs --frontend-url=http://localhost:3000 --api-base
 node scripts/check-api-boundary.mjs
 node scripts/check-dependency-boundary.mjs
 node scripts/check-env.mjs --production
+node scripts/check-main-path.mjs --api-base-url=http://localhost:8080 --community-slug=public --timeout-ms=10000
 node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --timeout-ms=8000
 ```
 
@@ -101,6 +118,24 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 直接依赖和锁文件中是否出现被禁止的第二套 UI 库。
 - `src/` 源码 import 是否绕过 shadcn/ui 边界引入被禁止的 UI 库。
 
+`scripts/check-main-path.mjs` 当前检查：
+
+- 后端 `/healthz` 是否可达。
+- `POST /api/v1/auth/register` 是否能创建 smoke 用户并返回 access token。
+- `POST /api/v1/auth/login` 是否能登录同一 smoke 用户。
+- `GET /api/v1/me` 是否返回当前登录用户。
+- `GET /api/v1/communities` 是否返回社区列表并包含目标社区，默认 `public`。
+- `GET /api/v1/communities/:slug` 是否返回目标社区详情。
+- `POST /api/v1/community-applications` 是否能提交 smoke 社区申请。
+- `GET /api/v1/communities/:slug/posts` 是否能读取目标社区帖子列表。
+- `POST /api/v1/communities/:slug/posts` 是否能发布 smoke 帖子。
+- `GET /api/v1/posts?sort=new` 是否能在最新流中看到新帖子。
+- `GET /api/v1/posts/:id` 是否能读取新帖子详情。
+- `GET /api/v1/posts/:id/comments` 是否能读取评论列表。
+- `POST /api/v1/posts/:id/comments` 是否能发布 smoke 评论，并在评论列表中看到它。
+- `PUT /api/v1/posts/:id/vote` 是否能 upvote 和 downvote。
+- `DELETE /api/v1/posts/:id/vote` 是否能取消投票，且帖子详情中的 `my_vote` 回到 `0`。
+
 `scripts/check-public-routes.mjs` 当前检查：
 
 - `/`：包含 `CUMT Nexus`、`最新讨论`、`浏览社区`。
@@ -120,6 +155,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `npm run check:api-boundary` 未通过。
 - `npm run check:dependencies` 未通过。
 - `npm run check:env` 未通过。
+- `npm run check:main-path` 未通过。
 - `npm run check:routes` 未通过。
 - `npm run check:readiness` 未通过。
 - 后端 `/healthz` 不可达，或前端 `/readyz` 仍为 degraded。
