@@ -119,6 +119,22 @@ Reddit-style campus community content system
 - 不使用闪烁、发光或大面积动画。
 - 文案使用中文，例如 `显示隐藏内容`。
 
+当前已落地的最小子集：
+
+- 发帖和评论工具栏可以插入 `>! 隐藏内容 !<`。
+- 帖子详情正文和评论树正文会把该语法渲染为默认隐藏、可点击展开的涂黑内容。
+- 该渲染只处理 spoiler / 涂黑片段，其余内容仍按纯文本显示。
+- 未闭合的 `>!` 会按普通文本显示。
+- 前端不存用户 HTML，不使用 `dangerouslySetInnerHTML`，也没有新增 Markdown renderer 依赖。
+
+仍未落地：
+
+- 完整 Markdown renderer。
+- Markdown 预览。
+- 链接安全渲染。
+- 图片附件。
+- 白名单 embed。
+
 ### 编辑器形态
 
 首版编辑器不做复杂 WYSIWYG。建议：

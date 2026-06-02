@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, CornerDownRight } from "lucide-react";
 
 import { CommentForm } from "@/features/comment/comment-form";
+import { ContentBody } from "@/features/content/content-body";
 import { cn } from "@/lib/utils";
 
 import type { Comment } from "./types";
@@ -137,9 +138,7 @@ function CommentBranch({
             {replyCount > 0 ? <span>{replyCount} 条回复</span> : null}
           </div>
 
-          <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-foreground">
-            {comment.body}
-          </p>
+          <ContentBody value={comment.body} className="mt-3 text-sm leading-7" />
 
           <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
             <TextCommand

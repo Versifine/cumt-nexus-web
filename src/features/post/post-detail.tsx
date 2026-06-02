@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { CommentForm } from "@/features/comment/comment-form";
 import { CommentTree } from "@/features/comment/comment-tree";
 import { usePostCommentsQuery } from "@/features/comment/queries";
+import { ContentBody } from "@/features/content/content-body";
 import { VoteControl } from "@/features/vote/vote-control";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -173,9 +174,7 @@ function PostArticle({
       </div>
 
       <div className="border-b border-border py-6">
-        <p className="whitespace-pre-wrap text-base leading-8 text-foreground">
-          {post.body}
-        </p>
+        <ContentBody value={post.body} className="text-base leading-8" />
       </div>
 
       <div className="border-b border-border py-4">
