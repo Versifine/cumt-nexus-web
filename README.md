@@ -91,7 +91,7 @@ API client 统一处理：
 
 - `GET /healthz` 返回前端应用自身状态，可用于部署平台或反向代理探测 Next 服务是否可响应。
 - `/healthz` 不会请求后端，也不代表 `NEXT_PUBLIC_API_BASE_URL` 对应的后端 API 可用。
-- `GET /readyz` 会检查前端自身和后端 `/healthz`，后端不可达时返回 `503` 与 `degraded` 状态。
+- `GET /readyz` 会检查前端自身和后端 `/healthz`，后端可达时返回 `200` 与 `ready` 状态，后端不可达时返回 `503` 与 `degraded` 状态。
 - 真实上线前仍需要在 `/readyz` 通过后验证登录、注册、社区、发帖、评论和投票主链路。
 
 ## 上线前自检

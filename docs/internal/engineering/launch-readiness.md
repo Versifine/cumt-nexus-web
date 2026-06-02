@@ -86,7 +86,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 - 前端 `/healthz` 是否返回 `cumt-nexus-web` 和 `ok`。
 - 后端 `NEXT_PUBLIC_API_BASE_URL/healthz` 是否可达。
-- 前端 `/readyz` 是否返回 `ok`；严格模式下 degraded 是阻塞。
+- 前端 `/readyz` 是否返回 `ready`；严格模式下 degraded 是阻塞。
 - `robots.txt` 是否包含 sitemap 声明。
 - `sitemap.xml` 是否包含站点 URL。
 - `manifest.webmanifest` 是否包含 `name`、`start_url` 和 `icons`。
@@ -190,6 +190,6 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 长标题、长 slug、长用户名和长正文不会挤压主要操作。
 - 次级跳转优先使用文字动作、bar、色块或分割线，不把页面堆成按钮集合。
 
-## 当前已知缺口
+## 后端联调要求
 
-截至本文创建时，前端本地 `/healthz` 可用，但后端 `http://localhost:8080/healthz` 不可达，导致 `/readyz` 返回 degraded。真实业务主链路仍需要等后端服务启动后再验收。
+严格上线验收要求后端服务已启动，并且 `http://localhost:8080/healthz` 或目标环境的后端健康检查可达。后端不可达时，`/readyz` 会返回 degraded，`npm run check:readiness` 和 `npm run check:main-path` 都不能作为通过证据。

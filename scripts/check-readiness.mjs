@@ -144,8 +144,8 @@ async function checkReadyz() {
   }
 
   const json = parseJson(response.body);
-  if (response.status === 200 && json?.service === "cumt-nexus-web" && json?.status === "ok") {
-    addPass("frontend readiness", "/readyz returns ok");
+  if (response.status === 200 && json?.service === "cumt-nexus-web" && json?.status === "ready") {
+    addPass("frontend readiness", "/readyz returns ready");
     return;
   }
 
