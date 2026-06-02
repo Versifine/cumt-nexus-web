@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "check:routes": "node scripts/check-public-routes.mjs",
     "check:readiness": "node scripts/check-readiness.mjs",
     "check:readiness:local": "node scripts/check-readiness.mjs --allow-degraded"
   },

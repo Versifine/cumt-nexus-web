@@ -104,6 +104,14 @@ npm run check:readiness
 
 严格模式会检查前端 `/healthz`、后端 `/healthz`、前端 `/readyz`、`robots.txt`、`sitemap.xml`、`manifest.webmanifest`、`icon.svg` 和基础安全响应头。任何 blocker 都会让命令失败。
 
+公开页面冒烟检查：
+
+```powershell
+npm run check:routes
+```
+
+该命令会检查 `/`、`/login`、`/register`、`/communities` 和 `/community-applications/new` 是否返回 `200`、是否包含 `zh-CN` 语言标记和关键中文文案。它只证明公开页面能渲染，不替代真实后端主链路联调。
+
 当前如果只想在后端未启动时继续前端本地收口，可以使用宽松模式：
 
 ```powershell
@@ -144,6 +152,7 @@ POST   /api/v1/community-applications
 npm run lint
 npm run typecheck
 npm run build
+npm run check:routes
 npm run check:readiness
 ```
 

@@ -20,10 +20,19 @@ npm run check:readiness:local
 
 本地宽松模式只允许后端不可用导致的 degraded 结果变成 warning。它适合当前前端独立收口阶段，但不能作为上线通过证据。
 
+公开页面冒烟检查：
+
+```powershell
+npm run check:routes
+```
+
+该命令要求本地或目标前端服务已启动。它会请求 `/`、`/login`、`/register`、`/communities` 和 `/community-applications/new`，检查页面返回 `200`、包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。它用于发现路由丢失、页面级 500、中文文案缺失和错误页误渲染。
+
 可选参数：
 
 ```powershell
 node scripts/check-readiness.mjs --frontend-url=http://localhost:3000 --api-base-url=http://localhost:8080 --timeout-ms=8000
+node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --timeout-ms=8000
 ```
 
 ## 自动检查范围
@@ -39,6 +48,15 @@ node scripts/check-readiness.mjs --frontend-url=http://localhost:3000 --api-base
 - `icon.svg` 是否能正常返回 SVG。
 - 基础安全响应头是否存在：`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`。
 
+`scripts/check-public-routes.mjs` 当前检查：
+
+- `/`：包含 `CUMT Nexus`、`最新讨论`、`浏览社区`。
+- `/login`：包含 `CUMT Nexus`、`登录`、`账号验证`、`创建账号`。
+- `/register`：包含 `CUMT Nexus`、`注册账号`、`账号创建`、`去登录`。
+- `/communities`：包含 `社区目录`、`校园社区`、`申请社区`。
+- `/community-applications/new`：包含 `CUMT Nexus`、`申请新社区`、`返回社区索引`。
+- 所有页面都必须包含 `zh-CN` 语言标记，且不能渲染常见错误页标记。
+
 ## 上线阻塞项
 
 以下任意一项未完成时，不允许把目标标记为可上线：
@@ -46,6 +64,7 @@ node scripts/check-readiness.mjs --frontend-url=http://localhost:3000 --api-base
 - `npm run lint` 未通过。
 - `npm run typecheck` 未通过。
 - `npm run build` 未通过。
+- `npm run check:routes` 未通过。
 - `npm run check:readiness` 未通过。
 - 后端 `/healthz` 不可达，或前端 `/readyz` 仍为 degraded。
 - 注册、登录、获取当前用户、社区列表、社区详情、发帖、帖子详情、评论、投票主链路没有用真实后端验证。
