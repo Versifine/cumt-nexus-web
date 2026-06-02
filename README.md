@@ -25,6 +25,7 @@
 - 基础 favicon、Web App Manifest、Open Graph 和 Twitter 分享元信息。
 - 前端健康检查端点 `/healthz`。
 - 前后端就绪检查端点 `/readyz`。
+- 基础安全响应头：`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`。
 - 主要数据页覆盖 loading、empty、error、未登录、提交中和成功/失败状态。
 
 首版暂不做：
@@ -92,6 +93,11 @@ API client 统一处理：
 - `/healthz` 不会请求后端，也不代表 `NEXT_PUBLIC_API_BASE_URL` 对应的后端 API 可用。
 - `GET /readyz` 会检查前端自身和后端 `/healthz`，后端不可达时返回 `503` 与 `degraded` 状态。
 - 真实上线前仍需要在 `/readyz` 通过后验证登录、注册、社区、发帖、评论和投票主链路。
+
+## 部署安全头
+
+- `next.config.ts` 为全站响应添加基础安全头，覆盖页面、route handler 和公开资源。
+- 当前不启用严格 CSP，也不在应用层强制 HSTS；这两项需要结合正式域名、资源来源和部署平台配置后再开启。
 
 当前首版依赖的主要接口：
 
