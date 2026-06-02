@@ -30,6 +30,7 @@ const results = [];
 let accessToken = "";
 let postId = "";
 let commentId = "";
+let childCommentId = "";
 
 console.log("CUMT Nexus Web backend main path check");
 console.log(`backend:   ${apiBaseUrl}`);
@@ -53,7 +54,8 @@ if (backendReachable) {
   await checkPostDetail();
   await checkListComments("initial comments");
   await checkPublishComment();
-  await checkListComments("created comment");
+  await checkPublishChildComment();
+  await checkListComments("created comment tree");
   await checkSetVote("upvote", 1);
   await checkSetVote("downvote", -1);
   await checkDeleteVote();
@@ -311,7 +313,7 @@ async function checkPostDetail() {
 
 async function checkListComments(name) {
   const response = await request(
-    `/api/v1/posts/${encodeURIComponent(postId)}/comments?limit=20&offset=0`,
+    `/api/v1/posts/${encodeURIComponent(postId)}/comments?view=tree&sort=new&limit=20&offset=0&max_depth=6`,
   );
 
   if (!expectOk(response, name)) {
@@ -325,8 +327,36 @@ async function checkListComments(name) {
   }
 
   if (commentId && !comments.some((comment) => comment?.id === commentId)) {
-    addFail(name, `created comment ${commentId} is missing from comment list`);
+    addFail(name, `root comment ${commentId} is missing from comment list`);
     return;
+  }
+
+  if (childCommentId) {
+    const childComment = comments.find((comment) => comment?.id === childCommentId);
+    if (!childComment) {
+      addFail(name, `child comment ${childCommentId} is missing from comment list`);
+      return;
+    }
+
+    if (childComment.parent_id !== commentId) {
+      addFail(
+        name,
+        `child comment parent_id mismatch: expected ${commentId}, received ${childComment.parent_id}`,
+      );
+      return;
+    }
+  }
+
+  if (commentId && childCommentId) {
+    const rootIndex = comments.findIndex((comment) => comment?.id === commentId);
+    const childIndex = comments.findIndex((comment) => comment?.id === childCommentId);
+
+    if (rootIndex > childIndex) {
+      addWarn(
+        name,
+        `comment order is not tree-friendly yet: child ${childCommentId} appears before root ${commentId}`,
+      );
+    }
   }
 
   addPass(name, `${comments.length} comment item(s) returned`);
@@ -334,22 +364,45 @@ async function checkListComments(name) {
 
 async function checkPublishComment() {
   const response = await request(`/api/v1/posts/${encodeURIComponent(postId)}/comments`, {
-    body: { body: `${marker} comment` },
+    body: { body: `${marker} root comment` },
     method: "POST",
   });
 
-  if (!expectOk(response, "publish comment")) {
+  if (!expectOk(response, "publish root comment")) {
     return;
   }
 
   const comment = response.json?.comment;
-  if (!comment?.id || comment.post_id !== postId) {
-    addFail("publish comment", `unexpected response payload: ${preview(response.bodyText)}`);
+  if (!comment?.id || comment.post_id !== postId || comment.parent_id) {
+    addFail("publish root comment", `unexpected response payload: ${preview(response.bodyText)}`);
     return;
   }
 
   commentId = comment.id;
-  addPass("publish comment", `created comment ${commentId}`);
+  addPass("publish root comment", `created root comment ${commentId}`);
+}
+
+async function checkPublishChildComment() {
+  const response = await request(`/api/v1/posts/${encodeURIComponent(postId)}/comments`, {
+    body: {
+      body: `${marker} child comment`,
+      parent_id: commentId,
+    },
+    method: "POST",
+  });
+
+  if (!expectOk(response, "publish child comment")) {
+    return;
+  }
+
+  const comment = response.json?.comment;
+  if (!comment?.id || comment.post_id !== postId || comment.parent_id !== commentId) {
+    addFail("publish child comment", `unexpected response payload: ${preview(response.bodyText)}`);
+    return;
+  }
+
+  childCommentId = comment.id;
+  addPass("publish child comment", `created child comment ${childCommentId}`);
 }
 
 async function checkSetVote(name, value) {
