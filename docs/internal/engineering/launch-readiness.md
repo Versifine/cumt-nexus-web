@@ -20,6 +20,15 @@ npm run check:readiness:local
 
 本地宽松模式只允许后端不可用导致的 degraded 结果变成 warning。它适合当前前端独立收口阶段，但不能作为上线通过证据。
 
+环境变量检查：
+
+```powershell
+npm run check:env
+npm run check:env:production
+```
+
+`check:env` 用于本地和 CI 的基础检查，确保 `.env.example` 记录必要变量，并验证当前解析到的 URL 合法。`check:env:production` 用于正式部署前，要求生产 URL 使用 `https`，且不能是 `localhost`、`127.0.0.1` 或 `::1`。
+
 公开页面冒烟检查：
 
 ```powershell
@@ -32,6 +41,7 @@ npm run check:routes
 
 ```powershell
 node scripts/check-readiness.mjs --frontend-url=http://localhost:3000 --api-base-url=http://localhost:8080 --timeout-ms=8000
+node scripts/check-env.mjs --production
 node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --timeout-ms=8000
 ```
 
@@ -47,6 +57,15 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `manifest.webmanifest` 是否包含 `name`、`start_url` 和 `icons`。
 - `icon.svg` 是否能正常返回 SVG。
 - 基础安全响应头是否存在：`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`。
+
+`scripts/check-env.mjs` 当前检查：
+
+- `.env.example` 是否存在。
+- `.env.example` 是否记录 `NEXT_PUBLIC_API_BASE_URL` 和 `NEXT_PUBLIC_SITE_URL`。
+- 当前解析到的 `NEXT_PUBLIC_API_BASE_URL` 和 `NEXT_PUBLIC_SITE_URL` 是否是合法 `http` 或 `https` URL。
+- `NEXT_PUBLIC_API_BASE_URL` 是否只包含 origin，不能把 `/api/v1` 写进 base URL。
+- `NEXT_PUBLIC_SITE_URL` 是否只包含站点 origin，不能附带路径。
+- 生产模式下 URL 必须使用 `https`，且不能使用 localhost 或 loopback 地址。
 
 `scripts/check-public-routes.mjs` 当前检查：
 
@@ -64,6 +83,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `npm run lint` 未通过。
 - `npm run typecheck` 未通过。
 - `npm run build` 未通过。
+- `npm run check:env` 未通过。
 - `npm run check:routes` 未通过。
 - `npm run check:readiness` 未通过。
 - 后端 `/healthz` 不可达，或前端 `/readyz` 仍为 degraded。

@@ -104,6 +104,15 @@ npm run check:readiness
 
 严格模式会检查前端 `/healthz`、后端 `/healthz`、前端 `/readyz`、`robots.txt`、`sitemap.xml`、`manifest.webmanifest`、`icon.svg` 和基础安全响应头。任何 blocker 都会让命令失败。
 
+环境变量检查：
+
+```powershell
+npm run check:env
+npm run check:env:production
+```
+
+`check:env` 会检查 `.env.example` 是否记录 `NEXT_PUBLIC_API_BASE_URL` 和 `NEXT_PUBLIC_SITE_URL`，并验证当前解析到的 URL 是否有效。当前没有 `.env.local` 时会使用 `.env.example` 默认值并给出 warning。`check:env:production` 用于正式部署前，要求生产 URL 使用 `https`，且不能是 `localhost`、`127.0.0.1` 或 `::1`。
+
 公开页面冒烟检查：
 
 ```powershell
@@ -152,6 +161,7 @@ POST   /api/v1/community-applications
 npm run lint
 npm run typecheck
 npm run build
+npm run check:env
 npm run check:routes
 npm run check:readiness
 ```
