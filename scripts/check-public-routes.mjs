@@ -20,7 +20,8 @@ const frontendUrl = normalizeUrl(
 
 const routes = [
   {
-    markers: ["CUMT Nexus", "最新讨论", "浏览社区"],
+    absentMarkers: ["无法加载最新帖子", "需要登录"],
+    markers: ["CUMT Nexus", "最新讨论", "浏览社区", "登录后查看最新讨论", "待登录"],
     path: "/",
   },
   {
@@ -34,6 +35,14 @@ const routes = [
   {
     markers: ["社区目录", "校园社区", "申请社区"],
     path: "/communities",
+  },
+  {
+    markers: ["返回社区索引"],
+    path: "/communities/public",
+  },
+  {
+    markers: ["CUMT Nexus", "发起讨论", "需要登录", "登录后发起讨论", "去登录"],
+    path: "/communities/public/new",
   },
   {
     markers: ["CUMT Nexus", "申请新社区", "返回社区索引"],
@@ -88,6 +97,12 @@ async function checkRoute(route) {
     }
   }
 
+  for (const marker of route.absentMarkers ?? []) {
+    if (response.body.includes(marker)) {
+      failures.push(`contains forbidden text marker: ${marker}`);
+    }
+  }
+
   const blockedMarkers = [
     "This page could not be found",
     "Internal Server Error",
@@ -105,7 +120,11 @@ async function checkRoute(route) {
     return;
   }
 
-  addPass(route.path, `HTTP 200 with ${route.markers.length} expected marker(s)`);
+  const absentCount = route.absentMarkers?.length ?? 0;
+  addPass(
+    route.path,
+    `HTTP 200 with ${route.markers.length} expected marker(s) and ${absentCount} forbidden marker check(s)`,
+  );
 }
 
 function getArgValue(name) {
