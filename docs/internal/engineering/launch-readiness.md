@@ -181,6 +181,8 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 人工 QA 范围
 
+完整步骤、失败分级和记录模板见 `docs/internal/engineering/browser-qa.md`。上线前人工 QA 必须按该文档执行并在本文“最新浏览器 QA 记录”中补充摘要。
+
 后端可用后，至少需要手动验证这些主路径：
 
 - 新用户注册成功后进入登录态或可继续登录。
