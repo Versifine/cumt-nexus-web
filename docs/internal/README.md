@@ -7,6 +7,7 @@
 - `architecture/frontend-v1.md`：前端 V1 架构、路由、模块和 API 协作边界。
 - `design/product-visual-direction.md`：内部设计索引，指向 `docs/design/` 的权威规范。
 - `engineering/workflow.md`：阶段、分支、工单、验证和后端同步规则。
+- `engineering/launch-readiness.md`：上线前自检命令、阻塞项和人工 QA 范围。
 
 ## 设计规范
 

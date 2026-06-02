@@ -94,6 +94,24 @@ API client 统一处理：
 - `GET /readyz` 会检查前端自身和后端 `/healthz`，后端不可达时返回 `503` 与 `degraded` 状态。
 - 真实上线前仍需要在 `/readyz` 通过后验证登录、注册、社区、发帖、评论和投票主链路。
 
+## 上线前自检
+
+正式验收使用严格模式：
+
+```powershell
+npm run check:readiness
+```
+
+严格模式会检查前端 `/healthz`、后端 `/healthz`、前端 `/readyz`、`robots.txt`、`sitemap.xml`、`manifest.webmanifest`、`icon.svg` 和基础安全响应头。任何 blocker 都会让命令失败。
+
+当前如果只想在后端未启动时继续前端本地收口，可以使用宽松模式：
+
+```powershell
+npm run check:readiness:local
+```
+
+宽松模式只把后端不可用和 `/readyz` degraded 标为 warning，不能作为上线通过依据。完整上线检查边界见 `docs/internal/engineering/launch-readiness.md`。
+
 ## 部署安全头
 
 - `next.config.ts` 为全站响应添加基础安全头，覆盖页面、route handler 和公开资源。
@@ -126,6 +144,7 @@ POST   /api/v1/community-applications
 npm run lint
 npm run typecheck
 npm run build
+npm run check:readiness
 ```
 
 涉及页面和交互时，还需要浏览器检查：
@@ -146,5 +165,6 @@ npm run build
 - `docs/prompts/frontend-review-template.md`：前端审查任务模板。
 - `docs/internal/architecture/frontend-v1.md`：前端 V1 架构、路由和 API 边界。
 - `docs/internal/engineering/workflow.md`：阶段推进、分支、文档和验证规则。
+- `docs/internal/engineering/launch-readiness.md`：上线前自检、阻塞项和人工 QA 范围。
 
 页面实现前必须先阅读 `AGENTS.md` 和 `docs/design/*`，并且每次只推进一个小的纵向切片。
