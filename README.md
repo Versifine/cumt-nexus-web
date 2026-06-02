@@ -113,6 +113,14 @@ npm run check:env:production
 
 `check:env` 会检查 `.env.example` 是否记录 `NEXT_PUBLIC_API_BASE_URL` 和 `NEXT_PUBLIC_SITE_URL`，并验证当前解析到的 URL 是否有效。当前没有 `.env.local` 时会使用 `.env.example` 默认值并给出 warning。`check:env:production` 用于正式部署前，要求生产 URL 使用 `https`，且不能是 `localhost`、`127.0.0.1` 或 `::1`。
 
+API 边界检查：
+
+```powershell
+npm run check:api-boundary
+```
+
+该命令会静态检查源码中的后端调用边界：业务接口路径必须留在 `src/features/*/api.ts`，`apiRequest` 路径必须以 `/api/v1` 开头，`NEXT_PUBLIC_API_BASE_URL` 只能由统一 API client 读取，源码中不允许绕过批准位置直接 `fetch()` 后端。
+
 公开页面冒烟检查：
 
 ```powershell
@@ -161,6 +169,7 @@ POST   /api/v1/community-applications
 npm run lint
 npm run typecheck
 npm run build
+npm run check:api-boundary
 npm run check:env
 npm run check:routes
 npm run check:readiness

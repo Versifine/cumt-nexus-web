@@ -29,6 +29,14 @@ npm run check:env:production
 
 `check:env` 用于本地和 CI 的基础检查，确保 `.env.example` 记录必要变量，并验证当前解析到的 URL 合法。`check:env:production` 用于正式部署前，要求生产 URL 使用 `https`，且不能是 `localhost`、`127.0.0.1` 或 `::1`。
 
+API 边界检查：
+
+```powershell
+npm run check:api-boundary
+```
+
+该命令用于确认源码仍遵守前后端 HTTP contract 边界：页面和组件不直接写后端 URL，业务 API 路径集中在 feature API 模块，统一 client 负责 base URL、认证头、错误解析和超时兜底。
+
 公开页面冒烟检查：
 
 ```powershell
@@ -41,6 +49,7 @@ npm run check:routes
 
 ```powershell
 node scripts/check-readiness.mjs --frontend-url=http://localhost:3000 --api-base-url=http://localhost:8080 --timeout-ms=8000
+node scripts/check-api-boundary.mjs
 node scripts/check-env.mjs --production
 node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --timeout-ms=8000
 ```
@@ -67,6 +76,14 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `NEXT_PUBLIC_SITE_URL` 是否只包含站点 origin，不能附带路径。
 - 生产模式下 URL 必须使用 `https`，且不能使用 localhost 或 loopback 地址。
 
+`scripts/check-api-boundary.mjs` 当前检查：
+
+- `src/` 是否存在，并扫描所有 `.ts` 和 `.tsx` 源码文件。
+- `fetch()` 是否只出现在批准位置：`src/lib/api/client.ts` 和 `src/app/readyz/route.ts`。
+- `NEXT_PUBLIC_API_BASE_URL` 是否只由 `src/lib/api/client.ts` 读取。
+- `/api/v1` 后端路径是否只出现在 `src/features/*/api.ts`。
+- feature API 模块里的 `apiRequest(...)` 路径是否都以 `/api/v1` 开头。
+
 `scripts/check-public-routes.mjs` 当前检查：
 
 - `/`：包含 `CUMT Nexus`、`最新讨论`、`浏览社区`。
@@ -83,6 +100,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `npm run lint` 未通过。
 - `npm run typecheck` 未通过。
 - `npm run build` 未通过。
+- `npm run check:api-boundary` 未通过。
 - `npm run check:env` 未通过。
 - `npm run check:routes` 未通过。
 - `npm run check:readiness` 未通过。

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "check:api-boundary": "node scripts/check-api-boundary.mjs",
     "check:env": "node scripts/check-env.mjs",
     "check:env:production": "node scripts/check-env.mjs --production",
     "check:routes": "node scripts/check-public-routes.mjs",
