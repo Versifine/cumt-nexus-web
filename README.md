@@ -23,6 +23,7 @@
 - 全局 404 和页面错误状态页。
 - 页面级标题、描述、`robots.txt` 和 `sitemap.xml`。
 - 基础 favicon、Web App Manifest、Open Graph 和 Twitter 分享元信息。
+- 前端健康检查端点 `/healthz`。
 - 主要数据页覆盖 loading、empty、error、未登录、提交中和成功/失败状态。
 
 首版暂不做：
@@ -83,6 +84,12 @@ API client 统一处理：
 - 本地默认值是 `http://localhost:3000`；生产部署时必须改为正式域名。
 - sitemap 当前只包含不依赖后端数据即可访问的静态主入口。社区详情和帖子详情需要真实数据源稳定后再扩展动态 sitemap。
 - `manifest.webmanifest`、favicon 和分享元信息复用同一套站点 URL 和品牌文案；当前只提供基础 SVG 图标，不包含大尺寸 Open Graph 封面图。
+
+## 部署健康检查
+
+- `GET /healthz` 返回前端应用自身状态，可用于部署平台或反向代理探测 Next 服务是否可响应。
+- `/healthz` 不会请求后端，也不代表 `NEXT_PUBLIC_API_BASE_URL` 对应的后端 API 可用。
+- 真实上线前仍需要单独验证后端 `/healthz` 和主链路接口。
 
 当前首版依赖的主要接口：
 
