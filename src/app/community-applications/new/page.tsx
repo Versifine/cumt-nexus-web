@@ -1,9 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { TextAction } from "@/components/ui/text-action";
 import { AuthRequired } from "@/features/auth/auth-required";
 import { CommunityApplicationForm } from "@/features/community/community-application-form";
+
+export const metadata: Metadata = {
+  title: "申请新社区",
+  description: "提交 CUMT Nexus 社区申请，说明新社区的使用场景和维护方式。",
+};
 
 export default function NewCommunityApplicationPage() {
   return (

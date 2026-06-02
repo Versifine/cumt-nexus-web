@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { TextAction } from "@/components/ui/text-action";
 import { RegisterForm } from "@/features/auth/register-form";
+
+export const metadata: Metadata = {
+  title: "注册账号",
+  description: "创建 CUMT Nexus 账号，进入校园社区讨论工作区。",
+};
 
 export default function RegisterPage() {
   return (

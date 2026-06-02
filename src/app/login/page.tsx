@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { TextAction } from "@/components/ui/text-action";
 import { LoginForm } from "@/features/auth/login-form";
+
+export const metadata: Metadata = {
+  title: "登录",
+  description: "登录 CUMT Nexus，继续浏览社区、发布帖子、评论和投票。",
+};
 
 export default function LoginPage() {
   return (

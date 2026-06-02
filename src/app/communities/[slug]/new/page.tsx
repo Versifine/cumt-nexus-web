@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -10,6 +11,17 @@ type NewPostPageProps = {
     slug: string;
   }>;
 };
+
+export async function generateMetadata({
+  params,
+}: NewPostPageProps): Promise<Metadata> {
+  const { slug } = await params;
+
+  return {
+    title: `在 /${slug} 发起讨论`,
+    description: `在 /${slug} 社区发布新的帖子，补充标题和正文后提交。`,
+  };
+}
 
 export default async function NewPostPage({ params }: NewPostPageProps) {
   const { slug } = await params;
