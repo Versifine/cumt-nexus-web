@@ -105,11 +105,18 @@ export function StatusPage({
 
 export function RetryAction({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="flex flex-col gap-3 border-y border-border py-4 sm:flex-row sm:items-center sm:justify-between">
-      <Button type="button" onClick={onRetry}>
-        重试
-      </Button>
-      <TextAction href="/">返回首页</TextAction>
+    <div className="border-y border-border">
+      <div className="border-b border-border py-4">
+        <Button type="button" onClick={onRetry}>
+          重试
+        </Button>
+      </div>
+      <TextAction href="/" tone="primary" variant="bar">
+        返回最新讨论
+      </TextAction>
+      <TextAction href="/communities" variant="bar">
+        浏览社区索引
+      </TextAction>
     </div>
   );
 }

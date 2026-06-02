@@ -3,13 +3,23 @@ import Link from "next/link";
 
 import { TextAction } from "@/components/ui/text-action";
 import { LoginForm } from "@/features/auth/login-form";
+import { getSafeAuthSwitchHref } from "@/features/auth/redirect";
 
 export const metadata: Metadata = {
   title: "登录",
   description: "登录 CUMT Nexus，继续浏览社区、发布帖子、评论和投票。",
 };
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams?: Promise<{
+    next?: string | string[];
+  }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+  const registerHref = getSafeAuthSwitchHref("/register", params?.next);
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-6 sm:px-6 lg:px-8">
@@ -28,7 +38,11 @@ export default function LoginPage() {
               </span>
             </span>
           </Link>
-          <TextAction href="/register" tone="primary" className="hidden sm:inline-flex">
+          <TextAction
+            href={registerHref}
+            tone="primary"
+            className="hidden sm:inline-flex"
+          >
             创建账号
           </TextAction>
         </header>
@@ -85,7 +99,7 @@ export default function LoginPage() {
               <p className="mb-3 text-sm text-muted-foreground">
                 还没有账号？
               </p>
-              <TextAction href="/register" tone="primary" variant="bar">
+              <TextAction href={registerHref} tone="primary" variant="bar">
                 创建账号
               </TextAction>
             </div>

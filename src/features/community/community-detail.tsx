@@ -4,12 +4,12 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   ArrowDown,
-  ArrowLeft,
   ArrowRight,
   ArrowUp,
   MessageSquare,
 } from "lucide-react";
 
+import { PageNav } from "@/components/app-shell/page-nav";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -33,22 +33,12 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
   const postsQuery = useCommunityPostsQuery(slug, 20, 0, canShowCommunityContent);
   const community = communityQuery.data?.community;
   const posts = postsQuery.data?.posts ?? [];
+  const loginHref = `/login?next=${encodeURIComponent(`/communities/${slug}`)}`;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-6">
-        <div className="border-b border-border pb-4">
-          <Link
-            href="/communities"
-            className="group inline-flex h-10 items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <ArrowLeft
-              className="size-4 transition-transform group-hover:-translate-x-1"
-              aria-hidden="true"
-            />
-            返回社区索引
-          </Link>
-        </div>
+        <PageNav backHref="/communities" backLabel="返回社区索引" />
 
         <section className="py-6">
           {communityQuery.isPending ? (
@@ -60,7 +50,7 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
               action={
                 isUnauthenticated(communityQuery.error) ? (
                   <Button asChild variant="outline" size="sm">
-                    <Link href="/login">登录</Link>
+                    <Link href={loginHref}>登录</Link>
                   </Button>
                 ) : (
                   <Button
@@ -114,7 +104,7 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
                     action={
                       isUnauthenticated(postsQuery.error) ? (
                         <Button asChild variant="outline" size="sm">
-                          <Link href="/login">登录</Link>
+                          <Link href={loginHref}>登录</Link>
                         </Button>
                       ) : (
                         <Button

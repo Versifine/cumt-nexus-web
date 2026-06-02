@@ -160,7 +160,7 @@ npm run check:main-path:local
 npm run check:routes
 ```
 
-该命令会检查 `/`、`/login`、`/register`、`/communities`、`/communities/public`、`/communities/public/new` 和 `/community-applications/new` 是否返回 `200`、是否包含 `zh-CN` 语言标记和关键中文文案。首页还会检查未登录状态不回退到“无法加载最新帖子”或“需要登录”错误面板；发帖和社区申请入口会检查登录/注册链接是否保留正确 `next` 回跳。它只证明公开页面和受保护入口能渲染，不替代真实后端主链路联调，也不替代浏览器水合后的动态状态 QA。
+该命令会检查 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面是否包含 `zh-CN` 语言标记和关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到“无法加载最新帖子”或“需要登录”错误面板；社区列表、社区详情、帖子详情壳、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它只证明公开页面、受保护入口和错误页壳能渲染，不替代真实后端主链路联调，也不替代浏览器水合后的动态状态 QA。
 
 当前如果只想在后端未启动时继续前端本地收口，可以使用宽松模式：
 

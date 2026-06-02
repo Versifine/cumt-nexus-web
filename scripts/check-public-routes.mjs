@@ -18,6 +18,8 @@ const frontendUrl = normalizeUrl(
     "http://localhost:3000",
 );
 
+const pageExitHrefMarkers = ["/", "/communities", "/community-applications/new"];
+
 const routes = [
   {
     absentMarkers: ["无法加载最新帖子", "需要登录"],
@@ -29,19 +31,38 @@ const routes = [
     path: "/login",
   },
   {
+    hrefMarkers: ["/", "/register?next=%2Fcommunities%2Fpublic%2Fnew"],
+    markers: ["CUMT Nexus", "登录", "账号验证", "创建账号"],
+    path: "/login?next=%2Fcommunities%2Fpublic%2Fnew",
+  },
+  {
     markers: ["CUMT Nexus", "注册账号", "账号创建", "去登录"],
     path: "/register",
   },
   {
+    hrefMarkers: ["/", "/login?next=%2Fcommunity-applications%2Fnew"],
+    markers: ["CUMT Nexus", "注册账号", "账号创建", "去登录"],
+    path: "/register?next=%2Fcommunity-applications%2Fnew",
+  },
+  {
+    hrefMarkers: pageExitHrefMarkers,
     markers: ["社区目录", "校园社区", "申请社区"],
     path: "/communities",
   },
   {
+    hrefMarkers: pageExitHrefMarkers,
     markers: ["返回社区索引"],
     path: "/communities/public",
   },
   {
+    hrefMarkers: pageExitHrefMarkers,
+    markers: ["CUMT Nexus", "返回社区索引"],
+    path: "/posts/route-smoke",
+  },
+  {
     hrefMarkers: [
+      ...pageExitHrefMarkers,
+      "/communities/public",
       "/login?next=%2Fcommunities%2Fpublic%2Fnew",
       "/register?next=%2Fcommunities%2Fpublic%2Fnew",
     ],
@@ -50,11 +71,18 @@ const routes = [
   },
   {
     hrefMarkers: [
+      ...pageExitHrefMarkers,
       "/login?next=%2Fcommunity-applications%2Fnew",
       "/register?next=%2Fcommunity-applications%2Fnew",
     ],
     markers: ["CUMT Nexus", "申请新社区", "返回社区索引"],
     path: "/community-applications/new",
+  },
+  {
+    expectedStatus: 404,
+    hrefMarkers: ["/", "/communities"],
+    markers: ["CUMT Nexus", "这个页面不存在或已经移动", "返回最新讨论", "浏览社区索引"],
+    path: "/route-smoke-not-found",
   },
 ];
 
@@ -89,8 +117,12 @@ async function checkRoute(route) {
     return;
   }
 
-  if (response.status !== 200) {
-    addFail(route.path, `expected HTTP 200, received HTTP ${response.status}`);
+  const expectedStatus = route.expectedStatus ?? 200;
+  if (response.status !== expectedStatus) {
+    addFail(
+      route.path,
+      `expected HTTP ${expectedStatus}, received HTTP ${response.status}`,
+    );
     return;
   }
 
@@ -138,7 +170,7 @@ async function checkRoute(route) {
   const hrefCount = route.hrefMarkers?.length ?? 0;
   addPass(
     route.path,
-    `HTTP 200 with ${route.markers.length} text marker(s), ${hrefCount} href marker(s) and ${absentCount} forbidden marker check(s)`,
+    `HTTP ${expectedStatus} with ${route.markers.length} text marker(s), ${hrefCount} href marker(s) and ${absentCount} forbidden marker check(s)`,
   );
 }
 

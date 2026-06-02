@@ -7,6 +7,7 @@ import { ArrowRight, Hash } from "lucide-react";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
+import { PageNav } from "@/components/app-shell/page-nav";
 import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
 import { ApiError } from "@/lib/api/client";
@@ -24,6 +25,8 @@ export function CommunityList() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
+        <PageNav />
+
         <header className="border-b border-border pb-6">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">

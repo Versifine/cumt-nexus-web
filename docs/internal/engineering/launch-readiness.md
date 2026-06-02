@@ -69,7 +69,7 @@ npm run check:main-path:local
 npm run check:routes
 ```
 
-该命令要求本地或目标前端服务已启动。它会请求 `/`、`/login`、`/register`、`/communities`、`/communities/public`、`/communities/public/new` 和 `/community-applications/new`，检查页面返回 `200`、包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。首页还会检查未登录状态不回退到“无法加载最新帖子”或“需要登录”错误面板；发帖和社区申请入口会检查登录/注册链接是否保留正确 `next` 回跳。它用于发现路由丢失、页面级 500、中文文案缺失和错误页误渲染；客户端水合后才出现的动态状态仍需要浏览器 QA。
+该命令要求本地或目标前端服务已启动。它会请求 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面，检查页面包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到“无法加载最新帖子”或“需要登录”错误面板；社区列表、社区详情、帖子详情壳、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它用于发现路由丢失、页面级 500、中文文案缺失、错误页误渲染和页面出口缺失；客户端水合后才出现的动态状态仍需要浏览器 QA。
 
 可选参数：
 
@@ -143,11 +143,15 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 - `/`：包含 `CUMT Nexus`、`最新讨论`、`浏览社区`、`登录后查看最新讨论`、`待登录`，且不能包含 `无法加载最新帖子` 或 `需要登录`。
 - `/login`：包含 `CUMT Nexus`、`登录`、`账号验证`、`创建账号`。
+- `/login?next=%2Fcommunities%2Fpublic%2Fnew`：切换到注册时必须保留 `next=%2Fcommunities%2Fpublic%2Fnew`。
 - `/register`：包含 `CUMT Nexus`、`注册账号`、`账号创建`、`去登录`。
-- `/communities`：包含 `社区目录`、`校园社区`、`申请社区`。
-- `/communities/public`：至少证明动态社区详情路由壳可返回 `200`，并包含 `返回社区索引`。
+- `/register?next=%2Fcommunity-applications%2Fnew`：切换到登录时必须保留 `next=%2Fcommunity-applications%2Fnew`。
+- `/communities`：包含 `社区目录`、`校园社区`、`申请社区`，并保留首页、社区索引和社区申请出口。
+- `/communities/public`：至少证明动态社区详情路由壳可返回 `200`，并包含 `返回社区索引`、首页、社区索引和社区申请出口。
+- `/posts/route-smoke`：至少证明动态帖子详情路由壳可返回 `200`，并包含 `CUMT Nexus`、`返回社区索引`、首页、社区索引和社区申请出口。
 - `/communities/public/new`：包含 `CUMT Nexus`、`发起讨论`、`需要登录`、`登录后发起讨论`、`去登录`，且登录/注册链接必须指向 `next=%2Fcommunities%2Fpublic%2Fnew`。
 - `/community-applications/new`：包含 `CUMT Nexus`、`申请新社区`、`返回社区索引`，且登录/注册链接必须指向 `next=%2Fcommunity-applications%2Fnew`。
+- `/route-smoke-not-found`：预期返回 `404`，并包含 `这个页面不存在或已经移动`、`返回最新讨论` 和 `浏览社区索引`。
 - 所有页面都必须包含 `zh-CN` 语言标记，且不能渲染常见错误页标记。
 
 ## 最新浏览器 QA 记录

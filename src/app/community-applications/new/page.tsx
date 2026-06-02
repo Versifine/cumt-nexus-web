@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
+import { PageNav } from "@/components/app-shell/page-nav";
 import { TextAction } from "@/components/ui/text-action";
 import { AuthRequired } from "@/features/auth/auth-required";
 import { CommunityApplicationForm } from "@/features/community/community-application-form";
@@ -15,18 +14,7 @@ export default function NewCommunityApplicationPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <div className="border-b border-border pb-4">
-          <Link
-            href="/communities"
-            className="group inline-flex h-10 items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <ArrowLeft
-              className="size-4 transition-transform group-hover:-translate-x-1"
-              aria-hidden="true"
-            />
-            返回社区索引
-          </Link>
-        </div>
+        <PageNav backHref="/communities" backLabel="返回社区索引" />
 
         <header className="border-b border-border py-6">
           <div className="font-mono text-xs uppercase text-primary">

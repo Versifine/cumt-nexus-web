@@ -15,3 +15,24 @@ export function getSafeAuthRedirectPath(search: string) {
 
   return next;
 }
+
+export function getSafeAuthSwitchHref(
+  target: "/login" | "/register",
+  rawNext?: string | string[],
+) {
+  const next = Array.isArray(rawNext) ? rawNext[0] : rawNext;
+
+  if (!next) {
+    return target;
+  }
+
+  const safeNext = getSafeAuthRedirectPath(
+    `?next=${encodeURIComponent(next)}`,
+  );
+
+  if (safeNext === "/") {
+    return target;
+  }
+
+  return `${target}?next=${encodeURIComponent(safeNext)}`;
+}

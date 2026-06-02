@@ -127,7 +127,7 @@ export function HomeShell() {
                   浏览社区
                 </TextAction>
                 <TextAction href="/communities" tone="primary">
-                  发帖
+                  选择社区发帖
                 </TextAction>
                 <HeaderAuthControls />
               </div>
