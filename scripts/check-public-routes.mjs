@@ -41,10 +41,18 @@ const routes = [
     path: "/communities/public",
   },
   {
+    hrefMarkers: [
+      "/login?next=%2Fcommunities%2Fpublic%2Fnew",
+      "/register?next=%2Fcommunities%2Fpublic%2Fnew",
+    ],
     markers: ["CUMT Nexus", "发起讨论", "需要登录", "登录后发起讨论", "去登录"],
     path: "/communities/public/new",
   },
   {
+    hrefMarkers: [
+      "/login?next=%2Fcommunity-applications%2Fnew",
+      "/register?next=%2Fcommunity-applications%2Fnew",
+    ],
     markers: ["CUMT Nexus", "申请新社区", "返回社区索引"],
     path: "/community-applications/new",
   },
@@ -97,6 +105,12 @@ async function checkRoute(route) {
     }
   }
 
+  for (const marker of route.hrefMarkers ?? []) {
+    if (!response.body.includes(`href="${marker}"`)) {
+      failures.push(`missing href marker: ${marker}`);
+    }
+  }
+
   for (const marker of route.absentMarkers ?? []) {
     if (response.body.includes(marker)) {
       failures.push(`contains forbidden text marker: ${marker}`);
@@ -121,9 +135,10 @@ async function checkRoute(route) {
   }
 
   const absentCount = route.absentMarkers?.length ?? 0;
+  const hrefCount = route.hrefMarkers?.length ?? 0;
   addPass(
     route.path,
-    `HTTP 200 with ${route.markers.length} expected marker(s) and ${absentCount} forbidden marker check(s)`,
+    `HTTP 200 with ${route.markers.length} text marker(s), ${hrefCount} href marker(s) and ${absentCount} forbidden marker check(s)`,
   );
 }
 

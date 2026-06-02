@@ -67,7 +67,7 @@ npm run check:main-path:local
 npm run check:routes
 ```
 
-该命令要求本地或目标前端服务已启动。它会请求 `/`、`/login`、`/register`、`/communities`、`/communities/public`、`/communities/public/new` 和 `/community-applications/new`，检查页面返回 `200`、包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。首页还会检查未登录状态不回退到“无法加载最新帖子”或“需要登录”错误面板。它用于发现路由丢失、页面级 500、中文文案缺失和错误页误渲染；客户端水合后才出现的动态状态仍需要浏览器 QA。
+该命令要求本地或目标前端服务已启动。它会请求 `/`、`/login`、`/register`、`/communities`、`/communities/public`、`/communities/public/new` 和 `/community-applications/new`，检查页面返回 `200`、包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。首页还会检查未登录状态不回退到“无法加载最新帖子”或“需要登录”错误面板；发帖和社区申请入口会检查登录/注册链接是否保留正确 `next` 回跳。它用于发现路由丢失、页面级 500、中文文案缺失和错误页误渲染；客户端水合后才出现的动态状态仍需要浏览器 QA。
 
 可选参数：
 
@@ -144,8 +144,8 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `/register`：包含 `CUMT Nexus`、`注册账号`、`账号创建`、`去登录`。
 - `/communities`：包含 `社区目录`、`校园社区`、`申请社区`。
 - `/communities/public`：至少证明动态社区详情路由壳可返回 `200`，并包含 `返回社区索引`。
-- `/communities/public/new`：包含 `CUMT Nexus`、`发起讨论`、`需要登录`、`登录后发起讨论`、`去登录`。
-- `/community-applications/new`：包含 `CUMT Nexus`、`申请新社区`、`返回社区索引`。
+- `/communities/public/new`：包含 `CUMT Nexus`、`发起讨论`、`需要登录`、`登录后发起讨论`、`去登录`，且登录/注册链接必须指向 `next=%2Fcommunities%2Fpublic%2Fnew`。
+- `/community-applications/new`：包含 `CUMT Nexus`、`申请新社区`、`返回社区索引`，且登录/注册链接必须指向 `next=%2Fcommunity-applications%2Fnew`。
 - 所有页面都必须包含 `zh-CN` 语言标记，且不能渲染常见错误页标记。
 
 ## 最新浏览器 QA 记录
