@@ -28,6 +28,27 @@ export type CommunityApplication = {
   updated_at: string;
 };
 
+export type CommunityApplicationStatus =
+  | "pending"
+  | "approved"
+  | "rejected";
+
+export type ListCommunityApplicationsInput = {
+  limit?: number;
+  offset?: number;
+  status: CommunityApplicationStatus;
+};
+
+export type ListCommunityApplicationsResponse = {
+  applications: CommunityApplication[];
+  limit: number;
+  offset: number;
+};
+
+export type GetCommunityApplicationResponse = {
+  application: CommunityApplication;
+};
+
 export type SubmitCommunityApplicationInput = {
   requested_slug: string;
   requested_name: string;

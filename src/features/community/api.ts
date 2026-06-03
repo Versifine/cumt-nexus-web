@@ -3,6 +3,9 @@ import { apiRequest } from "@/lib/api/client";
 import type {
   Community,
   ApproveCommunityApplicationResponse,
+  GetCommunityApplicationResponse,
+  ListCommunityApplicationsInput,
+  ListCommunityApplicationsResponse,
   ListCommunitiesResponse,
   RejectCommunityApplicationInput,
   RejectCommunityApplicationResponse,
@@ -27,6 +30,24 @@ export function submitCommunityApplication(input: SubmitCommunityApplicationInpu
       method: "POST",
       body: input,
     },
+  );
+}
+
+export function listCommunityApplications(input: ListCommunityApplicationsInput) {
+  const searchParams = new URLSearchParams({
+    status: input.status,
+    limit: String(input.limit ?? 20),
+    offset: String(input.offset ?? 0),
+  });
+
+  return apiRequest<ListCommunityApplicationsResponse>(
+    `/api/v1/community-applications?${searchParams.toString()}`,
+  );
+}
+
+export function getCommunityApplication(id: string) {
+  return apiRequest<GetCommunityApplicationResponse>(
+    `/api/v1/community-applications/${encodeURIComponent(id)}`,
   );
 }
 

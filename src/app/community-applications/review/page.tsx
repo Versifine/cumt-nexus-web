@@ -4,7 +4,7 @@ import { CommunityApplicationReview } from "@/features/community/community-appli
 
 export const metadata: Metadata = {
   title: "社区申请审核 | CUMT Nexus",
-  description: "按申请 ID 审核 CUMT Nexus 社区申请。",
+  description: "查看并审核 CUMT Nexus 社区申请列表。",
 };
 
 export default function CommunityApplicationReviewRoute() {
