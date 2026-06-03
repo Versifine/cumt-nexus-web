@@ -147,6 +147,14 @@ npm run check:dependencies
 
 该命令会检查 `package.json` 的直接依赖是否仍在批准清单内，`package-lock.json` 根依赖是否与 `package.json` 一致，并阻止 Ant Design、MUI、Mantine、Chakra、DaisyUI 等第二套 UI 库进入依赖或源码 import。确需新增依赖时，必须在明确切片里说明用途、替代方案和影响范围，并同步更新该检查。
 
+文档索引检查：
+
+```powershell
+npm run check:docs
+```
+
+该命令会检查关键文档文件是否存在，README 和内部文档索引是否覆盖当前文档入口，提示词模板是否保留可复制文本块，并确认 `check:docs` 已写入项目工作流。
+
 后端主链路检查：
 
 ```powershell
@@ -217,6 +225,7 @@ npm run check:api-boundary
 npm run check:content-boundary
 npm run check:content-segments
 npm run check:dependencies
+npm run check:docs
 npm run check:env
 npm run check:main-path
 npm run check:routes

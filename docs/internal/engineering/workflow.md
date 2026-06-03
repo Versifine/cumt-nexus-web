@@ -128,3 +128,11 @@ npm test
 2. 相关 `docs/internal/` 文件
 3. `.ai/slices/<stage>/`
 4. `README.md`
+
+文档索引同步后运行：
+
+```powershell
+npm run check:docs
+```
+
+该命令验证 README、内部文档索引、提示词模板和关键文档文件是否仍然对齐。新增文档、删除文档或新增验证命令时，要同步更新该检查。

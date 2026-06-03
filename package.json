@@ -12,6 +12,7 @@
     "check:content-boundary": "node scripts/check-content-boundary.mjs",
     "check:content-segments": "node scripts/check-content-segments.mjs",
     "check:dependencies": "node scripts/check-dependency-boundary.mjs",
+    "check:docs": "node scripts/check-docs.mjs",
     "check:env": "node scripts/check-env.mjs",
     "check:env:production": "node scripts/check-env.mjs --production",
     "check:main-path": "node scripts/check-main-path.mjs",
