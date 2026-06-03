@@ -155,6 +155,14 @@ npm run check:docs
 
 该命令会检查关键文档文件是否存在，README 和内部文档索引是否覆盖当前文档入口，提示词模板是否保留可复制文本块，并确认 `check:docs` 已写入项目工作流。
 
+动作边界检查：
+
+```powershell
+npm run check:actions
+```
+
+该命令会检查普通导航和跳转动作是否仍使用 `TextAction`，阻止 `Button asChild` 把普通链接做成按钮。表单提交、重试、投票、工具栏等真实命令仍使用 `Button`。
+
 中文文案边界检查：
 
 ```powershell
@@ -177,7 +185,7 @@ npm run check:ui-primitives
 npm run check:static
 ```
 
-该命令会顺序运行 lint、typecheck、build、文档索引、依赖边界、API 边界、内容渲染边界、涂黑解析、中文文案边界、UI 基础件复用和本地环境变量检查。它不请求真实后端，也不替代 `check:main-path`、`check:readiness` 或浏览器 QA。
+该命令会顺序运行 lint、typecheck、build、文档索引、动作边界、依赖边界、API 边界、内容渲染边界、涂黑解析、中文文案边界、UI 基础件复用和本地环境变量检查。它不请求真实后端，也不替代 `check:main-path`、`check:readiness` 或浏览器 QA。
 
 后端主链路检查：
 
@@ -245,6 +253,7 @@ POST   /api/v1/community-applications
 npm run lint
 npm run typecheck
 npm run build
+npm run check:actions
 npm run check:api-boundary
 npm run check:content-boundary
 npm run check:content-segments

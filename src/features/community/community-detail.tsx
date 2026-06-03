@@ -54,9 +54,9 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
               description={getErrorDescription(communityQuery.error)}
               action={
                 isUnauthenticated(communityQuery.error) ? (
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={loginHref}>登录</Link>
-                  </Button>
+                  <TextAction href={loginHref} tone="primary">
+                    登录
+                  </TextAction>
                 ) : (
                   <Button
                     variant="outline"
@@ -108,9 +108,9 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
                     description={getErrorDescription(postsQuery.error)}
                     action={
                       isUnauthenticated(postsQuery.error) ? (
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={loginHref}>登录</Link>
-                        </Button>
+                        <TextAction href={loginHref} tone="primary">
+                          登录
+                        </TextAction>
                       ) : (
                         <Button
                           variant="outline"

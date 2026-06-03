@@ -1,6 +1,4 @@
 "use client";
-
-import Link from "next/link";
 import {
   ArrowDown,
   ArrowUp,
@@ -17,6 +15,7 @@ import {
   MetricBlock,
   StatusToken,
 } from "@/components/ui/data-display";
+import { TextAction } from "@/components/ui/text-action";
 import { CommentForm } from "@/features/comment/comment-form";
 import { CommentTree } from "@/features/comment/comment-tree";
 import { usePostCommentsQuery } from "@/features/comment/queries";
@@ -54,9 +53,9 @@ export function PostDetail({ id }: PostDetailProps) {
                   description={getErrorDescription(postQuery.error)}
                   action={
                     isUnauthenticated(postQuery.error) ? (
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={loginHref}>登录</Link>
-                      </Button>
+                      <TextAction href={loginHref} tone="primary">
+                        登录
+                      </TextAction>
                     ) : (
                       <Button
                         variant="outline"
@@ -104,9 +103,9 @@ export function PostDetail({ id }: PostDetailProps) {
                       description={getErrorDescription(commentsQuery.error)}
                       action={
                         isUnauthenticated(commentsQuery.error) ? (
-                          <Button asChild variant="outline" size="sm">
-                            <Link href={loginHref}>登录</Link>
-                          </Button>
+                          <TextAction href={loginHref} tone="primary">
+                            登录
+                          </TextAction>
                         ) : (
                           <Button
                             variant="outline"

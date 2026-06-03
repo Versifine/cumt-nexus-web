@@ -101,7 +101,15 @@ npm run typecheck
 npm run check:static
 ```
 
-`check:static` 聚合 lint、typecheck、build、文档、依赖、API、内容、中文文案边界、UI 基础件复用和本地环境检查。它不请求真实后端，不替代 `npm run check:main-path`、`npm run check:readiness` 和浏览器 QA。
+`check:static` 聚合 lint、typecheck、build、文档、动作边界、依赖、API、内容、中文文案边界、UI 基础件复用和本地环境检查。它不请求真实后端，不替代 `npm run check:main-path`、`npm run check:readiness` 和浏览器 QA。
+
+动作边界可以运行：
+
+```powershell
+npm run check:actions
+```
+
+`check:actions` 用于阻止 `Button asChild` 把普通导航链接做成按钮。表单提交、重试、投票和工具栏这类真实命令继续使用 `Button`；跳转、返回、登录/注册入口优先使用 `TextAction`。
 
 中文文案边界可以运行：
 

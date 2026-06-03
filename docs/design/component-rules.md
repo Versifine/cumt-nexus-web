@@ -40,6 +40,7 @@
 - 统一使用 shadcn/ui Button。
 - variant 必须有限：`default`、`secondary`、`outline`、`ghost`、`destructive`、`link`。
 - Button 只用于真正的主命令：提交、确认、创建、登录等。
+- `Button asChild` 不用于普通导航链接；登录跳转、注册跳转、返回入口和侧栏入口使用 `TextAction`。
 - 主动作每个区域最多一个；同一区域不要放多个同等重量按钮。
 - 导航、跳转和次级动作优先使用文字动作，不默认使用 Button。
 - 图标按钮必须使用 lucide-react 图标，并提供 `aria-label` 或 tooltip。
@@ -52,6 +53,10 @@
 - 使用渐变按钮作为默认按钮。
 - 让按钮 hover 改变尺寸。
 - 把普通链接做成 outline button。
+
+检查：
+
+- `npm run check:actions` 会阻止页面中继续使用 `Button asChild` 承载普通链接。
 
 ## Text Action
 

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "check:actions": "node scripts/check-action-boundary.mjs",
     "check:api-boundary": "node scripts/check-api-boundary.mjs",
     "check:content-boundary": "node scripts/check-content-boundary.mjs",
     "check:content-segments": "node scripts/check-content-segments.mjs",

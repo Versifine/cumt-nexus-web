@@ -214,9 +214,9 @@ export function HomeShell() {
                       description={getErrorDescription(latestPostsQuery.error)}
                       action={
                         isUnauthenticated(latestPostsQuery.error) ? (
-                          <Button asChild variant="outline" size="sm">
-                            <Link href="/login">登录</Link>
-                          </Button>
+                          <TextAction href="/login" tone="primary">
+                            登录
+                          </TextAction>
                         ) : (
                           <Button
                             variant="outline"

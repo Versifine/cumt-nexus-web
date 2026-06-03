@@ -9,6 +9,7 @@ const checks = [
   "typecheck",
   "build",
   "check:docs",
+  "check:actions",
   "check:dependencies",
   "check:api-boundary",
   "check:content-boundary",

@@ -71,9 +71,9 @@ export function CommunityList() {
               description={getErrorDescription(communitiesQuery.error)}
               action={
                 isUnauthenticated(communitiesQuery.error) ? (
-                  <Button asChild variant="outline" size="sm">
-                    <Link href="/login">登录</Link>
-                  </Button>
+                  <TextAction href="/login" tone="primary">
+                    登录
+                  </TextAction>
                 ) : (
                   <Button
                     variant="outline"
