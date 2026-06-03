@@ -52,7 +52,7 @@ export function HomeShell() {
   const { isReady, token } = useAuthSession();
   const canLoadLatestPosts = isReady && Boolean(token);
   const latestPostsQuery = useLatestPostsQuery(20, 0, canLoadLatestPosts);
-  const posts = latestPostsQuery.data?.posts ?? [];
+  const posts = canLoadLatestPosts ? (latestPostsQuery.data?.posts ?? []) : [];
 
   return (
     <main className="min-h-screen bg-background text-foreground">

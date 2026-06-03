@@ -7,8 +7,10 @@
 - 技术栈：Next.js App Router + React + TypeScript + Tailwind CSS + shadcn/ui + Motion。
 - 视觉方向：dark editorial product / magazine-grade campus community interface。
 - 界面语言：用户可见文案默认使用简体中文，品牌名、技术名、URL slug、API 字段和用户生成内容保留原文。
-- 当前分支：`stage/0-web-planning`。
-- 当前目标：持续推进到可上线版本，保持小的纵向切片逐步收口。
+- 当前分支：`stage/0-web-planning`。该分支名来自早期规划阶段，当前实际用于 V1 本地封版收口。
+- 当前目标：V1 本地版已完成封版收口；生产 HTTPS 域名、正式 API origin 和生产 CORS 在没有域名前保持 deferred。
+- 最新本地封版验收（2026-06-03）：`npm run check:static`、`npm run check:routes`、严格 `npm run check:readiness` 和严格 `npm run check:main-path` 均通过；后端合同复核确认此前评论树 warning 来自旧 API 进程。
+- 最新浏览器复验（2026-06-03）：未登录帖子详情不再触发帖子/评论 401 请求；登录后帖子详情、评论树和页面出口可用，移动端 `390px` 帖子详情无横向溢出，控制台无 error；退出登录和 token 清空会清理 TanStack Query 缓存，避免继续显示旧登录数据。
 
 ## 已实现范围
 
@@ -17,6 +19,7 @@
 - 社区列表、社区详情和社区帖子列表。
 - 帖子详情、评论列表和评论发布。
 - 帖子 upvote / downvote 状态展示和操作。
+- 作者编辑和软删除自己的帖子、评论。
 - 在指定社区发布帖子。
 - 提交社区创建申请。
 - 受保护动作登录门禁：未登录访问发帖或社区申请时，引导登录/注册并保留 `next` 回跳。
@@ -33,8 +36,28 @@
 - 独立后台审批台。
 - 申请列表和申请取消。
 - 个人资料编辑、头像、邮箱。
-- 图片上传、帖子编辑、删除、搜索。
+- 图片上传、搜索。
 - hot feed、推荐排序、评论投票、通知、私信和实时能力。
+
+## V1 本地封版边界
+
+当前可以按“V1 本地版”验收的范围：
+
+- 本地前端 `http://localhost:3000` 或 `http://127.0.0.1:3000`。
+- 本地后端 `http://localhost:8080`，并允许本地前端 CORS origin。
+- 注册、登录、退出、社区、发帖、帖子详情、评论树、投票和社区申请主链路。
+- `npm run check:static`、`npm run check:routes`、严格 `npm run check:readiness` 和严格 `npm run check:main-path`。
+- 已记录的桌面和移动端浏览器 QA 证据。
+
+当前不把这些事项作为“V1 本地版完成”的阻塞项：
+
+- 正式生产域名。
+- 生产 HTTPS `NEXT_PUBLIC_SITE_URL`。
+- 生产 HTTPS `NEXT_PUBLIC_API_BASE_URL`。
+- 生产后端 CORS allowlist。
+- 生产发布后验证和回滚演练。
+
+这些事项仍然是“生产上线完成”的阻塞项。
 
 ## 本地运行
 
@@ -195,7 +218,7 @@ npm run check:main-path
 
 该命令会直接请求 `NEXT_PUBLIC_API_BASE_URL` 对应的真实后端，创建带 `smoke` 前缀的测试用户、社区申请、帖子、根评论、子评论和投票，验证注册、登录、`/me`、社区列表/详情、发帖、帖子详情、评论树读取、根评论发布、子评论回复、upvote、downvote 和取消投票。它用于本地或预发布环境验收，会写入测试数据；后端未启动时该命令必须失败。
 
-当前如果后端仍按简单时间倒序返回评论，子评论可能出现在根评论之前；脚本会记录 warning。后端 tree contract 完成后，该排序问题应升级为 blocker。
+后端合同复核确认当前源码的 `view=tree` 评论读取会返回父评论先于子评论的前序遍历；如果未来该合同退化，应升级为 blocker。
 
 如果后端暂时未启动，只用于前端本地收口，可以运行：
 
@@ -211,7 +234,7 @@ npm run check:main-path:local
 npm run check:routes
 ```
 
-该命令会检查 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面是否包含 `zh-CN` 语言标记和关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到“无法加载最新帖子”或“需要登录”错误面板；社区列表、社区详情、帖子详情壳、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它只证明公开页面、受保护入口和错误页壳能渲染，不替代真实后端主链路联调，也不替代浏览器水合后的动态状态 QA。
+该命令会检查 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面是否包含 `zh-CN` 语言标记和关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到“无法加载最新帖子”或“需要登录”错误面板；社区列表、社区详情、帖子详情壳、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；社区详情壳、帖子详情壳、发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它只证明公开页面、受保护入口和错误页壳能渲染，不替代真实后端主链路联调，也不替代浏览器水合后的动态状态 QA。
 
 当前如果只想在后端未启动时继续前端本地收口，可以使用宽松模式：
 
@@ -240,6 +263,10 @@ GET    /api/v1/posts
 GET    /api/v1/posts/:id
 GET    /api/v1/posts/:id/comments
 POST   /api/v1/posts/:id/comments
+PATCH  /api/v1/posts/:id
+DELETE /api/v1/posts/:id
+PATCH  /api/v1/comments/:id
+DELETE /api/v1/comments/:id
 PUT    /api/v1/posts/:id/vote
 DELETE /api/v1/posts/:id/vote
 POST   /api/v1/community-applications
@@ -284,6 +311,7 @@ npm run check:readiness
 - `docs/prompts/frontend-task-template.md`：前端实现任务模板。
 - `docs/prompts/frontend-review-template.md`：前端审查任务模板。
 - `docs/prompts/backend-content-media-target-template.md`：后端内容媒体能力目标模式提示词。
+- `docs/internal/product/product-targets.md`：产品目标总表，记录已实现能力、未实现能力、前后端缺口和派工顺序。
 - `docs/internal/architecture/frontend-v1.md`：前端 V1 架构、路由和 API 边界。
 - `docs/internal/architecture/content-system.md`：内容系统产品形态、评论树、图片和 embed 边界。
 - `docs/internal/architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端 API 缺口。

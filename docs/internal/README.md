@@ -5,6 +5,7 @@
 ## 文档索引
 
 - `architecture/frontend-v1.md`：前端 V1 架构、路由、模块和 API 协作边界。
+- `product/product-targets.md`：产品目标总表，统一记录已实现能力、未实现能力、前后端缺口和派工顺序。
 - `architecture/content-system.md`：Markdown-like 帖子、Reddit-style 评论树、图片和外链嵌入的产品/架构讨论稿。
 - `architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端 API 缺口。
 - `architecture/markdown-rendering.md`：Markdown renderer 选型、安全边界、组件组织和实施切片。
@@ -24,8 +25,8 @@
 
 ## 当前阶段
 
-- 当前阶段：`阶段 0 前端规划与视觉基线`
+- 当前阶段：`V1 本地版封版收口`
 - 当前工单板：根目录 `tasks.md`
-- 当前切片：`.ai/slices/stage-00-planning/`
+- 当前切片：`.ai/slices/stage-01-v1-local-freeze/`
 
-阶段 0 之后进入工程初始化，不再继续空谈技术选型。
+阶段 0 的技术栈、产品范围和视觉基线已经完成；阶段 1 Web 主链路已经形成本地闭环。没有正式域名前，生产 HTTPS、正式 API origin 和生产 CORS 只作为 deferred 项，不阻塞 V1 本地版封版。

@@ -14,9 +14,10 @@ export function useCommunitiesQuery() {
   });
 }
 
-export function useCommunityQuery(slug: string) {
+export function useCommunityQuery(slug: string, enabled = true) {
   return useQuery({
     queryKey: communityQueryKeys.detail(slug),
     queryFn: () => getCommunity(slug),
+    enabled,
   });
 }

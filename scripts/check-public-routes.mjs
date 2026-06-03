@@ -50,13 +50,28 @@ const routes = [
     path: "/communities",
   },
   {
-    hrefMarkers: pageExitHrefMarkers,
-    markers: ["返回社区索引"],
+    hrefMarkers: [
+      ...pageExitHrefMarkers,
+      "/login?next=%2Fcommunities%2Fpublic",
+    ],
+    markers: [
+      "返回社区索引",
+      "需要登录",
+      "请先登录后查看社区详情和帖子",
+    ],
     path: "/communities/public",
   },
   {
-    hrefMarkers: pageExitHrefMarkers,
-    markers: ["CUMT Nexus", "返回社区索引"],
+    hrefMarkers: [
+      ...pageExitHrefMarkers,
+      "/login?next=%2Fposts%2Froute-smoke",
+    ],
+    markers: [
+      "CUMT Nexus",
+      "返回社区索引",
+      "需要登录",
+      "请先登录后查看帖子详情、评论和投票",
+    ],
     path: "/posts/route-smoke",
   },
   {

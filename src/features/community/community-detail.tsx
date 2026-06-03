@@ -20,6 +20,7 @@ import {
   type StatusTokenTone,
 } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
+import { useAuthSession } from "@/features/auth/auth-session";
 import { useCommunityPostsQuery } from "@/features/post/queries";
 import type { Post } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
@@ -33,11 +34,14 @@ type CommunityDetailProps = {
 };
 
 export function CommunityDetail({ slug }: CommunityDetailProps) {
-  const communityQuery = useCommunityQuery(slug);
-  const canShowCommunityContent = communityQuery.isSuccess && Boolean(communityQuery.data?.community);
+  const { isReady, token } = useAuthSession();
+  const canRequestCommunity = isReady && Boolean(token);
+  const communityQuery = useCommunityQuery(slug, canRequestCommunity);
+  const canShowCommunityContent =
+    canRequestCommunity && communityQuery.isSuccess && Boolean(communityQuery.data?.community);
   const postsQuery = useCommunityPostsQuery(slug, 20, 0, canShowCommunityContent);
-  const community = communityQuery.data?.community;
-  const posts = postsQuery.data?.posts ?? [];
+  const community = canRequestCommunity ? communityQuery.data?.community : undefined;
+  const posts = canShowCommunityContent ? (postsQuery.data?.posts ?? []) : [];
   const loginHref = `/login?next=${encodeURIComponent(`/communities/${slug}`)}`;
 
   return (
@@ -46,7 +50,19 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
         <PageNav backHref="/communities" backLabel="返回社区索引" />
 
         <section className="py-6">
-          {communityQuery.isPending ? (
+          {!isReady ? (
+            <LoadingState rows={2} />
+          ) : !token ? (
+            <ErrorState
+              title="需要登录"
+              description="请先登录后查看社区详情和帖子。"
+              action={
+                <TextAction href={loginHref} tone="primary">
+                  登录
+                </TextAction>
+              }
+            />
+          ) : communityQuery.isPending ? (
             <LoadingState rows={2} />
           ) : communityQuery.isError ? (
             <ErrorState

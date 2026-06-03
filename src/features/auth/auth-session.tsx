@@ -4,7 +4,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
@@ -16,8 +18,6 @@ import {
   subscribeAccessTokenChange,
   writeAccessToken,
 } from "@/lib/auth/token-storage";
-
-import { authQueryKeys } from "./query-keys";
 
 type AuthSessionContextValue = {
   token: string | null;
@@ -39,6 +39,7 @@ export function AuthSessionProvider({ children }: AuthSessionProviderProps) {
     readAccessToken,
     () => null,
   );
+  const previousTokenRef = useRef<string | null>(token);
 
   const setToken = useCallback((nextToken: string) => {
     writeAccessToken(nextToken);
@@ -46,8 +47,16 @@ export function AuthSessionProvider({ children }: AuthSessionProviderProps) {
 
   const clearSession = useCallback(() => {
     clearAccessToken();
-    queryClient.removeQueries({ queryKey: authQueryKeys.all });
+    queryClient.clear();
   }, [queryClient]);
+
+  useEffect(() => {
+    if (previousTokenRef.current && !token) {
+      queryClient.clear();
+    }
+
+    previousTokenRef.current = token;
+  }, [queryClient, token]);
 
   const value = useMemo(
     () => ({
