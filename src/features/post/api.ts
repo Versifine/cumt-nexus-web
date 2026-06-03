@@ -5,6 +5,8 @@ import type {
   ListPostsResponse,
   PublishPostInput,
   PublishPostResponse,
+  UpdatePostInput,
+  UpdatePostResponse,
 } from "./types";
 
 type ListCommunityPostsInput = {
@@ -49,4 +51,17 @@ export function publishPost(slug: string, input: PublishPostInput) {
 
 export function getPost(id: string) {
   return apiRequest<GetPostResponse>(`/api/v1/posts/${encodeURIComponent(id)}`);
+}
+
+export function updatePost(id: string, input: UpdatePostInput) {
+  return apiRequest<UpdatePostResponse>(`/api/v1/posts/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: input,
+  });
+}
+
+export function deletePost(id: string) {
+  return apiRequest<void>(`/api/v1/posts/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }

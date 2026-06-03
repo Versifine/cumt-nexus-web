@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, CornerDownRight } from "lucide-react";
 
+import { CommentLifecycleControls } from "@/features/comment/comment-lifecycle-controls";
 import { CommentForm } from "@/features/comment/comment-form";
 import { ContentBody } from "@/features/content/content-body";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,7 @@ import type { Comment } from "./types";
 
 type CommentTreeProps = {
   comments: Comment[];
+  currentUserId?: string | null;
   maxDepth?: number;
   postId: string;
 };
@@ -23,6 +25,7 @@ type CommentTreeNode = {
 
 export function CommentTree({
   comments,
+  currentUserId = null,
   maxDepth = 6,
   postId,
 }: CommentTreeProps) {
@@ -65,6 +68,7 @@ export function CommentTree({
           <CommentBranch
             key={node.comment.id}
             collapsedIds={collapsedIds}
+            currentUserId={currentUserId}
             expandedDepthIds={expandedDepthIds}
             indexLabel={String(index + 1).padStart(2, "0")}
             maxDepth={maxDepth}
@@ -84,6 +88,7 @@ export function CommentTree({
 
 function CommentBranch({
   collapsedIds,
+  currentUserId,
   expandedDepthIds,
   indexLabel,
   maxDepth,
@@ -96,6 +101,7 @@ function CommentBranch({
   visualDepth,
 }: {
   collapsedIds: Set<string>;
+  currentUserId: string | null;
   expandedDepthIds: Set<string>;
   indexLabel: string;
   maxDepth: number;
@@ -112,6 +118,7 @@ function CommentBranch({
   const replyCount = comment.reply_count ?? children.length;
   const hasChildren = children.length > 0;
   const isCollapsed = collapsedIds.has(comment.id);
+  const canManageComment = currentUserId === comment.author_id;
   const isDepthLimited =
     apiDepth >= maxDepth && hasChildren && !expandedDepthIds.has(comment.id);
   const hasMoreReplies = comment.has_more_replies || isDepthLimited;
@@ -139,6 +146,12 @@ function CommentBranch({
           </div>
 
           <ContentBody value={comment.body} className="mt-3 text-sm leading-7" />
+
+          <CommentLifecycleControls
+            canManage={canManageComment}
+            comment={comment}
+            postId={postId}
+          />
 
           <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
             <TextCommand
@@ -194,6 +207,7 @@ function CommentBranch({
               <CommentBranch
                 key={child.comment.id}
                 collapsedIds={collapsedIds}
+                currentUserId={currentUserId}
                 expandedDepthIds={expandedDepthIds}
                 indexLabel={`${indexLabel}.${index + 1}`}
                 maxDepth={maxDepth}

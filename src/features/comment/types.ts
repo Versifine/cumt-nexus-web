@@ -27,3 +27,11 @@ export type PublishCommentInput = {
 export type PublishCommentResponse = {
   comment: Comment;
 };
+
+export type UpdateCommentInput = {
+  body: string;
+};
+
+export type UpdateCommentResponse = {
+  comment: Comment;
+};

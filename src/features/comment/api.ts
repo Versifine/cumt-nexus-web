@@ -4,6 +4,8 @@ import type {
   ListCommentsResponse,
   PublishCommentInput,
   PublishCommentResponse,
+  UpdateCommentInput,
+  UpdateCommentResponse,
 } from "./types";
 
 type ListPostCommentsInput = {
@@ -44,4 +46,20 @@ export function publishComment(postId: string, input: PublishCommentInput) {
       body: input,
     },
   );
+}
+
+export function updateComment(id: string, input: UpdateCommentInput) {
+  return apiRequest<UpdateCommentResponse>(
+    `/api/v1/comments/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      body: input,
+    },
+  );
+}
+
+export function deleteComment(id: string) {
+  return apiRequest<void>(`/api/v1/comments/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }

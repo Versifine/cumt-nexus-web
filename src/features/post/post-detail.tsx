@@ -16,6 +16,8 @@ import {
   StatusToken,
 } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
+import { useAuthSession } from "@/features/auth/auth-session";
+import { useCurrentUserQuery } from "@/features/auth/queries";
 import { CommentForm } from "@/features/comment/comment-form";
 import { CommentTree } from "@/features/comment/comment-tree";
 import { usePostCommentsQuery } from "@/features/comment/queries";
@@ -23,6 +25,7 @@ import { ContentBody } from "@/features/content/content-body";
 import { VoteControl } from "@/features/vote/vote-control";
 import { ApiError } from "@/lib/api/client";
 
+import { PostLifecycleControls } from "./post-lifecycle-controls";
 import { usePostQuery } from "./queries";
 import type { Post } from "./types";
 
@@ -31,10 +34,19 @@ type PostDetailProps = {
 };
 
 export function PostDetail({ id }: PostDetailProps) {
-  const postQuery = usePostQuery(id);
-  const commentsQuery = usePostCommentsQuery(id);
-  const post = postQuery.data?.post;
-  const comments = commentsQuery.data?.comments ?? [];
+  const { isReady, token } = useAuthSession();
+  const currentUserQuery = useCurrentUserQuery();
+  const canRequestPost = isReady && Boolean(token);
+  const postQuery = usePostQuery(id, canRequestPost);
+  const canRequestComments = canRequestPost && postQuery.isSuccess && Boolean(postQuery.data?.post);
+  const commentsQuery = usePostCommentsQuery(id, 20, 0, "tree", "new", 6, canRequestComments);
+  const post = canRequestPost ? postQuery.data?.post : undefined;
+  const comments = canRequestComments ? (commentsQuery.data?.comments ?? []) : [];
+  const currentUserId = currentUserQuery.data?.id ?? null;
+  const canManagePost =
+    Boolean(post) &&
+    currentUserQuery.isSuccess &&
+    currentUserId === post?.author_id;
   const loginHref = `/login?next=${encodeURIComponent(`/posts/${id}`)}`;
 
   return (
@@ -45,7 +57,19 @@ export function PostDetail({ id }: PostDetailProps) {
         <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
             <section>
-              {postQuery.isLoading ? (
+              {!isReady ? (
+                <LoadingState rows={3} />
+              ) : !token ? (
+                <ErrorState
+                  title="需要登录"
+                  description="请先登录后查看帖子详情、评论和投票。"
+                  action={
+                    <TextAction href={loginHref} tone="primary">
+                      登录
+                    </TextAction>
+                  }
+                />
+              ) : postQuery.isLoading ? (
                 <LoadingState rows={3} />
               ) : postQuery.isError ? (
                 <ErrorState
@@ -68,7 +92,11 @@ export function PostDetail({ id }: PostDetailProps) {
                   }
                 />
               ) : post ? (
-                <PostArticle post={post} commentCount={comments.length} />
+                <PostArticle
+                  canManage={canManagePost}
+                  post={post}
+                  commentCount={comments.length}
+                />
               ) : null}
             </section>
 
@@ -127,7 +155,12 @@ export function PostDetail({ id }: PostDetailProps) {
                   ) : null}
 
                   {commentsQuery.isSuccess && comments.length > 0 ? (
-                    <CommentTree comments={comments} maxDepth={6} postId={id} />
+                    <CommentTree
+                      comments={comments}
+                      currentUserId={currentUserId}
+                      maxDepth={6}
+                      postId={id}
+                    />
                   ) : null}
                 </div>
               </section>
@@ -148,9 +181,11 @@ export function PostDetail({ id }: PostDetailProps) {
 }
 
 function PostArticle({
+  canManage,
   post,
   commentCount,
 }: {
+  canManage: boolean;
   post: Post;
   commentCount: number;
 }) {
@@ -178,6 +213,8 @@ function PostArticle({
       <div className="border-b border-border py-6">
         <ContentBody value={post.body} className="text-base leading-8" />
       </div>
+
+      <PostLifecycleControls canManage={canManage} post={post} />
 
       <div className="border-b border-border py-4">
         <div className="flex flex-col gap-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
