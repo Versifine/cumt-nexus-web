@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
@@ -9,12 +9,12 @@ import { z } from "zod";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthSession } from "@/features/auth/auth-session";
-import { ContentPreview } from "@/features/content/content-preview";
 import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
+import { ImageAttachmentUploader } from "@/features/media/media-attachments";
+import type { MediaAttachment } from "@/features/media/types";
 import { ApiError } from "@/lib/api/client";
 
 import { publishComment } from "./api";
@@ -47,6 +47,8 @@ export function CommentForm({
   const { isReady, token } = useAuthSession();
   const queryClient = useQueryClient();
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [attachments, setAttachments] = useState<MediaAttachment[]>([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const form = useForm<CommentFormValues>({
     resolver: zodResolver(commentSchema),
     defaultValues: {
@@ -57,11 +59,13 @@ export function CommentForm({
   const commentMutation = useMutation({
     mutationFn: (values: CommentFormValues) =>
       publishComment(postId, {
+        attachment_ids: attachments.map((attachment) => attachment.id),
         body: values.body,
         parent_id: parentId || undefined,
       }),
     onSuccess: async () => {
       form.reset();
+      setAttachments([]);
       await queryClient.invalidateQueries({
         queryKey: commentQueryKeys.postCommentsPrefix(postId),
       });
@@ -130,46 +134,30 @@ export function CommentForm({
       ) : null}
 
       <div className="space-y-2">
-        <Tabs defaultValue="edit">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <MarkdownToolbar
-              disabled={commentMutation.isPending}
-              onChange={(nextValue) =>
-                form.setValue("body", nextValue, {
-                  shouldDirty: true,
-                  shouldTouch: true,
-                  shouldValidate: true,
-                })
-              }
-              textareaRef={bodyTextareaRef}
-              value={bodyValue}
-            />
-            <TabsList className="rounded-none bg-background">
-              <TabsTrigger value="edit">编辑</TabsTrigger>
-              <TabsTrigger value="preview">预览</TabsTrigger>
-            </TabsList>
-          </div>
-          <TabsContent value="edit" className="mt-2">
-            <Textarea
-              aria-label="评论内容"
-              aria-invalid={Boolean(form.formState.errors.body)}
-              disabled={commentMutation.isPending}
-              placeholder={placeholder ?? (parentId ? "回复这条评论。" : "写下你的评论。")}
-              className={compact ? "min-h-28" : undefined}
-              {...bodyField}
-              ref={(element) => {
-                bodyField.ref(element);
-                bodyTextareaRef.current = element;
-              }}
-            />
-          </TabsContent>
-          <TabsContent value="preview" className="mt-2">
-            <ContentPreview
-              value={bodyValue}
-              minHeightClassName={compact ? "min-h-28" : "min-h-36"}
-            />
-          </TabsContent>
-        </Tabs>
+        <MarkdownToolbar
+          disabled={commentMutation.isPending}
+          onChange={(nextValue) =>
+            form.setValue("body", nextValue, {
+              shouldDirty: true,
+              shouldTouch: true,
+              shouldValidate: true,
+            })
+          }
+          textareaRef={bodyTextareaRef}
+          value={bodyValue}
+        />
+        <Textarea
+          aria-label="评论内容"
+          aria-invalid={Boolean(form.formState.errors.body)}
+          disabled={commentMutation.isPending}
+          placeholder={placeholder ?? (parentId ? "回复这条评论。" : "写下你的评论。")}
+          className={compact ? "min-h-28" : undefined}
+          {...bodyField}
+          ref={(element) => {
+            bodyField.ref(element);
+            bodyTextareaRef.current = element;
+          }}
+        />
         {form.formState.errors.body ? (
           <p className="text-sm text-destructive">
             {form.formState.errors.body.message}
@@ -177,9 +165,21 @@ export function CommentForm({
         ) : null}
       </div>
 
+      <ImageAttachmentUploader
+        attachments={attachments}
+        disabled={commentMutation.isPending}
+        idPrefix={`comment-image-${parentId ?? "root"}-${postId}`}
+        onChange={setAttachments}
+        onUploadingChange={setIsUploadingImage}
+      />
+
       <div className="flex justify-end">
-        <Button type="submit" disabled={commentMutation.isPending}>
-          {commentMutation.isPending ? "正在发布..." : (submitLabel ?? (parentId ? "发布回复" : "发布评论"))}
+        <Button type="submit" disabled={commentMutation.isPending || isUploadingImage}>
+          {isUploadingImage
+            ? "图片上传中..."
+            : commentMutation.isPending
+              ? "正在发布..."
+              : (submitLabel ?? (parentId ? "发布回复" : "发布评论"))}
         </Button>
       </div>
     </form>

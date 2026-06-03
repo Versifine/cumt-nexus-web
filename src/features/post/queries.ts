@@ -1,16 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { deletePost, getPost, listCommunityPosts, listLatestPosts, updatePost } from "./api";
-import type { UpdatePostInput } from "./types";
+import type { PostSort, UpdatePostInput } from "./types";
 
 export const postQueryKeys = {
   latestPrefix: () => ["latest-posts"] as const,
-  latest: (limit: number, offset: number) => ["latest-posts", { limit, offset }] as const,
+  latest: (limit: number, offset: number, sort: PostSort) =>
+    ["latest-posts", { limit, offset, sort }] as const,
   detail: (id: string) => ["post", id] as const,
   communityPostsAll: () => ["community-posts"] as const,
   communityPostsPrefix: (slug: string) => ["community-posts", slug] as const,
-  communityPosts: (slug: string, limit: number, offset: number) =>
-    ["community-posts", slug, { limit, offset }] as const,
+  communityPosts: (slug: string, limit: number, offset: number, sort: PostSort) =>
+    ["community-posts", slug, { limit, offset, sort }] as const,
 };
 
 export function usePostQuery(id: string, enabled = true) {
@@ -21,10 +22,15 @@ export function usePostQuery(id: string, enabled = true) {
   });
 }
 
-export function useLatestPostsQuery(limit = 20, offset = 0, enabled = true) {
+export function useLatestPostsQuery(
+  limit = 20,
+  offset = 0,
+  enabled = true,
+  sort: PostSort = "new",
+) {
   return useQuery({
-    queryKey: postQueryKeys.latest(limit, offset),
-    queryFn: () => listLatestPosts(limit, offset),
+    queryKey: postQueryKeys.latest(limit, offset, sort),
+    queryFn: () => listLatestPosts(limit, offset, sort),
     enabled,
   });
 }
@@ -34,10 +40,11 @@ export function useCommunityPostsQuery(
   limit = 20,
   offset = 0,
   enabled = true,
+  sort: PostSort = "new",
 ) {
   return useQuery({
-    queryKey: postQueryKeys.communityPosts(slug, limit, offset),
-    queryFn: () => listCommunityPosts({ slug, limit, offset }),
+    queryKey: postQueryKeys.communityPosts(slug, limit, offset, sort),
+    queryFn: () => listCommunityPosts({ slug, limit, offset, sort }),
     enabled,
   });
 }

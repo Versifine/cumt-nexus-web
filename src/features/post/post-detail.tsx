@@ -22,6 +22,9 @@ import { CommentForm } from "@/features/comment/comment-form";
 import { CommentTree } from "@/features/comment/comment-tree";
 import { usePostCommentsQuery } from "@/features/comment/queries";
 import { ContentBody } from "@/features/content/content-body";
+import { MediaAttachmentGallery } from "@/features/media/media-attachments";
+import { ModerationRemoveDialog } from "@/features/moderation/moderation-remove-dialog";
+import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
 import { VoteControl } from "@/features/vote/vote-control";
 import { ApiError } from "@/lib/api/client";
 
@@ -212,6 +215,7 @@ function PostArticle({
 
       <div className="border-b border-border py-6">
         <ContentBody value={post.body} className="text-base leading-8" />
+        <MediaAttachmentGallery attachments={post.attachments} className="mt-5" />
       </div>
 
       <PostLifecycleControls canManage={canManage} post={post} />
@@ -229,6 +233,16 @@ function PostArticle({
             <MessageSquare className="size-4" aria-hidden="true" />
             {commentCount} 条评论
           </span>
+          <ReportContentDialog
+            targetId={post.id}
+            targetLabel={post.title}
+            targetType="post"
+          />
+          <ModerationRemoveDialog
+            targetId={post.id}
+            targetLabel={post.title}
+            targetType="post"
+          />
         </div>
       </div>
     </article>

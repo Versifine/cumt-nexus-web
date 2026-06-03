@@ -5,6 +5,7 @@
 本文不替代：
 
 - `docs/design/DESIGN.md`：视觉和交互方向。
+- `docs/internal/product/v2-roadmap.md`：V2 产品路线图和实施顺序。
 - `docs/internal/architecture/frontend-v1.md`：前端架构和模块边界。
 - `docs/internal/architecture/content-system.md`：内容系统讨论稿。
 - `docs/internal/engineering/launch-readiness.md`：上线前验收边界。
@@ -24,7 +25,10 @@ Reddit-style campus community content system
 - 用户围绕社区发起帖子。
 - 帖子承载正文、评论、投票和后续媒体能力。
 - 评论采用树状讨论结构。
-- 内容编辑走 Markdown-like 方向，不做富文本 HTML 编辑器。
+- 正文能力以 Reddit Markdown 为理想形态，目标是让帖子和评论支持 Reddit 风格的完整格式能力。
+- 写作体验不做“写 Markdown 文档 + 单独预览 tab”的割裂流程；更接近 Reddit：常用格式通过工具动作完成，高级用户仍可使用 Markdown 语法。
+- 阅读态必须直接渲染最终内容。
+- 不做任意 HTML 富文本编辑器，不保存用户生成 HTML。
 - 媒体能力以后端为权威，不允许前端伪造上传、对象存储或播放器能力。
 - 视觉上保持 `dark editorial product / magazine-grade campus community interface`，不照搬 Reddit 皮肤。
 
@@ -37,7 +41,7 @@ Reddit-style campus community content system
 - 当前用户识别。
 - 本地 access token 会话。
 - 退出登录和会话失效后的 TanStack Query 缓存清理。
-- 未登录访问受保护入口时提供登录/注册入口，并保留 `next` 回跳。
+- 未登录访问受保护入口时提供登录 / 注册入口，并保留 `next` 回跳。
 
 ### 社区
 
@@ -48,7 +52,8 @@ Reddit-style campus community content system
 
 ### 帖子
 
-- 全站最新帖子流。
+- 全站帖子流。
+- 全站帖子流最新 / 热门切换。
 - 在指定社区发布帖子。
 - 帖子详情。
 - 帖子 upvote / downvote / 取消投票。
@@ -67,10 +72,60 @@ Reddit-style campus community content system
 
 ### 内容编辑与渲染
 
-- 发帖、评论和回复的 Markdown-like 工具栏。
-- 编辑 / 预览切换。
-- spoiler / 涂黑语法 `>! ... !<` 的安全渲染。
-- 用户内容渲染边界自检，禁止原始 HTML、未批准 iframe 和 `dangerouslySetInnerHTML`。
+- 帖子和评论阅读态复用 `ContentBody`。
+- `react-markdown` + `remark-gfm` 安全渲染 Reddit-style Markdown 子集。
+- 开启 `skipHtml`，不渲染用户 HTML。
+- 链接只允许站内路径、锚点、`http`、`https` 和 `mailto`。
+- 支持 GFM 表格、任务列表、删除线、代码块、引用、列表和标题。
+- 支持 Reddit-style spoiler / 涂黑语法 `>! ... !<`。
+- 支持 Reddit-style 上标预处理。
+- 发帖、根评论、回复评论、帖子编辑和评论编辑使用单一写作面板，不提供编辑 / 预览双模式。
+- 写作面板提供加粗、斜体、引用、代码、链接和涂黑格式工具动作。
+- 用户内容渲染边界自检，禁止原始 HTML、未批准 iframe、`rehype-raw` 和 `dangerouslySetInnerHTML`。
+
+### 媒体附件
+
+- 发帖图片上传。
+- 评论图片上传。
+- 上传走 `POST /api/v1/uploads/images`。
+- 发帖和评论提交 `attachment_ids`。
+- 帖子详情展示图片附件。
+- 评论树展示图片附件。
+- 上传中、上传失败、删除待提交附件和 disabled 状态。
+
+### 发现与反馈
+
+- 搜索页 `/search`。
+- 搜索 scope：`all | communities | posts`。
+- 搜索关键词和 scope 同步到 URL query。
+- 搜索 loading、empty、error 状态。
+- 通知中心 `/notifications`。
+- 通知全部 / 未读 / 已读视图。
+- 通知标记已读。
+- 通知来源的保守跳转。
+
+### 举报与审核
+
+- 普通用户举报帖子。
+- 普通用户举报评论。
+- 审核台举报列表。
+- 审核台举报详情。
+- 展示后端 `target_preview`。
+- dismiss 举报。
+- remove target。
+- 帖子 moderation remove。
+- 评论 moderation remove。
+- forbidden 状态由后端权限校验兜底，前端不伪造 staff 权限。
+
+### 社区申请审批
+
+- 提交社区创建申请。
+- 手动审核入口 `/community-applications/review`。
+- 输入社区申请 ID 后 approve。
+- 输入社区申请 ID 后 reject，并填写拒绝原因。
+- loading、error、success 和 disabled 状态。
+- 审批通过后的社区创建和 owner 成员关系由后端事务保证。
+- 由于后端暂缺申请列表 / 详情读取接口，当前不伪造待审列表。
 
 ### 工程与上线收口
 
@@ -81,23 +136,14 @@ Reddit-style campus community content system
 - 前后端 `/readyz`。
 - 基础安全响应头。
 - 静态质量门禁、API 边界、依赖边界、中文文案边界、UI 基础件复用检查。
-- 本地主链路检查和公开路由 smoke 检查。
-- 部分真实浏览器 QA 记录，包括帖子详情登录门禁、登录回跳、评论树和移动端窄屏无横向溢出。
+- 本地主链路检查、V2 主链路检查和公开路由 smoke 检查。
+- 真实浏览器 QA 记录，包括帖子详情登录门禁、登录回跳、评论树、Reddit Markdown、搜索、通知、审核台、社区申请审核入口和移动端窄屏无横向溢出。
 
-## 前端未实现能力
-
-### P0：V1 本地封版
-
-- 本地静态验收。
-- 本地公开路由验收。
-- 本地 readiness 验收。
-- 本地后端主链路验收。
-- 桌面和移动端浏览器 QA 证据。
-- README、`tasks.md`、内部文档和 `.ai/slices/` 阶段状态对齐。
+## 前端未完成能力
 
 ### P0 deferred：生产上线配置
 
-用户当前还没有正式域名，因此以下事项不阻塞 V1 本地封版，但阻塞真实公网生产上线：
+用户当前还没有正式域名，因此以下事项不阻塞 V2 本地初版，但阻塞真实公网生产上线：
 
 - 生产 `NEXT_PUBLIC_SITE_URL`。
 - 生产 `NEXT_PUBLIC_API_BASE_URL`。
@@ -105,26 +151,25 @@ Reddit-style campus community content system
 - 生产发布后验证和回滚演练。
 - 生产环境完整人工 QA。
 
-### P1：后端已具备基础合同但前端未接入
+### P1：内容系统后续增强
 
-- 搜索体验。
-- Hot feed / 最新与热门切换。
-- 通知中心。
-- 普通用户举报帖子和评论。
-- 平台 staff 审核举报。
-- 图片上传和帖子图片展示。
-- 评论图片上传和展示。
-
-这些能力实现前必须重新核对后端仓库当前合同。不要只凭旧文档或记忆写字段。
-
-### P1：前端已规划但需要新增依赖或更强安全边界
-
-- 完整 Markdown renderer。
-- Markdown 链接安全渲染。
-- Markdown 表格、任务列表、代码块等完整社区写作能力。
+- 更接近 Reddit 的完整 Markdown 细节兼容性审查。
+- Markdown 工具动作补齐列表、标题、删除线、代码块和表格快捷插入。
+- 图片数量、尺寸、类型和失败重试的产品化提示需要以后端最终限制为准继续细化。
 - 白名单外链 embed 展示。
+- 普通网页链接预览。
 
-完整 Markdown renderer 需要先按 `AGENTS.md` 说明新增依赖用途、替代方案和影响范围，并获得明确同意。
+内容能力目标可以对齐 Reddit，但实现必须继续遵守本项目安全边界：不存用户 HTML、不开放任意 iframe、不绕过 `ContentBody`。
+
+### P1：V2 产品化能力
+
+V2 详细路线见 `docs/internal/product/v2-roadmap.md`。优先级固定为：
+
+1. 后端缺口继续同步到 `backend-api-needs.md`。
+2. 社区申请审核列表 / 详情在后端补齐后接入。
+3. staff 入口显隐在 `/api/v1/me.is_platform_staff` 补齐后接入。
+4. 图片限制、缩略图、失败重试和对象清理提示继续产品化。
+5. 浏览器 QA 和生产 deferred 项继续拆分到后续上线切片。
 
 ### P2：产品扩展能力
 
@@ -132,8 +177,6 @@ Reddit-style campus community content system
 - 头像。
 - 邮箱。
 - 账号设置。
-- 社区申请列表。
-- 社区申请状态查看。
 - 社区申请取消。
 - 个性化推荐。
 - 私信。
@@ -141,15 +184,16 @@ Reddit-style campus community content system
 
 ## 后端能力缺口或未完全收口
 
-这些不是前端直接实现项，但会影响前端派工顺序。
+这些不是前端直接实现项，但会影响前端派工顺序。前端推进中发现的新接口需求，先写入根目录 `backend-api-needs.md`，并保持该文件在 `.gitignore` 中。
 
-- 真实 R2 dev bucket 上传验证仍依赖凭据。
-- 图片缩略图、对象清理、对象物理删除和失败对象回收还未作为产品能力完成。
-- 通知事件源是否覆盖回复、审核、内容生命周期等业务事件仍需要继续确认。
-- 用户侧社区申请列表、状态查看和取消申请能力仍需要后端合同。
+- 社区申请审批列表或详情入口的读取接口：当前已记录需要 `GET /api/v1/community-applications?status=...&limit=...&offset=...` 和 `GET /api/v1/community-applications/:id`。
+- 当前用户平台权限字段：当前已记录需要 `GET /api/v1/me` 返回 `is_platform_staff`。
+- 图片缩略图、对象清理、对象物理删除和失败对象回收是否已完成，仍需以后端最终合同复核。
+- 通知事件源是否覆盖回复、审核、内容生命周期等业务事件，仍需以后端最终合同复核。
 - 社区 staff / moderator 管理、成员加入退出、私密社区和邀请制仍不是当前前端可接能力。
 - 评论投票尚未形成后端产品合同。
 - 搜索增强仍未覆盖评论搜索、标签搜索、高亮、排序和分析。
+- 如果后端需要区分纯文本、Reddit Markdown 和媒体附件，必须确认存储模型、读取返回结构、迁移策略和安全校验边界。
 
 ## 明确不做
 
@@ -159,33 +203,20 @@ Reddit-style campus community content system
 - 任意用户 HTML。
 - 任意 iframe。
 - 开放任意远程图片 URL 作为附件。
-- 富文本 HTML 编辑器。
+- 任意 HTML 富文本编辑器。
+- 强制编辑 / 预览双模式。
 - 大范围视觉改版。
 - 第二套 UI 组件库。
 - 在前端伪造后端未完成能力。
 
 ## 派工顺序建议
 
-如果目标是尽快提高产品完整度，优先顺序是：
+V2 本地初版已完成收口，后续前端优先顺序是：
 
-1. V1 本地封版验收。
-2. 搜索体验。
-3. Hot feed / 最新与热门切换。
-4. 通知中心。
-5. 举报和审核入口。
-6. 帖子图片上传与展示。
-7. 评论图片上传与展示。
-8. 完整 Markdown renderer。
-9. 用户资料与账号设置。
-10. 社区申请管理补全。
-
-如果目标是尽快追齐后端已实现能力，优先顺序是：
-
-1. 搜索体验。
-2. 通知中心。
-3. Hot feed / 最新与热门切换。
-4. 举报和审核入口。
-5. 图片上传与附件展示。
+1. 保持 `check:static`、`check:docs`、`check:routes`、`check:readiness`、`check:main-path` 和 `check:v2-path` 通过。
+2. 把后端缺口同步给 `cumt-nexus-api`。
+3. 后端补齐社区申请列表 / 详情和 `is_platform_staff` 后，再做 staff 入口精确显隐和完整申请审核列表。
+4. 继续拆分图片产品化、白名单 embed、链接预览、评论投票和通知事件源增强。
 
 如果目标是首版上线，优先顺序是：
 

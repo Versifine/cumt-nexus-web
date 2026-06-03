@@ -1,7 +1,16 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeft, FilePlus2, Hash, Home } from "lucide-react";
+import {
+  ArrowLeft,
+  Bell,
+  ClipboardCheck,
+  FilePlus2,
+  Hash,
+  Home,
+  Search,
+  ShieldAlert,
+} from "lucide-react";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
@@ -19,7 +28,11 @@ const navItems: Array<{
 }> = [
   { href: "/", icon: Home, label: "最新讨论" },
   { href: "/communities", icon: Hash, label: "社区索引" },
+  { href: "/search", icon: Search, label: "搜索" },
+  { href: "/notifications", icon: Bell, label: "通知" },
+  { href: "/moderation", icon: ShieldAlert, label: "审核" },
   { href: "/community-applications/new", icon: FilePlus2, label: "申请社区" },
+  { href: "/community-applications/review", icon: ClipboardCheck, label: "审批申请" },
 ];
 
 export function PageNav({ backHref, backLabel, className }: PageNavProps) {

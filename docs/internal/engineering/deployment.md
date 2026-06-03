@@ -173,6 +173,6 @@ node scripts/check-public-routes.mjs --frontend-url=https://web.example.com
 - 正式 `NEXT_PUBLIC_SITE_URL`。
 - 正式 `NEXT_PUBLIC_API_BASE_URL`。
 - 后端生产 CORS allowlist。当前只验证了本地 `http://localhost:3000` 的严格 CORS preflight。
-- 完整桌面与移动端全路径人工 QA。当前只补充了帖子详情未登录门禁、登录回跳和评论树浏览器复验。
+- 生产环境完整桌面与移动端全路径人工 QA。当前已完成 V2 本地浏览器复验，包括帖子详情 Markdown、涂黑、评论 Markdown、搜索、通知、审核台和社区申请审核入口；这些证据不能替代生产环境发布后 QA。
 
-这些缺口未补齐前，不允许把目标标记为生产上线完成。当前用户尚未准备正式域名，因此生产 HTTPS、正式 API origin 和生产 CORS allowlist 作为 deferred 项保留；它们不阻塞“V1 本地版封版”，但仍阻塞真实公网发布。
+这些缺口未补齐前，不允许把目标标记为生产上线完成。当前用户尚未准备正式域名，因此生产 HTTPS、正式 API origin 和生产 CORS allowlist 作为 deferred 项保留；它们不阻塞“V2 本地初版”，但仍阻塞真实公网发布。

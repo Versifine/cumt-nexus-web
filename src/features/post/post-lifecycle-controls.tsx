@@ -19,9 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { ContentPreview } from "@/features/content/content-preview";
 import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
 import { ApiError } from "@/lib/api/client";
 
@@ -171,45 +169,29 @@ export function PostLifecycleControls({
                       {bodyValue.trim().length} 字
                     </span>
                   </div>
-                  <Tabs defaultValue="edit">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <MarkdownToolbar
-                        disabled={isUpdating}
-                        onChange={(nextValue) =>
-                          form.setValue("body", nextValue, {
-                            shouldDirty: true,
-                            shouldTouch: true,
-                            shouldValidate: true,
-                          })
-                        }
-                        textareaRef={bodyTextareaRef}
-                        value={bodyValue}
-                      />
-                      <TabsList className="rounded-none bg-background">
-                        <TabsTrigger value="edit">编辑</TabsTrigger>
-                        <TabsTrigger value="preview">预览</TabsTrigger>
-                      </TabsList>
-                    </div>
-                    <TabsContent value="edit" className="mt-2">
-                      <Textarea
-                        aria-label="帖子正文"
-                        aria-invalid={Boolean(form.formState.errors.body)}
-                        disabled={isUpdating}
-                        className="min-h-56 border-border bg-background text-sm leading-7"
-                        {...bodyField}
-                        ref={(element) => {
-                          bodyField.ref(element);
-                          bodyTextareaRef.current = element;
-                        }}
-                      />
-                    </TabsContent>
-                    <TabsContent value="preview" className="mt-2">
-                      <ContentPreview
-                        value={bodyValue}
-                        minHeightClassName="min-h-56"
-                      />
-                    </TabsContent>
-                  </Tabs>
+                  <MarkdownToolbar
+                    disabled={isUpdating}
+                    onChange={(nextValue) =>
+                      form.setValue("body", nextValue, {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      })
+                    }
+                    textareaRef={bodyTextareaRef}
+                    value={bodyValue}
+                  />
+                  <Textarea
+                    aria-label="帖子正文"
+                    aria-invalid={Boolean(form.formState.errors.body)}
+                    disabled={isUpdating}
+                    className="min-h-56 border-border bg-background text-sm leading-7"
+                    {...bodyField}
+                    ref={(element) => {
+                      bodyField.ref(element);
+                      bodyTextareaRef.current = element;
+                    }}
+                  />
                   {form.formState.errors.body ? (
                     <p className="text-sm text-destructive">
                       {form.formState.errors.body.message}

@@ -82,6 +82,9 @@ export default function NewCommunityApplicationPage() {
                   <TextAction href="/communities" variant="bar">
                     浏览社区索引
                   </TextAction>
+                  <TextAction href="/community-applications/review" variant="bar">
+                    审批申请
+                  </TextAction>
                   <TextAction href="/" variant="bar">
                     返回最新讨论
                   </TextAction>

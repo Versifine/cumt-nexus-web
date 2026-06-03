@@ -101,7 +101,15 @@ npm run typecheck
 npm run check:static
 ```
 
-`check:static` 聚合 lint、typecheck、build、文档、动作边界、依赖、API、内容、中文文案边界、UI 基础件复用和本地环境检查。它不请求真实后端，不替代 `npm run check:main-path`、`npm run check:readiness` 和浏览器 QA。
+`check:static` 聚合 lint、typecheck、build、文档、动作边界、依赖、API、内容、中文文案边界、UI 基础件复用和本地环境检查。它不请求真实后端，不替代 `npm run check:main-path`、`npm run check:v2-path`、`npm run check:readiness` 和浏览器 QA。
+
+V2 后端能力收口可以运行：
+
+```powershell
+npm run check:v2-path
+```
+
+`check:v2-path` 用于真实后端上的 V2 新增能力验收，覆盖图片上传、附件、new/hot、搜索、通知、举报、审核台和社区申请 approve/reject。它会写入 smoke 数据并依赖本地 PostgreSQL 容器提升 staff，只适合本地或预发布环境。
 
 动作边界可以运行：
 

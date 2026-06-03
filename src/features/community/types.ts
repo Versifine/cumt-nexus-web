@@ -22,7 +22,7 @@ export type CommunityApplication = {
   reason: string;
   status: "pending" | "approved" | "rejected" | "canceled" | string;
   reviewed_by?: string;
-  reviewed_at?: string;
+  reviewed_at?: string | null;
   reject_reason?: string;
   created_at: string;
   updated_at: string;
@@ -35,5 +35,18 @@ export type SubmitCommunityApplicationInput = {
 };
 
 export type SubmitCommunityApplicationResponse = {
+  application: CommunityApplication;
+};
+
+export type ApproveCommunityApplicationResponse = {
+  application: CommunityApplication;
+  community: Community;
+};
+
+export type RejectCommunityApplicationInput = {
+  reject_reason: string;
+};
+
+export type RejectCommunityApplicationResponse = {
   application: CommunityApplication;
 };

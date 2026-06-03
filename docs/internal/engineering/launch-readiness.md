@@ -65,6 +65,14 @@ npm run check:main-path:local
 
 本地宽松模式只把后端不可达记录为 warning，不能作为上线通过证据。
 
+V2 主链路检查：
+
+```powershell
+npm run check:v2-path
+```
+
+该命令用于确认 V2 新增真实后端能力可用。它会创建 smoke 用户和内容，接入图片上传、附件提交、new/hot 排序、搜索、通知、举报、审核台、`target_preview`、dismiss、remove-target、帖子/评论 moderation remove，以及社区申请 approve / reject。该命令会写入测试数据，并通过本地 PostgreSQL 容器把测试用户提升为 staff，只应在本地或预发布环境运行。
+
 公开页面冒烟检查：
 
 ```powershell
@@ -81,6 +89,7 @@ node scripts/check-api-boundary.mjs
 node scripts/check-dependency-boundary.mjs
 node scripts/check-env.mjs --production
 node scripts/check-main-path.mjs --api-base-url=http://localhost:8080 --community-slug=public --timeout-ms=10000
+node scripts/check-v2-path.mjs --api-base-url=http://localhost:8080 --community-slug=public --timeout-ms=10000
 node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --timeout-ms=8000
 ```
 
@@ -141,6 +150,20 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `PUT /api/v1/posts/:id/vote` 是否能 upvote 和 downvote。
 - `DELETE /api/v1/posts/:id/vote` 是否能取消投票，且帖子详情中的 `my_vote` 回到 `0`。
 
+`scripts/check-v2-path.mjs` 当前检查：
+
+- 后端 `/healthz` 是否可达。
+- 图片上传接口是否返回可用于发帖和评论的附件 ID。
+- 发帖和评论提交 `attachment_ids` 后，详情和评论树是否展示附件。
+- 全站和社区帖子流 `sort=new|hot` 是否可用。
+- `GET /api/v1/search` 的 `all | communities | posts` scope 是否可用。
+- 通知列表、未读列表、标记已读和已读列表是否可用。
+- 普通用户是否能举报帖子和评论。
+- 非 staff 访问审核接口是否返回 `forbidden`。
+- staff 是否能读取举报列表、举报详情和 `target_preview`。
+- staff 是否能 dismiss、remove-target，并直接 moderation remove 帖子和评论。
+- staff 是否能 approve / reject 社区申请。
+
 `scripts/check-public-routes.mjs` 当前检查：
 
 - `/`：包含 `CUMT Nexus`、`最新讨论`、`浏览社区`、`登录后查看最新讨论`、`待登录`，且不能包含 `无法加载最新帖子` 或 `需要登录`。
@@ -157,6 +180,14 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 所有页面都必须包含 `zh-CN` 语言标记，且不能渲染常见错误页标记。
 
 ## 最新浏览器 QA 记录
+
+2026-06-03 V2 本地初版收口记录：
+
+- 自动检查已复验：`npm run check:static` 通过，`npm run check:docs` 通过，严格 `npm run check:readiness` 通过，严格 `npm run check:main-path` 通过，`npm run check:routes` 通过，`npm run check:v2-path` 通过。
+- 后端 CORS 已修复，严格 readiness 的 `OPTIONS /api/v1/posts` 预检允许 `http://localhost:3000`。
+- `check:v2-path` 已覆盖图片上传、发帖/评论附件、new/hot 排序、搜索、通知、举报、审核台、`target_preview`、dismiss、remove-target、moderation remove 和社区申请 approve / reject。
+- 桌面和移动端浏览器已检查帖子详情 Markdown、涂黑、评论 Markdown、无编辑/预览 tab、`/search?q=QA&scope=all`、`/notifications`、`/moderation`、`/community-applications/review` 和 `/communities/public/new`；页面无横向溢出，控制台无 error。
+- 社区申请完整待审列表和 staff-only 入口精确显隐仍依赖后端补齐 `GET /api/v1/community-applications...`、`GET /api/v1/community-applications/:id` 和 `/api/v1/me.is_platform_staff`，不阻塞 V2 本地初版。
 
 2026-06-03 V1 本地封版验收记录：
 
@@ -210,18 +241,19 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 登录后首页、社区详情、发帖、帖子详情、评论和投票还没有在真实可输入浏览器中完成端到端人工 QA。
 - `docs/internal/engineering/deployment.md` 中的生产部署前检查、发布后验证和回滚标准没有完成。
 
-## V1 本地封版判定
+## 本地初版判定
 
-没有正式域名前，当前目标先收敛为“V1 本地版封版”。它要求：
+没有正式域名前，当前目标先收敛为“V2 本地初版收口”。它要求：
 
 - `npm run check:static` 通过。
 - `npm run check:routes` 通过。
 - 严格 `npm run check:readiness` 在本地前后端都启动时通过。
 - 严格 `npm run check:main-path` 在本地后端上通过。
+- `npm run check:v2-path` 在本地后端和本地 PostgreSQL 容器可用时通过。
 - README、`tasks.md`、内部文档和 `.ai/slices/` 对齐当前阶段。
 - 已记录的桌面和移动端浏览器 QA 证据没有发现阻塞性问题。
 
-以下事项在没有正式域名前保持 deferred，不阻塞 V1 本地版封版：
+以下事项在没有正式域名前保持 deferred，不阻塞 V2 本地初版：
 
 - 生产 HTTPS `NEXT_PUBLIC_SITE_URL`。
 - 生产 HTTPS `NEXT_PUBLIC_API_BASE_URL`。

@@ -5,10 +5,11 @@
 ## 文档索引
 
 - `architecture/frontend-v1.md`：前端 V1 架构、路由、模块和 API 协作边界。
-- `product/product-targets.md`：产品目标总表，统一记录已实现能力、未实现能力、前后端缺口和派工顺序。
-- `architecture/content-system.md`：Markdown-like 帖子、Reddit-style 评论树、图片和外链嵌入的产品/架构讨论稿。
-- `architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端 API 缺口。
-- `architecture/markdown-rendering.md`：Markdown renderer 选型、安全边界、组件组织和实施切片。
+- `product/product-targets.md`：产品目标总表，统一记录已实现能力、前端后续增强、后端缺口和派工顺序。
+- `product/v2-roadmap.md`：V2 后端能力全量前端接入路线图。
+- `architecture/content-system.md`：Reddit Markdown 正文、Reddit-style 评论树、图片和外链嵌入的产品/架构讨论稿。
+- `architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端合同核对文档。
+- `architecture/markdown-rendering.md`：Reddit Markdown renderer 选型、安全边界、组件组织和实施切片。
 - `design/product-visual-direction.md`：内部设计索引，指向 `docs/design/` 的权威规范。
 - `engineering/workflow.md`：阶段、分支、工单、验证和后端同步规则。
 - `engineering/launch-readiness.md`：上线前自检命令、阻塞项和人工 QA 范围。
@@ -25,8 +26,10 @@
 
 ## 当前阶段
 
-- 当前阶段：`V1 本地版封版收口`
+- 当前阶段：`V2 后端能力全量前端接入`
 - 当前工单板：根目录 `tasks.md`
-- 当前切片：`.ai/slices/stage-01-v1-local-freeze/`
+- 当前切片：`.ai/slices/stage-02-v2-productization/`
 
-阶段 0 的技术栈、产品范围和视觉基线已经完成；阶段 1 Web 主链路已经形成本地闭环。没有正式域名前，生产 HTTPS、正式 API origin 和生产 CORS 只作为 deferred 项，不阻塞 V1 本地版封版。
+阶段 0 的技术栈、产品范围和视觉基线已经完成；阶段 1 Web 主链路已经形成本地闭环。V2 后端能力全量前端接入已完成本地初版收口，已覆盖 Reddit Markdown、单一写作面板、图片上传、new/hot 排序、搜索、通知、举报审核、community application approve/reject 和 moderation remove。
+
+当前不伪造的后端缺口是社区申请列表 / 详情读取接口和 `/api/v1/me` 的 `is_platform_staff` 字段。前端需求记录在根目录 `backend-api-needs.md`，该文件已加入 `.gitignore`。本地 CORS 预检已修复并通过严格 `check:readiness`；没有正式域名前，生产 HTTPS、正式 API origin 和生产 CORS 继续作为 deferred 项，不阻塞 V2 本地初版结论。

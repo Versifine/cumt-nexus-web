@@ -7,21 +7,32 @@
 - 技术栈：Next.js App Router + React + TypeScript + Tailwind CSS + shadcn/ui + Motion。
 - 视觉方向：dark editorial product / magazine-grade campus community interface。
 - 界面语言：用户可见文案默认使用简体中文，品牌名、技术名、URL slug、API 字段和用户生成内容保留原文。
-- 当前分支：`stage/0-web-planning`。该分支名来自早期规划阶段，当前实际用于 V1 本地封版收口。
-- 当前目标：V1 本地版已完成封版收口；生产 HTTPS 域名、正式 API origin 和生产 CORS 在没有域名前保持 deferred。
-- 最新本地封版验收（2026-06-03）：`npm run check:static`、`npm run check:routes`、严格 `npm run check:readiness` 和严格 `npm run check:main-path` 均通过；后端合同复核确认此前评论树 warning 来自旧 API 进程。
-- 最新浏览器复验（2026-06-03）：未登录帖子详情不再触发帖子/评论 401 请求；登录后帖子详情、评论树和页面出口可用，移动端 `390px` 帖子详情无横向溢出，控制台无 error；退出登录和 token 清空会清理 TanStack Query 缓存，避免继续显示旧登录数据。
+- 当前分支：`stage/0-web-planning`。该分支名来自早期规划阶段，当前实际承载 V1 本地封版和 V2 本地产品化推进。
+- 当前目标：V2 后端能力全量前端接入已完成本地初版收口；生产 HTTPS 域名、正式 API origin 和生产 CORS 在没有域名前保持 deferred。
+- 最新 V2 本地验收（2026-06-03）：`npm run check:static`、`npm run check:docs`、`npm run check:routes`、严格 `npm run check:readiness`、严格 `npm run check:main-path` 和 `npm run check:v2-path` 通过。
+- 当前 V2 后端缺口（2026-06-03）：社区申请列表 / 详情读取接口和 `/api/v1/me.is_platform_staff` 仍需后端补齐；本地 CORS 预检已修复并通过严格 readiness。
+- 最新浏览器复验（2026-06-03）：帖子详情 Reddit Markdown、涂黑、评论 Markdown、评论树和附件路径已在桌面/移动端检查；`/search`、`/notifications`、`/moderation`、`/community-applications/review`、`/communities/public/new` 在桌面/移动端无横向溢出、无控制台 error；退出登录和 token 清空会清理 TanStack Query 缓存。
 
 ## 已实现范围
 
 - 注册、登录、当前用户识别和本地 token 会话。
-- 全站最新帖子流。
+- 全站帖子流，支持最新 / 热门切换。
 - 社区列表、社区详情和社区帖子列表。
+- 社区帖子流支持最新 / 热门切换。
 - 帖子详情、评论列表和评论发布。
 - 帖子 upvote / downvote 状态展示和操作。
 - 作者编辑和软删除自己的帖子、评论。
 - 在指定社区发布帖子。
 - 提交社区创建申请。
+- 社区申请审核入口：可手动输入申请 ID 后 approve / reject；完整待审列表依赖后端补充列表 / 详情接口。
+- Reddit Markdown 阅读态：帖子和评论正文通过 `react-markdown` + `remark-gfm` 安全渲染，支持 GFM、链接安全过滤、涂黑和上标扩展。
+- 单一写作面板：发帖、评论、回复和作者编辑都使用同一套格式工具条，不再提供编辑 / 预览双模式。
+- 图片上传和附件展示：发帖、评论可上传图片并提交 `attachment_ids`，帖子详情和评论树展示返回的图片附件。
+- 搜索页 `/search`：支持关键词、`all | communities | posts` scope、URL query、loading、empty 和 error。
+- 通知中心 `/notifications`：支持全部 / 未读 / 已读、标记已读和保守跳转。
+- 举报入口：普通用户可举报帖子和评论。
+- 审核台 `/moderation` 和 `/moderation/reports/:id`：支持举报列表、举报详情、`target_preview`、dismiss、remove-target。
+- 内容审核移除：帖子和评论详情入口支持 moderation remove，权限由后端返回 `forbidden` 校验。
 - 受保护动作登录门禁：未登录访问发帖或社区申请时，引导登录/注册并保留 `next` 回跳。
 - 全局 404 和页面错误状态页。
 - 页面级标题、描述、`robots.txt` 和 `sitemap.xml`。
@@ -31,13 +42,14 @@
 - 基础安全响应头：`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`。
 - 主要数据页覆盖 loading、empty、error、未登录、提交中和成功/失败状态。
 
-首版暂不做：
+当前仍不做或等待后端补齐：
 
-- 独立后台审批台。
-- 申请列表和申请取消。
+- 社区申请审核列表和详情：后端暂缺读取接口，已记录在根目录 `backend-api-needs.md`，该文件已加入 `.gitignore`。
+- 基于 `/api/v1/me` 的 staff 入口精确显隐：后端暂未返回 `is_platform_staff`，当前由后端操作接口返回 `forbidden` 兜底。
+- 申请取消。
 - 个人资料编辑、头像、邮箱。
-- 图片上传、搜索。
-- hot feed、推荐排序、评论投票、通知、私信和实时能力。
+- 评论投票、私信、实时能力和个性化推荐。
+- Bilibili、网易云音乐等白名单 embed 和普通网页链接预览。
 
 ## V1 本地封版边界
 
@@ -58,6 +70,30 @@
 - 生产发布后验证和回滚演练。
 
 这些事项仍然是“生产上线完成”的阻塞项。
+
+## V2 产品路线
+
+V2 命名为 `V2 后端能力全量前端接入`，目标是把当前后端已经提供的社区、内容、发现、通知、举报审核和媒体接口做成完整前端产品体验。
+
+V2 本地初版已经覆盖：
+
+1. API client、类型、query 和 mutation 边界补齐。
+2. Reddit Markdown renderer 与单一写作面板。
+3. 图片上传与附件展示。
+4. 最新 / 热门 feed 排序。
+5. 搜索体验。
+6. 通知中心。
+7. 举报入口。
+8. 社区申请 approve / reject 临时审核入口。
+9. 审核台和 moderation remove。
+
+V2 本地初版已收口，后续重点：
+
+- 保持静态、路由、readiness、main-path 和 V2 主链路验证持续通过。
+- 将社区申请列表 / 详情和 `/api/v1/me.is_platform_staff` 的后端缺口继续同步到 `backend-api-needs.md`。
+- 正式域名、生产 API origin、生产 CORS allowlist 和发布后验证继续保持 deferred。
+
+完整边界和暂停条件见 `docs/internal/product/v2-roadmap.md`。
 
 ## 本地运行
 
@@ -160,7 +196,7 @@ npm run check:content-boundary
 npm run check:content-segments
 ```
 
-`check:content-boundary` 会静态检查帖子正文、评论正文和预览是否仍通过 `ContentBody` 统一渲染，并阻止 `dangerouslySetInnerHTML`、原始 HTML 写入 API、`rehype-raw` 和未批准 iframe/srcDoc 进入源码。`check:content-segments` 会验证当前 `>! ... !<` 涂黑解析的边界行为，包括普通文本、多段涂黑、未闭合涂黑、空涂黑和多行涂黑。后续如要做白名单 embed 或完整 Markdown renderer，必须在独立切片里更新这些检查和安全文档。
+`check:content-boundary` 会静态检查帖子详情和评论树是否仍通过 `ContentBody` 统一渲染用户正文，并阻止 `dangerouslySetInnerHTML`、原始 HTML 写入 API、`rehype-raw` 和未批准 iframe/srcDoc 进入源码。当前 Reddit Markdown renderer 使用 `react-markdown` + `remark-gfm`，开启 `skipHtml`，链接只允许站内路径、锚点、`http`、`https` 和 `mailto`。`check:content-segments` 会验证 `>! ... !<` 涂黑解析的边界行为，包括普通文本、多段涂黑、未闭合涂黑、空涂黑和多行涂黑。后续如要做白名单 embed，必须在独立切片里更新这些检查和安全文档。
 
 依赖与 UI 库边界检查：
 
@@ -208,7 +244,7 @@ npm run check:ui-primitives
 npm run check:static
 ```
 
-该命令会顺序运行 lint、typecheck、build、文档索引、动作边界、依赖边界、API 边界、内容渲染边界、涂黑解析、中文文案边界、UI 基础件复用和本地环境变量检查。它不请求真实后端，也不替代 `check:main-path`、`check:readiness` 或浏览器 QA。
+该命令会顺序运行 lint、typecheck、build、文档索引、动作边界、依赖边界、API 边界、内容渲染边界、涂黑解析、中文文案边界、UI 基础件复用和本地环境变量检查。它不请求真实后端，也不替代 `check:main-path`、`check:v2-path`、`check:readiness` 或浏览器 QA。
 
 后端主链路检查：
 
@@ -227,6 +263,14 @@ npm run check:main-path:local
 ```
 
 本地宽松模式只会把后端不可达记录为 warning，不是上线通过依据。
+
+V2 主链路检查：
+
+```powershell
+npm run check:v2-path
+```
+
+该命令会在真实后端上覆盖 V2 新增能力：图片上传和 `attachment_ids`、全站/社区 `new | hot` 排序、搜索 scope、通知列表和标记已读、帖子/评论举报、审核台列表和详情、`target_preview`、dismiss、remove-target、帖子/评论 moderation remove，以及社区申请 approve / reject。它会写入 smoke 数据，并通过本地 PostgreSQL 容器把测试用户提升为 staff，仅用于本地或预发布验收。
 
 公开页面冒烟检查：
 
@@ -249,7 +293,7 @@ npm run check:readiness:local
 - `next.config.ts` 为全站响应添加基础安全头，覆盖页面、route handler 和公开资源。
 - 当前不启用严格 CSP，也不在应用层强制 HSTS；这两项需要结合正式域名、资源来源和部署平台配置后再开启。
 
-当前首版依赖的主要接口：
+当前前端依赖的主要接口：
 
 ```text
 POST   /api/v1/auth/register
@@ -257,9 +301,9 @@ POST   /api/v1/auth/login
 GET    /api/v1/me
 GET    /api/v1/communities
 GET    /api/v1/communities/:slug
-GET    /api/v1/communities/:slug/posts
+GET    /api/v1/communities/:slug/posts?sort=new|hot
 POST   /api/v1/communities/:slug/posts
-GET    /api/v1/posts
+GET    /api/v1/posts?sort=new|hot
 GET    /api/v1/posts/:id
 GET    /api/v1/posts/:id/comments
 POST   /api/v1/posts/:id/comments
@@ -270,6 +314,20 @@ DELETE /api/v1/comments/:id
 PUT    /api/v1/posts/:id/vote
 DELETE /api/v1/posts/:id/vote
 POST   /api/v1/community-applications
+POST   /api/v1/community-applications/:id/approve
+POST   /api/v1/community-applications/:id/reject
+GET    /api/v1/search?q=...&scope=all|communities|posts
+GET    /api/v1/notifications
+POST   /api/v1/notifications/:id/read
+POST   /api/v1/uploads/images
+POST   /api/v1/posts/:id/reports
+POST   /api/v1/comments/:id/reports
+GET    /api/v1/moderation/reports
+GET    /api/v1/moderation/reports/:id
+POST   /api/v1/moderation/reports/:id/dismiss
+POST   /api/v1/moderation/reports/:id/remove-target
+POST   /api/v1/posts/:id/moderation/remove
+POST   /api/v1/comments/:id/moderation/remove
 ```
 
 ## 验证命令
@@ -290,6 +348,7 @@ npm run check:docs
 npm run check:env
 npm run check:ui-primitives
 npm run check:main-path
+npm run check:v2-path
 npm run check:routes
 npm run check:readiness
 ```
@@ -311,11 +370,12 @@ npm run check:readiness
 - `docs/prompts/frontend-task-template.md`：前端实现任务模板。
 - `docs/prompts/frontend-review-template.md`：前端审查任务模板。
 - `docs/prompts/backend-content-media-target-template.md`：后端内容媒体能力目标模式提示词。
-- `docs/internal/product/product-targets.md`：产品目标总表，记录已实现能力、未实现能力、前后端缺口和派工顺序。
+- `docs/internal/product/product-targets.md`：产品目标总表，记录已实现能力、前端后续增强、后端缺口和派工顺序。
+- `docs/internal/product/v2-roadmap.md`：V2 后端能力全量前端接入路线图。
 - `docs/internal/architecture/frontend-v1.md`：前端 V1 架构、路由和 API 边界。
 - `docs/internal/architecture/content-system.md`：内容系统产品形态、评论树、图片和 embed 边界。
-- `docs/internal/architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端 API 缺口。
-- `docs/internal/architecture/markdown-rendering.md`：Markdown renderer 选型、安全边界和实施切片。
+- `docs/internal/architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端合同核对文档。
+- `docs/internal/architecture/markdown-rendering.md`：Reddit Markdown renderer 选型、安全边界和实施切片。
 - `docs/internal/engineering/workflow.md`：阶段推进、分支、文档和验证规则。
 - `docs/internal/engineering/launch-readiness.md`：上线前自检、阻塞项和人工 QA 范围。
 - `docs/internal/engineering/deployment.md`：生产部署、环境变量、CORS、发布后验证和回滚标准。
