@@ -14,6 +14,7 @@
 - 不使用 `dangerouslySetInnerHTML`。
 - 不存用户 HTML。
 - 未新增 Markdown 相关依赖。
+- `npm run check:content-boundary` 已经固化当前安全边界：正文、评论和预览必须复用 `ContentBody`，源码中不得出现 `dangerouslySetInnerHTML`、原始 HTML 写入、`rehype-raw` 或未批准 iframe/srcDoc。
 
 未实现：
 
@@ -57,6 +58,7 @@ rehype-sanitize
 - 禁止使用 `dangerouslySetInnerHTML` 渲染用户正文。
 - 禁止保存用户提交的 HTML。
 - 禁止任意 iframe。
+- 禁止绕过 `ContentBody` 直接在帖子详情、评论树或正文预览中实现另一套用户内容渲染。
 - 禁止 `javascript:`、`data:` 等危险链接协议。
 - 外链必须加 `rel="nofollow ugc noopener noreferrer"`。
 - 外链是否新窗口打开由统一组件决定，不在页面里临时变化。
@@ -234,6 +236,7 @@ npm run typecheck
 npm run build
 npm run check:dependencies
 npm run check:api-boundary
+npm run check:content-boundary
 ```
 
 涉及路由壳或公开页面时再运行：

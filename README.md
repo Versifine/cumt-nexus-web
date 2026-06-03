@@ -130,6 +130,14 @@ npm run check:api-boundary
 
 该命令会静态检查源码中的后端调用边界：业务接口路径必须留在 `src/features/*/api.ts`，`apiRequest` 路径必须以 `/api/v1` 开头，`NEXT_PUBLIC_API_BASE_URL` 只能由统一 API client 读取，源码中不允许绕过批准位置直接 `fetch()` 后端。
 
+用户内容渲染边界检查：
+
+```powershell
+npm run check:content-boundary
+```
+
+该命令会静态检查帖子正文、评论正文和预览是否仍通过 `ContentBody` 统一渲染，并阻止 `dangerouslySetInnerHTML`、原始 HTML 写入 API、`rehype-raw` 和未批准 iframe/srcDoc 进入源码。后续如要做白名单 embed 或完整 Markdown renderer，必须在独立切片里更新该检查和安全文档。
+
 依赖与 UI 库边界检查：
 
 ```powershell
@@ -205,6 +213,7 @@ npm run lint
 npm run typecheck
 npm run build
 npm run check:api-boundary
+npm run check:content-boundary
 npm run check:dependencies
 npm run check:env
 npm run check:main-path

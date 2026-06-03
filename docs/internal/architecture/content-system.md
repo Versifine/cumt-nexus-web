@@ -126,6 +126,7 @@ Reddit-style campus community content system
 - 该渲染只处理 spoiler / 涂黑片段，其余内容仍按纯文本显示。
 - 未闭合的 `>!` 会按普通文本显示。
 - 前端不存用户 HTML，不使用 `dangerouslySetInnerHTML`，也没有新增 Markdown renderer 依赖。
+- `npm run check:content-boundary` 已经作为静态守护，防止帖子正文、评论正文和预览绕过 `ContentBody`，并阻止原始 HTML、`rehype-raw` 和未批准 iframe/srcDoc 进入源码。
 
 仍未落地：
 
@@ -545,6 +546,7 @@ POST /api/v1/embeds/resolve
 
 - 结构上学习 Reddit，视觉上保持 CUMT Nexus 自己的暗色 editorial product 风格。
 - 当前已先落地 spoiler / 涂黑的最小安全渲染；完整 Markdown renderer 的选型和安全边界见 `docs/internal/architecture/markdown-rendering.md`。
+- 当前已新增用户内容渲染边界自检；后续 Markdown、图片和 embed 切片必须同步更新该检查，而不是绕过它。
 - 下一步如要做完整 Markdown，应先获得新增依赖批准，再更新依赖边界检查。
 - 图片和 embed 晚于评论树，避免一次性扩大后端、存储、安全和前端渲染范围。
 - 外链播放器必须走 provider 白名单，不开放任意 iframe。
