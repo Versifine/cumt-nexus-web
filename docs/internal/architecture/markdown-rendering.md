@@ -15,6 +15,7 @@
 - 不存用户 HTML。
 - 未新增 Markdown 相关依赖。
 - `npm run check:content-boundary` 已经固化当前安全边界：正文、评论和预览必须复用 `ContentBody`，源码中不得出现 `dangerouslySetInnerHTML`、原始 HTML 写入、`rehype-raw` 或未批准 iframe/srcDoc。
+- `npm run check:content-segments` 已经固化当前 spoiler / 涂黑解析边界：普通文本、多段涂黑、未闭合涂黑、空涂黑和多行涂黑必须保持稳定。
 
 未实现：
 
@@ -237,6 +238,7 @@ npm run build
 npm run check:dependencies
 npm run check:api-boundary
 npm run check:content-boundary
+npm run check:content-segments
 ```
 
 涉及路由壳或公开页面时再运行：

@@ -134,9 +134,10 @@ npm run check:api-boundary
 
 ```powershell
 npm run check:content-boundary
+npm run check:content-segments
 ```
 
-该命令会静态检查帖子正文、评论正文和预览是否仍通过 `ContentBody` 统一渲染，并阻止 `dangerouslySetInnerHTML`、原始 HTML 写入 API、`rehype-raw` 和未批准 iframe/srcDoc 进入源码。后续如要做白名单 embed 或完整 Markdown renderer，必须在独立切片里更新该检查和安全文档。
+`check:content-boundary` 会静态检查帖子正文、评论正文和预览是否仍通过 `ContentBody` 统一渲染，并阻止 `dangerouslySetInnerHTML`、原始 HTML 写入 API、`rehype-raw` 和未批准 iframe/srcDoc 进入源码。`check:content-segments` 会验证当前 `>! ... !<` 涂黑解析的边界行为，包括普通文本、多段涂黑、未闭合涂黑、空涂黑和多行涂黑。后续如要做白名单 embed 或完整 Markdown renderer，必须在独立切片里更新这些检查和安全文档。
 
 依赖与 UI 库边界检查：
 
@@ -214,6 +215,7 @@ npm run typecheck
 npm run build
 npm run check:api-boundary
 npm run check:content-boundary
+npm run check:content-segments
 npm run check:dependencies
 npm run check:env
 npm run check:main-path

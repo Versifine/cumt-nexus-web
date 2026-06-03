@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "check:api-boundary": "node scripts/check-api-boundary.mjs",
     "check:content-boundary": "node scripts/check-content-boundary.mjs",
+    "check:content-segments": "node scripts/check-content-segments.mjs",
     "check:dependencies": "node scripts/check-dependency-boundary.mjs",
     "check:env": "node scripts/check-env.mjs",
     "check:env:production": "node scripts/check-env.mjs --production",
