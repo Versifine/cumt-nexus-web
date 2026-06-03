@@ -101,7 +101,15 @@ npm run typecheck
 npm run check:static
 ```
 
-`check:static` 聚合 lint、typecheck、build、文档、依赖、API、内容和本地环境检查。它不请求真实后端，不替代 `npm run check:main-path`、`npm run check:readiness` 和浏览器 QA。
+`check:static` 聚合 lint、typecheck、build、文档、依赖、API、内容、中文文案边界和本地环境检查。它不请求真实后端，不替代 `npm run check:main-path`、`npm run check:readiness` 和浏览器 QA。
+
+中文文案边界可以运行：
+
+```powershell
+npm run check:copy
+```
+
+`check:copy` 用于阻止 `Sign in`、`Get started`、`Loading...`、`Internal Server Error` 等常见英文模板文案进入 UI 相关源码。它允许品牌名、技术名、代码标识和短状态码，不替代人工文案审查。
 
 有测试后继续增加：
 

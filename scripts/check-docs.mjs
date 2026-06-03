@@ -181,7 +181,7 @@ function checkValidationCommandDocumented() {
     return;
   }
 
-  const requiredScripts = ["check:docs", "check:static"];
+  const requiredScripts = ["check:docs", "check:copy", "check:static"];
   const missingScripts = requiredScripts.filter((script) => !packageJson.scripts?.[script]);
 
   if (missingScripts.length > 0) {
@@ -199,6 +199,14 @@ function checkValidationCommandDocumented() {
     missing.push("docs/internal/engineering/workflow.md: npm run check:docs");
   }
 
+  if (!readme.includes("npm run check:copy")) {
+    missing.push("README.md: npm run check:copy");
+  }
+
+  if (!workflow.includes("npm run check:copy")) {
+    missing.push("docs/internal/engineering/workflow.md: npm run check:copy");
+  }
+
   if (!readme.includes("npm run check:static")) {
     missing.push("README.md: npm run check:static");
   }
@@ -212,7 +220,7 @@ function checkValidationCommandDocumented() {
     return;
   }
 
-  addPass("check command documentation", "documentation and static sync checks are documented");
+  addPass("check command documentation", "documentation, copy and static sync checks are documented");
 }
 
 function readTextFile(path) {

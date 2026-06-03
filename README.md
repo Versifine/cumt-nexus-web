@@ -155,13 +155,21 @@ npm run check:docs
 
 该命令会检查关键文档文件是否存在，README 和内部文档索引是否覆盖当前文档入口，提示词模板是否保留可复制文本块，并确认 `check:docs` 已写入项目工作流。
 
+中文文案边界检查：
+
+```powershell
+npm run check:copy
+```
+
+该命令会扫描 UI 相关源码里的常见英文模板文案，例如 `Sign in`、`Get started`、`Loading...`、`Internal Server Error` 等，防止页面生成时把默认英文按钮、占位文案或错误页长期保留下来。它允许品牌名、技术名、代码标识和短状态码，不替代人工文案审查。
+
 本地静态验收：
 
 ```powershell
 npm run check:static
 ```
 
-该命令会顺序运行 lint、typecheck、build、文档索引、依赖边界、API 边界、内容渲染边界、涂黑解析和本地环境变量检查。它不请求真实后端，也不替代 `check:main-path`、`check:readiness` 或浏览器 QA。
+该命令会顺序运行 lint、typecheck、build、文档索引、依赖边界、API 边界、内容渲染边界、涂黑解析、中文文案边界和本地环境变量检查。它不请求真实后端，也不替代 `check:main-path`、`check:readiness` 或浏览器 QA。
 
 后端主链路检查：
 
@@ -232,6 +240,7 @@ npm run build
 npm run check:api-boundary
 npm run check:content-boundary
 npm run check:content-segments
+npm run check:copy
 npm run check:dependencies
 npm run check:docs
 npm run check:env

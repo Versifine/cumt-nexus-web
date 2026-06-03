@@ -13,6 +13,7 @@ const checks = [
   "check:api-boundary",
   "check:content-boundary",
   "check:content-segments",
+  "check:copy",
   "check:env",
 ];
 
