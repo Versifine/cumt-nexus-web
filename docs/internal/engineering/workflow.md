@@ -95,6 +95,14 @@ npm run lint
 npm run typecheck
 ```
 
+本地静态收口可以运行：
+
+```powershell
+npm run check:static
+```
+
+`check:static` 聚合 lint、typecheck、build、文档、依赖、API、内容和本地环境检查。它不请求真实后端，不替代 `npm run check:main-path`、`npm run check:readiness` 和浏览器 QA。
+
 有测试后继续增加：
 
 ```powershell

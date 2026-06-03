@@ -181,29 +181,38 @@ function checkValidationCommandDocumented() {
     return;
   }
 
-  const script = packageJson.scripts?.["check:docs"];
+  const requiredScripts = ["check:docs", "check:static"];
+  const missingScripts = requiredScripts.filter((script) => !packageJson.scripts?.[script]);
 
-  if (!script) {
-    addFail("check:docs script", "package.json is missing scripts.check:docs");
+  if (missingScripts.length > 0) {
+    addFail("documented check scripts", `package.json is missing ${missingScripts.join(", ")}`);
     return;
   }
 
   const missing = [];
 
   if (!readme.includes("npm run check:docs")) {
-    missing.push("README.md");
+    missing.push("README.md: npm run check:docs");
   }
 
   if (!workflow.includes("npm run check:docs")) {
-    missing.push("docs/internal/engineering/workflow.md");
+    missing.push("docs/internal/engineering/workflow.md: npm run check:docs");
+  }
+
+  if (!readme.includes("npm run check:static")) {
+    missing.push("README.md: npm run check:static");
+  }
+
+  if (!workflow.includes("npm run check:static")) {
+    missing.push("docs/internal/engineering/workflow.md: npm run check:static");
   }
 
   if (missing.length > 0) {
-    addFail("check:docs documentation", `missing command mention in ${missing.join(", ")}`);
+    addFail("check command documentation", `missing command mention in ${missing.join(", ")}`);
     return;
   }
 
-  addPass("check:docs documentation", "documentation sync check is documented");
+  addPass("check command documentation", "documentation and static sync checks are documented");
 }
 
 function readTextFile(path) {

@@ -19,6 +19,7 @@
     "check:main-path:local": "node scripts/check-main-path.mjs --allow-unavailable",
     "check:routes": "node scripts/check-public-routes.mjs",
     "check:readiness": "node scripts/check-readiness.mjs",
+    "check:static": "node scripts/check-static.mjs",
     "check:readiness:local": "node scripts/check-readiness.mjs --allow-degraded"
   },
   "dependencies": {
