@@ -181,13 +181,21 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 最新浏览器 QA 记录
 
+2026-06-03 V2.1 后端缺口补齐复验记录：
+
+- 自动检查已复验：`npm run lint` 通过，`npm run typecheck` 通过，严格 `npm run check:main-path` 通过（run id: `mpy7bguq_uauzn`），`npm run check:v2-path` 通过（run id: `mpy7bgxp_e5r1i`）。
+- `check:v2-path` 已确认 `/api/v1/me` 返回 `is_platform_staff`，普通用户读取社区申请列表和详情会被后端拒绝，staff 可以读取社区申请列表、读取详情、approve 和 reject。
+- 浏览器复验 `/community-applications/review` 未登录态：桌面 `1280px` 和移动 `390px` 均显示中文登录门禁，`scrollWidth` 等于 `clientWidth`，无横向溢出，控制台无 error。
+- 浏览器复验发现登录表单在客户端脚本未接管时会退化成原生 GET 并把账号字段放进 URL；已为登录和注册表单补 `method="post"`，复测空提交后 URL 不再包含 `username` 或 `password`。
+- 本轮 in-app browser 受输入和本地存储限制影响，未完成 staff 态可视化点击审核；staff 列表、详情、approve / reject 以真实后端 `check:v2-path` 作为本地验收证据。上线前仍需在真实可输入浏览器中按 `docs/internal/engineering/browser-qa.md` 手动复验 staff 审核台。
+
 2026-06-03 V2 本地初版收口记录：
 
 - 自动检查已复验：`npm run check:static` 通过，`npm run check:docs` 通过，严格 `npm run check:readiness` 通过，严格 `npm run check:main-path` 通过，`npm run check:routes` 通过，`npm run check:v2-path` 通过。
 - 后端 CORS 已修复，严格 readiness 的 `OPTIONS /api/v1/posts` 预检允许 `http://localhost:3000`。
-- `check:v2-path` 已覆盖图片上传、发帖/评论附件、new/hot 排序、搜索、通知、举报、审核台、`target_preview`、dismiss、remove-target、moderation remove 和社区申请 approve / reject。
+- `check:v2-path` 已覆盖 `/me.is_platform_staff`、图片上传、发帖/评论附件、new/hot 排序、搜索、通知、举报、审核台、`target_preview`、dismiss、remove-target、moderation remove、社区申请列表、申请详情和 approve / reject。
 - 桌面和移动端浏览器已检查帖子详情 Markdown、涂黑、评论 Markdown、无编辑/预览 tab、`/search?q=QA&scope=all`、`/notifications`、`/moderation`、`/community-applications/review` 和 `/communities/public/new`；页面无横向溢出，控制台无 error。
-- 社区申请完整待审列表和 staff-only 入口精确显隐仍依赖后端补齐 `GET /api/v1/community-applications...`、`GET /api/v1/community-applications/:id` 和 `/api/v1/me.is_platform_staff`，不阻塞 V2 本地初版。
+- V2.1 已接入社区申请完整审核台和 staff-only 入口精确显隐；没有新的 P0 后端缺口阻塞本地初版。
 
 2026-06-03 V1 本地封版验收记录：
 

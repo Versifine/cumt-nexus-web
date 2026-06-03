@@ -115,17 +115,19 @@ Reddit-style campus community content system
 - remove target。
 - 帖子 moderation remove。
 - 评论 moderation remove。
-- forbidden 状态由后端权限校验兜底，前端不伪造 staff 权限。
+- staff-only 入口根据 `/api/v1/me.is_platform_staff` 精确显隐。
+- forbidden 状态仍由后端权限校验兜底。
 
 ### 社区申请审批
 
 - 提交社区创建申请。
-- 手动审核入口 `/community-applications/review`。
-- 输入社区申请 ID 后 approve。
-- 输入社区申请 ID 后 reject，并填写拒绝原因。
+- staff 审核入口 `/community-applications/review`。
+- 按 `pending | approved | rejected` 查看社区申请列表。
+- 查看社区申请详情。
+- 对待审申请 approve。
+- 对待审申请 reject，并填写拒绝原因。
 - loading、error、success 和 disabled 状态。
 - 审批通过后的社区创建和 owner 成员关系由后端事务保证。
-- 由于后端暂缺申请列表 / 详情读取接口，当前不伪造待审列表。
 
 ### 工程与上线收口
 
@@ -165,11 +167,10 @@ Reddit-style campus community content system
 
 V2 详细路线见 `docs/internal/product/v2-roadmap.md`。优先级固定为：
 
-1. 后端缺口继续同步到 `backend-api-needs.md`。
-2. 社区申请审核列表 / 详情在后端补齐后接入。
-3. staff 入口显隐在 `/api/v1/me.is_platform_staff` 补齐后接入。
-4. 图片限制、缩略图、失败重试和对象清理提示继续产品化。
-5. 浏览器 QA 和生产 deferred 项继续拆分到后续上线切片。
+1. 新后端缺口继续同步到 `backend-api-needs.md`。
+2. 图片限制、缩略图、失败重试和对象清理提示继续产品化。
+3. 白名单 embed、链接预览、评论投票和通知事件源增强继续拆分。
+4. 浏览器 QA 和生产 deferred 项继续拆分到后续上线切片。
 
 ### P2：产品扩展能力
 
@@ -186,8 +187,6 @@ V2 详细路线见 `docs/internal/product/v2-roadmap.md`。优先级固定为：
 
 这些不是前端直接实现项，但会影响前端派工顺序。前端推进中发现的新接口需求，先写入根目录 `backend-api-needs.md`，并保持该文件在 `.gitignore` 中。
 
-- 社区申请审批列表或详情入口的读取接口：当前已记录需要 `GET /api/v1/community-applications?status=...&limit=...&offset=...` 和 `GET /api/v1/community-applications/:id`。
-- 当前用户平台权限字段：当前已记录需要 `GET /api/v1/me` 返回 `is_platform_staff`。
 - 图片缩略图、对象清理、对象物理删除和失败对象回收是否已完成，仍需以后端最终合同复核。
 - 通知事件源是否覆盖回复、审核、内容生命周期等业务事件，仍需以后端最终合同复核。
 - 社区 staff / moderator 管理、成员加入退出、私密社区和邀请制仍不是当前前端可接能力。
@@ -214,9 +213,8 @@ V2 详细路线见 `docs/internal/product/v2-roadmap.md`。优先级固定为：
 V2 本地初版已完成收口，后续前端优先顺序是：
 
 1. 保持 `check:static`、`check:docs`、`check:routes`、`check:readiness`、`check:main-path` 和 `check:v2-path` 通过。
-2. 把后端缺口同步给 `cumt-nexus-api`。
-3. 后端补齐社区申请列表 / 详情和 `is_platform_staff` 后，再做 staff 入口精确显隐和完整申请审核列表。
-4. 继续拆分图片产品化、白名单 embed、链接预览、评论投票和通知事件源增强。
+2. 把新增后端缺口同步给 `cumt-nexus-api`。
+3. 继续拆分图片产品化、白名单 embed、链接预览、评论投票和通知事件源增强。
 
 如果目标是首版上线，优先顺序是：
 

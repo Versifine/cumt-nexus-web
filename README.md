@@ -9,9 +9,9 @@
 - 界面语言：用户可见文案默认使用简体中文，品牌名、技术名、URL slug、API 字段和用户生成内容保留原文。
 - 当前分支：`stage/0-web-planning`。该分支名来自早期规划阶段，当前实际承载 V1 本地封版和 V2 本地产品化推进。
 - 当前目标：V2 后端能力全量前端接入已完成本地初版收口；生产 HTTPS 域名、正式 API origin 和生产 CORS 在没有域名前保持 deferred。
-- 最新 V2 本地验收（2026-06-03）：`npm run check:static`、`npm run check:docs`、`npm run check:routes`、严格 `npm run check:readiness`、严格 `npm run check:main-path` 和 `npm run check:v2-path` 通过。
-- 当前 V2 后端缺口（2026-06-03）：社区申请列表 / 详情读取接口和 `/api/v1/me.is_platform_staff` 仍需后端补齐；本地 CORS 预检已修复并通过严格 readiness。
-- 最新浏览器复验（2026-06-03）：帖子详情 Reddit Markdown、涂黑、评论 Markdown、评论树和附件路径已在桌面/移动端检查；`/search`、`/notifications`、`/moderation`、`/community-applications/review`、`/communities/public/new` 在桌面/移动端无横向溢出、无控制台 error；退出登录和 token 清空会清理 TanStack Query 缓存。
+- 最新 V2 本地验收（2026-06-03）：`npm run check:static`、`npm run check:docs`、`npm run check:routes`、严格 `npm run check:readiness`、严格 `npm run check:main-path` 和 `npm run check:v2-path` 通过；后端补齐后已复跑 `lint`、`typecheck`、严格 `check:main-path` 和 `check:v2-path`。
+- 当前 V2.1 推进（2026-06-03）：后端已补齐社区申请列表 / 详情和 `/api/v1/me.is_platform_staff`，前端已接入完整申请审核台和 staff 入口显隐；生产配置仍保持 deferred。
+- 最新浏览器复验（2026-06-03）：帖子详情 Reddit Markdown、涂黑、评论 Markdown、评论树和附件路径已在桌面/移动端检查；`/search`、`/notifications`、`/moderation`、`/community-applications/review`、`/communities/public/new` 在桌面/移动端无横向溢出、无控制台 error；登录/注册表单原生降级不会把账号字段写入 URL；退出登录和 token 清空会清理 TanStack Query 缓存。
 
 ## 已实现范围
 
@@ -24,7 +24,7 @@
 - 作者编辑和软删除自己的帖子、评论。
 - 在指定社区发布帖子。
 - 提交社区创建申请。
-- 社区申请审核入口：可手动输入申请 ID 后 approve / reject；完整待审列表依赖后端补充列表 / 详情接口。
+- 社区申请审核台：staff 可按状态查看申请列表、查看详情并 approve / reject。
 - Reddit Markdown 阅读态：帖子和评论正文通过 `react-markdown` + `remark-gfm` 安全渲染，支持 GFM、链接安全过滤、涂黑和上标扩展。
 - 单一写作面板：发帖、评论、回复和作者编辑都使用同一套格式工具条，不再提供编辑 / 预览双模式。
 - 图片上传和附件展示：发帖、评论可上传图片并提交 `attachment_ids`，帖子详情和评论树展示返回的图片附件。
@@ -42,10 +42,8 @@
 - 基础安全响应头：`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`。
 - 主要数据页覆盖 loading、empty、error、未登录、提交中和成功/失败状态。
 
-当前仍不做或等待后端补齐：
+当前仍不做或等待后续产品合同：
 
-- 社区申请审核列表和详情：后端暂缺读取接口，已记录在根目录 `backend-api-needs.md`，该文件已加入 `.gitignore`。
-- 基于 `/api/v1/me` 的 staff 入口精确显隐：后端暂未返回 `is_platform_staff`，当前由后端操作接口返回 `forbidden` 兜底。
 - 申请取消。
 - 个人资料编辑、头像、邮箱。
 - 评论投票、私信、实时能力和个性化推荐。
@@ -84,13 +82,13 @@ V2 本地初版已经覆盖：
 5. 搜索体验。
 6. 通知中心。
 7. 举报入口。
-8. 社区申请 approve / reject 临时审核入口。
+8. 社区申请列表 / 详情 / approve / reject 审核台。
 9. 审核台和 moderation remove。
 
 V2 本地初版已收口，后续重点：
 
 - 保持静态、路由、readiness、main-path 和 V2 主链路验证持续通过。
-- 将社区申请列表 / 详情和 `/api/v1/me.is_platform_staff` 的后端缺口继续同步到 `backend-api-needs.md`。
+- 后续新增后端需求继续同步到 `backend-api-needs.md`。
 - 正式域名、生产 API origin、生产 CORS allowlist 和发布后验证继续保持 deferred。
 
 完整边界和暂停条件见 `docs/internal/product/v2-roadmap.md`。
@@ -270,7 +268,7 @@ V2 主链路检查：
 npm run check:v2-path
 ```
 
-该命令会在真实后端上覆盖 V2 新增能力：图片上传和 `attachment_ids`、全站/社区 `new | hot` 排序、搜索 scope、通知列表和标记已读、帖子/评论举报、审核台列表和详情、`target_preview`、dismiss、remove-target、帖子/评论 moderation remove，以及社区申请 approve / reject。它会写入 smoke 数据，并通过本地 PostgreSQL 容器把测试用户提升为 staff，仅用于本地或预发布验收。
+该命令会在真实后端上覆盖 V2 新增能力：`/me.is_platform_staff`、图片上传和 `attachment_ids`、全站/社区 `new | hot` 排序、搜索 scope、通知列表和标记已读、帖子/评论举报、审核台列表和详情、`target_preview`、dismiss、remove-target、帖子/评论 moderation remove，以及社区申请列表、详情、approve / reject。它会写入 smoke 数据，并通过本地 PostgreSQL 容器把测试用户提升为 staff，仅用于本地或预发布验收。
 
 公开页面冒烟检查：
 

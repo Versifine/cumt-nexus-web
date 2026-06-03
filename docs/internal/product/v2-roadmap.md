@@ -38,20 +38,20 @@ V2 后端能力全量前端接入
 - 内容发现：首页和社区帖子流支持 `new | hot`，搜索页支持 `all | communities | posts`。
 - 通知中心：支持列表、未读 / 已读筛选、标记已读和保守跳转。
 - 举报与审核：普通用户可举报帖子 / 评论；审核台支持举报列表、详情、`target_preview`、dismiss、remove-target；帖子和评论支持 moderation remove。
-- 社区申请审批：已提供手动审核入口，可以输入申请 ID 后 approve / reject。
+- 社区申请审批：已接入列表、详情、approve / reject 和 staff-only 入口显隐。
 
-当前不伪造的后端缺口：
+当前后端缺口状态：
 
-- 社区申请列表和详情读取接口暂缺，完整待审列表无法前端单独完成。
-- `/api/v1/me` 暂未返回 `is_platform_staff`，staff-only 入口无法可靠精确显隐。
-- 上述缺口已写入根目录 `backend-api-needs.md`，并已加入 `.gitignore`。
+- 社区申请列表 / 详情读取接口已由后端补齐，前端已接入完整审核台。
+- `/api/v1/me.is_platform_staff` 已由后端补齐，前端已用于 staff-only 入口显隐。
 - 本地 CORS 预检已由后端修复，严格 `npm run check:readiness` 已能证明浏览器 origin 可访问 API。
+- 后续新增前端所需后端接口时，继续写入根目录 `backend-api-needs.md`，并保持该文件在 `.gitignore` 中。
 
 本轮 V2 本地收口证据：
 
 - `npm run check:static`、`npm run check:docs`、`npm run check:routes`、严格 `npm run check:readiness`、严格 `npm run check:main-path` 和 `npm run check:v2-path` 均通过。
 - 桌面和移动端浏览器已检查帖子详情、Reddit Markdown、涂黑、评论 Markdown、`/search`、`/notifications`、`/moderation`、`/community-applications/review` 和 `/communities/public/new`，未发现横向溢出或控制台 error。
-- 社区申请完整待审列表仍依赖后端补充读取接口；前端当前只提供手动输入申请 ID 的审核入口，不伪造列表。
+- V2.1 已把社区申请审核台从手动输入 ID 升级为列表、详情、approve / reject 和 staff 入口显隐。
 
 V2 的完成边界以当前后端能力为准：
 
@@ -122,8 +122,7 @@ API 启动期公共总版 bootstrap
 前端状态：
 
 - V1 已接入社区列表、详情和提交社区申请。
-- V2 已接入 approve / reject 操作和手动审核入口。
-- 完整待审列表和申请详情依赖后端补充读取接口，当前缺口记录在 `backend-api-needs.md`。
+- V2 已接入申请列表、详情、approve / reject 操作和 staff-only 审核入口。
 
 ### 帖子
 
@@ -466,7 +465,9 @@ V2 不要求完成：
 交付：
 
 - 社区申请列表或审核入口，具体列表接口实现前核对。
+- 申请详情读取。
 - approve / reject 操作。
+- staff-only 入口显隐。
 - 审批成功反馈。
 - 审批后社区 owner 成员关系由后端事务保证，前端只展示结果。
 
@@ -541,7 +542,7 @@ V2 初版按以下顺序推进：
 13. F3 内容 moderation remove。
 14. G V2 收口。
 
-V2 本地初版已经完成 G 收口。后续继续推进时，不再从 A 重新开始；只做后端缺口补齐后的增量接入、内容系统产品化、生产 deferred 项和新的小切片。
+V2 本地初版已经完成 G 收口，V2.1 已补齐社区申请审核台和 staff 入口显隐。后续继续推进时，不再从 A 重新开始；只做内容系统产品化、生产 deferred 项和新的小切片。
 
 ## V2 验收
 
@@ -580,7 +581,7 @@ npm run check:readiness
 npm run check:v2-path
 ```
 
-`check:v2-path` 覆盖图片上传、附件提交、new/hot 排序、搜索、通知、举报、审核台、target_preview、dismiss、remove-target、moderation remove 和社区申请 approve / reject。它会写入 smoke 数据，并依赖本地 PostgreSQL 容器提升测试用户为 staff，只用于本地或预发布验收。
+`check:v2-path` 覆盖 `/me.is_platform_staff`、图片上传、附件提交、new/hot 排序、搜索、通知、举报、审核台、target_preview、dismiss、remove-target、moderation remove、社区申请列表、社区申请详情和 approve / reject。它会写入 smoke 数据，并依赖本地 PostgreSQL 容器提升测试用户为 staff，只用于本地或预发布验收。
 
 涉及页面渲染时必须做浏览器 QA，至少覆盖：
 
@@ -606,8 +607,6 @@ npm run check:v2-path
 
 V2 本地初版已经收口。后续不再把“G 收口”作为当前推进位，改为按小切片处理：
 
-1. 后端补齐社区申请列表 / 详情后，接入完整待审列表和详情页。
-2. 后端在 `/api/v1/me` 返回 `is_platform_staff` 后，做 staff-only 入口精确显隐。
-3. 基于后端最终合同继续产品化图片限制、缩略图、失败重试和对象清理提示。
-4. 讨论并设计白名单 embed、普通网页链接预览、评论投票和通知事件源增强。
-5. 拿到正式域名后，再处理生产 `NEXT_PUBLIC_SITE_URL`、生产 `NEXT_PUBLIC_API_BASE_URL`、生产 CORS allowlist、发布后验证和回滚演练。
+1. 基于后端最终合同继续产品化图片限制、缩略图、失败重试和对象清理提示。
+2. 讨论并设计白名单 embed、普通网页链接预览、评论投票和通知事件源增强。
+3. 拿到正式域名后，再处理生产 `NEXT_PUBLIC_SITE_URL`、生产 `NEXT_PUBLIC_API_BASE_URL`、生产 CORS allowlist、发布后验证和回滚演练。
