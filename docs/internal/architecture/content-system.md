@@ -119,6 +119,24 @@ Reddit-style campus community content system
 - 不使用闪烁、发光或大面积动画。
 - 文案使用中文，例如 `显示隐藏内容`。
 
+当前已落地的最小子集：
+
+- 发帖和评论工具栏可以插入 `>! 隐藏内容 !<`。
+- 帖子详情正文和评论树正文会把该语法渲染为默认隐藏、可点击展开的涂黑内容。
+- 该渲染只处理 spoiler / 涂黑片段，其余内容仍按纯文本显示。
+- 未闭合的 `>!` 会按普通文本显示。
+- 前端不存用户 HTML，不使用 `dangerouslySetInnerHTML`，也没有新增 Markdown renderer 依赖。
+- `npm run check:content-boundary` 已经作为静态守护，防止帖子正文、评论正文和预览绕过 `ContentBody`，并阻止原始 HTML、`rehype-raw` 和未批准 iframe/srcDoc 进入源码。
+- `npm run check:content-segments` 已经作为行为守护，验证普通文本、多段涂黑、未闭合涂黑、空涂黑和多行涂黑的解析结果。
+
+仍未落地：
+
+- 完整 Markdown renderer。
+- Markdown 预览。
+- 链接安全渲染。
+- 图片附件。
+- 白名单 embed。
+
 ### 编辑器形态
 
 首版编辑器不做复杂 WYSIWYG。建议：
@@ -138,6 +156,8 @@ Reddit-style campus community content system
 - 是否会引入第二套 UI 风格。
 
 ## 媒体模型
+
+图片、链接预览和白名单 embed 的后端契约缺口见 `docs/internal/architecture/content-media-api-gaps.md`。在这些接口完成前，前端只记录 gap，不伪造上传、对象存储或播放器能力。
 
 ### 图片
 
@@ -406,7 +426,7 @@ POST /api/v1/embeds/resolve
 
 交付：
 
-- 选定 Markdown renderer 和 sanitizer 方案。
+- 按 `docs/internal/architecture/markdown-rendering.md` 选定 Markdown renderer 和 sanitizer 方案。
 - 明确是否新增依赖。
 - 写 dependency boundary 更新方案。
 - 不改帖子数据模型。
@@ -528,7 +548,11 @@ POST /api/v1/embeds/resolve
 推荐结论：
 
 - 结构上学习 Reddit，视觉上保持 CUMT Nexus 自己的暗色 editorial product 风格。
-- 先做安全 Markdown 和 spoiler，再做评论树。
+- 当前已先落地 spoiler / 涂黑的最小安全渲染；完整 Markdown renderer 的选型和安全边界见 `docs/internal/architecture/markdown-rendering.md`。
+- 当前已新增用户内容渲染边界自检；后续 Markdown、图片和 embed 切片必须同步更新该检查，而不是绕过它。
+- 当前已新增 spoiler / 涂黑解析行为自检；后续 Markdown renderer 接入时必须继续通过该检查，除非在独立切片中明确更新语法规则。
+- 媒体能力的后端 API gap 已拆到 `docs/internal/architecture/content-media-api-gaps.md`；后续对象存储、图片和 embed 应先在后端仓库按该文档推进。
+- 下一步如要做完整 Markdown，应先获得新增依赖批准，再更新依赖边界检查。
 - 图片和 embed 晚于评论树，避免一次性扩大后端、存储、安全和前端渲染范围。
 - 外链播放器必须走 provider 白名单，不开放任意 iframe。
 - 后续任何实现都要以后端契约为准，先定数据模型和安全边界，再写前端 UI。

@@ -1,7 +1,4 @@
 "use client";
-
-import type { ReactNode } from "react";
-import Link from "next/link";
 import {
   ArrowDown,
   ArrowUp,
@@ -13,13 +10,22 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
+import {
+  InfoRow,
+  MetricBlock,
+  StatusToken,
+} from "@/components/ui/data-display";
+import { TextAction } from "@/components/ui/text-action";
+import { useAuthSession } from "@/features/auth/auth-session";
+import { useCurrentUserQuery } from "@/features/auth/queries";
 import { CommentForm } from "@/features/comment/comment-form";
+import { CommentTree } from "@/features/comment/comment-tree";
 import { usePostCommentsQuery } from "@/features/comment/queries";
-import type { Comment } from "@/features/comment/types";
+import { ContentBody } from "@/features/content/content-body";
 import { VoteControl } from "@/features/vote/vote-control";
 import { ApiError } from "@/lib/api/client";
-import { cn } from "@/lib/utils";
 
+import { PostLifecycleControls } from "./post-lifecycle-controls";
 import { usePostQuery } from "./queries";
 import type { Post } from "./types";
 
@@ -28,10 +34,19 @@ type PostDetailProps = {
 };
 
 export function PostDetail({ id }: PostDetailProps) {
-  const postQuery = usePostQuery(id);
-  const commentsQuery = usePostCommentsQuery(id);
-  const post = postQuery.data?.post;
-  const comments = commentsQuery.data?.comments ?? [];
+  const { isReady, token } = useAuthSession();
+  const currentUserQuery = useCurrentUserQuery();
+  const canRequestPost = isReady && Boolean(token);
+  const postQuery = usePostQuery(id, canRequestPost);
+  const canRequestComments = canRequestPost && postQuery.isSuccess && Boolean(postQuery.data?.post);
+  const commentsQuery = usePostCommentsQuery(id, 20, 0, "tree", "new", 6, canRequestComments);
+  const post = canRequestPost ? postQuery.data?.post : undefined;
+  const comments = canRequestComments ? (commentsQuery.data?.comments ?? []) : [];
+  const currentUserId = currentUserQuery.data?.id ?? null;
+  const canManagePost =
+    Boolean(post) &&
+    currentUserQuery.isSuccess &&
+    currentUserId === post?.author_id;
   const loginHref = `/login?next=${encodeURIComponent(`/posts/${id}`)}`;
 
   return (
@@ -42,7 +57,19 @@ export function PostDetail({ id }: PostDetailProps) {
         <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
             <section>
-              {postQuery.isLoading ? (
+              {!isReady ? (
+                <LoadingState rows={3} />
+              ) : !token ? (
+                <ErrorState
+                  title="需要登录"
+                  description="请先登录后查看帖子详情、评论和投票。"
+                  action={
+                    <TextAction href={loginHref} tone="primary">
+                      登录
+                    </TextAction>
+                  }
+                />
+              ) : postQuery.isLoading ? (
                 <LoadingState rows={3} />
               ) : postQuery.isError ? (
                 <ErrorState
@@ -50,9 +77,9 @@ export function PostDetail({ id }: PostDetailProps) {
                   description={getErrorDescription(postQuery.error)}
                   action={
                     isUnauthenticated(postQuery.error) ? (
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={loginHref}>登录</Link>
-                      </Button>
+                      <TextAction href={loginHref} tone="primary">
+                        登录
+                      </TextAction>
                     ) : (
                       <Button
                         variant="outline"
@@ -65,7 +92,11 @@ export function PostDetail({ id }: PostDetailProps) {
                   }
                 />
               ) : post ? (
-                <PostArticle post={post} commentCount={comments.length} />
+                <PostArticle
+                  canManage={canManagePost}
+                  post={post}
+                  commentCount={comments.length}
+                />
               ) : null}
             </section>
 
@@ -79,7 +110,7 @@ export function PostDetail({ id }: PostDetailProps) {
                     评论
                   </h2>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                    用评论补充信息、提出问题或回应观点。当前版本保持单层评论，不伪造楼中楼结构。
+                    用评论补充信息、提出问题或回应观点。回复会以树状结构展开，深层讨论可以折叠。
                   </p>
                 </div>
 
@@ -100,9 +131,9 @@ export function PostDetail({ id }: PostDetailProps) {
                       description={getErrorDescription(commentsQuery.error)}
                       action={
                         isUnauthenticated(commentsQuery.error) ? (
-                          <Button asChild variant="outline" size="sm">
-                            <Link href={loginHref}>登录</Link>
-                          </Button>
+                          <TextAction href={loginHref} tone="primary">
+                            登录
+                          </TextAction>
                         ) : (
                           <Button
                             variant="outline"
@@ -124,15 +155,12 @@ export function PostDetail({ id }: PostDetailProps) {
                   ) : null}
 
                   {commentsQuery.isSuccess && comments.length > 0 ? (
-                    <div className="divide-y divide-border border-b border-border">
-                      {comments.map((comment, index) => (
-                        <CommentRow
-                          key={comment.id}
-                          comment={comment}
-                          index={index}
-                        />
-                      ))}
-                    </div>
+                    <CommentTree
+                      comments={comments}
+                      currentUserId={currentUserId}
+                      maxDepth={6}
+                      postId={id}
+                    />
                   ) : null}
                 </div>
               </section>
@@ -153,9 +181,11 @@ export function PostDetail({ id }: PostDetailProps) {
 }
 
 function PostArticle({
+  canManage,
   post,
   commentCount,
 }: {
+  canManage: boolean;
   post: Post;
   commentCount: number;
 }) {
@@ -181,10 +211,10 @@ function PostArticle({
       </div>
 
       <div className="border-b border-border py-6">
-        <p className="whitespace-pre-wrap text-base leading-8 text-foreground">
-          {post.body}
-        </p>
+        <ContentBody value={post.body} className="text-base leading-8" />
       </div>
+
+      <PostLifecycleControls canManage={canManage} post={post} />
 
       <div className="border-b border-border py-4">
         <div className="flex flex-col gap-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
@@ -202,38 +232,6 @@ function PostArticle({
         </div>
       </div>
     </article>
-  );
-}
-
-function CommentRow({
-  comment,
-  index,
-}: {
-  comment: Comment;
-  index: number;
-}) {
-  return (
-    <div className="grid gap-4 py-5 md:grid-cols-[72px_minmax(0,1fr)_120px]">
-      <div className="font-mono text-xs text-muted-foreground">
-        {String(index + 1).padStart(2, "0")}
-      </div>
-
-      <div className="min-w-0">
-        <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">
-          {comment.body}
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="border border-border px-2 py-0.5 font-mono">
-            作者 {formatShortId(comment.author_id)}
-          </span>
-          <span>{formatCommentStatus(comment.status)}</span>
-        </div>
-      </div>
-
-      <div className="text-left text-xs text-muted-foreground md:text-right">
-        {formatDate(comment.created_at)}
-      </div>
-    </div>
   );
 }
 
@@ -271,13 +269,13 @@ function PostRail({
         <section className="border-b border-border pb-6">
           <h2 className="text-sm font-semibold">投票概览</h2>
           <div className="mt-3 divide-y divide-border border-y border-border">
-            <VoteInfoRow
+            <InfoRow
               icon={<ArrowUp className="size-4" aria-hidden="true" />}
               label="赞成"
               value={post ? String(post.upvote_count) : "--"}
               active={post?.my_vote === 1}
             />
-            <VoteInfoRow
+            <InfoRow
               icon={<ArrowDown className="size-4" aria-hidden="true" />}
               label="反对"
               value={post ? String(post.downvote_count) : "--"}
@@ -303,80 +301,6 @@ function PostRail({
         </section>
       </div>
     </aside>
-  );
-}
-
-function MetricBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-r border-border px-3 py-4 last:border-r-0">
-      <div className="font-mono text-[11px] uppercase text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-2 text-2xl font-black leading-none text-foreground">
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-3 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="min-w-0 truncate text-right font-medium text-foreground">
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function VoteInfoRow({
-  active,
-  icon,
-  label,
-  value,
-}: {
-  active?: boolean;
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-4 py-3 text-sm",
-        active ? "text-primary" : "text-muted-foreground",
-      )}
-    >
-      <span className="inline-flex items-center gap-2">
-        {icon}
-        {label}
-      </span>
-      <span className="font-mono text-foreground">{value}</span>
-    </div>
-  );
-}
-
-function StatusToken({
-  children,
-  tone = "default",
-}: {
-  children: ReactNode;
-  tone?: "default" | "primary" | "success" | "warning" | "danger";
-}) {
-  return (
-    <span
-      className={cn(
-        "border px-2 py-0.5 text-xs font-medium",
-        tone === "default" && "border-border bg-background text-muted-foreground",
-        tone === "primary" && "border-primary/40 bg-primary/10 text-primary",
-        tone === "success" && "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
-        tone === "warning" && "border-amber-400/30 bg-amber-500/10 text-amber-300",
-        tone === "danger" && "border-red-400/30 bg-red-500/10 text-red-300",
-      )}
-    >
-      {children}
-    </span>
   );
 }
 
@@ -413,19 +337,6 @@ function getErrorDescription(error: Error | null) {
 }
 
 function formatPostStatus(status: string) {
-  switch (status) {
-    case "visible":
-      return "可见";
-    case "archived":
-      return "已归档";
-    case "hidden":
-      return "已隐藏";
-    default:
-      return status;
-  }
-}
-
-function formatCommentStatus(status: string) {
   switch (status) {
     case "visible":
       return "可见";

@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight, Hash } from "lucide-react";
 
@@ -9,9 +8,9 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { PageNav } from "@/components/app-shell/page-nav";
 import { Button } from "@/components/ui/button";
+import { MetaCell, MetricBlock, StatusToken } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { ApiError } from "@/lib/api/client";
-import { cn } from "@/lib/utils";
 
 import { useCommunitiesQuery } from "./queries";
 import type { Community } from "./types";
@@ -72,9 +71,9 @@ export function CommunityList() {
               description={getErrorDescription(communitiesQuery.error)}
               action={
                 isUnauthenticated(communitiesQuery.error) ? (
-                  <Button asChild variant="outline" size="sm">
-                    <Link href="/login">登录</Link>
-                  </Button>
+                  <TextAction href="/login" tone="primary">
+                    登录
+                  </TextAction>
                 ) : (
                   <Button
                     variant="outline"
@@ -170,51 +169,6 @@ function CommunityRow({
         </div>
       </div>
     </Link>
-  );
-}
-
-function MetricBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-r border-border px-3 py-4 last:border-r-0">
-      <div className="font-mono text-[11px] uppercase text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-2 text-2xl font-black leading-none text-foreground">
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function MetaCell({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="px-3 py-2">
-      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate text-xs text-foreground">{value}</div>
-    </div>
-  );
-}
-
-function StatusToken({
-  children,
-  tone = "default",
-}: {
-  children: ReactNode;
-  tone?: "default" | "primary" | "success" | "warning" | "danger";
-}) {
-  return (
-    <span
-      className={cn(
-        "border px-2 py-0.5 text-xs font-medium",
-        tone === "default" && "border-border bg-background text-muted-foreground",
-        tone === "primary" && "border-primary/40 bg-primary/10 text-primary",
-        tone === "success" && "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
-        tone === "warning" && "border-amber-400/30 bg-amber-500/10 text-amber-300",
-        tone === "danger" && "border-red-400/30 bg-red-500/10 text-red-300",
-      )}
-    >
-      {children}
-    </span>
   );
 }
 

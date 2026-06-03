@@ -4,22 +4,33 @@ import type {
   ListCommentsResponse,
   PublishCommentInput,
   PublishCommentResponse,
+  UpdateCommentInput,
+  UpdateCommentResponse,
 } from "./types";
 
 type ListPostCommentsInput = {
   postId: string;
   limit?: number;
   offset?: number;
+  view?: "flat" | "tree";
+  sort?: "new" | "old";
+  maxDepth?: number;
 };
 
 export function listPostComments({
   postId,
   limit = 20,
   offset = 0,
+  view = "tree",
+  sort = "new",
+  maxDepth = 6,
 }: ListPostCommentsInput) {
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
+    view,
+    sort,
+    max_depth: String(maxDepth),
   });
 
   return apiRequest<ListCommentsResponse>(
@@ -35,4 +46,20 @@ export function publishComment(postId: string, input: PublishCommentInput) {
       body: input,
     },
   );
+}
+
+export function updateComment(id: string, input: UpdateCommentInput) {
+  return apiRequest<UpdateCommentResponse>(
+    `/api/v1/comments/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      body: input,
+    },
+  );
+}
+
+export function deleteComment(id: string) {
+  return apiRequest<void>(`/api/v1/comments/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
 }

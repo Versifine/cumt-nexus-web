@@ -4,6 +4,7 @@ export type Post = {
   author_id: string;
   title: string;
   body: string;
+  body_format?: "markdown" | string;
   status: "visible" | string;
   upvote_count: number;
   downvote_count: number;
@@ -29,5 +30,14 @@ export type PublishPostInput = {
 };
 
 export type PublishPostResponse = {
+  post: Post;
+};
+
+export type UpdatePostInput = {
+  title: string;
+  body: string;
+};
+
+export type UpdatePostResponse = {
   post: Post;
 };

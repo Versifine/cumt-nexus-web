@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -9,7 +10,10 @@ import { z } from "zod";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ContentPreview } from "@/features/content/content-preview";
+import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +35,7 @@ type PostFormProps = {
 export function PostForm({ className, slug }: PostFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const form = useForm<PostFormValues>({
     resolver: zodResolver(postSchema),
     defaultValues: {
@@ -54,6 +59,7 @@ export function PostForm({ className, slug }: PostFormProps) {
   const bodyValue = useWatch({ control: form.control, name: "body" }) ?? "";
   const titleLength = titleValue.trim().length;
   const bodyLength = bodyValue.trim().length;
+  const bodyField = form.register("body");
 
   return (
     <form
@@ -75,15 +81,15 @@ export function PostForm({ className, slug }: PostFormProps) {
           title="标题"
         />
         <div className="min-w-0 space-y-2">
-        <Input
-          id="title"
-          autoComplete="off"
-          aria-invalid={Boolean(form.formState.errors.title)}
-          disabled={postMutation.isPending}
-          placeholder="想讨论什么？"
-          className="h-12 border-border bg-background text-base font-semibold"
-          {...form.register("title")}
-        />
+          <Input
+            id="title"
+            autoComplete="off"
+            aria-invalid={Boolean(form.formState.errors.title)}
+            disabled={postMutation.isPending}
+            placeholder="想讨论什么？"
+            className="h-12 border-border bg-background text-base font-semibold"
+            {...form.register("title")}
+          />
           <FieldMeta
             count={titleLength}
             error={form.formState.errors.title?.message}
@@ -100,18 +106,47 @@ export function PostForm({ className, slug }: PostFormProps) {
           title="正文"
         />
         <div className="min-w-0 space-y-2">
-        <Textarea
-          id="body"
-          aria-invalid={Boolean(form.formState.errors.body)}
-          disabled={postMutation.isPending}
-          placeholder="先把第一版写清楚。当前版本暂不支持编辑。"
-          className="min-h-72 border-border bg-background text-base leading-7"
-          {...form.register("body")}
-        />
+          <Tabs defaultValue="edit">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <MarkdownToolbar
+                disabled={postMutation.isPending}
+                onChange={(nextValue) =>
+                  form.setValue("body", nextValue, {
+                    shouldDirty: true,
+                    shouldTouch: true,
+                    shouldValidate: true,
+                  })
+                }
+                textareaRef={bodyTextareaRef}
+                value={bodyValue}
+              />
+              <TabsList className="rounded-none bg-background">
+                <TabsTrigger value="edit">编辑</TabsTrigger>
+                <TabsTrigger value="preview">预览</TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="edit" className="mt-2">
+              <Textarea
+                id="body"
+                aria-invalid={Boolean(form.formState.errors.body)}
+                disabled={postMutation.isPending}
+                placeholder="支持加粗、引用、代码、链接和涂黑。"
+                className="min-h-72 border-border bg-background text-base leading-7"
+                {...bodyField}
+                ref={(element) => {
+                  bodyField.ref(element);
+                  bodyTextareaRef.current = element;
+                }}
+              />
+            </TabsContent>
+            <TabsContent value="preview" className="mt-2">
+              <ContentPreview value={bodyValue} minHeightClassName="min-h-72" />
+            </TabsContent>
+          </Tabs>
           <FieldMeta
             count={bodyLength}
             error={form.formState.errors.body?.message}
-            hint="正文支持换行；发布前检查是否有遗漏的上下文。"
+            hint="正文会保留原始格式；发布前检查是否有遗漏的上下文。"
           />
         </div>
       </div>

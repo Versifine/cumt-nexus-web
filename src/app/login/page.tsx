@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { IndexedInfoRow, MetricBlock } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { LoginForm } from "@/features/auth/login-form";
 import { getSafeAuthSwitchHref } from "@/features/auth/redirect";
@@ -60,15 +61,15 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </p>
 
             <div className="mt-8 hidden border-y border-border sm:grid sm:grid-cols-3">
-              <MetricBlock label="身份方式" value="用户名" />
-              <MetricBlock label="会话状态" value="本地令牌" />
-              <MetricBlock label="成功后" value="进入首页" />
+              <MetricBlock variant="compact" label="身份方式" value="用户名" />
+              <MetricBlock variant="compact" label="会话状态" value="本地令牌" />
+              <MetricBlock variant="compact" label="成功后" value="进入首页" />
             </div>
 
             <div className="mt-8 hidden max-w-xl border-y border-border sm:block">
-              <InfoRow index="01" title="社区索引" text="浏览已开放的校园社区。" />
-              <InfoRow index="02" title="发帖讨论" text="在具体社区内发布新的讨论。" />
-              <InfoRow
+              <IndexedInfoRow index="01" title="社区索引" text="浏览已开放的校园社区。" />
+              <IndexedInfoRow index="02" title="发帖讨论" text="在具体社区内发布新的讨论。" />
+              <IndexedInfoRow
                 index="03"
                 title="持续会话"
                 text="登录态由统一的 auth session 管理。"
@@ -107,34 +108,5 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </div>
       </div>
     </main>
-  );
-}
-
-function MetricBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-b border-border px-4 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-2 text-sm font-semibold text-foreground">{value}</div>
-    </div>
-  );
-}
-
-function InfoRow({
-  index,
-  text,
-  title,
-}: {
-  index: string;
-  text: string;
-  title: string;
-}) {
-  return (
-    <div className="grid gap-3 border-b border-border py-4 last:border-b-0 sm:grid-cols-[56px_minmax(0,1fr)]">
-      <div className="font-mono text-xs text-primary">{index}</div>
-      <div>
-        <div className="text-sm font-semibold text-foreground">{title}</div>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">{text}</p>
-      </div>
-    </div>
   );
 }

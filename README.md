@@ -130,6 +130,15 @@ npm run check:api-boundary
 
 该命令会静态检查源码中的后端调用边界：业务接口路径必须留在 `src/features/*/api.ts`，`apiRequest` 路径必须以 `/api/v1` 开头，`NEXT_PUBLIC_API_BASE_URL` 只能由统一 API client 读取，源码中不允许绕过批准位置直接 `fetch()` 后端。
 
+用户内容渲染边界检查：
+
+```powershell
+npm run check:content-boundary
+npm run check:content-segments
+```
+
+`check:content-boundary` 会静态检查帖子正文、评论正文和预览是否仍通过 `ContentBody` 统一渲染，并阻止 `dangerouslySetInnerHTML`、原始 HTML 写入 API、`rehype-raw` 和未批准 iframe/srcDoc 进入源码。`check:content-segments` 会验证当前 `>! ... !<` 涂黑解析的边界行为，包括普通文本、多段涂黑、未闭合涂黑、空涂黑和多行涂黑。后续如要做白名单 embed 或完整 Markdown renderer，必须在独立切片里更新这些检查和安全文档。
+
 依赖与 UI 库边界检查：
 
 ```powershell
@@ -138,13 +147,55 @@ npm run check:dependencies
 
 该命令会检查 `package.json` 的直接依赖是否仍在批准清单内，`package-lock.json` 根依赖是否与 `package.json` 一致，并阻止 Ant Design、MUI、Mantine、Chakra、DaisyUI 等第二套 UI 库进入依赖或源码 import。确需新增依赖时，必须在明确切片里说明用途、替代方案和影响范围，并同步更新该检查。
 
+文档索引检查：
+
+```powershell
+npm run check:docs
+```
+
+该命令会检查关键文档文件是否存在，README 和内部文档索引是否覆盖当前文档入口，提示词模板是否保留可复制文本块，并确认 `check:docs` 已写入项目工作流。
+
+动作边界检查：
+
+```powershell
+npm run check:actions
+```
+
+该命令会检查普通导航和跳转动作是否仍使用 `TextAction`，阻止 `Button asChild` 把普通链接做成按钮。表单提交、重试、投票、工具栏等真实命令仍使用 `Button`。
+
+中文文案边界检查：
+
+```powershell
+npm run check:copy
+```
+
+该命令会扫描 UI 相关源码里的常见英文模板文案，例如 `Sign in`、`Get started`、`Loading...`、`Internal Server Error` 等，防止页面生成时把默认英文按钮、占位文案或错误页长期保留下来。它允许品牌名、技术名、代码标识和短状态码，不替代人工文案审查。
+
+UI 基础件复用检查：
+
+```powershell
+npm run check:ui-primitives
+```
+
+该命令会检查 `MetricBlock`、`InfoRow`、`StatusToken` 等数据展示基础件是否仍从 `src/components/ui/data-display.tsx` 复用，防止页面里再次复制多个风格相近但细节不同的数据块或状态标签。
+
+本地静态验收：
+
+```powershell
+npm run check:static
+```
+
+该命令会顺序运行 lint、typecheck、build、文档索引、动作边界、依赖边界、API 边界、内容渲染边界、涂黑解析、中文文案边界、UI 基础件复用和本地环境变量检查。它不请求真实后端，也不替代 `check:main-path`、`check:readiness` 或浏览器 QA。
+
 后端主链路检查：
 
 ```powershell
 npm run check:main-path
 ```
 
-该命令会直接请求 `NEXT_PUBLIC_API_BASE_URL` 对应的真实后端，创建带 `smoke` 前缀的测试用户、社区申请、帖子、评论和投票，验证注册、登录、`/me`、社区列表/详情、发帖、帖子详情、评论列表/发布、upvote、downvote 和取消投票。它用于本地或预发布环境验收，会写入测试数据；后端未启动时该命令必须失败。
+该命令会直接请求 `NEXT_PUBLIC_API_BASE_URL` 对应的真实后端，创建带 `smoke` 前缀的测试用户、社区申请、帖子、根评论、子评论和投票，验证注册、登录、`/me`、社区列表/详情、发帖、帖子详情、评论树读取、根评论发布、子评论回复、upvote、downvote 和取消投票。它用于本地或预发布环境验收，会写入测试数据；后端未启动时该命令必须失败。
+
+当前如果后端仍按简单时间倒序返回评论，子评论可能出现在根评论之前；脚本会记录 warning。后端 tree contract 完成后，该排序问题应升级为 blocker。
 
 如果后端暂时未启动，只用于前端本地收口，可以运行：
 
@@ -202,9 +253,15 @@ POST   /api/v1/community-applications
 npm run lint
 npm run typecheck
 npm run build
+npm run check:actions
 npm run check:api-boundary
+npm run check:content-boundary
+npm run check:content-segments
+npm run check:copy
 npm run check:dependencies
+npm run check:docs
 npm run check:env
+npm run check:ui-primitives
 npm run check:main-path
 npm run check:routes
 npm run check:readiness
@@ -226,7 +283,11 @@ npm run check:readiness
 - `docs/design/component-rules.md`：组件使用规则。
 - `docs/prompts/frontend-task-template.md`：前端实现任务模板。
 - `docs/prompts/frontend-review-template.md`：前端审查任务模板。
+- `docs/prompts/backend-content-media-target-template.md`：后端内容媒体能力目标模式提示词。
 - `docs/internal/architecture/frontend-v1.md`：前端 V1 架构、路由和 API 边界。
+- `docs/internal/architecture/content-system.md`：内容系统产品形态、评论树、图片和 embed 边界。
+- `docs/internal/architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端 API 缺口。
+- `docs/internal/architecture/markdown-rendering.md`：Markdown renderer 选型、安全边界和实施切片。
 - `docs/internal/engineering/workflow.md`：阶段推进、分支、文档和验证规则。
 - `docs/internal/engineering/launch-readiness.md`：上线前自检、阻塞项和人工 QA 范围。
 - `docs/internal/engineering/deployment.md`：生产部署、环境变量、CORS、发布后验证和回滚标准。

@@ -40,6 +40,7 @@
 - 统一使用 shadcn/ui Button。
 - variant 必须有限：`default`、`secondary`、`outline`、`ghost`、`destructive`、`link`。
 - Button 只用于真正的主命令：提交、确认、创建、登录等。
+- `Button asChild` 不用于普通导航链接；登录跳转、注册跳转、返回入口和侧栏入口使用 `TextAction`。
 - 主动作每个区域最多一个；同一区域不要放多个同等重量按钮。
 - 导航、跳转和次级动作优先使用文字动作，不默认使用 Button。
 - 图标按钮必须使用 lucide-react 图标，并提供 `aria-label` 或 tooltip。
@@ -52,6 +53,10 @@
 - 使用渐变按钮作为默认按钮。
 - 让按钮 hover 改变尺寸。
 - 把普通链接做成 outline button。
+
+检查：
+
+- `npm run check:actions` 会阻止页面中继续使用 `Button asChild` 承载普通链接。
 
 ## Text Action
 
@@ -191,6 +196,29 @@
 
 - 把 Badge 当按钮，除非明确是可点击筛选。
 - 每个页面定义新颜色。
+
+## Data Display
+
+使用场景：
+
+- 页面顶部数据块。
+- 右侧栏键值信息。
+- 编号说明列表。
+- 社区、帖子和状态短标签。
+
+规则：
+
+- 统一使用 `src/components/ui/data-display.tsx` 中的 `MetricBlock`、`InfoRow`、`IndexedInfoRow`、`MetaCell` 和 `StatusToken`。
+- 数据块使用边框、色块和字体层级表达重点，不新增阴影、渐变或大圆角。
+- 状态标签 tone 必须复用 `default`、`primary`、`success`、`warning`、`danger`。
+- 页面里不要重复定义局部 `MetricBlock`、`InfoRow` 或 `StatusToken`。
+- 新增同类数据展示基础件时，必须同步更新 `npm run check:ui-primitives`。
+
+不要：
+
+- 不让每个页面复制一套略有不同的数据块。
+- 不用 Badge 或 Button 临时替代稳定的数据展示组件。
+- 不用随机颜色表达状态。
 
 ## Tabs
 

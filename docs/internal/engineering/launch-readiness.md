@@ -53,7 +53,9 @@ npm run check:dependencies
 npm run check:main-path
 ```
 
-该命令用于确认首版真实后端主链路可用。它会直接请求 `NEXT_PUBLIC_API_BASE_URL`，创建带 `smoke` 前缀的测试用户、社区申请、帖子、评论和投票，并验证注册、登录、`/me`、社区列表、社区详情、社区帖子列表、发帖、全站最新流、帖子详情、评论列表、评论发布、upvote、downvote 和取消投票。该命令会写入测试数据，应在本地或预发布环境运行；后端不可达时严格模式必须失败。
+该命令用于确认首版真实后端主链路可用。它会直接请求 `NEXT_PUBLIC_API_BASE_URL`，创建带 `smoke` 前缀的测试用户、社区申请、帖子、根评论、子评论和投票，并验证注册、登录、`/me`、社区列表、社区详情、社区帖子列表、发帖、全站最新流、帖子详情、评论树读取、根评论发布、子评论回复、upvote、downvote 和取消投票。该命令会写入测试数据，应在本地或预发布环境运行；后端不可达时严格模式必须失败。
+
+当前如果后端仍按简单时间倒序返回评论，子评论可能出现在根评论之前；脚本会记录 warning。后端 tree contract 完成后，该排序问题应升级为 blocker。
 
 后端暂未启动但仍要做前端本地收口时，可以使用：
 
@@ -134,8 +136,8 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `POST /api/v1/communities/:slug/posts` 是否能发布 smoke 帖子。
 - `GET /api/v1/posts?sort=new` 是否能在最新流中看到新帖子。
 - `GET /api/v1/posts/:id` 是否能读取新帖子详情。
-- `GET /api/v1/posts/:id/comments` 是否能读取评论列表。
-- `POST /api/v1/posts/:id/comments` 是否能发布 smoke 评论，并在评论列表中看到它。
+- `GET /api/v1/posts/:id/comments?view=tree` 是否能读取评论列表。
+- `POST /api/v1/posts/:id/comments` 是否能发布 smoke 根评论和带 `parent_id` 的子评论，并在评论列表中看到父子关系。
 - `PUT /api/v1/posts/:id/vote` 是否能 upvote 和 downvote。
 - `DELETE /api/v1/posts/:id/vote` 是否能取消投票，且帖子详情中的 `my_vote` 回到 `0`。
 

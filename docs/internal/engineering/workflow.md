@@ -95,6 +95,38 @@ npm run lint
 npm run typecheck
 ```
 
+本地静态收口可以运行：
+
+```powershell
+npm run check:static
+```
+
+`check:static` 聚合 lint、typecheck、build、文档、动作边界、依赖、API、内容、中文文案边界、UI 基础件复用和本地环境检查。它不请求真实后端，不替代 `npm run check:main-path`、`npm run check:readiness` 和浏览器 QA。
+
+动作边界可以运行：
+
+```powershell
+npm run check:actions
+```
+
+`check:actions` 用于阻止 `Button asChild` 把普通导航链接做成按钮。表单提交、重试、投票和工具栏这类真实命令继续使用 `Button`；跳转、返回、登录/注册入口优先使用 `TextAction`。
+
+中文文案边界可以运行：
+
+```powershell
+npm run check:copy
+```
+
+`check:copy` 用于阻止 `Sign in`、`Get started`、`Loading...`、`Internal Server Error` 等常见英文模板文案进入 UI 相关源码。它允许品牌名、技术名、代码标识和短状态码，不替代人工文案审查。
+
+UI 基础件复用可以运行：
+
+```powershell
+npm run check:ui-primitives
+```
+
+`check:ui-primitives` 用于阻止页面里重复定义 `MetricBlock`、`InfoRow`、`StatusToken` 等数据展示基础件。数据块、键值行、编号说明和状态标签应复用 `src/components/ui/data-display.tsx`，避免每个页面出现细节不同的色块和标签风格。
+
 有测试后继续增加：
 
 ```powershell
@@ -128,3 +160,11 @@ npm test
 2. 相关 `docs/internal/` 文件
 3. `.ai/slices/<stage>/`
 4. `README.md`
+
+文档索引同步后运行：
+
+```powershell
+npm run check:docs
+```
+
+该命令验证 README、内部文档索引、提示词模板和关键文档文件是否仍然对齐。新增文档、删除文档或新增验证命令时，要同步更新该检查。
