@@ -1,3 +1,7 @@
+import type { MediaAttachment } from "@/features/media/types";
+
+export type PostSort = "new" | "hot";
+
 export type Post = {
   id: string;
   community_id: string;
@@ -12,6 +16,7 @@ export type Post = {
   my_vote: -1 | 0 | 1 | number;
   created_at: string;
   updated_at: string;
+  attachments?: MediaAttachment[];
 };
 
 export type ListPostsResponse = {
@@ -27,6 +32,7 @@ export type GetPostResponse = {
 export type PublishPostInput = {
   title: string;
   body: string;
+  attachment_ids?: string[];
 };
 
 export type PublishPostResponse = {

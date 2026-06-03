@@ -1,54 +1,104 @@
-# Markdown 渲染选型与安全边界
+# Reddit Markdown 渲染选型与安全边界
 
-本文定义 CUMT Nexus Web 后续 Markdown-like 正文渲染的实施方案。它不是依赖安装记录；真正新增依赖前仍必须按 `AGENTS.md` 说明用途、替代方案和影响范围，并获得用户明确同意。
+本文定义 CUMT Nexus Web Reddit-style Markdown 正文渲染的实施方案和当前安全边界。`react-markdown` 与 `remark-gfm` 已作为 V2 依赖接入；后续新增 Markdown、HTML、embed 或 sanitize 相关依赖时，仍必须按 `AGENTS.md` 说明用途、替代方案和影响范围，并获得用户明确同意。
+
+产品目标：
+
+```text
+Reddit-style Markdown parity
+```
+
+含义：
+
+- 帖子和评论正文能力对齐 Reddit Markdown。
+- 常用格式通过写作器工具动作承接。
+- 高级用户可以直接输入 Markdown。
+- 不强制编辑 / 预览双模式。
+- 阅读态直接渲染最终内容。
+- 不存用户 HTML，不开放任意 iframe。
 
 ## 当前状态
 
 已实现：
 
-- 发帖和评论工具栏可以插入 Markdown-like 语法。
+- 发帖、根评论、回复评论、帖子编辑和评论编辑使用单一写作面板。
+- 写作器提供加粗、斜体、引用、代码、链接和涂黑工具动作。
 - 帖子正文和评论正文通过 `src/features/content/content-body.tsx` 渲染。
-- 当前渲染器只识别 `>! ... !<` spoiler / 涂黑语法。
-- 其它内容全部按纯文本显示。
-- 发帖表单、根评论表单和回复评论表单已经提供轻量预览，预览复用 `ContentBody`。
+- 当前渲染器使用 `react-markdown` + `remark-gfm`。
+- 支持 GFM 表格、任务列表、删除线、代码块、引用、列表、标题和链接。
+- 支持 `>! ... !<` spoiler / 涂黑语法。
+- 支持 Reddit-style 上标预处理。
+- 链接只允许站内路径、锚点、`http`、`https` 和 `mailto`。
+- 不提供编辑 / 预览双模式，阅读态负责最终渲染。
 - 不使用 `dangerouslySetInnerHTML`。
 - 不存用户 HTML。
-- 未新增 Markdown 相关依赖。
-- `npm run check:content-boundary` 已经固化当前安全边界：正文、评论和预览必须复用 `ContentBody`，源码中不得出现 `dangerouslySetInnerHTML`、原始 HTML 写入、`rehype-raw` 或未批准 iframe/srcDoc。
+- 不使用 `rehype-raw`。
+- `npm run check:content-boundary` 已经固化当前安全边界：帖子详情和评论树必须复用 `ContentBody`，源码中不得出现 `dangerouslySetInnerHTML`、原始 HTML 写入、`rehype-raw` 或未批准 iframe/srcDoc。
 - `npm run check:content-segments` 已经固化当前 spoiler / 涂黑解析边界：普通文本、多段涂黑、未闭合涂黑、空涂黑和多行涂黑必须保持稳定。
 
 未实现：
 
-- 加粗、斜体、引用、列表、代码块和链接的 Markdown 渲染。
-- 完整 Markdown 预览。
-- GFM 表格和任务列表。
-- 图片附件渲染。
+- 与 Reddit 细节完全一致的 Markdown 兼容性审查。
+- `r/community` 和 `u/user` 自动链接。
+- 引用式链接的产品化验证。
 - 白名单 embed。
-- Markdown 内部的 spoiler 嵌套解析。
 
-## 推荐方向
+## Reddit Markdown 能力范围
 
-推荐下一阶段采用：
+按 Reddit 官方格式指南，首版能力目标应覆盖：
+
+```text
+段落
+换行
+_italic_ / *italic*
+__bold__ / **bold**
+___bold-italic___ / ***bold-italic***
+~~strikethrough~~
+>!spoiler!<
+^superscript / ^(superscript)
+`inline code`
+fenced code block
+[link](https://example.com)
+[link][1] + [1]: https://example.com
+# heading
+## heading
+- unordered list
+1. ordered list
+> blockquote
+table
+thematic break
+escaped Markdown syntax
+```
+
+首版可分批，但文档口径不再写成“少量 Markdown-like 语法”。最终目标是 Reddit Markdown parity。
+
+## 当前 renderer 选择
 
 ```text
 react-markdown
 remark-gfm
-rehype-sanitize
 ```
 
-推荐理由：
+选择理由：
 
 - `react-markdown` 以 React 组件方式渲染 Markdown，符合当前 Next.js / React 结构。
 - `remark-gfm` 覆盖删除线、自动链接、表格、任务列表等常见社区内容语法。
-- `rehype-sanitize` 用于限制最终 HTML AST，降低后续扩展插件时的 XSS 风险。
 - 这组依赖不引入第二套 UI 库，不改变 shadcn/ui 的主组件系统边界。
+- 当前通过 `skipHtml`、自定义组件和链接白名单保持安全边界，不启用 `rehype-raw`。
+
+后续可选评估：
+
+- 是否需要引入 `rehype-sanitize` 作为额外 AST 白名单防线。
+- `r/community` 和 `u/user` 自动链接是否要映射到本项目路由。
+- Reddit 引用式链接、转义、列表边界等细节是否需要更接近 Reddit。
+- 表格移动端是否需要更强的视觉处理。
 
 替代方案：
 
 - `markdown-it`：成熟，但更偏字符串到 HTML，容易把后续实现推向 HTML sanitization 和 `dangerouslySetInnerHTML`，不作为首选。
 - `marked`：轻量，但同样偏 HTML 字符串输出，不符合当前 React 组件化边界。
 - 手写完整 Markdown parser：不做。Markdown 规则复杂，手写实现会增加安全和兼容风险。
-- 富文本编辑器：不做。当前产品方向是 Markdown-like 写作，不是 WYSIWYG HTML 编辑器。
+- HTML 富文本编辑器：不做。当前拒绝存用户 HTML，也不把 HTML 编辑器作为产品路线。
 
 ## 安全规则
 
@@ -59,7 +109,7 @@ rehype-sanitize
 - 禁止使用 `dangerouslySetInnerHTML` 渲染用户正文。
 - 禁止保存用户提交的 HTML。
 - 禁止任意 iframe。
-- 禁止绕过 `ContentBody` 直接在帖子详情、评论树或正文预览中实现另一套用户内容渲染。
+- 禁止绕过 `ContentBody` 直接在帖子详情或评论树中实现另一套用户内容渲染。
 - 禁止 `javascript:`、`data:` 等危险链接协议。
 - 外链必须加 `rel="nofollow ugc noopener noreferrer"`。
 - 外链是否新窗口打开由统一组件决定，不在页面里临时变化。
@@ -83,45 +133,19 @@ file:
 blob:
 ```
 
-## 首版渲染范围
-
-首版 Markdown 渲染建议支持：
-
-```text
-段落
-**加粗**
-*斜体*
-~~删除线~~
-> 引用
-- 无序列表
-1. 有序列表
-`行内代码`
-```code block```
-[链接文本](https://example.com)
->! spoiler / 涂黑内容 !<
-```
-
-暂不优先支持：
-
-- 表格的复杂交互。若 GFM 表格自然出现，移动端必须包在横向滚动容器里。
-- 任务列表的可编辑状态。任务列表只显示，不允许在阅读态勾选改变数据。
-- 标题 `#` 作为正文顶级 H1。帖子标题已经是页面 H1，正文里的 `#` 应映射为 `h2` 或在首版禁用。
-- Markdown 图片语法 `![alt](url)` 直接加载远程图片。图片必须等附件模型和对象存储完成。
-
 ## Spoiler 处理策略
 
-当前 `ContentBody` 已经支持 `>! ... !<`，后续接入 Markdown renderer 时不要丢掉该能力。
+当前 `ContentBody` 已经支持 `>! ... !<`。后续任何 renderer 接入时都不要丢掉该能力。
 
-建议分两步：
+建议：
 
-1. 接入 Markdown renderer 时，先保留当前 spoiler 分段策略：先按 `>! ... !<` 切分正文，非 spoiler 段交给 Markdown renderer，spoiler 段作为纯文本放进现有涂黑按钮。
+1. 先保留当前 spoiler 分段策略：按 `>! ... !<` 切分正文，非 spoiler 段交给 renderer，spoiler 段作为纯文本放进现有涂黑组件。
 2. 如果后续需要 spoiler 内部也支持 Markdown，再单独实现 remark/micromark 扩展，不在首版渲染切片里硬做。
 
 这样做的边界更清楚：
 
 - spoiler 默认隐藏行为不退化。
 - 不需要把 spoiler 转成 HTML 再 sanitize。
-- 不阻塞正文基础 Markdown 渲染。
 - 不把完整 Markdown parser 责任塞进前端自写字符串逻辑。
 
 ## 组件组织
@@ -134,6 +158,7 @@ src/features/content/
   markdown-toolbar.tsx
   markdown-renderer.tsx
   markdown-link.tsx
+  reddit-auto-link.tsx
   spoiler-text.tsx
 ```
 
@@ -142,8 +167,9 @@ src/features/content/
 - `content-body.tsx` 保持为正文渲染入口，帖子和评论继续只依赖它。
 - `markdown-renderer.tsx` 封装第三方 Markdown renderer 和组件映射。
 - `markdown-link.tsx` 统一处理链接协议、rel、target 和样式。
-- `spoiler-text.tsx` 承载涂黑展开/收起状态。
-- 页面组件不得直接 import `react-markdown`，只能通过 `features/content` 的统一入口使用。
+- `reddit-auto-link.tsx` 处理 `r/community` 和 `u/user` 类自动链接。
+- `spoiler-text.tsx` 承载涂黑展开 / 收起状态。
+- 页面组件不得直接 import 第三方 renderer，只能通过 `features/content` 的统一入口使用。
 
 ## 样式规则
 
@@ -155,8 +181,10 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 - 引用使用左侧线和低对比背景，不用发光边框。
 - 行内代码使用轻量色块，不用高饱和主题。
 - 代码块必须可横向滚动，不挤爆移动端。
+- 表格必须放进横向滚动容器，不撑破页面。
 - 列表缩进要浅，不能破坏评论树缩进。
 - 链接优先用文字颜色和下划线表达，不做 outline button。
+- spoiler 默认视觉隐藏，展开/收起动效克制。
 
 ## 实施切片
 
@@ -165,6 +193,7 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 交付：
 
 - 说明是否新增 `react-markdown`、`remark-gfm`、`rehype-sanitize`。
+- 明确 Reddit spoiler、上标、自动链接是否需要自定义扩展。
 - 更新 `scripts/check-dependency-boundary.mjs` 的批准清单。
 - 更新 `package.json` 和 `package-lock.json`。
 - 不改页面行为。
@@ -175,12 +204,12 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 - `npm run lint`
 - `npm run typecheck`
 
-### Slice B：帖子正文 Markdown 渲染
+### Slice B：帖子正文 Reddit Markdown 渲染
 
 交付：
 
 - `ContentBody` 接入 Markdown renderer。
-- 帖子详情正文支持首版 Markdown 范围。
+- 帖子详情正文支持首版 Reddit Markdown 范围。
 - spoiler 行为保持默认隐藏、可展开。
 
 验证：
@@ -188,14 +217,14 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 - 纯文本旧帖子仍正常显示。
 - `>! ... !<` 默认不显示隐藏文本。
 - 链接协议和 rel 符合安全规则。
-- 移动端代码块不横向撑破页面。
+- 移动端代码块和表格不横向撑破页面。
 
-### Slice C：评论正文 Markdown 渲染
+### Slice C：评论正文 Reddit Markdown 渲染
 
 交付：
 
 - 评论树复用同一个 `ContentBody`。
-- 评论正文支持首版 Markdown 范围。
+- 评论正文支持首版 Reddit Markdown 范围。
 - 评论树缩进和 Markdown 列表缩进不互相挤压。
 
 验证：
@@ -204,32 +233,30 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 - 折叠分支不影响已展开 spoiler 状态的安全边界。
 - 移动端深层评论仍可读。
 
-### Slice D：编辑预览
-
-当前已落地的最小子集：
-
-- 发帖表单提供编辑/预览切换。
-- 根评论和回复评论表单提供编辑/预览切换。
-- 预览使用同一个 `ContentBody`。
-- 预览只渲染 spoiler / 涂黑，其余内容仍保持纯文本。
-- 提交 payload 仍是后端当前支持的 `body` 字段。
-
-后续完整 Markdown renderer 批准后，再把该预览升级为完整 Markdown 预览。
+### Slice D：写作器工具动作
 
 交付：
 
-- 发帖表单提供编辑/预览切换。
-- 根评论和回复评论表单提供编辑/预览切换。
+- 发帖、根评论、回复评论提供同一套格式工具动作。
+- 工具动作插入或包裹 Reddit Markdown 语法。
+- 不强制编辑 / 预览双模式。
+- 提交 payload 仍是后端当前支持的 `body` 字段。
 
 验证：
 
-- 预览使用同一个 `ContentBody`。
-- 提交 payload 仍是后端当前支持的 `body` 字段。
+- 发帖和评论主链路不退化。
+- 移动端输入稳定。
 - loading、error、disabled 状态不退化。
 
 ## 验收命令
 
-每个实现切片至少运行：
+文档切片至少运行：
+
+```bash
+npm run check:docs
+```
+
+实现切片至少运行：
 
 ```bash
 npm run lint
@@ -256,12 +283,15 @@ npm run check:main-path
 涉及页面渲染时必须做浏览器烟测，至少覆盖：
 
 - 帖子正文纯文本。
+- 帖子正文 Reddit Markdown。
 - 帖子正文 spoiler。
-- 评论正文 spoiler。
-- 移动端宽度下的长正文和代码块。
+- 评论正文 Reddit Markdown。
+- 移动端宽度下的长正文、表格和代码块。
 
 ## 参考来源
 
 - `react-markdown` 官方文档：<https://remarkjs.github.io/react-markdown/>
 - `remark-gfm` 官方仓库：<https://github.com/remarkjs/remark-gfm>
 - `rehype-sanitize` 官方仓库：<https://github.com/rehypejs/rehype-sanitize>
+- Reddit Help Formatting Guide：<https://support.reddithelp.com/hc/en-us/articles/360043033952-Formatting-Guide>
+- Reddit Help comment/post formatting：<https://support.reddithelp.com/hc/en-us/articles/205191185-How-do-I-format-my-comment-or-post>

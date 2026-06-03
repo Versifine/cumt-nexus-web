@@ -6,6 +6,9 @@ import { ChevronDown, ChevronRight, CornerDownRight } from "lucide-react";
 import { CommentLifecycleControls } from "@/features/comment/comment-lifecycle-controls";
 import { CommentForm } from "@/features/comment/comment-form";
 import { ContentBody } from "@/features/content/content-body";
+import { MediaAttachmentGallery } from "@/features/media/media-attachments";
+import { ModerationRemoveDialog } from "@/features/moderation/moderation-remove-dialog";
+import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
 import { cn } from "@/lib/utils";
 
 import type { Comment } from "./types";
@@ -146,6 +149,10 @@ function CommentBranch({
           </div>
 
           <ContentBody value={comment.body} className="mt-3 text-sm leading-7" />
+          <MediaAttachmentGallery
+            attachments={comment.attachments}
+            className="mt-3 sm:grid-cols-1"
+          />
 
           <CommentLifecycleControls
             canManage={canManageComment}
@@ -171,6 +178,17 @@ function CommentBranch({
                 {isCollapsed ? "展开分支" : "折叠分支"}
               </TextCommand>
             ) : null}
+
+            <ReportContentDialog
+              targetId={comment.id}
+              targetLabel={comment.body.slice(0, 80) || "评论"}
+              targetType="comment"
+            />
+            <ModerationRemoveDialog
+              targetId={comment.id}
+              targetLabel={comment.body.slice(0, 80) || "评论"}
+              targetType="comment"
+            />
           </div>
 
           {replyingTo === comment.id ? (

@@ -166,13 +166,13 @@ node scripts/check-public-routes.mjs --frontend-url=https://web.example.com
 - 是否影响数据写入。
 - 下一次重新发布前必须补的验证。
 
-## 当前阻塞项
+## 当前生产阻塞项
 
-截至本文创建时，生产部署仍缺：
+截至 2026-06-03 本地复验后，生产部署仍缺：
 
 - 正式 `NEXT_PUBLIC_SITE_URL`。
 - 正式 `NEXT_PUBLIC_API_BASE_URL`。
-- 后端生产 CORS allowlist。
-- 真实可输入浏览器完成的登录后端到端 QA。
+- 后端生产 CORS allowlist。当前只验证了本地 `http://localhost:3000` 的严格 CORS preflight。
+- 生产环境完整桌面与移动端全路径人工 QA。当前已完成 V2 本地浏览器复验，包括帖子详情 Markdown、涂黑、评论 Markdown、搜索、通知、审核台和社区申请审核入口；这些证据不能替代生产环境发布后 QA。
 
-这些缺口未补齐前，不允许把目标标记为可上线完成。
+这些缺口未补齐前，不允许把目标标记为生产上线完成。当前用户尚未准备正式域名，因此生产 HTTPS、正式 API origin 和生产 CORS allowlist 作为 deferred 项保留；它们不阻塞“V2 本地初版”，但仍阻塞真实公网发布。

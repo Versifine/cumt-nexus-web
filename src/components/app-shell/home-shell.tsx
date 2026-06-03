@@ -1,17 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import {
   ArrowDown,
   ArrowUp,
+  Bell,
   ChevronDown,
+  ClipboardCheck,
   FilePlus2,
   Hash,
   Home,
   LogOut,
   MessageSquare,
+  Search,
+  ShieldAlert,
   User,
 } from "lucide-react";
 
@@ -28,18 +33,33 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { useLatestPostsQuery } from "@/features/post/queries";
-import type { Post } from "@/features/post/types";
+import type { Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { label: "最新", icon: Home, href: "/", active: true },
   { label: "社区", icon: Hash, href: "/communities" },
+  { label: "搜索", icon: Search, href: "/search" },
+  { label: "通知", icon: Bell, href: "/notifications" },
   { label: "申请", icon: FilePlus2, href: "/community-applications/new" },
+  {
+    label: "审核",
+    icon: ShieldAlert,
+    href: "/moderation",
+    requiresStaff: true,
+  },
+  {
+    label: "审批",
+    icon: ClipboardCheck,
+    href: "/community-applications/review",
+    requiresStaff: true,
+  },
 ];
 
 const guideItems = [
@@ -50,9 +70,16 @@ const guideItems = [
 
 export function HomeShell() {
   const { isReady, token } = useAuthSession();
+  const [sort, setSort] = useState<PostSort>("new");
   const canLoadLatestPosts = isReady && Boolean(token);
-  const latestPostsQuery = useLatestPostsQuery(20, 0, canLoadLatestPosts);
-  const posts = latestPostsQuery.data?.posts ?? [];
+  const currentUserQuery = useCurrentUserQuery();
+  const canAccessStaffRoutes =
+    currentUserQuery.data?.is_platform_staff === true;
+  const visibleNavItems = navItems.filter(
+    (item) => !item.requiresStaff || canAccessStaffRoutes,
+  );
+  const latestPostsQuery = useLatestPostsQuery(20, 0, canLoadLatestPosts, sort);
+  const posts = canLoadLatestPosts ? (latestPostsQuery.data?.posts ?? []) : [];
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -67,7 +94,7 @@ export function HomeShell() {
           </Link>
 
           <nav className="mt-6 divide-y divide-border border-y border-border">
-            {navItems.map((item, index) => (
+            {visibleNavItems.map((item, index) => (
               <Link
                 key={item.label}
                 href={item.href}
@@ -124,6 +151,17 @@ export function HomeShell() {
               </div>
 
               <div className="flex items-center gap-1 sm:gap-2">
+                <TextAction href="/search" className="hidden md:inline-flex">
+                  搜索
+                </TextAction>
+                <TextAction href="/notifications" className="hidden lg:inline-flex">
+                  通知
+                </TextAction>
+                {canAccessStaffRoutes ? (
+                  <TextAction href="/moderation" className="hidden xl:inline-flex">
+                    审核
+                  </TextAction>
+                ) : null}
                 <TextAction href="/communities" className="hidden sm:inline-flex">
                   浏览社区
                 </TextAction>
@@ -162,7 +200,7 @@ export function HomeShell() {
                     />
                     <MetricBlock
                       label="状态"
-                      value={canLoadLatestPosts ? "实时" : "待登录"}
+                      value={canLoadLatestPosts ? formatSortLabel(sort) : "待登录"}
                     />
                   </div>
                 </div>
@@ -174,13 +212,15 @@ export function HomeShell() {
                     <h2 className="text-lg font-semibold">社区信息流</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {canLoadLatestPosts
-                        ? "来自后端最新帖子接口，按当前可见数据呈现。"
+                        ? "来自全站帖子接口，可在最新和热门之间切换。"
                         : "登录后读取最新帖子、投票状态和评论入口。"}
                     </p>
                   </div>
-                  <span className="w-fit border border-primary/40 bg-primary/10 px-2.5 py-1 font-mono text-xs text-primary">
-                    LIVE FEED
-                  </span>
+                  <FeedSortTabs
+                    disabled={!canLoadLatestPosts || latestPostsQuery.isFetching}
+                    onSortChange={setSort}
+                    sort={sort}
+                  />
                 </div>
               </section>
 
@@ -253,7 +293,11 @@ export function HomeShell() {
               </section>
             </motion.section>
 
-            <RightRail canLoadLatestPosts={canLoadLatestPosts} posts={posts} />
+            <RightRail
+              canLoadLatestPosts={canLoadLatestPosts}
+              posts={posts}
+              sort={sort}
+            />
           </div>
         </section>
       </div>
@@ -336,6 +380,23 @@ function HeaderAuthControls() {
             申请社区
           </Link>
         </DropdownMenuItem>
+        {user.is_platform_staff ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/moderation">
+                <ShieldAlert className="size-4" aria-hidden="true" />
+                举报审核
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/community-applications/review">
+                <ClipboardCheck className="size-4" aria-hidden="true" />
+                社区审批
+              </Link>
+            </DropdownMenuItem>
+          </>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onSelect={signOut}>
           <LogOut className="size-4" aria-hidden="true" />
@@ -343,6 +404,37 @@ function HeaderAuthControls() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function FeedSortTabs({
+  disabled,
+  onSortChange,
+  sort,
+}: {
+  disabled: boolean;
+  onSortChange: (sort: PostSort) => void;
+  sort: PostSort;
+}) {
+  return (
+    <Tabs value={sort} onValueChange={(value) => onSortChange(value as PostSort)}>
+      <TabsList className="rounded-none border-border bg-background p-0">
+        <TabsTrigger
+          value="new"
+          disabled={disabled}
+          className="rounded-none border-r border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+        >
+          最新
+        </TabsTrigger>
+        <TabsTrigger
+          value="hot"
+          disabled={disabled}
+          className="rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+        >
+          热门
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
   );
 }
 
@@ -401,9 +493,11 @@ function LatestPostRow({ index, post }: { index: number; post: Post }) {
 function RightRail({
   canLoadLatestPosts,
   posts,
+  sort,
 }: {
   canLoadLatestPosts: boolean;
   posts: Post[];
+  sort: PostSort;
 }) {
   const topPosts = posts.slice(0, 3);
 
@@ -415,10 +509,10 @@ function RightRail({
             右侧上下文
           </div>
           <h2 className="mt-3 text-2xl font-black leading-tight">
-            今天从最新讨论开始。
+            今天从{formatSortLabel(sort)}讨论开始。
           </h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            这里放和社区使用相关的上下文，不再展示开发状态。
+            排序由后端返回结果决定，右侧只保留和当前信息流有关的上下文。
           </p>
           <div className="mt-4 flex flex-col border-y border-border">
             <TextAction href="/communities" tone="primary" variant="bar">
@@ -487,6 +581,10 @@ function getUserInitial(username: string) {
 
 function formatShortId(value: string) {
   return value.slice(0, 8);
+}
+
+function formatSortLabel(sort: PostSort) {
+  return sort === "hot" ? "热门" : "最新";
 }
 
 function formatDate(value: string) {

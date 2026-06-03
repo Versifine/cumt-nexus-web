@@ -4,6 +4,7 @@ node_modules/
 # Local agent and planning files
 AGENTS.md
 tasks.md
+backend-api-needs.md
 .ai/
 .claude/
 

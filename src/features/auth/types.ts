@@ -2,6 +2,7 @@ export type CurrentUser = {
   id: string;
   username: string;
   status: string;
+  is_platform_staff: boolean;
   created_at: string;
 };
 

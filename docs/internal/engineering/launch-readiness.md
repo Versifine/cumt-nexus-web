@@ -65,13 +65,21 @@ npm run check:main-path:local
 
 本地宽松模式只把后端不可达记录为 warning，不能作为上线通过证据。
 
+V2 主链路检查：
+
+```powershell
+npm run check:v2-path
+```
+
+该命令用于确认 V2 新增真实后端能力可用。它会创建 smoke 用户和内容，接入图片上传、附件提交、new/hot 排序、搜索、通知、举报、审核台、`target_preview`、dismiss、remove-target、帖子/评论 moderation remove，以及社区申请 approve / reject。该命令会写入测试数据，并通过本地 PostgreSQL 容器把测试用户提升为 staff，只应在本地或预发布环境运行。
+
 公开页面冒烟检查：
 
 ```powershell
 npm run check:routes
 ```
 
-该命令要求本地或目标前端服务已启动。它会请求 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面，检查页面包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到“无法加载最新帖子”或“需要登录”错误面板；社区列表、社区详情、帖子详情壳、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它用于发现路由丢失、页面级 500、中文文案缺失、错误页误渲染和页面出口缺失；客户端水合后才出现的动态状态仍需要浏览器 QA。
+该命令要求本地或目标前端服务已启动。它会请求 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面，检查页面包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到“无法加载最新帖子”或“需要登录”错误面板；社区列表、社区详情、帖子详情壳、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；社区详情壳、帖子详情壳、发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它用于发现路由丢失、页面级 500、中文文案缺失、错误页误渲染和页面出口缺失；客户端水合后才出现的动态状态仍需要浏览器 QA。
 
 可选参数：
 
@@ -81,6 +89,7 @@ node scripts/check-api-boundary.mjs
 node scripts/check-dependency-boundary.mjs
 node scripts/check-env.mjs --production
 node scripts/check-main-path.mjs --api-base-url=http://localhost:8080 --community-slug=public --timeout-ms=10000
+node scripts/check-v2-path.mjs --api-base-url=http://localhost:8080 --community-slug=public --timeout-ms=10000
 node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --timeout-ms=8000
 ```
 
@@ -141,6 +150,20 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `PUT /api/v1/posts/:id/vote` 是否能 upvote 和 downvote。
 - `DELETE /api/v1/posts/:id/vote` 是否能取消投票，且帖子详情中的 `my_vote` 回到 `0`。
 
+`scripts/check-v2-path.mjs` 当前检查：
+
+- 后端 `/healthz` 是否可达。
+- 图片上传接口是否返回可用于发帖和评论的附件 ID。
+- 发帖和评论提交 `attachment_ids` 后，详情和评论树是否展示附件。
+- 全站和社区帖子流 `sort=new|hot` 是否可用。
+- `GET /api/v1/search` 的 `all | communities | posts` scope 是否可用。
+- 通知列表、未读列表、标记已读和已读列表是否可用。
+- 普通用户是否能举报帖子和评论。
+- 非 staff 访问审核接口是否返回 `forbidden`。
+- staff 是否能读取举报列表、举报详情和 `target_preview`。
+- staff 是否能 dismiss、remove-target，并直接 moderation remove 帖子和评论。
+- staff 是否能 approve / reject 社区申请。
+
 `scripts/check-public-routes.mjs` 当前检查：
 
 - `/`：包含 `CUMT Nexus`、`最新讨论`、`浏览社区`、`登录后查看最新讨论`、`待登录`，且不能包含 `无法加载最新帖子` 或 `需要登录`。
@@ -149,14 +172,50 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `/register`：包含 `CUMT Nexus`、`注册账号`、`账号创建`、`去登录`。
 - `/register?next=%2Fcommunity-applications%2Fnew`：切换到登录时必须保留 `next=%2Fcommunity-applications%2Fnew`。
 - `/communities`：包含 `社区目录`、`校园社区`、`申请社区`，并保留首页、社区索引和社区申请出口。
-- `/communities/public`：至少证明动态社区详情路由壳可返回 `200`，并包含 `返回社区索引`、首页、社区索引和社区申请出口。
-- `/posts/route-smoke`：至少证明动态帖子详情路由壳可返回 `200`，并包含 `CUMT Nexus`、`返回社区索引`、首页、社区索引和社区申请出口。
+- `/communities/public`：至少证明动态社区详情路由壳可返回 `200`，并包含 `返回社区索引`、`需要登录`、社区详情门禁说明、首页、社区索引、社区申请出口和 `/login?next=%2Fcommunities%2Fpublic`。
+- `/posts/route-smoke`：至少证明动态帖子详情路由壳可返回 `200`，并包含 `CUMT Nexus`、`返回社区索引`、`需要登录`、帖子详情门禁说明、首页、社区索引、社区申请出口和 `/login?next=%2Fposts%2Froute-smoke`。
 - `/communities/public/new`：包含 `CUMT Nexus`、`发起讨论`、`需要登录`、`登录后发起讨论`、`去登录`，且登录/注册链接必须指向 `next=%2Fcommunities%2Fpublic%2Fnew`。
 - `/community-applications/new`：包含 `CUMT Nexus`、`申请新社区`、`返回社区索引`，且登录/注册链接必须指向 `next=%2Fcommunity-applications%2Fnew`。
 - `/route-smoke-not-found`：预期返回 `404`，并包含 `这个页面不存在或已经移动`、`返回最新讨论` 和 `浏览社区索引`。
 - 所有页面都必须包含 `zh-CN` 语言标记，且不能渲染常见错误页标记。
 
 ## 最新浏览器 QA 记录
+
+2026-06-03 V2.1 后端缺口补齐复验记录：
+
+- 自动检查已复验：`npm run lint` 通过，`npm run typecheck` 通过，严格 `npm run check:main-path` 通过（run id: `mpy7bguq_uauzn`），`npm run check:v2-path` 通过（run id: `mpy7bgxp_e5r1i`）。
+- `check:v2-path` 已确认 `/api/v1/me` 返回 `is_platform_staff`，普通用户读取社区申请列表和详情会被后端拒绝，staff 可以读取社区申请列表、读取详情、approve 和 reject。
+- 浏览器复验 `/community-applications/review` 未登录态：桌面 `1280px` 和移动 `390px` 均显示中文登录门禁，`scrollWidth` 等于 `clientWidth`，无横向溢出，控制台无 error。
+- 浏览器复验发现登录表单在客户端脚本未接管时会退化成原生 GET 并把账号字段放进 URL；已为登录和注册表单补 `method="post"`，复测空提交后 URL 不再包含 `username` 或 `password`。
+- 本轮 in-app browser 受输入和本地存储限制影响，未完成 staff 态可视化点击审核；staff 列表、详情、approve / reject 以真实后端 `check:v2-path` 作为本地验收证据。上线前仍需在真实可输入浏览器中按 `docs/internal/engineering/browser-qa.md` 手动复验 staff 审核台。
+
+2026-06-03 V2 本地初版收口记录：
+
+- 自动检查已复验：`npm run check:static` 通过，`npm run check:docs` 通过，严格 `npm run check:readiness` 通过，严格 `npm run check:main-path` 通过，`npm run check:routes` 通过，`npm run check:v2-path` 通过。
+- 后端 CORS 已修复，严格 readiness 的 `OPTIONS /api/v1/posts` 预检允许 `http://localhost:3000`。
+- `check:v2-path` 已覆盖 `/me.is_platform_staff`、图片上传、发帖/评论附件、new/hot 排序、搜索、通知、举报、审核台、`target_preview`、dismiss、remove-target、moderation remove、社区申请列表、申请详情和 approve / reject。
+- 桌面和移动端浏览器已检查帖子详情 Markdown、涂黑、评论 Markdown、无编辑/预览 tab、`/search?q=QA&scope=all`、`/notifications`、`/moderation`、`/community-applications/review` 和 `/communities/public/new`；页面无横向溢出，控制台无 error。
+- V2.1 已接入社区申请完整审核台和 staff-only 入口精确显隐；没有新的 P0 后端缺口阻塞本地初版。
+
+2026-06-03 V1 本地封版验收记录：
+
+- `npm run check:static` 通过，只有未复制 `.env.local`、使用 `.env.example` 默认本地值的 warning。
+- `npm run check:routes` 通过，公开页面、受保护入口门禁和 `next` 回跳壳均可渲染。
+- 严格 `npm run check:readiness` 通过。首次检查时当前 8080 后端进程未带 `HTTP_CORS_ALLOWED_ORIGINS`，导致 `OPTIONS /api/v1/posts` 返回 404；已重启本地后端并临时注入 `HTTP_CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000` 后通过。
+- 严格 `npm run check:main-path` 在重启后的本地后端上通过，注册、登录、`/me`、社区、发帖、帖子详情、评论树、根评论、子评论、upvote、downvote 和取消投票均通过。
+- 由于当前没有正式域名，生产 HTTPS `NEXT_PUBLIC_SITE_URL`、生产 HTTPS `NEXT_PUBLIC_API_BASE_URL`、生产 CORS allowlist、发布后验证和回滚演练保持 deferred，不阻塞 V1 本地封版。
+
+2026-06-03 本地严格复验和帖子详情浏览器检查记录：
+
+- 自动检查已复验：`npm run check:static` 通过，严格 `npm run check:readiness` 通过，严格 `npm run check:main-path` 通过，`npm run check:routes` 通过。
+- 后端合同复核确认此前 `check:main-path` 评论树 warning 来自旧 API 进程；当前源码重启后 `view=tree` 仍是父评论先于子评论的前序遍历。
+- 使用浏览器自动化清除 `cumt_nexus_access_token` 后打开 `/posts/0bc2e12d-7e2a-463e-ae8d-0b7e4295b425`：页面只请求前端路由，不再请求帖子详情和评论接口；显示中文登录门禁、登录回跳和页面导航出口；控制台无 error，当前视口无横向溢出。
+- 使用 smoke 账号 `smoke_mpxgdyax_mcqah` 登录后，`next` 正确回跳帖子详情；登录请求、帖子详情请求和评论树请求均返回 200；页面展示真实帖子、根评论、子评论、评论表单和投票区；控制台无 error。
+- 退出登录或 API client 因 `unauthenticated` 清空 token 时，会清理 TanStack Query 缓存；首页、社区详情和帖子详情不会继续从旧缓存派生受保护数据。
+- 移动端 `390px` 复验 `/posts/73b10efe-c216-43af-9dd0-4cde6637f1cb`：通过后端创建测试用户和帖子评论树，并将 access token 写入浏览器本地会话后打开详情页；`GET /api/v1/me`、全站最新流、帖子详情和 `view=tree&sort=new&max_depth=6` 评论请求均返回 200；页面展示帖子正文、根评论、子评论、评论表单、回复框和投票区；`scrollWidth=390`、`clientWidth=390`，无横向溢出；控制台无 error。
+- 本次移动端复验截图保存在 `.ai/screenshots/mobile-post-detail-comment-tree-2026-06-03.png`。该截图只作为本地 QA 证据，不进入 git。
+- 本次临时测试数据由 PowerShell 直接创建，中文正文被终端编码转换为问号；因此本条只证明移动端布局、评论树、回复框、接口请求和控制台状态，不证明中文用户生成内容的显示质量。
+- 本轮不是完整桌面/移动端全路径人工 QA。上线前仍需按 `docs/internal/engineering/browser-qa.md` 跑完注册、登录、退出、社区列表、社区详情、发帖、帖子详情、评论、投票、社区申请和移动端主路径。
 
 2026-06-02 本地浏览器检查记录：
 
@@ -189,6 +248,27 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 主要页面没有完成桌面和移动端人工检查。
 - 登录后首页、社区详情、发帖、帖子详情、评论和投票还没有在真实可输入浏览器中完成端到端人工 QA。
 - `docs/internal/engineering/deployment.md` 中的生产部署前检查、发布后验证和回滚标准没有完成。
+
+## 本地初版判定
+
+没有正式域名前，当前目标先收敛为“V2 本地初版收口”。它要求：
+
+- `npm run check:static` 通过。
+- `npm run check:routes` 通过。
+- 严格 `npm run check:readiness` 在本地前后端都启动时通过。
+- 严格 `npm run check:main-path` 在本地后端上通过。
+- `npm run check:v2-path` 在本地后端和本地 PostgreSQL 容器可用时通过。
+- README、`tasks.md`、内部文档和 `.ai/slices/` 对齐当前阶段。
+- 已记录的桌面和移动端浏览器 QA 证据没有发现阻塞性问题。
+
+以下事项在没有正式域名前保持 deferred，不阻塞 V2 本地初版：
+
+- 生产 HTTPS `NEXT_PUBLIC_SITE_URL`。
+- 生产 HTTPS `NEXT_PUBLIC_API_BASE_URL`。
+- 生产后端 CORS allowlist。
+- 生产发布后验证和回滚演练。
+
+这些 deferred 项仍然阻塞真实公网生产上线。
 
 ## 人工 QA 范围
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowDown,
@@ -19,9 +20,11 @@ import {
   StatusToken,
   type StatusTokenTone,
 } from "@/components/ui/data-display";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
+import { useAuthSession } from "@/features/auth/auth-session";
 import { useCommunityPostsQuery } from "@/features/post/queries";
-import type { Post } from "@/features/post/types";
+import type { Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -33,11 +36,15 @@ type CommunityDetailProps = {
 };
 
 export function CommunityDetail({ slug }: CommunityDetailProps) {
-  const communityQuery = useCommunityQuery(slug);
-  const canShowCommunityContent = communityQuery.isSuccess && Boolean(communityQuery.data?.community);
-  const postsQuery = useCommunityPostsQuery(slug, 20, 0, canShowCommunityContent);
-  const community = communityQuery.data?.community;
-  const posts = postsQuery.data?.posts ?? [];
+  const { isReady, token } = useAuthSession();
+  const [sort, setSort] = useState<PostSort>("new");
+  const canRequestCommunity = isReady && Boolean(token);
+  const communityQuery = useCommunityQuery(slug, canRequestCommunity);
+  const canShowCommunityContent =
+    canRequestCommunity && communityQuery.isSuccess && Boolean(communityQuery.data?.community);
+  const postsQuery = useCommunityPostsQuery(slug, 20, 0, canShowCommunityContent, sort);
+  const community = canRequestCommunity ? communityQuery.data?.community : undefined;
+  const posts = canShowCommunityContent ? (postsQuery.data?.posts ?? []) : [];
   const loginHref = `/login?next=${encodeURIComponent(`/communities/${slug}`)}`;
 
   return (
@@ -46,7 +53,19 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
         <PageNav backHref="/communities" backLabel="返回社区索引" />
 
         <section className="py-6">
-          {communityQuery.isPending ? (
+          {!isReady ? (
+            <LoadingState rows={2} />
+          ) : !token ? (
+            <ErrorState
+              title="需要登录"
+              description="请先登录后查看社区详情和帖子。"
+              action={
+                <TextAction href={loginHref} tone="primary">
+                  登录
+                </TextAction>
+              }
+            />
+          ) : communityQuery.isPending ? (
             <LoadingState rows={2} />
           ) : communityQuery.isError ? (
             <ErrorState
@@ -83,15 +102,22 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
                       POSTS / 社区帖子
                     </div>
                     <h2 className="mt-2 text-2xl font-black tracking-normal">
-                      最新讨论
+                      {formatSortLabel(sort)}讨论
                     </h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                      按当前后端返回顺序展示这个社区中的可见帖子，进入帖子后再参与投票和评论。
+                      社区帖子流支持最新和热门排序，进入帖子后再参与投票和评论。
                     </p>
                   </div>
-                  <TextAction href={`/communities/${slug}/new`} tone="primary">
-                    发布帖子
-                  </TextAction>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <CommunityPostSortTabs
+                      disabled={postsQuery.isFetching}
+                      onSortChange={setSort}
+                      sort={sort}
+                    />
+                    <TextAction href={`/communities/${slug}/new`} tone="primary">
+                      发布帖子
+                    </TextAction>
+                  </div>
                 </div>
               </div>
 
@@ -206,6 +232,37 @@ function CommunityHero({
         <MetricBlock label="作者" value={String(authors)} />
       </div>
     </div>
+  );
+}
+
+function CommunityPostSortTabs({
+  disabled,
+  onSortChange,
+  sort,
+}: {
+  disabled: boolean;
+  onSortChange: (sort: PostSort) => void;
+  sort: PostSort;
+}) {
+  return (
+    <Tabs value={sort} onValueChange={(value) => onSortChange(value as PostSort)}>
+      <TabsList className="rounded-none border-border bg-background p-0">
+        <TabsTrigger
+          value="new"
+          disabled={disabled}
+          className="rounded-none border-r border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+        >
+          最新
+        </TabsTrigger>
+        <TabsTrigger
+          value="hot"
+          disabled={disabled}
+          className="rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+        >
+          热门
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
   );
 }
 
@@ -346,6 +403,10 @@ function CommunityRail({
 
 function formatShortId(value: string) {
   return value.slice(0, 8);
+}
+
+function formatSortLabel(sort: PostSort) {
+  return sort === "hot" ? "热门" : "最新";
 }
 
 function formatDate(value: string) {

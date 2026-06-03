@@ -1,12 +1,13 @@
 # Content Media API Gaps
 
-本文记录内容系统 V2 中，前端继续推进图片、对象存储、链接预览和白名单 embed 前，后端必须补齐的接口与安全边界。
+本文记录内容系统 V2 中，前端继续推进图片、对象存储、链接预览和白名单 embed 前，必须核对的后端接口与安全边界。
 
-本文不是已实现能力说明。前端不得在这些接口完成前伪造图片上传、直接信任第三方图片 URL、直接抓取网页元数据，或渲染用户提交的 iframe HTML。
+用户已确认后端具备 `POST /api/v1/uploads/images` 和 Cloudflare R2 存储相关边界。前端实现前仍必须核对当前请求字段、响应字段、附件绑定字段和读取返回结构。前端不得伪造图片上传、直接信任第三方图片 URL、直接抓取网页元数据，或渲染用户提交的 iframe HTML。
 
 ## 当前结论
 
 - 媒体能力必须以后端为权威：上传、校验、对象存储、审核状态、链接解析和 embed provider 识别都在后端完成。
+- V2 前端必须接入 `POST /api/v1/uploads/images`，并在发帖和评论写作器中形成可用上传体验。
 - 前端只提交后端返回的结构化 `attachment_id`、`embed_id` 或预览对象，不直接保存第三方 URL 作为附件。
 - 帖子图片先于评论图片；评论图片必须等评论树稳定后再接入。
 - 链接预览和播放器是两种能力：普通网页只做链接预览，Bilibili / 网易云音乐等只通过 provider 白名单 embed。
@@ -104,7 +105,7 @@ POST /api/v1/communities/:slug/posts
 ```json
 {
   "title": "帖子标题",
-  "body": "Markdown-like 正文",
+  "body": "Reddit-style Markdown 正文",
   "attachment_ids": ["uuid"],
   "embed_ids": ["uuid"]
 }
@@ -129,7 +130,7 @@ POST /api/v1/posts/:id/comments
 
 ```json
 {
-  "body": "Markdown-like 评论",
+  "body": "Reddit-style Markdown 评论",
   "parent_id": "nullable comment id",
   "attachment_ids": ["uuid"],
   "embed_ids": ["uuid"]

@@ -7,7 +7,7 @@ const DEFAULT_API_TIMEOUT_MS = 15_000;
 const TIMEOUT_ABORT_REASON = "api-request-timeout";
 
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
-  body?: unknown;
+  body?: BodyInit | unknown;
   timeoutMs?: number;
   token?: string | null;
 };
@@ -43,7 +43,7 @@ export async function apiRequest<TResponse>(
   const requestHeaders = new Headers(headers);
   const abortHandle = createRequestAbortHandle(signal, timeoutMs);
 
-  if (body !== undefined && !requestHeaders.has("Content-Type")) {
+  if (body !== undefined && !isFormDataBody(body) && !requestHeaders.has("Content-Type")) {
     requestHeaders.set("Content-Type", "application/json");
   }
 
@@ -58,7 +58,7 @@ export async function apiRequest<TResponse>(
       ...requestInit,
       headers: requestHeaders,
       signal: abortHandle.signal,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: serializeRequestBody(body),
     });
   } catch (error) {
     throw createApiRequestError(error, abortHandle.signal);
@@ -81,6 +81,22 @@ export async function apiRequest<TResponse>(
   }
 
   return (await response.json()) as TResponse;
+}
+
+function isFormDataBody(body: unknown): body is FormData {
+  return typeof FormData !== "undefined" && body instanceof FormData;
+}
+
+function serializeRequestBody(body: unknown): BodyInit | undefined {
+  if (body === undefined) {
+    return undefined;
+  }
+
+  if (isFormDataBody(body)) {
+    return body;
+  }
+
+  return JSON.stringify(body);
 }
 
 function createRequestAbortHandle(

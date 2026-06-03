@@ -3,6 +3,7 @@ import { apiRequest } from "@/lib/api/client";
 import type {
   GetPostResponse,
   ListPostsResponse,
+  PostSort,
   PublishPostInput,
   PublishPostResponse,
   UpdatePostInput,
@@ -13,16 +14,19 @@ type ListCommunityPostsInput = {
   slug: string;
   limit?: number;
   offset?: number;
+  sort?: PostSort;
 };
 
 export function listCommunityPosts({
   slug,
   limit = 20,
   offset = 0,
+  sort = "new",
 }: ListCommunityPostsInput) {
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
+    sort,
   });
 
   return apiRequest<ListPostsResponse>(
@@ -30,10 +34,11 @@ export function listCommunityPosts({
   );
 }
 
-export function listLatestPosts(limit = 20, offset = 0) {
+export function listLatestPosts(limit = 20, offset = 0, sort: PostSort = "new") {
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
+    sort,
   });
 
   return apiRequest<ListPostsResponse>(`/api/v1/posts?${params.toString()}`);

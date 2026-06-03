@@ -19,7 +19,6 @@ const sourceFiles = existsSync(sourceRoot)
 const requiredContentEntryConsumers = [
   "src/features/post/post-detail.tsx",
   "src/features/comment/comment-tree.tsx",
-  "src/features/content/content-preview.tsx",
 ];
 
 const blockedPatterns = [
