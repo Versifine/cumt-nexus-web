@@ -41,6 +41,7 @@ console.log("");
 await checkBackendHealth();
 await createUsers();
 await promoteStaffUser();
+await checkCurrentUserStaffFlag();
 await checkUploadPostAndComments();
 await checkFeedSort();
 await checkSearch();
@@ -101,6 +102,27 @@ async function promoteStaffUser() {
   }
 
   addPass("promote staff", "staff smoke user marked as platform staff in local PostgreSQL");
+}
+
+async function checkCurrentUserStaffFlag() {
+  const reporterMe = await request("/api/v1/me", { token: reporter.token });
+  const staffMe = await request("/api/v1/me", { token: staff.token });
+
+  if (!expectOk(reporterMe, "current user reporter") || !expectOk(staffMe, "current user staff")) {
+    return;
+  }
+
+  if (reporterMe.json?.is_platform_staff !== false) {
+    addFail("current user reporter", `expected is_platform_staff=false: ${preview(reporterMe.bodyText)}`);
+    return;
+  }
+
+  if (staffMe.json?.is_platform_staff !== true) {
+    addFail("current user staff", `expected is_platform_staff=true: ${preview(staffMe.bodyText)}`);
+    return;
+  }
+
+  addPass("current user staff flag", "/me exposes is_platform_staff for normal and staff users");
 }
 
 async function checkUploadPostAndComments() {
@@ -453,6 +475,52 @@ async function checkCommunityApplicationReview() {
   const approveApplication = await submitCommunityApplication(approveSlug, "V2 approve smoke");
   const rejectApplication = await submitCommunityApplication(rejectSlug, "V2 reject smoke");
 
+  const nonStaffList = await request("/api/v1/community-applications?status=pending&limit=20&offset=0", {
+    token: reporter.token,
+  });
+  if (!expectErrorCode(nonStaffList, "community application list non-staff forbidden", 403, "forbidden")) {
+    return;
+  }
+
+  const pendingList = await request("/api/v1/community-applications?status=pending&limit=20&offset=0", {
+    token: staff.token,
+  });
+  if (!expectOk(pendingList, "list pending community applications")) {
+    return;
+  }
+  if (
+    !Array.isArray(pendingList.json?.applications) ||
+    pendingList.json.limit !== 20 ||
+    pendingList.json.offset !== 0 ||
+    !pendingList.json.applications.some((application) => application?.id === approveApplication.id) ||
+    !pendingList.json.applications.some((application) => application?.id === rejectApplication.id)
+  ) {
+    addFail("list pending community applications", `unexpected payload: ${preview(pendingList.bodyText)}`);
+    return;
+  }
+
+  const nonStaffDetail = await request(`/api/v1/community-applications/${encodeURIComponent(approveApplication.id)}`, {
+    token: reporter.token,
+  });
+  if (!expectErrorCode(nonStaffDetail, "community application detail non-staff forbidden", 403, "forbidden")) {
+    return;
+  }
+
+  const pendingDetail = await request(`/api/v1/community-applications/${encodeURIComponent(approveApplication.id)}`, {
+    token: staff.token,
+  });
+  if (!expectOk(pendingDetail, "get community application detail")) {
+    return;
+  }
+  if (
+    pendingDetail.json?.application?.id !== approveApplication.id ||
+    pendingDetail.json?.application?.status !== "pending" ||
+    pendingDetail.json?.application?.requested_slug !== approveSlug
+  ) {
+    addFail("get community application detail", `unexpected payload: ${preview(pendingDetail.bodyText)}`);
+    return;
+  }
+
   const nonStaffApprove = await request(`/api/v1/community-applications/${encodeURIComponent(approveApplication.id)}/approve`, {
     method: "POST",
     token: reporter.token,
@@ -486,7 +554,24 @@ async function checkCommunityApplicationReview() {
     return;
   }
 
-  addPass("community application review", "non-staff forbidden, staff approve and staff reject all work");
+  const approvedList = await request("/api/v1/community-applications?status=approved&limit=20&offset=0", {
+    token: staff.token,
+  });
+  const rejectedList = await request("/api/v1/community-applications?status=rejected&limit=20&offset=0", {
+    token: staff.token,
+  });
+  if (!expectOk(approvedList, "list approved community applications") || !expectOk(rejectedList, "list rejected community applications")) {
+    return;
+  }
+  if (
+    !approvedList.json?.applications?.some((application) => application?.id === approveApplication.id) ||
+    !rejectedList.json?.applications?.some((application) => application?.id === rejectApplication.id)
+  ) {
+    addFail("community application status lists", `approved/rejected application missing from lists`);
+    return;
+  }
+
+  addPass("community application review", "list, detail, non-staff forbidden, staff approve and staff reject all work");
 }
 
 async function submitCommunityApplication(slug, name) {
