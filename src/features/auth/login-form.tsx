@@ -62,6 +62,7 @@ export function LoginForm({ className }: LoginFormProps) {
   return (
     <form
       className={cn("space-y-0", className)}
+      method="post"
       onSubmit={form.handleSubmit((values) => loginMutation.mutate(values))}
     >
       {submitError ? (

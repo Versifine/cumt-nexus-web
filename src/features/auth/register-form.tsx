@@ -62,6 +62,7 @@ export function RegisterForm({ className }: RegisterFormProps) {
   return (
     <form
       className={cn("space-y-0", className)}
+      method="post"
       onSubmit={form.handleSubmit((values) => registerMutation.mutate(values))}
     >
       {submitError ? (
