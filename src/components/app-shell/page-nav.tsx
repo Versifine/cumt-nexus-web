@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { useCurrentUserQuery } from "@/features/auth/queries";
 import { cn } from "@/lib/utils";
 
 type PageNavProps = {
@@ -25,17 +26,30 @@ const navItems: Array<{
   href: string;
   icon: LucideIcon;
   label: string;
+  requiresStaff?: boolean;
 }> = [
   { href: "/", icon: Home, label: "最新讨论" },
   { href: "/communities", icon: Hash, label: "社区索引" },
   { href: "/search", icon: Search, label: "搜索" },
   { href: "/notifications", icon: Bell, label: "通知" },
-  { href: "/moderation", icon: ShieldAlert, label: "审核" },
+  { href: "/moderation", icon: ShieldAlert, label: "审核", requiresStaff: true },
   { href: "/community-applications/new", icon: FilePlus2, label: "申请社区" },
-  { href: "/community-applications/review", icon: ClipboardCheck, label: "审批申请" },
+  {
+    href: "/community-applications/review",
+    icon: ClipboardCheck,
+    label: "审批申请",
+    requiresStaff: true,
+  },
 ];
 
 export function PageNav({ backHref, backLabel, className }: PageNavProps) {
+  const currentUserQuery = useCurrentUserQuery();
+  const canAccessStaffRoutes =
+    currentUserQuery.data?.is_platform_staff === true;
+  const visibleNavItems = navItems.filter(
+    (item) => !item.requiresStaff || canAccessStaffRoutes,
+  );
+
   return (
     <nav
       aria-label="页面导航"
@@ -70,7 +84,7 @@ export function PageNav({ backHref, backLabel, className }: PageNavProps) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}

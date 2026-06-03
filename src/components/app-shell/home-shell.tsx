@@ -9,6 +9,7 @@ import {
   ArrowUp,
   Bell,
   ChevronDown,
+  ClipboardCheck,
   FilePlus2,
   Hash,
   Home,
@@ -46,8 +47,19 @@ const navItems = [
   { label: "社区", icon: Hash, href: "/communities" },
   { label: "搜索", icon: Search, href: "/search" },
   { label: "通知", icon: Bell, href: "/notifications" },
-  { label: "审核", icon: ShieldAlert, href: "/moderation" },
   { label: "申请", icon: FilePlus2, href: "/community-applications/new" },
+  {
+    label: "审核",
+    icon: ShieldAlert,
+    href: "/moderation",
+    requiresStaff: true,
+  },
+  {
+    label: "审批",
+    icon: ClipboardCheck,
+    href: "/community-applications/review",
+    requiresStaff: true,
+  },
 ];
 
 const guideItems = [
@@ -60,6 +72,12 @@ export function HomeShell() {
   const { isReady, token } = useAuthSession();
   const [sort, setSort] = useState<PostSort>("new");
   const canLoadLatestPosts = isReady && Boolean(token);
+  const currentUserQuery = useCurrentUserQuery();
+  const canAccessStaffRoutes =
+    currentUserQuery.data?.is_platform_staff === true;
+  const visibleNavItems = navItems.filter(
+    (item) => !item.requiresStaff || canAccessStaffRoutes,
+  );
   const latestPostsQuery = useLatestPostsQuery(20, 0, canLoadLatestPosts, sort);
   const posts = canLoadLatestPosts ? (latestPostsQuery.data?.posts ?? []) : [];
 
@@ -76,7 +94,7 @@ export function HomeShell() {
           </Link>
 
           <nav className="mt-6 divide-y divide-border border-y border-border">
-            {navItems.map((item, index) => (
+            {visibleNavItems.map((item, index) => (
               <Link
                 key={item.label}
                 href={item.href}
@@ -139,9 +157,11 @@ export function HomeShell() {
                 <TextAction href="/notifications" className="hidden lg:inline-flex">
                   通知
                 </TextAction>
-                <TextAction href="/moderation" className="hidden xl:inline-flex">
-                  审核
-                </TextAction>
+                {canAccessStaffRoutes ? (
+                  <TextAction href="/moderation" className="hidden xl:inline-flex">
+                    审核
+                  </TextAction>
+                ) : null}
                 <TextAction href="/communities" className="hidden sm:inline-flex">
                   浏览社区
                 </TextAction>
@@ -360,6 +380,23 @@ function HeaderAuthControls() {
             申请社区
           </Link>
         </DropdownMenuItem>
+        {user.is_platform_staff ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/moderation">
+                <ShieldAlert className="size-4" aria-hidden="true" />
+                举报审核
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/community-applications/review">
+                <ClipboardCheck className="size-4" aria-hidden="true" />
+                社区审批
+              </Link>
+            </DropdownMenuItem>
+          </>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onSelect={signOut}>
           <LogOut className="size-4" aria-hidden="true" />
