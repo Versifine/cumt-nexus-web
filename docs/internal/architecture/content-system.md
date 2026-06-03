@@ -157,6 +157,8 @@ Reddit-style campus community content system
 
 ## 媒体模型
 
+图片、链接预览和白名单 embed 的后端契约缺口见 `docs/internal/architecture/content-media-api-gaps.md`。在这些接口完成前，前端只记录 gap，不伪造上传、对象存储或播放器能力。
+
 ### 图片
 
 图片能力分两步：
@@ -549,6 +551,7 @@ POST /api/v1/embeds/resolve
 - 当前已先落地 spoiler / 涂黑的最小安全渲染；完整 Markdown renderer 的选型和安全边界见 `docs/internal/architecture/markdown-rendering.md`。
 - 当前已新增用户内容渲染边界自检；后续 Markdown、图片和 embed 切片必须同步更新该检查，而不是绕过它。
 - 当前已新增 spoiler / 涂黑解析行为自检；后续 Markdown renderer 接入时必须继续通过该检查，除非在独立切片中明确更新语法规则。
+- 媒体能力的后端 API gap 已拆到 `docs/internal/architecture/content-media-api-gaps.md`；后续对象存储、图片和 embed 应先在后端仓库按该文档推进。
 - 下一步如要做完整 Markdown，应先获得新增依赖批准，再更新依赖边界检查。
 - 图片和 embed 晚于评论树，避免一次性扩大后端、存储、安全和前端渲染范围。
 - 外链播放器必须走 provider 白名单，不开放任意 iframe。

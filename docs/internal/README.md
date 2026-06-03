@@ -6,6 +6,7 @@
 
 - `architecture/frontend-v1.md`：前端 V1 架构、路由、模块和 API 协作边界。
 - `architecture/content-system.md`：Markdown-like 帖子、Reddit-style 评论树、图片和外链嵌入的产品/架构讨论稿。
+- `architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端 API 缺口。
 - `architecture/markdown-rendering.md`：Markdown renderer 选型、安全边界、组件组织和实施切片。
 - `design/product-visual-direction.md`：内部设计索引，指向 `docs/design/` 的权威规范。
 - `engineering/workflow.md`：阶段、分支、工单、验证和后端同步规则。
