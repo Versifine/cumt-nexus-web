@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { IndexedInfoRow, MetricBlock } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { getSafeAuthSwitchHref } from "@/features/auth/redirect";
 import { RegisterForm } from "@/features/auth/register-form";
@@ -60,23 +61,23 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
             </p>
 
             <div className="mt-8 hidden border-y border-border sm:grid sm:grid-cols-3">
-              <MetricBlock label="账号资料" value="用户名" />
-              <MetricBlock label="默认权限" value="普通用户" />
-              <MetricBlock label="成功后" value="进入首页" />
+              <MetricBlock variant="compact" label="账号资料" value="用户名" />
+              <MetricBlock variant="compact" label="默认权限" value="普通用户" />
+              <MetricBlock variant="compact" label="成功后" value="进入首页" />
             </div>
 
             <div className="mt-8 hidden max-w-xl border-y border-border sm:block">
-              <InfoRow
+              <IndexedInfoRow
                 index="01"
                 title="真实产品入口"
                 text="只展示当前后端已经支持的注册流程。"
               />
-              <InfoRow
+              <IndexedInfoRow
                 index="02"
                 title="统一会话"
                 text="注册成功后写入同一套 auth session。"
               />
-              <InfoRow
+              <IndexedInfoRow
                 index="03"
                 title="后续能力"
                 text="资料完善和社区权限不在本页伪造。"
@@ -115,34 +116,5 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
         </div>
       </div>
     </main>
-  );
-}
-
-function MetricBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-b border-border px-4 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-2 text-sm font-semibold text-foreground">{value}</div>
-    </div>
-  );
-}
-
-function InfoRow({
-  index,
-  text,
-  title,
-}: {
-  index: string;
-  text: string;
-  title: string;
-}) {
-  return (
-    <div className="grid gap-3 border-b border-border py-4 last:border-b-0 sm:grid-cols-[56px_minmax(0,1fr)]">
-      <div className="font-mono text-xs text-primary">{index}</div>
-      <div>
-        <div className="text-sm font-semibold text-foreground">{title}</div>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">{text}</p>
-      </div>
-    </div>
   );
 }

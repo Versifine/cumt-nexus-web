@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { PageNav } from "@/components/app-shell/page-nav";
+import { MetricBlock } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { AuthRequired } from "@/features/auth/auth-required";
 import { CommunityApplicationForm } from "@/features/community/community-application-form";
@@ -31,8 +32,8 @@ export default function NewCommunityApplicationPage() {
             </div>
 
             <div className="grid grid-cols-2 border border-border text-center">
-              <MetricBlock label="流程" value="审核制" />
-              <MetricBlock label="状态" value="待提交" />
+              <MetricBlock label="流程" value="审核制" valueClassName="truncate text-lg" />
+              <MetricBlock label="状态" value="待提交" valueClassName="truncate text-lg" />
             </div>
           </div>
         </header>
@@ -91,18 +92,5 @@ export default function NewCommunityApplicationPage() {
         </section>
       </div>
     </main>
-  );
-}
-
-function MetricBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-r border-border px-3 py-4 last:border-r-0">
-      <div className="font-mono text-[11px] uppercase text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-2 truncate text-lg font-black leading-none text-foreground">
-        {value}
-      </div>
-    </div>
   );
 }

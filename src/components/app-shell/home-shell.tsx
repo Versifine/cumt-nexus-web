@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
+import { MetricBlock } from "@/components/ui/data-display";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -342,19 +343,6 @@ function HeaderAuthControls() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-function MetricBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-r border-border px-3 py-4 last:border-r-0">
-      <div className="font-mono text-[11px] uppercase text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-2 text-2xl font-black leading-none text-foreground">
-        {value}
-      </div>
-    </div>
   );
 }
 

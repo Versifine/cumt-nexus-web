@@ -14,6 +14,7 @@ const checks = [
   "check:content-boundary",
   "check:content-segments",
   "check:copy",
+  "check:ui-primitives",
   "check:env",
 ];
 

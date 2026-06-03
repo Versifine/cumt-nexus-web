@@ -163,13 +163,21 @@ npm run check:copy
 
 该命令会扫描 UI 相关源码里的常见英文模板文案，例如 `Sign in`、`Get started`、`Loading...`、`Internal Server Error` 等，防止页面生成时把默认英文按钮、占位文案或错误页长期保留下来。它允许品牌名、技术名、代码标识和短状态码，不替代人工文案审查。
 
+UI 基础件复用检查：
+
+```powershell
+npm run check:ui-primitives
+```
+
+该命令会检查 `MetricBlock`、`InfoRow`、`StatusToken` 等数据展示基础件是否仍从 `src/components/ui/data-display.tsx` 复用，防止页面里再次复制多个风格相近但细节不同的数据块或状态标签。
+
 本地静态验收：
 
 ```powershell
 npm run check:static
 ```
 
-该命令会顺序运行 lint、typecheck、build、文档索引、依赖边界、API 边界、内容渲染边界、涂黑解析、中文文案边界和本地环境变量检查。它不请求真实后端，也不替代 `check:main-path`、`check:readiness` 或浏览器 QA。
+该命令会顺序运行 lint、typecheck、build、文档索引、依赖边界、API 边界、内容渲染边界、涂黑解析、中文文案边界、UI 基础件复用和本地环境变量检查。它不请求真实后端，也不替代 `check:main-path`、`check:readiness` 或浏览器 QA。
 
 后端主链路检查：
 
@@ -244,6 +252,7 @@ npm run check:copy
 npm run check:dependencies
 npm run check:docs
 npm run check:env
+npm run check:ui-primitives
 npm run check:main-path
 npm run check:routes
 npm run check:readiness

@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   ArrowDown,
@@ -13,13 +12,17 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
+import {
+  InfoRow,
+  MetricBlock,
+  StatusToken,
+} from "@/components/ui/data-display";
 import { CommentForm } from "@/features/comment/comment-form";
 import { CommentTree } from "@/features/comment/comment-tree";
 import { usePostCommentsQuery } from "@/features/comment/queries";
 import { ContentBody } from "@/features/content/content-body";
 import { VoteControl } from "@/features/vote/vote-control";
 import { ApiError } from "@/lib/api/client";
-import { cn } from "@/lib/utils";
 
 import { usePostQuery } from "./queries";
 import type { Post } from "./types";
@@ -230,13 +233,13 @@ function PostRail({
         <section className="border-b border-border pb-6">
           <h2 className="text-sm font-semibold">投票概览</h2>
           <div className="mt-3 divide-y divide-border border-y border-border">
-            <VoteInfoRow
+            <InfoRow
               icon={<ArrowUp className="size-4" aria-hidden="true" />}
               label="赞成"
               value={post ? String(post.upvote_count) : "--"}
               active={post?.my_vote === 1}
             />
-            <VoteInfoRow
+            <InfoRow
               icon={<ArrowDown className="size-4" aria-hidden="true" />}
               label="反对"
               value={post ? String(post.downvote_count) : "--"}
@@ -262,80 +265,6 @@ function PostRail({
         </section>
       </div>
     </aside>
-  );
-}
-
-function MetricBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-r border-border px-3 py-4 last:border-r-0">
-      <div className="font-mono text-[11px] uppercase text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-2 text-2xl font-black leading-none text-foreground">
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-3 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="min-w-0 truncate text-right font-medium text-foreground">
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function VoteInfoRow({
-  active,
-  icon,
-  label,
-  value,
-}: {
-  active?: boolean;
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-4 py-3 text-sm",
-        active ? "text-primary" : "text-muted-foreground",
-      )}
-    >
-      <span className="inline-flex items-center gap-2">
-        {icon}
-        {label}
-      </span>
-      <span className="font-mono text-foreground">{value}</span>
-    </div>
-  );
-}
-
-function StatusToken({
-  children,
-  tone = "default",
-}: {
-  children: ReactNode;
-  tone?: "default" | "primary" | "success" | "warning" | "danger";
-}) {
-  return (
-    <span
-      className={cn(
-        "border px-2 py-0.5 text-xs font-medium",
-        tone === "default" && "border-border bg-background text-muted-foreground",
-        tone === "primary" && "border-primary/40 bg-primary/10 text-primary",
-        tone === "success" && "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
-        tone === "warning" && "border-amber-400/30 bg-amber-500/10 text-amber-300",
-        tone === "danger" && "border-red-400/30 bg-red-500/10 text-red-300",
-      )}
-    >
-      {children}
-    </span>
   );
 }
 

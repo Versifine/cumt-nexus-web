@@ -192,6 +192,29 @@
 - 把 Badge 当按钮，除非明确是可点击筛选。
 - 每个页面定义新颜色。
 
+## Data Display
+
+使用场景：
+
+- 页面顶部数据块。
+- 右侧栏键值信息。
+- 编号说明列表。
+- 社区、帖子和状态短标签。
+
+规则：
+
+- 统一使用 `src/components/ui/data-display.tsx` 中的 `MetricBlock`、`InfoRow`、`IndexedInfoRow`、`MetaCell` 和 `StatusToken`。
+- 数据块使用边框、色块和字体层级表达重点，不新增阴影、渐变或大圆角。
+- 状态标签 tone 必须复用 `default`、`primary`、`success`、`warning`、`danger`。
+- 页面里不要重复定义局部 `MetricBlock`、`InfoRow` 或 `StatusToken`。
+- 新增同类数据展示基础件时，必须同步更新 `npm run check:ui-primitives`。
+
+不要：
+
+- 不让每个页面复制一套略有不同的数据块。
+- 不用 Badge 或 Button 临时替代稳定的数据展示组件。
+- 不用随机颜色表达状态。
+
 ## Tabs
 
 使用场景：

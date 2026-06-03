@@ -21,6 +21,7 @@
     "check:routes": "node scripts/check-public-routes.mjs",
     "check:readiness": "node scripts/check-readiness.mjs",
     "check:static": "node scripts/check-static.mjs",
+    "check:ui-primitives": "node scripts/check-ui-primitives.mjs",
     "check:readiness:local": "node scripts/check-readiness.mjs --allow-degraded"
   },
   "dependencies": {
