@@ -5,8 +5,10 @@
 ## 文档索引
 
 - `architecture/frontend-v1.md`：前端 V1 架构、路由、模块和 API 协作边界。
+- `product/frontend-information-architecture.md`：前端信息架构、页面拓扑、URL、权限边界和后端目标合同蓝图。
 - `product/product-targets.md`：产品目标总表，统一记录已实现能力、前端后续增强、后端缺口和派工顺序。
 - `product/v2-roadmap.md`：V2 后端能力全量前端接入路线图。
+- `product/frontend-experience-rebuild.md`：从真实页面体验反馈出发的前端重修拆分方案。
 - `architecture/content-system.md`：Reddit Markdown 正文、Reddit-style 评论树、图片和外链嵌入的产品/架构讨论稿。
 - `architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端合同核对文档。
 - `architecture/markdown-rendering.md`：Reddit Markdown renderer 选型、安全边界、组件组织和实施切片。

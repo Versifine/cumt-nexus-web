@@ -11,6 +11,7 @@
 - 当前目标：V2 后端能力全量前端接入已完成本地初版收口；生产 HTTPS 域名、正式 API origin 和生产 CORS 在没有域名前保持 deferred。
 - 最新 V2 本地验收（2026-06-03）：`npm run check:static`、`npm run check:docs`、`npm run check:routes`、严格 `npm run check:readiness`、严格 `npm run check:main-path` 和 `npm run check:v2-path` 通过；后端补齐后已复跑 `lint`、`typecheck`、严格 `check:main-path` 和 `check:v2-path`。
 - 当前 V2.1 推进（2026-06-03）：后端已补齐社区申请列表 / 详情和 `/api/v1/me.is_platform_staff`，前端已接入完整申请审核台和 staff 入口显隐；生产配置仍保持 deferred。
+- 当前 Post-V2 推进（2026-06-04）：图片附件产品化已接入上传前限制提示、失败重试、待提交附件移除提示和发帖 / 评论差异化数量上限；缩略图 URL、未绑定对象物理清理和失败对象回收仍以后端后续合同为准。
 - 最新浏览器复验（2026-06-03）：帖子详情 Reddit Markdown、涂黑、评论 Markdown、评论树和附件路径已在桌面/移动端检查；`/search`、`/notifications`、`/moderation`、`/community-applications/review`、`/communities/public/new` 在桌面/移动端无横向溢出、无控制台 error；登录/注册表单原生降级不会把账号字段写入 URL；退出登录和 token 清空会清理 TanStack Query 缓存。
 
 ## 已实现范围
@@ -27,7 +28,7 @@
 - 社区申请审核台：staff 可按状态查看申请列表、查看详情并 approve / reject。
 - Reddit Markdown 阅读态：帖子和评论正文通过 `react-markdown` + `remark-gfm` 安全渲染，支持 GFM、链接安全过滤、涂黑和上标扩展。
 - 单一写作面板：发帖、评论、回复和作者编辑都使用同一套格式工具条，不再提供编辑 / 预览双模式。
-- 图片上传和附件展示：发帖、评论可上传图片并提交 `attachment_ids`，帖子详情和评论树展示返回的图片附件。
+- 图片上传和附件展示：发帖、评论可上传图片并提交 `attachment_ids`，上传前按后端默认合同提示并拦截 JPEG / PNG / WebP、单图 5MB、发帖最多 9 张、评论最多 1 张，上传失败可重试，帖子详情和评论树展示返回的图片附件。
 - 搜索页 `/search`：支持关键词、`all | communities | posts` scope、URL query、loading、empty 和 error。
 - 通知中心 `/notifications`：支持全部 / 未读 / 已读、标记已读和保守跳转。
 - 举报入口：普通用户可举报帖子和评论。
@@ -47,6 +48,7 @@
 - 申请取消。
 - 个人资料编辑、头像、邮箱。
 - 评论投票、私信、实时能力和个性化推荐。
+- 图片缩略图 URL、未绑定对象物理删除 / TTL 和失败对象回收的后端合同。
 - Bilibili、网易云音乐等白名单 embed 和普通网页链接预览。
 
 ## V1 本地封版边界
@@ -89,6 +91,7 @@ V2 本地初版已收口，后续重点：
 
 - 保持静态、路由、readiness、main-path 和 V2 主链路验证持续通过。
 - 后续新增后端需求继续同步到 `backend-api-needs.md`。
+- 图片数量 / 类型 / 大小提示、失败重试和待提交附件移除提示已完成前端产品化；缩略图和对象物理清理继续以后端合同拆分。
 - 正式域名、生产 API origin、生产 CORS allowlist 和发布后验证继续保持 deferred。
 
 完整边界和暂停条件见 `docs/internal/product/v2-roadmap.md`。
@@ -368,8 +371,10 @@ npm run check:readiness
 - `docs/prompts/frontend-task-template.md`：前端实现任务模板。
 - `docs/prompts/frontend-review-template.md`：前端审查任务模板。
 - `docs/prompts/backend-content-media-target-template.md`：后端内容媒体能力目标模式提示词。
+- `docs/internal/product/frontend-information-architecture.md`：前端信息架构、页面拓扑、URL、权限边界和后端目标合同蓝图。
 - `docs/internal/product/product-targets.md`：产品目标总表，记录已实现能力、前端后续增强、后端缺口和派工顺序。
 - `docs/internal/product/v2-roadmap.md`：V2 后端能力全量前端接入路线图。
+- `docs/internal/product/frontend-experience-rebuild.md`：从真实页面体验反馈出发的前端重修拆分方案。
 - `docs/internal/architecture/frontend-v1.md`：前端 V1 架构、路由和 API 边界。
 - `docs/internal/architecture/content-system.md`：内容系统产品形态、评论树、图片和 embed 边界。
 - `docs/internal/architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端合同核对文档。

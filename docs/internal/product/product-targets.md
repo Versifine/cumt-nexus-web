@@ -5,6 +5,7 @@
 本文不替代：
 
 - `docs/design/DESIGN.md`：视觉和交互方向。
+- `docs/internal/product/frontend-information-architecture.md`：前端信息架构、页面拓扑、URL、权限边界和后端目标合同蓝图。
 - `docs/internal/product/v2-roadmap.md`：V2 产品路线图和实施顺序。
 - `docs/internal/architecture/frontend-v1.md`：前端架构和模块边界。
 - `docs/internal/architecture/content-system.md`：内容系统讨论稿。
@@ -14,7 +15,7 @@
 
 ## 产品方向
 
-CUMT Nexus Web 是登录后的校园社区内容产品，不做营销首页。当前长期形态是：
+CUMT Nexus Web 是公开可读、登录后参与的校园社区内容产品，不做营销首页。当前长期形态是：
 
 ```text
 Reddit-style campus community content system
@@ -23,6 +24,8 @@ Reddit-style campus community content system
 含义：
 
 - 用户围绕社区发起帖子。
+- 未登录用户可以阅读公开 feed、社区、帖子、评论、搜索和用户主页。
+- 登录用户可以发帖、评论、投票、收藏、申请社区、接收通知和进入有权限的管理区。
 - 帖子承载正文、评论、投票和后续媒体能力。
 - 评论采用树状讨论结构。
 - 正文能力以 Reddit Markdown 为理想形态，目标是让帖子和评论支持 Reddit 风格的完整格式能力。
@@ -91,7 +94,8 @@ Reddit-style campus community content system
 - 发帖和评论提交 `attachment_ids`。
 - 帖子详情展示图片附件。
 - 评论树展示图片附件。
-- 上传中、上传失败、删除待提交附件和 disabled 状态。
+- 上传前提示并拦截后端默认限制：JPEG / PNG / WebP、单图 5MB、发帖最多 9 张、评论最多 1 张。
+- 上传中、上传失败、失败重试、删除待提交附件、对象清理提示和 disabled 状态。
 
 ### 发现与反馈
 
@@ -157,7 +161,7 @@ Reddit-style campus community content system
 
 - 更接近 Reddit 的完整 Markdown 细节兼容性审查。
 - Markdown 工具动作补齐列表、标题、删除线、代码块和表格快捷插入。
-- 图片数量、尺寸、类型和失败重试的产品化提示需要以后端最终限制为准继续细化。
+- 图片数量、类型、大小提示和失败重试已完成前端产品化；图片缩略图 URL、未绑定对象物理删除 / TTL 和失败对象回收仍需以后端后续合同为准继续细化。
 - 白名单外链 embed 展示。
 - 普通网页链接预览。
 
@@ -168,9 +172,10 @@ Reddit-style campus community content system
 V2 详细路线见 `docs/internal/product/v2-roadmap.md`。优先级固定为：
 
 1. 新后端缺口继续同步到 `backend-api-needs.md`。
-2. 图片限制、缩略图、失败重试和对象清理提示继续产品化。
-3. 白名单 embed、链接预览、评论投票和通知事件源增强继续拆分。
-4. 浏览器 QA 和生产 deferred 项继续拆分到后续上线切片。
+2. 统一 App Shell：首页、社区、搜索、通知、审核等主工作区必须共享左侧栏目、顶部 bar、移动端收起导航和当前路由高亮，避免页面之间像不同产品。
+3. 图片限制、缩略图、失败重试和对象清理提示继续产品化。
+4. 白名单 embed、链接预览、评论投票和通知事件源增强继续拆分。
+5. 浏览器 QA 和生产 deferred 项继续拆分到后续上线切片。
 
 ### P2：产品扩展能力
 
@@ -187,7 +192,8 @@ V2 详细路线见 `docs/internal/product/v2-roadmap.md`。优先级固定为：
 
 这些不是前端直接实现项，但会影响前端派工顺序。前端推进中发现的新接口需求，先写入根目录 `backend-api-needs.md`，并保持该文件在 `.gitignore` 中。
 
-- 图片缩略图、对象清理、对象物理删除和失败对象回收是否已完成，仍需以后端最终合同复核。
+- 未登录首页应能看到公开信息流并打开公开帖子。当前后端 `GET /api/v1/posts`、`GET /api/v1/posts/:id` 和 `GET /api/v1/communities/:slug/posts` 仍按 Bearer 保护路由处理；后端需要支持匿名读取 active public 社区 visible 帖子，并支持可选 Bearer：无 token 时 `my_vote=0`，有效 token 时返回当前用户 `my_vote`，无效 token 仍返回 `unauthenticated`。写操作继续保持 Bearer。
+- 图片缩略图、对象清理、对象物理删除和失败对象回收是否已完成，仍需以后端最终合同复核；前端当前只展示待提交附件移除后的清理提示，不直接删除对象。
 - 通知事件源是否覆盖回复、审核、内容生命周期等业务事件，仍需以后端最终合同复核。
 - 社区 staff / moderator 管理、成员加入退出、私密社区和邀请制仍不是当前前端可接能力。
 - 评论投票尚未形成后端产品合同。
@@ -214,7 +220,7 @@ V2 本地初版已完成收口，后续前端优先顺序是：
 
 1. 保持 `check:static`、`check:docs`、`check:routes`、`check:readiness`、`check:main-path` 和 `check:v2-path` 通过。
 2. 把新增后端缺口同步给 `cumt-nexus-api`。
-3. 继续拆分图片产品化、白名单 embed、链接预览、评论投票和通知事件源增强。
+3. 先拆统一 App Shell 和主导航一致性，再继续拆分白名单 embed、链接预览、评论投票、通知事件源增强，以及图片缩略图 / 对象物理清理等后端合同项。
 
 如果目标是首版上线，优先顺序是：
 
