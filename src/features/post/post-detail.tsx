@@ -1,11 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  ArrowDown,
-  ArrowUp,
-  MessageSquare,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, MessageSquare } from "lucide-react";
 
 import {
   readPostNavigationSource,
@@ -43,23 +39,32 @@ type PostDetailProps = {
 };
 
 export function PostDetail({ id }: PostDetailProps) {
-  const { isReady, token } = useAuthSession();
+  const { isReady } = useAuthSession();
   const [navigationSource] = useState<PostNavigationSource | null>(() =>
     readPostNavigationSource(id),
   );
   const currentUserQuery = useCurrentUserQuery();
-  const canRequestPost = isReady && Boolean(token);
+  const canRequestPost = isReady;
   const postQuery = usePostQuery(id, canRequestPost);
-  const canRequestComments = canRequestPost && postQuery.isSuccess && Boolean(postQuery.data?.post);
-  const commentsQuery = usePostCommentsQuery(id, 20, 0, "tree", "new", 6, canRequestComments);
-  const post = canRequestPost ? postQuery.data?.post : undefined;
+  const canRequestComments =
+    canRequestPost && postQuery.isSuccess && Boolean(postQuery.data?.post);
+  const commentsQuery = usePostCommentsQuery(
+    id,
+    20,
+    0,
+    "tree",
+    "new",
+    6,
+    canRequestComments,
+  );
+  const post = postQuery.data?.post;
   const comments = canRequestComments ? (commentsQuery.data?.comments ?? []) : [];
   const currentUserId = currentUserQuery.data?.id ?? null;
+  const canModerate = currentUserQuery.data?.is_platform_staff === true;
   const canManagePost =
     Boolean(post) &&
     currentUserQuery.isSuccess &&
     currentUserId === post?.author_id;
-  const loginHref = `/login?next=${encodeURIComponent(`/posts/${id}`)}`;
 
   return (
     <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -69,16 +74,6 @@ export function PostDetail({ id }: PostDetailProps) {
         <section className="mt-4">
           {!isReady ? (
             <LoadingState rows={3} />
-          ) : !token ? (
-            <ErrorState
-              title="需要登录"
-              description="请先登录后查看帖子详情、评论和投票。"
-              action={
-                <TextAction href={loginHref} tone="primary">
-                  登录
-                </TextAction>
-              }
-            />
           ) : postQuery.isLoading ? (
             <LoadingState rows={3} />
           ) : postQuery.isError ? (
@@ -87,8 +82,8 @@ export function PostDetail({ id }: PostDetailProps) {
               description={getErrorDescription(postQuery.error)}
               action={
                 isUnauthenticated(postQuery.error) ? (
-                  <TextAction href={loginHref} tone="primary">
-                    登录
+                  <TextAction href="/communities" tone="primary">
+                    浏览社区
                   </TextAction>
                 ) : (
                   <Button
@@ -104,6 +99,7 @@ export function PostDetail({ id }: PostDetailProps) {
           ) : post ? (
             <PostArticle
               canManage={canManagePost}
+              canModerate={canModerate}
               post={post}
               commentCount={comments.length}
             />
@@ -141,8 +137,8 @@ export function PostDetail({ id }: PostDetailProps) {
                   description={getErrorDescription(commentsQuery.error)}
                   action={
                     isUnauthenticated(commentsQuery.error) ? (
-                      <TextAction href={loginHref} tone="primary">
-                        登录
+                      <TextAction href="/communities" tone="primary">
+                        浏览社区
                       </TextAction>
                     ) : (
                       <Button
@@ -168,6 +164,7 @@ export function PostDetail({ id }: PostDetailProps) {
                 <CommentTree
                   comments={comments}
                   currentUserId={currentUserId}
+                  canModerate={canModerate}
                   maxDepth={6}
                   postId={id}
                 />
@@ -207,10 +204,12 @@ function PostBackLink({
 
 function PostArticle({
   canManage,
+  canModerate,
   post,
   commentCount,
 }: {
   canManage: boolean;
+  canModerate: boolean;
   post: Post;
   commentCount: number;
 }) {
@@ -260,11 +259,13 @@ function PostArticle({
             targetLabel={post.title}
             targetType="post"
           />
-          <ModerationRemoveDialog
-            targetId={post.id}
-            targetLabel={post.title}
-            targetType="post"
-          />
+          {canModerate ? (
+            <ModerationRemoveDialog
+              targetId={post.id}
+              targetLabel={post.title}
+              targetType="post"
+            />
+          ) : null}
         </div>
       </div>
     </article>
@@ -361,13 +362,17 @@ function isUnauthenticated(error: Error | null) {
 
 function getErrorTitle(error: Error | null, fallback: string) {
   if (isUnauthenticated(error)) {
-    return "需要登录";
+    return "公开内容暂不可读";
   }
 
   return fallback;
 }
 
 function getErrorDescription(error: Error | null) {
+  if (isUnauthenticated(error)) {
+    return "前端已按游客身份请求公开帖子内容；如果仍返回认证错误，需要后端保持 optional Bearer 公开读取合同。";
+  }
+
   if (error instanceof ApiError) {
     return error.message;
   }

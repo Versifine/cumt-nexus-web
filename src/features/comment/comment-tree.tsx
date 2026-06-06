@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import type { Comment } from "./types";
 
 type CommentTreeProps = {
+  canModerate?: boolean;
   comments: Comment[];
   currentUserId?: string | null;
   maxDepth?: number;
@@ -27,6 +28,7 @@ type CommentTreeNode = {
 };
 
 export function CommentTree({
+  canModerate = false,
   comments,
   currentUserId = null,
   maxDepth = 6,
@@ -70,6 +72,7 @@ export function CommentTree({
         {roots.map((node, index) => (
           <CommentBranch
             key={node.comment.id}
+            canModerate={canModerate}
             collapsedIds={collapsedIds}
             currentUserId={currentUserId}
             expandedDepthIds={expandedDepthIds}
@@ -90,6 +93,7 @@ export function CommentTree({
 }
 
 function CommentBranch({
+  canModerate,
   collapsedIds,
   currentUserId,
   expandedDepthIds,
@@ -103,6 +107,7 @@ function CommentBranch({
   replyingTo,
   visualDepth,
 }: {
+  canModerate: boolean;
   collapsedIds: Set<string>;
   currentUserId: string | null;
   expandedDepthIds: Set<string>;
@@ -184,11 +189,13 @@ function CommentBranch({
               targetLabel={comment.body.slice(0, 80) || "评论"}
               targetType="comment"
             />
-            <ModerationRemoveDialog
-              targetId={comment.id}
-              targetLabel={comment.body.slice(0, 80) || "评论"}
-              targetType="comment"
-            />
+            {canModerate ? (
+              <ModerationRemoveDialog
+                targetId={comment.id}
+                targetLabel={comment.body.slice(0, 80) || "评论"}
+                targetType="comment"
+              />
+            ) : null}
           </div>
 
           {replyingTo === comment.id ? (
@@ -224,6 +231,7 @@ function CommentBranch({
             children.map((child, index) => (
               <CommentBranch
                 key={child.comment.id}
+                canModerate={canModerate}
                 collapsedIds={collapsedIds}
                 currentUserId={currentUserId}
                 expandedDepthIds={expandedDepthIds}

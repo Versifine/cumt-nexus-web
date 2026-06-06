@@ -3,6 +3,8 @@
 import { forwardRef, useState, type ComponentProps, type ReactNode } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Flag } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -18,6 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuthSession } from "@/features/auth/auth-session";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +47,8 @@ export function ReportContentDialog({
   targetLabel,
   targetType,
 }: ReportContentDialogProps) {
+  const pathname = usePathname();
+  const { isReady, token } = useAuthSession();
   const [open, setOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const postMutation = useReportPostMutation(targetId);
@@ -63,6 +68,31 @@ export function ReportContentDialog({
   }
 
   const submitError = getSubmitError(mutation.error);
+  const next = pathname || "/";
+  const loginHref = `/login?next=${encodeURIComponent(next)}`;
+
+  if (!isReady) {
+    return (
+      <ReportTrigger disabled aria-label="正在确认举报权限">
+        <Flag className="size-3.5" aria-hidden="true" />
+        举报
+      </ReportTrigger>
+    );
+  }
+
+  if (!token) {
+    return (
+      <Link
+        href={loginHref}
+        className={cn(
+          "-mx-1 inline-flex min-h-10 items-center gap-1.5 px-1 py-2 text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        )}
+      >
+        <Flag className="size-3.5" aria-hidden="true" />
+        登录后举报
+      </Link>
+    );
+  }
 
   return (
     <Dialog
