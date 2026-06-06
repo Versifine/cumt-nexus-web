@@ -376,6 +376,12 @@ function HeaderUserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
+          <Link href={`/users/${encodeURIComponent(user.username)}`}>
+            <User className="size-4" aria-hidden="true" />
+            个人主页
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           <Link href="/notifications">
             <Bell className="size-4" aria-hidden="true" />
             通知

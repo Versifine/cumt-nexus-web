@@ -56,6 +56,12 @@ const routes = [
     path: "/search?q=public&scope=all",
   },
   {
+    absentMarkers: ["需要登录", "登录后查看"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "用户主页", "正在加载", "浏览社区"],
+    path: "/users/route-smoke",
+  },
+  {
     absentMarkers: ["需要登录", "请先登录后查看社区详情和帖子"],
     hrefMarkers: [
       ...appShellHrefMarkers,

@@ -103,6 +103,8 @@ Reddit-style campus community content system
 - 搜索 scope：`all | communities | posts`。
 - 搜索关键词和 scope 同步到 URL query。
 - 搜索 loading、empty、error 状态。
+- 公开用户主页 `/users/:username` 基础资料页。
+- 公开用户主页展示昵称、头像占位、签名、简介、徽章、角色和公开帖子 / 评论统计。
 - 通知中心 `/notifications`。
 - 通知全部 / 未读 / 已读视图。
 - 通知标记已读。
@@ -179,8 +181,9 @@ V2 详细路线见 `docs/internal/product/v2-roadmap.md`。优先级固定为：
 
 ### P2：产品扩展能力
 
-- 用户资料页。
-- 头像。
+- 用户公开帖子列表和公开评论列表页面。
+- 个人资料编辑。
+- 头像上传。
 - 邮箱。
 - 账号设置。
 - 社区申请取消。
