@@ -13,7 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
 import { ImageAttachmentUploader } from "@/features/media/media-attachments";
-import type { MediaAttachment } from "@/features/media/types";
+import {
+  IMAGE_UPLOAD_LIMITS,
+  type MediaAttachment,
+} from "@/features/media/types";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -155,6 +158,7 @@ export function PostForm({ className, slug }: PostFormProps) {
           attachments={attachments}
           disabled={postMutation.isPending}
           idPrefix="post-image"
+          maxCount={IMAGE_UPLOAD_LIMITS.maxCountPerPost}
           onChange={setAttachments}
           onUploadingChange={setIsUploadingImage}
         />

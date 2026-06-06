@@ -34,7 +34,7 @@ V2 后端能力全量前端接入
 - 合同核对与 API client 补齐：搜索、通知、举报、审核、社区申请 approve / reject、图片上传、feed sort 都已进入统一 API 边界。
 - Reddit Markdown renderer：`ContentBody` 使用 `react-markdown` + `remark-gfm`，开启 `skipHtml`，不使用 `rehype-raw`，链接协议做白名单过滤。
 - 写作器：发帖、评论、回复、帖子编辑和评论编辑都使用单一写作面板和格式工具条，不再提供编辑 / 预览双模式。
-- 图片上传与附件展示：发帖和评论写作器接入 `POST /api/v1/uploads/images`，提交 `attachment_ids`，帖子详情和评论树展示返回图片。
+- 图片上传与附件展示：发帖和评论写作器接入 `POST /api/v1/uploads/images`，提交 `attachment_ids`，帖子详情和评论树展示返回图片；Post-V2 已补齐 JPEG / PNG / WebP、单图 5MB、发帖最多 9 张、评论最多 1 张的前端提示和拦截，以及上传失败重试、待提交附件移除提示。
 - 内容发现：首页和社区帖子流支持 `new | hot`，搜索页支持 `all | communities | posts`。
 - 通知中心：支持列表、未读 / 已读筛选、标记已读和保守跳转。
 - 举报与审核：普通用户可举报帖子 / 评论；审核台支持举报列表、详情、`target_preview`、dismiss、remove-target；帖子和评论支持 moderation remove。
@@ -542,7 +542,7 @@ V2 初版按以下顺序推进：
 13. F3 内容 moderation remove。
 14. G V2 收口。
 
-V2 本地初版已经完成 G 收口，V2.1 已补齐社区申请审核台和 staff 入口显隐。后续继续推进时，不再从 A 重新开始；只做内容系统产品化、生产 deferred 项和新的小切片。
+V2 本地初版已经完成 G 收口，V2.1 已补齐社区申请审核台和 staff 入口显隐。Post-V2 图片附件产品化已完成前端限制提示、失败重试和待提交附件移除提示。后续继续推进时，不再从 A 重新开始；只做内容系统产品化、生产 deferred 项和新的小切片。
 
 ## V2 验收
 
@@ -607,6 +607,6 @@ npm run check:v2-path
 
 V2 本地初版已经收口。后续不再把“G 收口”作为当前推进位，改为按小切片处理：
 
-1. 基于后端最终合同继续产品化图片限制、缩略图、失败重试和对象清理提示。
+1. 图片数量 / 类型 / 大小提示、失败重试和待提交附件移除提示已完成前端产品化；缩略图 URL、未绑定对象物理删除 / TTL 和失败对象回收继续以后端合同拆分。
 2. 讨论并设计白名单 embed、普通网页链接预览、评论投票和通知事件源增强。
 3. 拿到正式域名后，再处理生产 `NEXT_PUBLIC_SITE_URL`、生产 `NEXT_PUBLIC_API_BASE_URL`、生产 CORS allowlist、发布后验证和回滚演练。

@@ -14,7 +14,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
 import { ImageAttachmentUploader } from "@/features/media/media-attachments";
-import type { MediaAttachment } from "@/features/media/types";
+import {
+  IMAGE_UPLOAD_LIMITS,
+  type MediaAttachment,
+} from "@/features/media/types";
 import { ApiError } from "@/lib/api/client";
 
 import { publishComment } from "./api";
@@ -169,6 +172,7 @@ export function CommentForm({
         attachments={attachments}
         disabled={commentMutation.isPending}
         idPrefix={`comment-image-${parentId ?? "root"}-${postId}`}
+        maxCount={IMAGE_UPLOAD_LIMITS.maxCountPerComment}
         onChange={setAttachments}
         onUploadingChange={setIsUploadingImage}
       />

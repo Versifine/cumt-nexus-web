@@ -7,11 +7,23 @@
 ## 当前结论
 
 - 媒体能力必须以后端为权威：上传、校验、对象存储、审核状态、链接解析和 embed provider 识别都在后端完成。
-- V2 前端必须接入 `POST /api/v1/uploads/images`，并在发帖和评论写作器中形成可用上传体验。
+- V2 前端已接入 `POST /api/v1/uploads/images`，并在发帖和评论写作器中形成可用上传体验。
 - 前端只提交后端返回的结构化 `attachment_id`、`embed_id` 或预览对象，不直接保存第三方 URL 作为附件。
-- 帖子图片先于评论图片；评论图片必须等评论树稳定后再接入。
+- 帖子和评论图片均已接入；评论图片数量继续比帖子更克制。
 - 链接预览和播放器是两种能力：普通网页只做链接预览，Bilibili / 网易云音乐等只通过 provider 白名单 embed。
 - 任意 iframe、用户 HTML、`data:` 图片和浏览器端抓第三方网页元数据都禁止。
+
+## 当前已核对的图片合同
+
+截至 2026-06-04，前端按当前后端合同实现图片附件产品化：
+
+- `POST /api/v1/uploads/images` 使用 `multipart/form-data`，字段为 `file` 和可选 `alt_text`。
+- 成功响应字段为 `attachment.id`、`kind`、`url`、`width`、`height`、`size_bytes`、`mime_type`、`alt_text`、`status`、`created_at`；当前响应没有 `thumbnail_url`。
+- 后端默认限制：单图片最大 `5242880` bytes，发帖最多 9 张，评论最多 1 张。
+- 后端只接受 `image/jpeg`、`image/png`、`image/webp`，并按文件头识别 MIME。
+- `alt_text` 最长 200 个字符。
+- 前端已按上述合同提示并拦截明显不合规输入，上传失败保留文件用于重试，删除待提交附件时提示未绑定对象由后端清理策略回收。
+- 前端当前不直接删除对象、不生成缩略图、不伪造 `thumbnail_url`。
 
 ## 后端缺口
 
@@ -56,7 +68,7 @@ multipart/form-data
 - alt_text optional
 ```
 
-响应：
+建议响应：
 
 ```json
 {
@@ -313,11 +325,11 @@ link_previews
 
 ## 前端接入顺序
 
-后端完成后，前端再按这些小切片接入：
+图片能力已完成当前前端接入，后续仍按能力拆小切片：
 
-1. 帖子图片上传：发帖表单选择图片、上传 loading/error、提交 `attachment_ids`。
-2. 帖子详情图片展示：固定比例、失败降级、alt 文案。
-3. 评论图片上传：复用上传入口，但限制数量更小。
+1. 已完成：帖子图片上传，发帖表单选择图片、上传 loading/error、失败重试、提交 `attachment_ids`。
+2. 已完成：帖子详情图片展示，固定比例、alt 文案和附件元信息。
+3. 已完成：评论图片上传，复用上传入口，按后端合同限制为最多 1 张。
 4. 链接预览：粘贴 URL 后解析，普通网页展示预览卡。
 5. 白名单 embed：按 provider 渲染受控播放器 wrapper。
 
@@ -330,7 +342,7 @@ link_previews
 - 非白名单 MIME 失败。
 - 发帖可以绑定已上传附件。
 - 帖子详情能读取附件元信息。
-- 评论可以在后续切片绑定附件。
+- 评论可以绑定已上传附件。
 - 链接预览不会请求内网地址。
 - 不支持的 embed URL 返回 `unsupported`。
 - Bilibili / 网易云白名单 URL 能返回结构化 provider 对象。

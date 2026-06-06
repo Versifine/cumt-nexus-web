@@ -19,3 +19,14 @@ export type UploadImageInput = {
 export type UploadImageResponse = {
   attachment: MediaAttachment;
 };
+
+export const IMAGE_UPLOAD_LIMITS = {
+  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+  altTextMaxLength: 200,
+  maxBytes: 5 * 1024 * 1024,
+  maxCountPerComment: 1,
+  maxCountPerPost: 9,
+} as const;
+
+export const IMAGE_UPLOAD_ACCEPT =
+  "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";

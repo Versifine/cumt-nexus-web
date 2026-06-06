@@ -129,6 +129,9 @@ async function checkUploadPostAndComments() {
   const postAttachment = await uploadImage(reporter.token, "v2 post image");
   const rootAttachment = await uploadImage(reporter.token, "v2 root comment image");
   const childAttachment = await uploadImage(reporter.token, "v2 child comment image");
+  if (!postAttachment.id || !rootAttachment.id || !childAttachment.id) {
+    return;
+  }
 
   const postResponse = await request("/api/v1/communities/public/posts", {
     body: {
@@ -650,7 +653,71 @@ async function uploadImage(token, altText) {
     return {};
   }
 
+  const publicCheck = await checkPublicImageUrl(attachment.url);
+  if (!publicCheck.ok) {
+    addFail(`upload image ${altText} public URL`, publicCheck.detail);
+    return {};
+  }
+
+  addPass(
+    `upload image ${altText} public URL`,
+    `${publicCheck.method} ${attachment.url} returned HTTP ${publicCheck.status} ${publicCheck.contentType}`,
+  );
+
   return attachment;
+}
+
+async function checkPublicImageUrl(url) {
+  if (!url || !/^https?:\/\//u.test(url)) {
+    return {
+      detail: `attachment url is not an absolute HTTP URL: ${String(url)}`,
+      ok: false,
+    };
+  }
+
+  let lastDetail = "";
+  for (const method of ["HEAD", "GET"]) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        method,
+        signal: controller.signal,
+      });
+      const contentType = response.headers.get("content-type") ?? "";
+
+      if (!response.ok) {
+        lastDetail = `${method} ${url} returned HTTP ${response.status}`;
+        continue;
+      }
+
+      if (!contentType.toLowerCase().startsWith("image/")) {
+        lastDetail = `${method} ${url} returned non-image Content-Type ${contentType || "(empty)"}`;
+        continue;
+      }
+
+      if (method === "GET") {
+        await response.arrayBuffer();
+      }
+
+      return {
+        contentType,
+        method,
+        ok: true,
+        status: response.status,
+      };
+    } catch (error) {
+      lastDetail = `${method} ${url} failed: ${error instanceof Error ? error.message : String(error)}`;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  return {
+    detail: lastDetail || `attachment url is not readable: ${url}`,
+    ok: false,
+  };
 }
 
 async function request(path, options = {}) {
