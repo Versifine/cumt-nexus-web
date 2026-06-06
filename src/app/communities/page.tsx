@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AppShell } from "@/components/app-shell/app-shell";
 import { CommunityList } from "@/features/community/community-list";
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function CommunitiesPage() {
-  return <CommunityList />;
+  return (
+    <AppShell contextLabel="02 / 社区">
+      <CommunityList />
+    </AppShell>
+  );
 }

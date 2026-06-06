@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AppShell } from "@/components/app-shell/app-shell";
 import { NotificationCenter } from "@/features/notification/notification-center";
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function NotificationsRoute() {
-  return <NotificationCenter />;
+  return (
+    <AppShell contextLabel="04 / 通知">
+      <NotificationCenter />
+    </AppShell>
+  );
 }

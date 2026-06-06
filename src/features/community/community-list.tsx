@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { ArrowRight, Hash } from "lucide-react";
 
+import { rememberRecentCommunity } from "@/components/app-shell/recent-communities";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
-import { PageNav } from "@/components/app-shell/page-nav";
 import { Button } from "@/components/ui/button";
 import { MetaCell, MetricBlock, StatusToken } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
@@ -22,97 +22,93 @@ export function CommunityList() {
   const publicCount = communities.filter((community) => community.visibility === "public").length;
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <PageNav />
-
-        <header className="border-b border-border pb-6">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="font-mono text-xs uppercase text-primary">
-                CUMT NEXUS / 社区目录
-              </div>
-              <h1 className="mt-4 text-5xl font-black leading-[0.95] tracking-normal text-foreground md:text-6xl">
-                <span className="block">校园社区</span>
-                <span className="block">索引</span>
-              </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
-                按社区进入讨论场域。公开社区直接浏览，受限社区保留边界感，申请入口保持清晰但不抢占内容焦点。
-              </p>
+    <>
+      <header className="border-b border-border pb-6">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <div className="font-mono text-xs uppercase text-primary">
+              CUMT NEXUS / 社区目录
             </div>
-
-            <div className="grid grid-cols-3 border border-border text-center sm:min-w-96">
-              <MetricBlock label="全部" value={formatMetric(communities.length, communitiesQuery.isLoading)} />
-              <MetricBlock label="启用" value={formatMetric(activeCount, communitiesQuery.isLoading)} />
-              <MetricBlock label="公开" value={formatMetric(publicCount, communitiesQuery.isLoading)} />
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-col gap-3 border-y border-border py-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-              列表优先呈现名称、slug、可见性和状态；进入社区后再承载帖子流和发布动作。
+            <h1 className="mt-4 text-5xl font-black leading-[0.95] tracking-normal text-foreground md:text-6xl">
+              <span className="block">校园社区</span>
+              <span className="block">索引</span>
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
+              按社区进入讨论场域。公开社区直接浏览，受限社区保留边界感，申请入口保持清晰但不抢占内容焦点。
             </p>
-            <TextAction href="/community-applications/new" tone="primary">
-              申请社区
-            </TextAction>
           </div>
-        </header>
 
-        <section className="py-5">
-          {communitiesQuery.isLoading ? (
-            <div className="border-b border-border pb-5">
-              <LoadingState rows={5} />
-            </div>
-          ) : null}
+          <div className="grid grid-cols-3 border border-border text-center sm:min-w-96">
+            <MetricBlock label="全部" value={formatMetric(communities.length, communitiesQuery.isLoading)} />
+            <MetricBlock label="启用" value={formatMetric(activeCount, communitiesQuery.isLoading)} />
+            <MetricBlock label="公开" value={formatMetric(publicCount, communitiesQuery.isLoading)} />
+          </div>
+        </div>
 
-          {communitiesQuery.isError ? (
-            <ErrorState
-              title={getErrorTitle(communitiesQuery.error)}
-              description={getErrorDescription(communitiesQuery.error)}
-              action={
-                isUnauthenticated(communitiesQuery.error) ? (
-                  <TextAction href="/login" tone="primary">
-                    登录
-                  </TextAction>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => communitiesQuery.refetch()}
-                  >
-                    重试
-                  </Button>
-                )
-              }
-            />
-          ) : null}
+        <div className="mt-5 flex flex-col gap-3 border-y border-border py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+            列表优先呈现名称、slug、可见性和状态；进入社区后再承载帖子流和发布动作。
+          </p>
+          <TextAction href="/community-applications/new" tone="primary">
+            申请社区
+          </TextAction>
+        </div>
+      </header>
 
-          {communitiesQuery.isSuccess && communities.length === 0 ? (
-            <EmptyState
-              title="还没有社区"
-              description="公开社区创建并启用后，会出现在这里。"
-              action={
-                <TextAction href="/community-applications/new" tone="primary">
-                  申请第一个社区
+      <section className="py-5">
+        {communitiesQuery.isLoading ? (
+          <div className="border-b border-border pb-5">
+            <LoadingState rows={5} />
+          </div>
+        ) : null}
+
+        {communitiesQuery.isError ? (
+          <ErrorState
+            title={getErrorTitle(communitiesQuery.error)}
+            description={getErrorDescription(communitiesQuery.error)}
+            action={
+              isUnauthenticated(communitiesQuery.error) ? (
+                <TextAction href="/login" tone="primary">
+                  登录
                 </TextAction>
-              }
-            />
-          ) : null}
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => communitiesQuery.refetch()}
+                >
+                  重试
+                </Button>
+              )
+            }
+          />
+        ) : null}
 
-          {communitiesQuery.isSuccess && communities.length > 0 ? (
-            <div className="divide-y divide-border border-b border-border">
-              {communities.map((community, index) => (
-                <CommunityRow
-                  key={community.id}
-                  community={community}
-                  index={index}
-                />
-              ))}
-            </div>
-          ) : null}
-        </section>
-      </div>
-    </main>
+        {communitiesQuery.isSuccess && communities.length === 0 ? (
+          <EmptyState
+            title="还没有社区"
+            description="公开社区创建并启用后，会出现在这里。"
+            action={
+              <TextAction href="/community-applications/new" tone="primary">
+                申请第一个社区
+              </TextAction>
+            }
+          />
+        ) : null}
+
+        {communitiesQuery.isSuccess && communities.length > 0 ? (
+          <div className="divide-y divide-border border-b border-border">
+            {communities.map((community, index) => (
+              <CommunityRow
+                key={community.id}
+                community={community}
+                index={index}
+              />
+            ))}
+          </div>
+        ) : null}
+      </section>
+    </>
   );
 }
 
@@ -126,6 +122,7 @@ function CommunityRow({
   return (
     <Link
       href={`/communities/${community.slug}`}
+      onClick={() => rememberRecentCommunity(community)}
       className="group grid gap-4 py-5 transition-colors hover:bg-background-soft/70 md:grid-cols-[72px_minmax(0,1fr)_220px]"
     >
       <div className="flex items-center gap-3 md:block">

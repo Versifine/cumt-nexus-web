@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Hash, Search } from "lucide-react";
 
-import { PageNav } from "@/components/app-shell/page-nav";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -77,10 +76,7 @@ export function SearchPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <PageNav backHref="/" backLabel="返回最新讨论" />
-
+    <>
         <header className="border-b border-border pb-6">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
             <div className="min-w-0">
@@ -254,8 +250,7 @@ export function SearchPage() {
             </div>
           ) : null}
         </section>
-      </div>
-    </main>
+    </>
   );
 }
 
