@@ -50,16 +50,16 @@ const routes = [
     path: "/communities",
   },
   {
+    absentMarkers: ["需要登录", "请先登录后查看社区详情和帖子"],
     hrefMarkers: [
       ...appShellHrefMarkers,
-      "/login?next=%2Fcommunities%2Fpublic",
     ],
     markers: [
       "CUMT Nexus",
       "首页",
       "社区",
-      "需要登录",
-      "请先登录后查看社区详情和帖子",
+      "正在加载",
+      "浏览社区",
     ],
     path: "/communities/public",
   },

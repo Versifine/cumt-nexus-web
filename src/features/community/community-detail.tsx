@@ -37,16 +37,23 @@ type CommunityDetailProps = {
 };
 
 export function CommunityDetail({ slug }: CommunityDetailProps) {
-  const { isReady, token } = useAuthSession();
+  const { isReady } = useAuthSession();
   const [sort, setSort] = useState<PostSort>("new");
-  const canRequestCommunity = isReady && Boolean(token);
+  const canRequestCommunity = isReady;
   const communityQuery = useCommunityQuery(slug, canRequestCommunity);
   const canShowCommunityContent =
-    canRequestCommunity && communityQuery.isSuccess && Boolean(communityQuery.data?.community);
-  const postsQuery = useCommunityPostsQuery(slug, 20, 0, canShowCommunityContent, sort);
-  const community = canRequestCommunity ? communityQuery.data?.community : undefined;
+    canRequestCommunity &&
+    communityQuery.isSuccess &&
+    Boolean(communityQuery.data?.community);
+  const postsQuery = useCommunityPostsQuery(
+    slug,
+    20,
+    0,
+    canShowCommunityContent,
+    sort,
+  );
+  const community = communityQuery.data?.community;
   const posts = canShowCommunityContent ? (postsQuery.data?.posts ?? []) : [];
-  const loginHref = `/login?next=${encodeURIComponent(`/communities/${slug}`)}`;
 
   useEffect(() => {
     if (community) {
@@ -59,16 +66,6 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
       <section className="py-6">
         {!isReady ? (
           <LoadingState rows={2} />
-        ) : !token ? (
-          <ErrorState
-            title="需要登录"
-            description="请先登录后查看社区详情和帖子。"
-            action={
-              <TextAction href={loginHref} tone="primary">
-                登录
-              </TextAction>
-            }
-          />
         ) : communityQuery.isPending ? (
           <LoadingState rows={2} />
         ) : communityQuery.isError ? (
@@ -77,8 +74,8 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
             description={getErrorDescription(communityQuery.error)}
             action={
               isUnauthenticated(communityQuery.error) ? (
-                <TextAction href={loginHref} tone="primary">
-                  登录
+                <TextAction href="/communities" tone="primary">
+                  浏览社区
                 </TextAction>
               ) : (
                 <Button
@@ -138,8 +135,8 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
                   description={getErrorDescription(postsQuery.error)}
                   action={
                     isUnauthenticated(postsQuery.error) ? (
-                      <TextAction href={loginHref} tone="primary">
-                        登录
+                      <TextAction href="/communities" tone="primary">
+                        浏览社区
                       </TextAction>
                     ) : (
                       <Button
@@ -455,13 +452,17 @@ function isUnauthenticated(error: Error | null) {
 
 function getErrorTitle(error: Error | null, fallback: string) {
   if (isUnauthenticated(error)) {
-    return "需要登录";
+    return "公开社区暂不可读";
   }
 
   return fallback;
 }
 
 function getErrorDescription(error: Error | null) {
+  if (isUnauthenticated(error)) {
+    return "前端已按游客身份请求公开社区内容；如果仍返回认证错误，需要后端保持 optional Bearer 公开读取合同。";
+  }
+
   if (error instanceof ApiError) {
     return error.message;
   }
