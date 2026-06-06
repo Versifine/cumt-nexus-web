@@ -192,7 +192,7 @@ V2 详细路线见 `docs/internal/product/v2-roadmap.md`。优先级固定为：
 
 这些不是前端直接实现项，但会影响前端派工顺序。前端推进中发现的新接口需求，先写入根目录 `backend-api-needs.md`，并保持该文件在 `.gitignore` 中。
 
-- 未登录首页应能看到公开信息流并打开公开帖子。当前后端 `GET /api/v1/posts`、`GET /api/v1/posts/:id` 和 `GET /api/v1/communities/:slug/posts` 仍按 Bearer 保护路由处理；后端需要支持匿名读取 active public 社区 visible 帖子，并支持可选 Bearer：无 token 时 `my_vote=0`，有效 token 时返回当前用户 `my_vote`，无效 token 仍返回 `unauthenticated`。写操作继续保持 Bearer。
+- 公开搜索仍有后端缺口：当前后端 `GET /api/v1/search` 注册在 `RequireAuth` 保护分组，合同 Auth 列仍是 Bearer，handler 还强制要求 `CurrentUserID`。产品目标要求未登录用户能搜索公开社区和公开帖子；后端需要把该读取接口改为可选 Bearer：无 token 时搜索 active public 社区和 visible public 帖子，有有效 token 时返回当前用户视角，无效 token 仍返回 `unauthenticated`。前端不能伪造搜索结果。
 - 图片缩略图、对象清理、对象物理删除和失败对象回收是否已完成，仍需以后端最终合同复核；前端当前只展示待提交附件移除后的清理提示，不直接删除对象。
 - 通知事件源是否覆盖回复、审核、内容生命周期等业务事件，仍需以后端最终合同复核。
 - 社区 staff / moderator 管理、成员加入退出、私密社区和邀请制仍不是当前前端可接能力。

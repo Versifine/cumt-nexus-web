@@ -515,10 +515,18 @@ E. 全局收口与上线验收
 
 - 用户知道搜索范围是全部、社区还是帖子。
 - 页面必须接入统一 App Shell，左侧栏目和顶部 bar 与首页、社区页保持一致。
+- 未登录用户可以进入搜索页并发起公开搜索；不能把搜索页做成登录墙。
 - query 和 scope 同步到 URL。
 - 空关键词不发起无意义请求。
 - loading、empty、error 和结果跳转清楚。
 - 移动端搜索框和 tabs 不挤压。
+
+后端合同前置条件：
+
+- `GET /api/v1/search?q=...&scope=all|communities|posts` 应支持可选 Bearer。
+- 无 token 时返回 active public 社区和 visible public 帖子。
+- 有有效 token 时可以返回当前用户视角；无效 token 仍返回 `unauthenticated`，不要静默降级。
+- 当前后端仍把搜索注册在 `RequireAuth` 保护分组，handler 也要求 `CurrentUserID`；前端可以去掉搜索页登录墙，但不能伪造搜索结果，只能显示公开搜索暂不可用并记录后端缺口。
 
 本切片不做：
 

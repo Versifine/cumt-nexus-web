@@ -50,6 +50,12 @@ const routes = [
     path: "/communities",
   },
   {
+    absentMarkers: ["登录后使用搜索", "搜索需要身份上下文", "需要登录"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "搜索社区和帖子", "搜索关键词和范围", "范围"],
+    path: "/search?q=public&scope=all",
+  },
+  {
     absentMarkers: ["需要登录", "请先登录后查看社区详情和帖子"],
     hrefMarkers: [
       ...appShellHrefMarkers,

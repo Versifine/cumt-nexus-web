@@ -33,10 +33,10 @@ const scopeOptions: Array<{ label: string; value: SearchScope }> = [
 export function SearchPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isReady, token } = useAuthSession();
+  const { isReady } = useAuthSession();
   const query = searchParams.get("q")?.trim() ?? "";
   const scope = normalizeScope(searchParams.get("scope"));
-  const canSearch = isReady && Boolean(token);
+  const canSearch = isReady;
   const searchQuery = useSearchQuery(
     { limit: 20, offset: 0, q: query, scope },
     canSearch,
@@ -45,9 +45,6 @@ export function SearchPage() {
   const communities = searchQuery.data?.communities ?? [];
   const posts = searchQuery.data?.posts ?? [];
   const resultCount = communities.length + posts.length;
-  const loginHref = `/login?next=${encodeURIComponent(
-    query ? `/search?q=${encodeURIComponent(query)}&scope=${scope}` : "/search",
-  )}`;
   const sourceHref = query
     ? `/search?q=${encodeURIComponent(query)}&scope=${scope}`
     : `/search?scope=${scope}`;
@@ -127,18 +124,6 @@ export function SearchPage() {
             </div>
           ) : null}
 
-          {isReady && !token ? (
-            <EmptyState
-              title="登录后使用搜索"
-              description="搜索需要身份上下文，登录后可以检索可见社区和帖子。"
-              action={
-                <TextAction href={loginHref} tone="primary">
-                  登录
-                </TextAction>
-              }
-            />
-          ) : null}
-
           {canSearch && !query ? (
             <EmptyState
               title="输入关键词开始搜索"
@@ -158,8 +143,8 @@ export function SearchPage() {
               description={getErrorDescription(searchQuery.error)}
               action={
                 isUnauthenticated(searchQuery.error) ? (
-                  <TextAction href={loginHref} tone="primary">
-                    登录
+                  <TextAction href="/communities" tone="primary">
+                    浏览社区
                   </TextAction>
                 ) : (
                   <Button
@@ -502,13 +487,17 @@ function isUnauthenticated(error: Error | null) {
 
 function getErrorTitle(error: Error | null) {
   if (isUnauthenticated(error)) {
-    return "需要登录";
+    return "公开搜索暂不可用";
   }
 
   return "无法完成搜索";
 }
 
 function getErrorDescription(error: Error | null) {
+  if (isUnauthenticated(error)) {
+    return "当前服务还没有开放未登录搜索。可以先浏览社区，或稍后在公开搜索开放后重试。";
+  }
+
   if (error instanceof ApiError) {
     return error.message;
   }

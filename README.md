@@ -12,7 +12,8 @@
 - 最新 V2 本地验收（2026-06-03）：`npm run check:static`、`npm run check:docs`、`npm run check:routes`、严格 `npm run check:readiness`、严格 `npm run check:main-path` 和 `npm run check:v2-path` 通过；后端补齐后已复跑 `lint`、`typecheck`、严格 `check:main-path` 和 `check:v2-path`。
 - 当前 V2.1 推进（2026-06-03）：后端已补齐社区申请列表 / 详情和 `/api/v1/me.is_platform_staff`，前端已接入完整申请审核台和 staff 入口显隐；生产配置仍保持 deferred。
 - 当前 Post-V2 推进（2026-06-04）：图片附件产品化已接入上传前限制提示、失败重试、待提交附件移除提示和发帖 / 评论差异化数量上限；缩略图 URL、未绑定对象物理清理和失败对象回收仍以后端后续合同为准。
-- 最新浏览器复验（2026-06-03）：帖子详情 Reddit Markdown、涂黑、评论 Markdown、评论树和附件路径已在桌面/移动端检查；`/search`、`/notifications`、`/moderation`、`/community-applications/review`、`/communities/public/new` 在桌面/移动端无横向溢出、无控制台 error；登录/注册表单原生降级不会把账号字段写入 URL；退出登录和 token 清空会清理 TanStack Query 缓存。
+- 当前公开阅读推进（2026-06-07）：首页、社区详情、帖子详情和评论读取已按未登录公开阅读接入；搜索页已移除前端未登录门禁，但当前后端 `GET /api/v1/search` 仍是 Bearer 保护接口，未登录真实搜索结果需要后端改为可选 Bearer 后才能返回。
+- 最新浏览器复验（2026-06-07）：未登录 `/search?q=public&scope=all` 已在桌面和 `390px` 移动端复验，页面不再显示旧的搜索登录墙，当前因后端仍要求 Bearer 显示“公开搜索暂不可用”，无横向溢出、无控制台 error。帖子详情 Reddit Markdown、涂黑、评论 Markdown、评论树和附件路径此前已在桌面/移动端检查；`/notifications`、`/moderation`、`/community-applications/review`、`/communities/public/new` 在桌面/移动端无横向溢出、无控制台 error；登录/注册表单原生降级不会把账号字段写入 URL；退出登录和 token 清空会清理 TanStack Query 缓存。
 
 ## 已实现范围
 
@@ -29,7 +30,7 @@
 - Reddit Markdown 阅读态：帖子和评论正文通过 `react-markdown` + `remark-gfm` 安全渲染，支持 GFM、链接安全过滤、涂黑和上标扩展。
 - 单一写作面板：发帖、评论、回复和作者编辑都使用同一套格式工具条，不再提供编辑 / 预览双模式。
 - 图片上传和附件展示：发帖、评论可上传图片并提交 `attachment_ids`，上传前按后端默认合同提示并拦截 JPEG / PNG / WebP、单图 5MB、发帖最多 9 张、评论最多 1 张，上传失败可重试，帖子详情和评论树展示返回的图片附件。
-- 搜索页 `/search`：支持关键词、`all | communities | posts` scope、URL query、loading、empty 和 error。
+- 搜索页 `/search`：支持关键词、`all | communities | posts` scope、URL query、loading、empty 和 error；页面不再把未登录用户挡在登录墙外，当前未登录真实结果等待后端公开搜索合同补齐。
 - 通知中心 `/notifications`：支持全部 / 未读 / 已读、标记已读和保守跳转。
 - 举报入口：登录用户可举报帖子和评论，未登录显示登录门禁。
 - 审核台 `/moderation` 和 `/moderation/reports/:id`：支持举报列表、举报详情、`target_preview`、dismiss、remove-target。
@@ -49,6 +50,7 @@
 - 个人资料编辑、头像、邮箱。
 - 评论投票、私信、实时能力和个性化推荐。
 - 图片缩略图 URL、未绑定对象物理删除 / TTL 和失败对象回收的后端合同。
+- 未登录公开搜索真实结果：当前后端 `GET /api/v1/search` 仍要求 Bearer，前端只展示公开搜索暂不可用，不伪造结果。
 - Bilibili、网易云音乐等白名单 embed 和普通网页链接预览。
 
 ## V1 本地封版边界
@@ -279,7 +281,7 @@ npm run check:v2-path
 npm run check:routes
 ```
 
-该命令会检查 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面是否包含 `zh-CN` 语言标记和关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到旧的“登录后查看最新讨论”“待登录”登录墙或“需要登录”错误面板，并要求公开帖子流文案存在；社区详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看社区详情和帖子”登录墙；帖子详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看帖子详情、评论和投票”登录墙；社区列表、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它只证明公开页面、受保护入口和错误页壳能渲染，不替代真实后端主链路联调，也不替代浏览器水合后的动态状态 QA。
+该命令会检查 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/search?q=public&scope=all`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面是否包含 `zh-CN` 语言标记和关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到旧的“登录后查看最新讨论”“待登录”登录墙或“需要登录”错误面板，并要求公开帖子流文案存在；搜索页壳会检查未登录状态不回退到旧的“登录后使用搜索”登录墙；社区详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看社区详情和帖子”登录墙；帖子详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看帖子详情、评论和投票”登录墙；社区列表、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它只证明公开页面、受保护入口和错误页壳能渲染，不替代真实后端主链路联调，也不替代浏览器水合后的动态状态 QA。
 
 当前如果只想在后端未启动时继续前端本地收口，可以使用宽松模式：
 

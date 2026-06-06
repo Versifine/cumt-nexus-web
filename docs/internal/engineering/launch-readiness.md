@@ -79,7 +79,7 @@ npm run check:v2-path
 npm run check:routes
 ```
 
-该命令要求本地或目标前端服务已启动。它会请求 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面，检查页面包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到旧的“登录后查看最新讨论”“待登录”登录墙或“需要登录”错误面板，并要求公开帖子流文案存在；社区详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看社区详情和帖子”登录墙；帖子详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看帖子详情、评论和投票”登录墙；社区列表、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它用于发现路由丢失、页面级 500、中文文案缺失、错误页误渲染和页面出口缺失；客户端水合后才出现的动态状态仍需要浏览器 QA。
+该命令要求本地或目标前端服务已启动。它会请求 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/search?q=public&scope=all`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面，检查页面包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到旧的“登录后查看最新讨论”“待登录”登录墙或“需要登录”错误面板，并要求公开帖子流文案存在；搜索页壳会检查未登录状态不回退到旧的“登录后使用搜索”登录墙；社区详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看社区详情和帖子”登录墙；帖子详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看帖子详情、评论和投票”登录墙；社区列表、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它用于发现路由丢失、页面级 500、中文文案缺失、错误页误渲染和页面出口缺失；客户端水合后才出现的动态状态仍需要浏览器 QA。
 
 可选参数：
 
@@ -172,6 +172,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `/register`：包含 `CUMT Nexus`、`注册账号`、`账号创建`、`去登录`。
 - `/register?next=%2Fcommunity-applications%2Fnew`：切换到登录时必须保留 `next=%2Fcommunity-applications%2Fnew`。
 - `/communities`：包含 `社区目录`、`校园社区`、`申请社区`，并保留首页、社区索引和社区申请出口。
+- `/search?q=public&scope=all`：包含 `搜索社区和帖子`、`搜索关键词和范围`、`范围`，并保留首页和社区索引出口，且不能包含旧的 `登录后使用搜索` 登录墙。
 - `/communities/public`：至少证明动态社区详情路由壳可返回 `200`，并包含 `CUMT Nexus`、`首页`、`社区`、`正在加载`、`浏览社区`、首页和社区索引出口，且不能包含 `需要登录` 或旧社区详情登录墙说明。
 - `/posts/route-smoke`：至少证明动态帖子详情路由壳可返回 `200`，并包含 `CUMT Nexus`、`返回社区索引`、`正在加载`、`浏览社区`、首页和社区索引出口，且不能包含 `需要登录` 或旧帖子详情登录墙说明。
 - `/communities/public/new`：包含 `CUMT Nexus`、`发起讨论`、`需要登录`、`登录后发起讨论`、`去登录`，且登录/注册链接必须指向 `next=%2Fcommunities%2Fpublic%2Fnew`。
@@ -180,6 +181,13 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 所有页面都必须包含 `zh-CN` 语言标记，且不能渲染常见错误页标记。
 
 ## 最新浏览器 QA 记录
+
+2026-06-07 搜索页未登录公开读取前端门禁复验记录：
+
+- 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:actions`、`npm run check:api-boundary`、`npm run check:copy`、`npm run check:docs`、`npm run check:ui-primitives` 和 `npm run check:routes` 通过；完整静态验收见本切片最终验证。
+- 后端合同只读复核：当前后端 `GET /api/v1/search` 仍注册在 `RequireAuth` 保护分组，合同 Auth 列仍是 Bearer，handler 仍要求 `CurrentUserID`；无 token 直连 `GET /api/v1/search?q=public&scope=all&limit=20&offset=0` 返回 `HTTP 401`。本切片未改后端。
+- 浏览器复验未登录 `/search?q=public&scope=all` 桌面和 `390px` 移动端：页面展示搜索页壳和“公开搜索暂不可用”，不再展示旧的 `登录后使用搜索` 或 `搜索需要身份上下文` 登录墙。
+- 浏览器复验未登录 `/search?q=public&scope=all` 桌面和 `390px` 移动端：`scrollWidth` 等于 `clientWidth`，控制台无 error。未登录真实搜索结果等待后端把 `GET /api/v1/search` 改为可选 Bearer 后复验。
 
 2026-06-07 社区详情公开阅读复验记录：
 
