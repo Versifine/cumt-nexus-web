@@ -13,15 +13,16 @@ import { useAuthSession } from "@/features/auth/auth-session";
 import { ApiError } from "@/lib/api/client";
 
 import { usePublicUserQuery } from "./queries";
-import type { PublicUser } from "./types";
+import type { GetPublicUserResponse, PublicUser } from "./types";
 
 type PublicUserProfileProps = {
+  initialData?: GetPublicUserResponse;
   username: string;
 };
 
-export function PublicUserProfile({ username }: PublicUserProfileProps) {
+export function PublicUserProfile({ initialData, username }: PublicUserProfileProps) {
   const { isReady } = useAuthSession();
-  const profileQuery = usePublicUserQuery(username, isReady);
+  const profileQuery = usePublicUserQuery(username, isReady, initialData);
   const user = profileQuery.data?.user;
 
   return (
