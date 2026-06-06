@@ -185,6 +185,14 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 最新浏览器 QA 记录
 
+2026-06-07 社区详情首屏服务端预取复验记录：
+
+- 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:docs`、`npm run check:routes`、`npm run check:ui-primitives` 和 `npm run check:static` 通过。
+- 后端合同只读复核：`GET /api/v1/communities/:slug` 和 `GET /api/v1/communities/:slug/posts?sort=new` 为 public + optional Bearer；本切片未改后端。
+- 匿名 API 复验：`GET /api/v1/communities/public` 返回社区 `Public`；`GET /api/v1/communities/public/posts?limit=20&offset=0&sort=new` 返回 20 条帖子，首条标题为 `User comments QA 71ibp9dt`，无 Bearer。
+- 前端路由壳/SSR 复验：`http://localhost:3000/communities/public?qa=ssr-community-detail` 返回 `200`，HTML 直接包含社区名 `Public`、`/public` 和帖子标题 `User comments QA 71ibp9dt`。
+- in-app Browser 可见复验：桌面 `1265px` 和移动端 `390px` 均直接显示社区现场、默认最新帖子流和真实帖子行；不显示旧的社区详情登录墙；`scrollWidth` 等于 `clientWidth`，无横向溢出，控制台无 error/warning。
+
 2026-06-07 帖子详情首屏服务端预取和返回 fallback 复验记录：
 
 - 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:docs`、`npm run check:routes`、`npm run check:ui-primitives` 和 `npm run check:static` 通过。

@@ -62,11 +62,13 @@ export function useCommunityPostsQuery(
   offset = 0,
   enabled = true,
   sort: PostSort = "new",
+  initialData?: ListPostsResponse,
 ) {
   return useQuery({
     queryKey: postQueryKeys.communityPosts(slug, limit, offset, sort),
     queryFn: () => listCommunityPosts({ slug, limit, offset, sort }),
     enabled,
+    initialData,
   });
 }
 

@@ -25,22 +25,32 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useCommunityPostsQuery } from "@/features/post/queries";
-import type { Post, PostSort } from "@/features/post/types";
+import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 import { useCommunityQuery } from "./queries";
-import type { Community } from "./types";
+import type { Community, GetCommunityResponse } from "./types";
 
 type CommunityDetailProps = {
+  initialCommunityData?: GetCommunityResponse;
+  initialPostsData?: ListPostsResponse;
   slug: string;
 };
 
-export function CommunityDetail({ slug }: CommunityDetailProps) {
+export function CommunityDetail({
+  initialCommunityData,
+  initialPostsData,
+  slug,
+}: CommunityDetailProps) {
   const { isReady } = useAuthSession();
   const [sort, setSort] = useState<PostSort>("new");
   const canRequestCommunity = isReady;
-  const communityQuery = useCommunityQuery(slug, canRequestCommunity);
+  const communityQuery = useCommunityQuery(
+    slug,
+    canRequestCommunity,
+    initialCommunityData,
+  );
   const canShowCommunityContent =
     canRequestCommunity &&
     communityQuery.isSuccess &&
@@ -51,6 +61,7 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
     0,
     canShowCommunityContent,
     sort,
+    sort === "new" ? initialPostsData : undefined,
   );
   const community = communityQuery.data?.community;
   const posts = canShowCommunityContent ? (postsQuery.data?.posts ?? []) : [];

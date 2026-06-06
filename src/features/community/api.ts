@@ -1,8 +1,8 @@
 import { apiRequest } from "@/lib/api/client";
 
 import type {
-  Community,
   ApproveCommunityApplicationResponse,
+  GetCommunityResponse,
   GetCommunityApplicationResponse,
   ListCommunityApplicationsInput,
   ListCommunityApplicationsResponse,
@@ -13,13 +13,22 @@ import type {
   SubmitCommunityApplicationResponse,
 } from "./types";
 
+type GetCommunityOptions = {
+  cache?: RequestCache;
+  token?: string | null;
+};
+
 export function listCommunities() {
   return apiRequest<ListCommunitiesResponse>("/api/v1/communities");
 }
 
-export function getCommunity(slug: string) {
-  return apiRequest<{ community: Community }>(
+export function getCommunity(slug: string, options: GetCommunityOptions = {}) {
+  return apiRequest<GetCommunityResponse>(
     `/api/v1/communities/${encodeURIComponent(slug)}`,
+    {
+      cache: options.cache,
+      token: options.token,
+    },
   );
 }
 

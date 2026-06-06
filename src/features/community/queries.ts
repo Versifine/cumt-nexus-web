@@ -10,6 +10,7 @@ import {
 } from "./api";
 import type {
   CommunityApplicationStatus,
+  GetCommunityResponse,
   ListCommunityApplicationsInput,
   RejectCommunityApplicationInput,
 } from "./types";
@@ -34,11 +35,16 @@ export function useCommunitiesQuery() {
   });
 }
 
-export function useCommunityQuery(slug: string, enabled = true) {
+export function useCommunityQuery(
+  slug: string,
+  enabled = true,
+  initialData?: GetCommunityResponse,
+) {
   return useQuery({
     queryKey: communityQueryKeys.detail(slug),
     queryFn: () => getCommunity(slug),
     enabled,
+    initialData,
   });
 }
 

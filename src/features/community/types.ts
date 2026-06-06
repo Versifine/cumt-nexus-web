@@ -14,6 +14,10 @@ export type ListCommunitiesResponse = {
   communities: Community[];
 };
 
+export type GetCommunityResponse = {
+  community: Community;
+};
+
 export type CommunityApplication = {
   id: string;
   applicant_id: string;
