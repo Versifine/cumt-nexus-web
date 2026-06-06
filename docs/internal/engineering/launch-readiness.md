@@ -185,6 +185,13 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 最新浏览器 QA 记录
 
+2026-06-07 首页排序来源返回复验记录：
+
+- 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary` 和 `npm run check:routes` 均通过；完整 `check:static` 见本轮最终验证。
+- 浏览器复验 `/hot`：点击首条帖子进入详情后，返回入口为 `返回热门`，href 为 `/hot`，页面不显示 `返回首页` 或 `返回社区索引`，无横向溢出，控制台无 error。
+- 浏览器复验 `/new`：点击首条帖子进入详情后，返回入口为 `返回最新`，href 为 `/new`，页面不显示 `返回首页` 或 `返回社区索引`，无横向溢出，控制台无 error。
+- 本轮只修正来源记录；滚动位置恢复仍属于后续增强，不改变帖子详情公开 URL。
+
 2026-06-07 首页排序路径复验记录：
 
 - 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:docs`、`npm run check:copy`、`npm run check:routes` 和 `npm run check:static` 均通过。

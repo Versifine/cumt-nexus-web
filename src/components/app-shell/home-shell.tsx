@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { ArrowDown, ArrowUp, MessageSquare } from "lucide-react";
 
-import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
+import {
+  rememberPostNavigationSource,
+  type PostNavigationSource,
+} from "@/components/app-shell/post-navigation-source";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -30,13 +33,17 @@ type HomeShellProps = {
   initialSort?: PostSort;
 };
 
+type PostSourceContext = Omit<PostNavigationSource, "postId">;
+
 export function HomeShell({
   initialPostsData,
   initialSort = "new",
 }: HomeShellProps) {
   const { isReady } = useAuthSession();
   const router = useRouter();
+  const pathname = usePathname();
   const sort = initialSort;
+  const postSource = getHomePostSource(pathname, sort);
   const canReadLatestPosts = isReady;
   const latestPostsQuery = useLatestPostsQuery(
     20,
@@ -157,7 +164,12 @@ export function HomeShell({
           posts.length > 0 ? (
             <div className="divide-y divide-border border-b border-border">
               {posts.map((post, index) => (
-                <LatestPostRow key={post.id} index={index} post={post} />
+                <LatestPostRow
+                  key={post.id}
+                  index={index}
+                  post={post}
+                  source={postSource}
+                />
               ))}
             </div>
           ) : null}
@@ -167,6 +179,7 @@ export function HomeShell({
       <RightRail
         canReadLatestPosts={canReadLatestPosts}
         posts={posts}
+        source={postSource}
         sort={sort}
       />
     </div>
@@ -208,7 +221,36 @@ function getHomeFeedHref(sort: PostSort) {
   return sort === "hot" ? "/hot" : "/new";
 }
 
-function LatestPostRow({ index, post }: { index: number; post: Post }) {
+function getHomePostSource(pathname: string, sort: PostSort): PostSourceContext {
+  if (pathname === "/hot" || sort === "hot") {
+    return {
+      href: "/hot",
+      label: "返回热门",
+    };
+  }
+
+  if (pathname === "/new") {
+    return {
+      href: "/new",
+      label: "返回最新",
+    };
+  }
+
+  return {
+    href: "/",
+    label: "返回首页",
+  };
+}
+
+function LatestPostRow({
+  index,
+  post,
+  source,
+}: {
+  index: number;
+  post: Post;
+  source: PostSourceContext;
+}) {
   const communityLabel = getCommunityLabel(post);
   const communityName = getCommunityName(post);
   const authorName = getAuthorName(post);
@@ -223,8 +265,8 @@ function LatestPostRow({ index, post }: { index: number; post: Post }) {
       href={`/posts/${post.id}`}
       onClick={() =>
         rememberPostNavigationSource({
-          href: "/",
-          label: "返回首页",
+          href: source.href,
+          label: source.label,
           postId: post.id,
         })
       }
@@ -305,10 +347,12 @@ function LatestPostRow({ index, post }: { index: number; post: Post }) {
 function RightRail({
   canReadLatestPosts,
   posts,
+  source,
   sort,
 }: {
   canReadLatestPosts: boolean;
   posts: Post[];
+  source: PostSourceContext;
   sort: PostSort;
 }) {
   const topPosts = posts.slice(0, 3);
@@ -351,8 +395,8 @@ function RightRail({
                   href={`/posts/${post.id}`}
                   onClick={() =>
                     rememberPostNavigationSource({
-                      href: "/",
-                      label: "返回首页",
+                      href: source.href,
+                      label: source.label,
                       postId: post.id,
                     })
                   }
