@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AppShell } from "@/components/app-shell/app-shell";
 import { ModerationConsole } from "@/features/moderation/moderation-console";
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function ModerationRoute() {
-  return <ModerationConsole />;
+  return (
+    <AppShell contextLabel="09 / 举报审核">
+      <ModerationConsole />
+    </AppShell>
+  );
 }

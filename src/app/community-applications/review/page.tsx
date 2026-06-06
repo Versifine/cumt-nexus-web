@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AppShell } from "@/components/app-shell/app-shell";
 import { CommunityApplicationReview } from "@/features/community/community-application-review";
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function CommunityApplicationReviewRoute() {
-  return <CommunityApplicationReview />;
+  return (
+    <AppShell contextLabel="11 / 社区审批">
+      <CommunityApplicationReview />
+    </AppShell>
+  );
 }

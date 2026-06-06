@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AppShell } from "@/components/app-shell/app-shell";
 import { ModerationReportDetail } from "@/features/moderation/moderation-console";
 
 type ModerationReportPageProps = {
@@ -24,6 +25,11 @@ export default async function ModerationReportRoute({
   params,
 }: ModerationReportPageProps) {
   const { id } = await params;
+  const shortId = id.slice(0, 8).replace(/-+$/, "");
 
-  return <ModerationReportDetail id={id} />;
+  return (
+    <AppShell contextLabel={`10 / 举报 ${shortId}`}>
+      <ModerationReportDetail id={id} />
+    </AppShell>
+  );
 }

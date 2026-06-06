@@ -7,7 +7,7 @@ import { ArrowRight, ShieldAlert } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { PageNav } from "@/components/app-shell/page-nav";
+import { SourceBackLink } from "@/components/app-shell/source-back-link";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -73,11 +73,9 @@ export function ModerationConsole() {
   const loginHref = `/login?next=${encodeURIComponent("/moderation")}`;
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <PageNav backHref="/" backLabel="返回最新讨论" />
-
-        <header className="border-b border-border pb-6">
+    <>
+      <SourceBackLink href="/">返回最新讨论</SourceBackLink>
+      <header className="border-b border-border py-6">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
             <div className="min-w-0">
               <div className="font-mono text-xs uppercase text-primary">
@@ -111,12 +109,12 @@ export function ModerationConsole() {
               status={status}
             />
             <p className="text-sm leading-6 text-muted-foreground">
-              切换状态会重新请求后端审核列表。
-            </p>
-          </div>
-        </header>
+            切换状态会重新请求后端审核列表。
+          </p>
+        </div>
+      </header>
 
-        <section className="py-5">
+      <section className="py-5">
           {!isReady ? (
             <div className="border-b border-border pb-5">
               <LoadingState rows={3} />
@@ -178,9 +176,8 @@ export function ModerationConsole() {
               ))}
             </div>
           ) : null}
-        </section>
-      </div>
-    </main>
+      </section>
+    </>
   );
 }
 
@@ -192,11 +189,9 @@ export function ModerationReportDetail({ id }: { id: string }) {
   const loginHref = `/login?next=${encodeURIComponent(`/moderation/reports/${id}`)}`;
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <PageNav backHref="/moderation" backLabel="返回审核台" />
-
-        <section className="py-6">
+    <>
+      <SourceBackLink href="/moderation">返回审核台</SourceBackLink>
+      <section className="py-6">
           {!isReady ? (
             <LoadingState rows={3} />
           ) : !token ? (
@@ -264,9 +259,8 @@ export function ModerationReportDetail({ id }: { id: string }) {
               <ReportDetailRail report={report} />
             </div>
           ) : null}
-        </section>
-      </div>
-    </main>
+      </section>
+    </>
   );
 }
 

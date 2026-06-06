@@ -10,7 +10,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { PageNav } from "@/components/app-shell/page-nav";
+import { SourceBackLink } from "@/components/app-shell/source-back-link";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -223,11 +223,9 @@ export function CommunityApplicationReview() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <PageNav backHref="/community-applications/new" backLabel="返回社区申请" />
-
-        <header className="border-b border-border pb-6 pt-6">
+    <>
+      <SourceBackLink href="/community-applications/new">返回社区申请</SourceBackLink>
+      <header className="border-b border-border pb-6 pt-6">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-end">
             <div className="min-w-0">
               <div className="font-mono text-xs uppercase text-primary">
@@ -251,9 +249,9 @@ export function CommunityApplicationReview() {
               ))}
             </div>
           </div>
-        </header>
+      </header>
 
-        <section className="border-b border-border py-4">
+      <section className="border-b border-border py-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <Tabs
               value={status}
@@ -286,23 +284,23 @@ export function CommunityApplicationReview() {
               </Button>
             </div>
           </div>
-        </section>
+      </section>
 
-        {submitError ? (
-          <Alert variant="destructive" className="mt-5">
-            <AlertTitle>审批失败</AlertTitle>
-            <AlertDescription>{submitError}</AlertDescription>
-          </Alert>
-        ) : null}
+      {submitError ? (
+        <Alert variant="destructive" className="mt-5">
+          <AlertTitle>审批失败</AlertTitle>
+          <AlertDescription>{submitError}</AlertDescription>
+        </Alert>
+      ) : null}
 
-        {lastReviewMessage ? (
-          <Alert variant="success" className="mt-5">
-            <AlertTitle>审批已提交</AlertTitle>
-            <AlertDescription>{lastReviewMessage}</AlertDescription>
-          </Alert>
-        ) : null}
+      {lastReviewMessage ? (
+        <Alert variant="success" className="mt-5">
+          <AlertTitle>审批已提交</AlertTitle>
+          <AlertDescription>{lastReviewMessage}</AlertDescription>
+        </Alert>
+      ) : null}
 
-        <section className="grid gap-0 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+      <section className="grid gap-0 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
           <ApplicationListPanel
             applications={applications}
             applicationsQueryState={{
@@ -343,20 +341,17 @@ export function CommunityApplicationReview() {
             onRetryDetail={() => selectedQuery.refetch()}
             rejectReason={rejectReason}
           />
-        </section>
-      </div>
-    </main>
+      </section>
+    </>
   );
 }
 
 function ReviewShell({ body }: { body: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[960px] px-4 py-6 md:px-6">
-        <PageNav backHref="/community-applications/new" backLabel="返回社区申请" />
-        {body}
-      </div>
-    </main>
+    <>
+      <SourceBackLink href="/community-applications/new">返回社区申请</SourceBackLink>
+      {body}
+    </>
   );
 }
 
