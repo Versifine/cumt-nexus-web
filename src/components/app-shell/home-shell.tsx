@@ -15,7 +15,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useLatestPostsQuery } from "@/features/post/queries";
-import type { Post, PostSort } from "@/features/post/types";
+import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -25,11 +25,21 @@ const guideItems = [
   "社区申请通过前不会创建公开社区。",
 ];
 
-export function HomeShell() {
+type HomeShellProps = {
+  initialPostsData?: ListPostsResponse;
+};
+
+export function HomeShell({ initialPostsData }: HomeShellProps) {
   const { isReady } = useAuthSession();
   const [sort, setSort] = useState<PostSort>("new");
   const canReadLatestPosts = isReady;
-  const latestPostsQuery = useLatestPostsQuery(20, 0, canReadLatestPosts, sort);
+  const latestPostsQuery = useLatestPostsQuery(
+    20,
+    0,
+    canReadLatestPosts,
+    sort,
+    sort === "new" ? initialPostsData : undefined,
+  );
   const posts = canReadLatestPosts ? (latestPostsQuery.data?.posts ?? []) : [];
 
   return (

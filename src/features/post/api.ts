@@ -33,6 +33,11 @@ type GetPostOptions = {
   token?: string | null;
 };
 
+type ListLatestPostsOptions = {
+  cache?: RequestCache;
+  token?: string | null;
+};
+
 export function listCommunityPosts({
   slug,
   limit = 20,
@@ -56,14 +61,22 @@ export function listCommunityPosts({
   );
 }
 
-export function listLatestPosts(limit = 20, offset = 0, sort: PostSort = "new") {
+export function listLatestPosts(
+  limit = 20,
+  offset = 0,
+  sort: PostSort = "new",
+  options: ListLatestPostsOptions = {},
+) {
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
     sort,
   });
 
-  return apiRequest<ListPostsResponse>(`/api/v1/posts?${params.toString()}`);
+  return apiRequest<ListPostsResponse>(`/api/v1/posts?${params.toString()}`, {
+    cache: options.cache,
+    token: options.token,
+  });
 }
 
 export function listUserPosts({

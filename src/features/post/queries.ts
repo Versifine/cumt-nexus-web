@@ -48,11 +48,13 @@ export function useLatestPostsQuery(
   offset = 0,
   enabled = true,
   sort: PostSort = "new",
+  initialData?: ListPostsResponse,
 ) {
   return useQuery({
     queryKey: postQueryKeys.latest(limit, offset, sort),
     queryFn: () => listLatestPosts(limit, offset, sort),
     enabled,
+    initialData,
   });
 }
 

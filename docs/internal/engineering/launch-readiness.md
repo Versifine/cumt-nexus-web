@@ -185,6 +185,14 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 最新浏览器 QA 记录
 
+2026-06-07 首页信息流首屏服务端预取复验记录：
+
+- 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:docs`、`npm run check:routes`、`npm run check:ui-primitives` 和 `npm run check:static` 通过。
+- 后端合同只读复核：`GET /api/v1/posts?limit=20&offset=0&sort=new` 为 public + optional Bearer；本切片未改后端。
+- 匿名 API 复验：`GET /api/v1/posts?limit=20&offset=0&sort=new` 返回 20 条帖子，首条标题为 `User comments QA 71ibp9dt`，无 Bearer。
+- 前端路由壳/SSR 复验：`http://localhost:3000/?qa=ssr-home-feed` 返回 `200`，HTML 直接包含首页标题、公开帖子流文案和帖子标题 `User comments QA 71ibp9dt`。
+- in-app Browser 可见复验：桌面 `1265px` 和移动端 `390px` 均直接显示首页信息流、默认最新排序和真实帖子行；不显示旧的首页登录墙；`scrollWidth` 等于 `clientWidth`，无横向溢出，控制台无 error/warning。
+
 2026-06-07 社区详情首屏服务端预取复验记录：
 
 - 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:docs`、`npm run check:routes`、`npm run check:ui-primitives` 和 `npm run check:static` 通过。
