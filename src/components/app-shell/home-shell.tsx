@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { ArrowDown, ArrowUp, MessageSquare } from "lucide-react";
 
@@ -27,11 +27,16 @@ const guideItems = [
 
 type HomeShellProps = {
   initialPostsData?: ListPostsResponse;
+  initialSort?: PostSort;
 };
 
-export function HomeShell({ initialPostsData }: HomeShellProps) {
+export function HomeShell({
+  initialPostsData,
+  initialSort = "new",
+}: HomeShellProps) {
   const { isReady } = useAuthSession();
-  const [sort, setSort] = useState<PostSort>("new");
+  const router = useRouter();
+  const sort = initialSort;
   const canReadLatestPosts = isReady;
   const latestPostsQuery = useLatestPostsQuery(
     20,
@@ -88,7 +93,11 @@ export function HomeShell({ initialPostsData }: HomeShellProps) {
             </div>
             <FeedSortTabs
               disabled={!canReadLatestPosts || latestPostsQuery.isFetching}
-              onSortChange={setSort}
+              onSortChange={(nextSort) => {
+                if (nextSort !== sort) {
+                  router.push(getHomeFeedHref(nextSort));
+                }
+              }}
               sort={sort}
             />
           </div>
@@ -193,6 +202,10 @@ function FeedSortTabs({
       </TabsList>
     </Tabs>
   );
+}
+
+function getHomeFeedHref(sort: PostSort) {
+  return sort === "hot" ? "/hot" : "/new";
 }
 
 function LatestPostRow({ index, post }: { index: number; post: Post }) {

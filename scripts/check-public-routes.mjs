@@ -27,6 +27,18 @@ const routes = [
     path: "/",
   },
   {
+    absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "最新讨论", "社区信息流", "公开帖子流", "最新"],
+    path: "/new",
+  },
+  {
+    absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "最新讨论", "社区信息流", "公开帖子流", "热门"],
+    path: "/hot",
+  },
+  {
     markers: ["CUMT Nexus", "登录", "账号验证", "创建账号"],
     path: "/login",
   },

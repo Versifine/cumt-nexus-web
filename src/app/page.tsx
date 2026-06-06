@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 
-import { AppShell } from "@/components/app-shell/app-shell";
-import { HomeShell } from "@/components/app-shell/home-shell";
-import { listLatestPosts } from "@/features/post/api";
-import type { ListPostsResponse } from "@/features/post/types";
+import { HomeFeedPage } from "./home-feed-page";
 
 export const metadata: Metadata = {
   title: "最新讨论 | CUMT Nexus",
@@ -11,22 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const initialPostsData = await getInitialLatestPosts();
-
-  return (
-    <AppShell contextLabel="01 / 首页">
-      <HomeShell initialPostsData={initialPostsData} />
-    </AppShell>
-  );
-}
-
-async function getInitialLatestPosts(): Promise<ListPostsResponse | undefined> {
-  try {
-    return await listLatestPosts(20, 0, "new", {
-      cache: "no-store",
-      token: null,
-    });
-  } catch {
-    return undefined;
-  }
+  return <HomeFeedPage contextLabel="01 / 首页" sort="new" />;
 }

@@ -79,7 +79,7 @@ npm run check:v2-path
 npm run check:routes
 ```
 
-该命令要求本地或目标前端服务已启动。它会请求 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/search?q=public&scope=all`、`/users/route-smoke`、`/users/route-smoke/posts`、`/users/route-smoke/comments`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面，检查页面包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到旧的“登录后查看最新讨论”“待登录”登录墙或“需要登录”错误面板，并要求公开帖子流文案存在；搜索页壳会检查未登录状态不回退到旧的“登录后使用搜索”登录墙；用户主页壳、用户帖子列表壳和用户评论列表壳会检查未登录状态不回退到登录墙；社区详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看社区详情和帖子”登录墙；帖子详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看帖子详情、评论和投票”登录墙；社区列表、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它用于发现路由丢失、页面级 500、中文文案缺失、错误页误渲染和页面出口缺失；客户端水合后才出现的动态状态仍需要浏览器 QA。
+该命令要求本地或目标前端服务已启动。它会请求 `/`、`/new`、`/hot`、`/login`、带 `next` 的登录/注册页、`/communities`、`/search?q=public&scope=all`、`/users/route-smoke`、`/users/route-smoke/posts`、`/users/route-smoke/comments`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面，检查页面包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页、`/new` 和 `/hot` 还会检查未登录状态不回退到旧的“登录后查看最新讨论”“待登录”登录墙或“需要登录”错误面板，并要求公开帖子流文案存在；搜索页壳会检查未登录状态不回退到旧的“登录后使用搜索”登录墙；用户主页壳、用户帖子列表壳和用户评论列表壳会检查未登录状态不回退到登录墙；社区详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看社区详情和帖子”登录墙；帖子详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看帖子详情、评论和投票”登录墙；社区列表、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它用于发现路由丢失、页面级 500、中文文案缺失、错误页误渲染和页面出口缺失；客户端水合后才出现的动态状态仍需要浏览器 QA。
 
 可选参数：
 
@@ -184,6 +184,13 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 所有页面都必须包含 `zh-CN` 语言标记，且不能渲染常见错误页标记。
 
 ## 最新浏览器 QA 记录
+
+2026-06-07 首页排序路径复验记录：
+
+- 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:docs`、`npm run check:copy`、`npm run check:routes` 和 `npm run check:static` 均通过。
+- 匿名 API 复验：真实后端 `GET /api/v1/posts?limit=1&offset=0&sort=new` 和 `sort=hot` 返回 `200`；`sort=best`、`sort=top`、`sort=rising` 返回 `400 invalid_argument`，完整五种排序已记录为后端缺口，前端不伪造结果。
+- 浏览器复验 `/new` 桌面：默认选中“最新”；点击“热门”后 URL 进入 `/hot`，并选中“热门”；左侧“首页”保持高亮。
+- 浏览器复验 `/hot` 桌面和 `390px` 移动端：页面展示公开帖子流，未出现旧登录墙，`scrollWidth` 等于 `clientWidth`，无横向溢出，控制台无 error。
 
 2026-06-07 首页信息流行展示复验记录：
 

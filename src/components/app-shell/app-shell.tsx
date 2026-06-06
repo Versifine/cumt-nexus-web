@@ -422,7 +422,7 @@ function HeaderUserMenu() {
 
 function isActivePath(pathname: string, href: string) {
   if (href === "/") {
-    return pathname === "/";
+    return pathname === "/" || pathname === "/new" || pathname === "/hot";
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);
