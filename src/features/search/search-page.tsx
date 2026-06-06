@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Hash, Search } from "lucide-react";
 
+import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -47,6 +48,9 @@ export function SearchPage() {
   const loginHref = `/login?next=${encodeURIComponent(
     query ? `/search?q=${encodeURIComponent(query)}&scope=${scope}` : "/search",
   )}`;
+  const sourceHref = query
+    ? `/search?q=${encodeURIComponent(query)}&scope=${scope}`
+    : `/search?scope=${scope}`;
 
   const metrics = useMemo(
     () => [
@@ -209,7 +213,12 @@ export function SearchPage() {
                     {posts.length > 0 ? (
                       <div className="divide-y divide-border border-b border-border">
                         {posts.map((post, index) => (
-                          <PostResultRow key={post.id} index={index} post={post} />
+                          <PostResultRow
+                            key={post.id}
+                            index={index}
+                            post={post}
+                            sourceHref={sourceHref}
+                          />
                         ))}
                       </div>
                     ) : (
@@ -407,13 +416,22 @@ function CommunityResultRow({
 function PostResultRow({
   index,
   post,
+  sourceHref,
 }: {
   index: number;
   post: SearchPostResult;
+  sourceHref: string;
 }) {
   return (
     <Link
       href={`/posts/${post.id}`}
+      onClick={() =>
+        rememberPostNavigationSource({
+          href: sourceHref,
+          label: "返回搜索结果",
+          postId: post.id,
+        })
+      }
       className="group grid gap-4 py-5 transition-colors hover:bg-background-soft/70 md:grid-cols-[56px_minmax(0,1fr)_120px]"
     >
       <div className="font-mono text-xs text-muted-foreground">

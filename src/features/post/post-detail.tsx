@@ -1,11 +1,18 @@
 "use client";
+
+import { useState } from "react";
+import Link from "next/link";
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   MessageSquare,
 } from "lucide-react";
 
-import { PageNav } from "@/components/app-shell/page-nav";
+import {
+  readPostNavigationSource,
+  type PostNavigationSource,
+} from "@/components/app-shell/post-navigation-source";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -38,6 +45,9 @@ type PostDetailProps = {
 
 export function PostDetail({ id }: PostDetailProps) {
   const { isReady, token } = useAuthSession();
+  const [navigationSource] = useState<PostNavigationSource | null>(() =>
+    readPostNavigationSource(id),
+  );
   const currentUserQuery = useCurrentUserQuery();
   const canRequestPost = isReady && Boolean(token);
   const postQuery = usePostQuery(id, canRequestPost);
@@ -53,33 +63,85 @@ export function PostDetail({ id }: PostDetailProps) {
   const loginHref = `/login?next=${encodeURIComponent(`/posts/${id}`)}`;
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <PageNav backHref="/communities" backLabel="返回社区索引" />
+    <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="min-w-0">
+        <PostBackLink post={post} source={navigationSource} />
 
-        <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="min-w-0">
-            <section>
-              {!isReady ? (
-                <LoadingState rows={3} />
-              ) : !token ? (
+        <section className="mt-4">
+          {!isReady ? (
+            <LoadingState rows={3} />
+          ) : !token ? (
+            <ErrorState
+              title="需要登录"
+              description="请先登录后查看帖子详情、评论和投票。"
+              action={
+                <TextAction href={loginHref} tone="primary">
+                  登录
+                </TextAction>
+              }
+            />
+          ) : postQuery.isLoading ? (
+            <LoadingState rows={3} />
+          ) : postQuery.isError ? (
+            <ErrorState
+              title={getErrorTitle(postQuery.error, "无法加载帖子")}
+              description={getErrorDescription(postQuery.error)}
+              action={
+                isUnauthenticated(postQuery.error) ? (
+                  <TextAction href={loginHref} tone="primary">
+                    登录
+                  </TextAction>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => postQuery.refetch()}
+                  >
+                    重试
+                  </Button>
+                )
+              }
+            />
+          ) : post ? (
+            <PostArticle
+              canManage={canManagePost}
+              post={post}
+              commentCount={comments.length}
+            />
+          ) : null}
+        </section>
+
+        {post ? (
+          <section className="mt-8 border-t border-border pt-6">
+            <div className="border-b border-border pb-4">
+              <div className="font-mono text-xs uppercase text-primary">
+                COMMENTS / 帖子评论
+              </div>
+              <h2 className="mt-2 text-2xl font-black tracking-normal">
+                评论
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                用评论补充信息、提出问题或回应观点。回复会以树状结构展开，深层讨论可以折叠。
+              </p>
+            </div>
+
+            <div className="border-b border-border py-5">
+              <CommentForm postId={id} />
+            </div>
+
+            <div className="py-5">
+              {commentsQuery.isLoading ? (
+                <div className="border-b border-border pb-5">
+                  <LoadingState rows={3} />
+                </div>
+              ) : null}
+
+              {commentsQuery.isError ? (
                 <ErrorState
-                  title="需要登录"
-                  description="请先登录后查看帖子详情、评论和投票。"
+                  title={getErrorTitle(commentsQuery.error, "无法加载评论")}
+                  description={getErrorDescription(commentsQuery.error)}
                   action={
-                    <TextAction href={loginHref} tone="primary">
-                      登录
-                    </TextAction>
-                  }
-                />
-              ) : postQuery.isLoading ? (
-                <LoadingState rows={3} />
-              ) : postQuery.isError ? (
-                <ErrorState
-                  title={getErrorTitle(postQuery.error, "无法加载帖子")}
-                  description={getErrorDescription(postQuery.error)}
-                  action={
-                    isUnauthenticated(postQuery.error) ? (
+                    isUnauthenticated(commentsQuery.error) ? (
                       <TextAction href={loginHref} tone="primary">
                         登录
                       </TextAction>
@@ -87,99 +149,69 @@ export function PostDetail({ id }: PostDetailProps) {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => postQuery.refetch()}
+                        onClick={() => commentsQuery.refetch()}
                       >
                         重试
                       </Button>
                     )
                   }
                 />
-              ) : post ? (
-                <PostArticle
-                  canManage={canManagePost}
-                  post={post}
-                  commentCount={comments.length}
+              ) : null}
+
+              {commentsQuery.isSuccess && comments.length === 0 ? (
+                <EmptyState
+                  title="还没有评论"
+                  description="发布第一条评论，让这条讨论继续展开。"
                 />
               ) : null}
-            </section>
 
-            {post ? (
-              <section className="mt-8 border-t border-border pt-6">
-                <div className="border-b border-border pb-4">
-                  <div className="font-mono text-xs uppercase text-primary">
-                    COMMENTS / 帖子评论
-                  </div>
-                  <h2 className="mt-2 text-2xl font-black tracking-normal">
-                    评论
-                  </h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                    用评论补充信息、提出问题或回应观点。回复会以树状结构展开，深层讨论可以折叠。
-                  </p>
-                </div>
-
-                <div className="border-b border-border py-5">
-                  <CommentForm postId={id} />
-                </div>
-
-                <div className="py-5">
-                  {commentsQuery.isLoading ? (
-                    <div className="border-b border-border pb-5">
-                      <LoadingState rows={3} />
-                    </div>
-                  ) : null}
-
-                  {commentsQuery.isError ? (
-                    <ErrorState
-                      title={getErrorTitle(commentsQuery.error, "无法加载评论")}
-                      description={getErrorDescription(commentsQuery.error)}
-                      action={
-                        isUnauthenticated(commentsQuery.error) ? (
-                          <TextAction href={loginHref} tone="primary">
-                            登录
-                          </TextAction>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => commentsQuery.refetch()}
-                          >
-                            重试
-                          </Button>
-                        )
-                      }
-                    />
-                  ) : null}
-
-                  {commentsQuery.isSuccess && comments.length === 0 ? (
-                    <EmptyState
-                      title="还没有评论"
-                      description="发布第一条评论，让这条讨论继续展开。"
-                    />
-                  ) : null}
-
-                  {commentsQuery.isSuccess && comments.length > 0 ? (
-                    <CommentTree
-                      comments={comments}
-                      currentUserId={currentUserId}
-                      maxDepth={6}
-                      postId={id}
-                    />
-                  ) : null}
-                </div>
-              </section>
-            ) : null}
-          </div>
-
-          {post ? (
-            <PostRail
-              post={post}
-              commentCount={comments.length}
-              isCommentsLoading={commentsQuery.isLoading}
-            />
-          ) : null}
-        </div>
+              {commentsQuery.isSuccess && comments.length > 0 ? (
+                <CommentTree
+                  comments={comments}
+                  currentUserId={currentUserId}
+                  maxDepth={6}
+                  postId={id}
+                />
+              ) : null}
+            </div>
+          </section>
+        ) : null}
       </div>
-    </main>
+
+      {post ? (
+        <PostRail
+          post={post}
+          commentCount={comments.length}
+          isCommentsLoading={commentsQuery.isLoading}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function PostBackLink({
+  post,
+  source,
+}: {
+  post?: Post;
+  source: PostNavigationSource | null;
+}) {
+  const fallbackSlug = post?.community_slug?.trim();
+  const href = source?.href ?? (fallbackSlug ? `/communities/${fallbackSlug}` : "/communities");
+  const label =
+    source?.label ?? (fallbackSlug ? `返回 /${fallbackSlug}` : "返回社区索引");
+
+  return (
+    <Link
+      href={href}
+      className="group inline-flex h-10 min-w-0 items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    >
+      <ArrowLeft
+        className="size-4 shrink-0 transition-transform group-hover:-translate-x-1"
+        aria-hidden="true"
+      />
+      <span className="truncate">{label}</span>
+    </Link>
   );
 }
 
@@ -200,7 +232,7 @@ function PostArticle({
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <StatusToken tone="primary">
-            社区 {formatShortId(post.community_id)}
+            {post.community_slug ? `/${post.community_slug}` : `社区 ${formatShortId(post.community_id)}`}
           </StatusToken>
           <StatusToken>{formatPostStatus(post.status)}</StatusToken>
           <StatusToken>作者 {formatShortId(post.author_id)}</StatusToken>
@@ -274,7 +306,10 @@ function PostRail({
           </div>
           <div className="mt-4 divide-y divide-border border-y border-border">
             <InfoRow label="状态" value={post ? formatPostStatus(post.status) : "--"} />
-            <InfoRow label="社区" value={post ? formatShortId(post.community_id) : "--"} />
+            <InfoRow
+              label="社区"
+              value={post ? post.community_slug ?? formatShortId(post.community_id) : "--"}
+            />
             <InfoRow label="作者" value={post ? formatShortId(post.author_id) : "--"} />
             <InfoRow label="创建" value={post ? formatDate(post.created_at) : "--"} />
           </div>

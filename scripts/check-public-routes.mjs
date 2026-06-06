@@ -18,7 +18,7 @@ const frontendUrl = normalizeUrl(
     "http://localhost:3000",
 );
 
-const pageExitHrefMarkers = ["/", "/communities", "/community-applications/new"];
+const appShellHrefMarkers = ["/", "/communities"];
 
 const routes = [
   {
@@ -45,17 +45,19 @@ const routes = [
     path: "/register?next=%2Fcommunity-applications%2Fnew",
   },
   {
-    hrefMarkers: pageExitHrefMarkers,
+    hrefMarkers: [...appShellHrefMarkers, "/community-applications/new"],
     markers: ["社区目录", "校园社区", "申请社区"],
     path: "/communities",
   },
   {
     hrefMarkers: [
-      ...pageExitHrefMarkers,
+      ...appShellHrefMarkers,
       "/login?next=%2Fcommunities%2Fpublic",
     ],
     markers: [
-      "返回社区索引",
+      "CUMT Nexus",
+      "首页",
+      "社区",
       "需要登录",
       "请先登录后查看社区详情和帖子",
     ],
@@ -63,7 +65,7 @@ const routes = [
   },
   {
     hrefMarkers: [
-      ...pageExitHrefMarkers,
+      ...appShellHrefMarkers,
       "/login?next=%2Fposts%2Froute-smoke",
     ],
     markers: [
@@ -76,7 +78,7 @@ const routes = [
   },
   {
     hrefMarkers: [
-      ...pageExitHrefMarkers,
+      ...appShellHrefMarkers,
       "/communities/public",
       "/login?next=%2Fcommunities%2Fpublic%2Fnew",
       "/register?next=%2Fcommunities%2Fpublic%2Fnew",
@@ -86,7 +88,8 @@ const routes = [
   },
   {
     hrefMarkers: [
-      ...pageExitHrefMarkers,
+      ...appShellHrefMarkers,
+      "/community-applications/new",
       "/login?next=%2Fcommunity-applications%2Fnew",
       "/register?next=%2Fcommunity-applications%2Fnew",
     ],

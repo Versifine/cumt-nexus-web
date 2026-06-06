@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AppShell } from "@/components/app-shell/app-shell";
 import { PostDetail } from "@/features/post/post-detail";
 
 type PostDetailPageProps = {
@@ -22,6 +23,11 @@ export async function generateMetadata({
 
 export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const { id } = await params;
+  const shortId = id.slice(0, 8).replace(/-+$/, "");
 
-  return <PostDetail id={id} />;
+  return (
+    <AppShell contextLabel={`06 / 帖子 ${shortId}`}>
+      <PostDetail id={id} />
+    </AppShell>
+  );
 }

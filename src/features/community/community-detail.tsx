@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowDown,
@@ -9,7 +9,8 @@ import {
   MessageSquare,
 } from "lucide-react";
 
-import { PageNav } from "@/components/app-shell/page-nav";
+import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
+import { rememberRecentCommunity } from "@/components/app-shell/recent-communities";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -47,140 +48,147 @@ export function CommunityDetail({ slug }: CommunityDetailProps) {
   const posts = canShowCommunityContent ? (postsQuery.data?.posts ?? []) : [];
   const loginHref = `/login?next=${encodeURIComponent(`/communities/${slug}`)}`;
 
-  return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-6">
-        <PageNav backHref="/communities" backLabel="返回社区索引" />
+  useEffect(() => {
+    if (community) {
+      rememberRecentCommunity(community);
+    }
+  }, [community]);
 
-        <section className="py-6">
-          {!isReady ? (
-            <LoadingState rows={2} />
-          ) : !token ? (
-            <ErrorState
-              title="需要登录"
-              description="请先登录后查看社区详情和帖子。"
-              action={
+  return (
+    <>
+      <section className="py-6">
+        {!isReady ? (
+          <LoadingState rows={2} />
+        ) : !token ? (
+          <ErrorState
+            title="需要登录"
+            description="请先登录后查看社区详情和帖子。"
+            action={
+              <TextAction href={loginHref} tone="primary">
+                登录
+              </TextAction>
+            }
+          />
+        ) : communityQuery.isPending ? (
+          <LoadingState rows={2} />
+        ) : communityQuery.isError ? (
+          <ErrorState
+            title={getErrorTitle(communityQuery.error, "无法加载社区")}
+            description={getErrorDescription(communityQuery.error)}
+            action={
+              isUnauthenticated(communityQuery.error) ? (
                 <TextAction href={loginHref} tone="primary">
                   登录
                 </TextAction>
-              }
-            />
-          ) : communityQuery.isPending ? (
-            <LoadingState rows={2} />
-          ) : communityQuery.isError ? (
-            <ErrorState
-              title={getErrorTitle(communityQuery.error, "无法加载社区")}
-              description={getErrorDescription(communityQuery.error)}
-              action={
-                isUnauthenticated(communityQuery.error) ? (
-                  <TextAction href={loginHref} tone="primary">
-                    登录
-                  </TextAction>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => communityQuery.refetch()}
-                  >
-                    重试
-                  </Button>
-                )
-              }
-            />
-          ) : community ? (
-            <CommunityHero community={community} slug={slug} posts={posts} />
-          ) : null}
-        </section>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => communityQuery.refetch()}
+                >
+                  重试
+                </Button>
+              )
+            }
+          />
+        ) : community ? (
+          <CommunityHero community={community} slug={slug} posts={posts} />
+        ) : null}
+      </section>
 
-        {canShowCommunityContent ? (
-          <section className="grid gap-8 border-t border-border pt-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="min-w-0">
-              <div className="border-b border-border pb-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <div className="font-mono text-xs uppercase text-primary">
-                      POSTS / 社区帖子
-                    </div>
-                    <h2 className="mt-2 text-2xl font-black tracking-normal">
-                      {formatSortLabel(sort)}讨论
-                    </h2>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                      社区帖子流支持最新和热门排序，进入帖子后再参与投票和评论。
-                    </p>
+      {canShowCommunityContent ? (
+        <section className="grid gap-8 border-t border-border pt-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0">
+            <div className="border-b border-border pb-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <div className="font-mono text-xs uppercase text-primary">
+                    POSTS / 社区帖子
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <CommunityPostSortTabs
-                      disabled={postsQuery.isFetching}
-                      onSortChange={setSort}
-                      sort={sort}
-                    />
-                    <TextAction href={`/communities/${slug}/new`} tone="primary">
-                      发布帖子
-                    </TextAction>
-                  </div>
+                  <h2 className="mt-2 text-2xl font-black tracking-normal">
+                    {formatSortLabel(sort)}讨论
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    社区帖子流支持最新和热门排序，进入帖子后再参与投票和评论。
+                  </p>
                 </div>
-              </div>
-
-              <div className="py-5">
-                {postsQuery.isPending ? (
-                  <div className="border-b border-border pb-5">
-                    <LoadingState rows={5} />
-                  </div>
-                ) : null}
-
-                {postsQuery.isError ? (
-                  <ErrorState
-                    title={getErrorTitle(postsQuery.error, "无法加载帖子")}
-                    description={getErrorDescription(postsQuery.error)}
-                    action={
-                      isUnauthenticated(postsQuery.error) ? (
-                        <TextAction href={loginHref} tone="primary">
-                          登录
-                        </TextAction>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => postsQuery.refetch()}
-                        >
-                          重试
-                        </Button>
-                      )
-                    }
+                <div className="flex flex-wrap items-center gap-3">
+                  <CommunityPostSortTabs
+                    disabled={postsQuery.isFetching}
+                    onSortChange={setSort}
+                    sort={sort}
                   />
-                ) : null}
-
-                {postsQuery.isSuccess && posts.length === 0 ? (
-                  <EmptyState
-                    title="还没有帖子"
-                    description="发布第一条帖子，让这个社区开始形成讨论。"
-                    action={
-                      <TextAction href={`/communities/${slug}/new`} tone="primary">
-                        发布第一条帖子
-                      </TextAction>
-                    }
-                  />
-                ) : null}
-
-                {postsQuery.isSuccess && posts.length > 0 ? (
-                  <div className="divide-y divide-border border-b border-border">
-                    {posts.map((post, index) => (
-                      <PostRow key={post.id} index={index} post={post} />
-                    ))}
-                  </div>
-                ) : null}
+                  <TextAction href={`/communities/${slug}/new`} tone="primary">
+                    发布帖子
+                  </TextAction>
+                </div>
               </div>
             </div>
 
-            <CommunityRail
-              community={community}
-              posts={posts}
-              isPostsLoading={postsQuery.isPending}
-            />
-          </section>
-        ) : null}
-      </div>
-    </main>
+            <div className="py-5">
+              {postsQuery.isPending ? (
+                <div className="border-b border-border pb-5">
+                  <LoadingState rows={5} />
+                </div>
+              ) : null}
+
+              {postsQuery.isError ? (
+                <ErrorState
+                  title={getErrorTitle(postsQuery.error, "无法加载帖子")}
+                  description={getErrorDescription(postsQuery.error)}
+                  action={
+                    isUnauthenticated(postsQuery.error) ? (
+                      <TextAction href={loginHref} tone="primary">
+                        登录
+                      </TextAction>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => postsQuery.refetch()}
+                      >
+                        重试
+                      </Button>
+                    )
+                  }
+                />
+              ) : null}
+
+              {postsQuery.isSuccess && posts.length === 0 ? (
+                <EmptyState
+                  title="还没有帖子"
+                  description="发布第一条帖子，让这个社区开始形成讨论。"
+                  action={
+                    <TextAction href={`/communities/${slug}/new`} tone="primary">
+                      发布第一条帖子
+                    </TextAction>
+                  }
+                />
+              ) : null}
+
+              {postsQuery.isSuccess && posts.length > 0 && community ? (
+                <div className="divide-y divide-border border-b border-border">
+                  {posts.map((post, index) => (
+                    <PostRow
+                      key={post.id}
+                      community={community}
+                      index={index}
+                      post={post}
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <CommunityRail
+            community={community}
+            posts={posts}
+            isPostsLoading={postsQuery.isPending}
+          />
+        </section>
+      ) : null}
+    </>
   );
 }
 
@@ -266,10 +274,25 @@ function CommunityPostSortTabs({
   );
 }
 
-function PostRow({ index, post }: { index: number; post: Post }) {
+function PostRow({
+  community,
+  index,
+  post,
+}: {
+  community: Community;
+  index: number;
+  post: Post;
+}) {
   return (
     <Link
       href={`/posts/${post.id}`}
+      onClick={() =>
+        rememberPostNavigationSource({
+          href: `/communities/${community.slug}`,
+          label: `返回 /${community.slug}`,
+          postId: post.id,
+        })
+      }
       className="group grid gap-4 py-5 transition-colors hover:bg-background-soft/70 md:grid-cols-[72px_minmax(0,1fr)_112px]"
     >
       <div className="flex items-center gap-3 md:block">
@@ -363,6 +386,15 @@ function CommunityRail({
                 <Link
                   key={post.id}
                   href={`/posts/${post.id}`}
+                  onClick={() =>
+                    community
+                      ? rememberPostNavigationSource({
+                          href: `/communities/${community.slug}`,
+                          label: `返回 /${community.slug}`,
+                          postId: post.id,
+                        })
+                      : undefined
+                  }
                   className="block py-3 transition-colors hover:text-primary"
                 >
                   <div className="font-mono text-xs text-muted-foreground">

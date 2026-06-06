@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AppShell } from "@/components/app-shell/app-shell";
 import { CommunityDetail } from "@/features/community/community-detail";
 
 type CommunityDetailPageProps = {
@@ -24,5 +25,9 @@ export default async function CommunityDetailPage({
 }: CommunityDetailPageProps) {
   const { slug } = await params;
 
-  return <CommunityDetail slug={slug} />;
+  return (
+    <AppShell contextLabel={`05 / /${slug}`}>
+      <CommunityDetail slug={slug} />
+    </AppShell>
+  );
 }

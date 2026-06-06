@@ -5,6 +5,8 @@ export type PostSort = "new" | "hot";
 export type Post = {
   id: string;
   community_id: string;
+  community_name?: string;
+  community_slug?: string;
   author_id: string;
   title: string;
   body: string;

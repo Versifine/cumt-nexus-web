@@ -20,6 +20,7 @@ import {
   User,
 } from "lucide-react";
 
+import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -442,6 +443,13 @@ function LatestPostRow({ index, post }: { index: number; post: Post }) {
   return (
     <Link
       href={`/posts/${post.id}`}
+      onClick={() =>
+        rememberPostNavigationSource({
+          href: "/",
+          label: "返回首页",
+          postId: post.id,
+        })
+      }
       className="group grid gap-4 py-5 transition-colors hover:bg-background-soft/70 md:grid-cols-[72px_minmax(0,1fr)_96px]"
     >
       <div className="flex items-center gap-3 md:block">
@@ -537,6 +545,13 @@ function RightRail({
                 <Link
                   key={post.id}
                   href={`/posts/${post.id}`}
+                  onClick={() =>
+                    rememberPostNavigationSource({
+                      href: "/",
+                      label: "返回首页",
+                      postId: post.id,
+                    })
+                  }
                   className="block py-3 transition-colors hover:text-primary"
                 >
                   <div className="font-mono text-xs text-muted-foreground">
