@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { PageNav } from "@/components/app-shell/page-nav";
+import { AppShell } from "@/components/app-shell/app-shell";
+import { SourceBackLink } from "@/components/app-shell/source-back-link";
 import { MetricBlock } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { AuthRequired } from "@/features/auth/auth-required";
@@ -13,10 +14,8 @@ export const metadata: Metadata = {
 
 export default function NewCommunityApplicationPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <PageNav backHref="/communities" backLabel="返回社区索引" />
-
+    <AppShell contextLabel="08 / 社区申请">
+      <SourceBackLink href="/communities">返回社区索引</SourceBackLink>
         <header className="border-b border-border py-6">
           <div className="font-mono text-xs uppercase text-primary">
             CUMT NEXUS / 社区申请
@@ -82,9 +81,6 @@ export default function NewCommunityApplicationPage() {
                   <TextAction href="/communities" variant="bar">
                     浏览社区索引
                   </TextAction>
-                  <TextAction href="/community-applications/review" variant="bar">
-                    审批申请
-                  </TextAction>
                   <TextAction href="/" variant="bar">
                     返回最新讨论
                   </TextAction>
@@ -93,7 +89,6 @@ export default function NewCommunityApplicationPage() {
             </div>
           </aside>
         </section>
-      </div>
-    </main>
+    </AppShell>
   );
 }

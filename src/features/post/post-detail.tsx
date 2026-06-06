@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   ArrowDown,
-  ArrowLeft,
   ArrowUp,
   MessageSquare,
 } from "lucide-react";
@@ -13,6 +11,7 @@ import {
   readPostNavigationSource,
   type PostNavigationSource,
 } from "@/components/app-shell/post-navigation-source";
+import { SourceBackLink } from "@/components/app-shell/source-back-link";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -202,16 +201,7 @@ function PostBackLink({
     source?.label ?? (fallbackSlug ? `返回 /${fallbackSlug}` : "返回社区索引");
 
   return (
-    <Link
-      href={href}
-      className="group inline-flex h-10 min-w-0 items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-    >
-      <ArrowLeft
-        className="size-4 shrink-0 transition-transform group-hover:-translate-x-1"
-        aria-hidden="true"
-      />
-      <span className="truncate">{label}</span>
-    </Link>
+    <SourceBackLink href={href}>{label}</SourceBackLink>
   );
 }
 

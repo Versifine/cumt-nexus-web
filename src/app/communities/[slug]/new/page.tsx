@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { PageNav } from "@/components/app-shell/page-nav";
+import { AppShell } from "@/components/app-shell/app-shell";
+import { SourceBackLink } from "@/components/app-shell/source-back-link";
 import { MetricBlock } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { AuthRequired } from "@/features/auth/auth-required";
@@ -27,10 +28,8 @@ export default async function NewPostPage({ params }: NewPostPageProps) {
   const { slug } = await params;
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <PageNav backHref={`/communities/${slug}`} backLabel={`返回 /${slug}`} />
-
+    <AppShell contextLabel={`07 / 发布 /${slug}`}>
+      <SourceBackLink href={`/communities/${slug}`}>返回 /{slug}</SourceBackLink>
         <header className="border-b border-border py-6">
           <div className="font-mono text-xs uppercase text-primary">
             CUMT NEXUS / 发布帖子
@@ -104,7 +103,6 @@ export default async function NewPostPage({ params }: NewPostPageProps) {
             </div>
           </aside>
         </section>
-      </div>
-    </main>
+    </AppShell>
   );
 }

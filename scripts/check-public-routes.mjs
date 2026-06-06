@@ -89,7 +89,6 @@ const routes = [
   {
     hrefMarkers: [
       ...appShellHrefMarkers,
-      "/community-applications/new",
       "/login?next=%2Fcommunity-applications%2Fnew",
       "/register?next=%2Fcommunity-applications%2Fnew",
     ],
