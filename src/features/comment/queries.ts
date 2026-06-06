@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { deleteComment, listPostComments, updateComment } from "./api";
+import { deleteComment, listPostComments, listUserComments, updateComment } from "./api";
 import type { UpdateCommentInput } from "./types";
 
 export const commentQueryKeys = {
@@ -13,6 +13,10 @@ export const commentQueryKeys = {
     sort: "new" | "old",
     maxDepth: number,
   ) => ["post-comments", postId, { limit, offset, maxDepth, sort, view }] as const,
+  userCommentsAll: () => ["user-comments"] as const,
+  userCommentsPrefix: (username: string) => ["user-comments", username] as const,
+  userComments: (username: string, limit: number, offset: number) =>
+    ["user-comments", username, { limit, offset }] as const,
 };
 
 export function usePostCommentsQuery(
@@ -38,6 +42,19 @@ export function usePostCommentsQuery(
   });
 }
 
+export function useUserCommentsQuery(
+  username: string,
+  limit = 20,
+  offset = 0,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: commentQueryKeys.userComments(username, limit, offset),
+    queryFn: () => listUserComments({ username, limit, offset }),
+    enabled: enabled && Boolean(username.trim()),
+  });
+}
+
 export function useUpdateCommentMutation(commentId: string, postId: string) {
   const queryClient = useQueryClient();
 
@@ -46,6 +63,9 @@ export function useUpdateCommentMutation(commentId: string, postId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: commentQueryKeys.postCommentsPrefix(postId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: commentQueryKeys.userCommentsAll(),
       });
     },
   });
@@ -59,6 +79,9 @@ export function useDeleteCommentMutation(commentId: string, postId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: commentQueryKeys.postCommentsPrefix(postId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: commentQueryKeys.userCommentsAll(),
       });
     },
   });

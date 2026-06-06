@@ -17,6 +17,12 @@ type ListPostCommentsInput = {
   maxDepth?: number;
 };
 
+type ListUserCommentsInput = {
+  username: string;
+  limit?: number;
+  offset?: number;
+};
+
 export function listPostComments({
   postId,
   limit = 20,
@@ -35,6 +41,21 @@ export function listPostComments({
 
   return apiRequest<ListCommentsResponse>(
     `/api/v1/posts/${encodeURIComponent(postId)}/comments?${params.toString()}`,
+  );
+}
+
+export function listUserComments({
+  username,
+  limit = 20,
+  offset = 0,
+}: ListUserCommentsInput) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+
+  return apiRequest<ListCommentsResponse>(
+    `/api/v1/users/${encodeURIComponent(username)}/comments?${params.toString()}`,
   );
 }
 

@@ -162,8 +162,9 @@ function ProfileSummary({ user }: { user: PublicUser }) {
             text="查看这个用户在公开社区发布过的可见帖子。"
           />
           <ComingSoonRow
+            href={`/users/${encodeURIComponent(user.username)}/comments`}
             label="公开评论"
-            text="评论列表需要单独处理树状上下文和返回来源，后续再接。"
+            text="查看这个用户在公开帖子下留下的可见评论。"
           />
         </div>
       </section>
