@@ -1,7 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { deleteComment, listPostComments, listUserComments, updateComment } from "./api";
-import type { UpdateCommentInput } from "./types";
+import {
+  deleteComment,
+  listPostComments,
+  listUserComments,
+  updateComment,
+} from "./api";
+import type { ListCommentsResponse, UpdateCommentInput } from "./types";
 
 export const commentQueryKeys = {
   postCommentsPrefix: (postId: string) => ["post-comments", postId] as const,
@@ -47,11 +52,13 @@ export function useUserCommentsQuery(
   limit = 20,
   offset = 0,
   enabled = true,
+  initialData?: ListCommentsResponse,
 ) {
   return useQuery({
     queryKey: commentQueryKeys.userComments(username, limit, offset),
     queryFn: () => listUserComments({ username, limit, offset }),
     enabled: enabled && Boolean(username.trim()),
+    initialData,
   });
 }
 

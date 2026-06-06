@@ -21,25 +21,37 @@ import { InfoRow, MetricBlock, StatusToken } from "@/components/ui/data-display"
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useUserCommentsQuery } from "@/features/comment/queries";
-import type { Comment } from "@/features/comment/types";
+import type { Comment, ListCommentsResponse } from "@/features/comment/types";
 import { ContentBody } from "@/features/content/content-body";
 import { MediaAttachmentGallery } from "@/features/media/media-attachments";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 import { usePublicUserQuery } from "./queries";
-import type { PublicUser } from "./types";
+import type { GetPublicUserResponse, PublicUser } from "./types";
 
 type PublicUserCommentsProps = {
+  initialCommentsData?: ListCommentsResponse;
+  initialProfileData?: GetPublicUserResponse;
   username: string;
 };
 
-export function PublicUserComments({ username }: PublicUserCommentsProps) {
+export function PublicUserComments({
+  initialCommentsData,
+  initialProfileData,
+  username,
+}: PublicUserCommentsProps) {
   const { isReady } = useAuthSession();
-  const profileQuery = usePublicUserQuery(username, isReady);
+  const profileQuery = usePublicUserQuery(username, isReady, initialProfileData);
   const user = profileQuery.data?.user;
   const canRequestComments = isReady && profileQuery.isSuccess && Boolean(user);
-  const commentsQuery = useUserCommentsQuery(username, 20, 0, canRequestComments);
+  const commentsQuery = useUserCommentsQuery(
+    username,
+    20,
+    0,
+    canRequestComments,
+    initialCommentsData,
+  );
   const comments = canRequestComments ? (commentsQuery.data?.comments ?? []) : [];
 
   return (

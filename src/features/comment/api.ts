@@ -21,6 +21,8 @@ type ListUserCommentsInput = {
   username: string;
   limit?: number;
   offset?: number;
+  cache?: RequestCache;
+  token?: string | null;
 };
 
 export function listPostComments({
@@ -48,6 +50,8 @@ export function listUserComments({
   username,
   limit = 20,
   offset = 0,
+  cache,
+  token,
 }: ListUserCommentsInput) {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -56,6 +60,10 @@ export function listUserComments({
 
   return apiRequest<ListCommentsResponse>(
     `/api/v1/users/${encodeURIComponent(username)}/comments?${params.toString()}`,
+    {
+      cache,
+      token,
+    },
   );
 }
 

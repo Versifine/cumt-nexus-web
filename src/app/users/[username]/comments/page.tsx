@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 
 import { AppShell } from "@/components/app-shell/app-shell";
+import { listUserComments } from "@/features/comment/api";
+import type { ListCommentsResponse } from "@/features/comment/types";
+import { getPublicUser } from "@/features/profile/api";
 import { PublicUserComments } from "@/features/profile/public-user-comments";
+import type { GetPublicUserResponse } from "@/features/profile/types";
 
 type UserCommentsPageProps = {
   params: Promise<{
@@ -24,10 +28,47 @@ export default async function UserCommentsPage({
   params,
 }: UserCommentsPageProps) {
   const { username } = await params;
+  const initialProfileData = await getInitialPublicUser(username);
+  const initialCommentsData = initialProfileData
+    ? await getInitialUserComments(username)
+    : undefined;
 
   return (
     <AppShell contextLabel={`09 / 用户评论 / @${username}`}>
-      <PublicUserComments username={username} />
+      <PublicUserComments
+        initialCommentsData={initialCommentsData}
+        initialProfileData={initialProfileData}
+        username={username}
+      />
     </AppShell>
   );
+}
+
+async function getInitialPublicUser(
+  username: string,
+): Promise<GetPublicUserResponse | undefined> {
+  try {
+    return await getPublicUser(username, {
+      cache: "no-store",
+      token: null,
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+async function getInitialUserComments(
+  username: string,
+): Promise<ListCommentsResponse | undefined> {
+  try {
+    return await listUserComments({
+      username,
+      limit: 20,
+      offset: 0,
+      cache: "no-store",
+      token: null,
+    });
+  } catch {
+    return undefined;
+  }
 }
