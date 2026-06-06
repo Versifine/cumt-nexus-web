@@ -17,6 +17,13 @@ type ListCommunityPostsInput = {
   sort?: PostSort;
 };
 
+type ListUserPostsInput = {
+  username: string;
+  limit?: number;
+  offset?: number;
+  sort?: PostSort;
+};
+
 export function listCommunityPosts({
   slug,
   limit = 20,
@@ -42,6 +49,23 @@ export function listLatestPosts(limit = 20, offset = 0, sort: PostSort = "new") 
   });
 
   return apiRequest<ListPostsResponse>(`/api/v1/posts?${params.toString()}`);
+}
+
+export function listUserPosts({
+  username,
+  limit = 20,
+  offset = 0,
+  sort = "new",
+}: ListUserPostsInput) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+    sort,
+  });
+
+  return apiRequest<ListPostsResponse>(
+    `/api/v1/users/${encodeURIComponent(username)}/posts?${params.toString()}`,
+  );
 }
 
 export function publishPost(slug: string, input: PublishPostInput) {

@@ -79,7 +79,7 @@ npm run check:v2-path
 npm run check:routes
 ```
 
-该命令要求本地或目标前端服务已启动。它会请求 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/search?q=public&scope=all`、`/users/route-smoke`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面，检查页面包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到旧的“登录后查看最新讨论”“待登录”登录墙或“需要登录”错误面板，并要求公开帖子流文案存在；搜索页壳会检查未登录状态不回退到旧的“登录后使用搜索”登录墙；用户主页壳会检查未登录状态不回退到登录墙；社区详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看社区详情和帖子”登录墙；帖子详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看帖子详情、评论和投票”登录墙；社区列表、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它用于发现路由丢失、页面级 500、中文文案缺失、错误页误渲染和页面出口缺失；客户端水合后才出现的动态状态仍需要浏览器 QA。
+该命令要求本地或目标前端服务已启动。它会请求 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/search?q=public&scope=all`、`/users/route-smoke`、`/users/route-smoke/posts`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面，检查页面包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到旧的“登录后查看最新讨论”“待登录”登录墙或“需要登录”错误面板，并要求公开帖子流文案存在；搜索页壳会检查未登录状态不回退到旧的“登录后使用搜索”登录墙；用户主页壳和用户帖子列表壳会检查未登录状态不回退到登录墙；社区详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看社区详情和帖子”登录墙；帖子详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看帖子详情、评论和投票”登录墙；社区列表、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它用于发现路由丢失、页面级 500、中文文案缺失、错误页误渲染和页面出口缺失；客户端水合后才出现的动态状态仍需要浏览器 QA。
 
 可选参数：
 
@@ -174,6 +174,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `/communities`：包含 `社区目录`、`校园社区`、`申请社区`，并保留首页、社区索引和社区申请出口。
 - `/search?q=public&scope=all`：包含 `搜索社区和帖子`、`搜索关键词和范围`、`范围`，并保留首页和社区索引出口，且不能包含旧的 `登录后使用搜索` 登录墙。
 - `/users/route-smoke`：至少证明动态用户主页路由壳可返回 `200`，并包含 `用户主页`、`正在加载`、`浏览社区`、首页和社区索引出口，且不能包含登录墙。
+- `/users/route-smoke/posts`：至少证明动态用户帖子列表路由壳可返回 `200`，并包含 `用户帖子`、`正在加载`、`浏览社区`、首页和社区索引出口，且不能包含登录墙。
 - `/communities/public`：至少证明动态社区详情路由壳可返回 `200`，并包含 `CUMT Nexus`、`首页`、`社区`、`正在加载`、`浏览社区`、首页和社区索引出口，且不能包含 `需要登录` 或旧社区详情登录墙说明。
 - `/posts/route-smoke`：至少证明动态帖子详情路由壳可返回 `200`，并包含 `CUMT Nexus`、`返回社区索引`、`正在加载`、`浏览社区`、首页和社区索引出口，且不能包含 `需要登录` 或旧帖子详情登录墙说明。
 - `/communities/public/new`：包含 `CUMT Nexus`、`发起讨论`、`需要登录`、`登录后发起讨论`、`去登录`，且登录/注册链接必须指向 `next=%2Fcommunities%2Fpublic%2Fnew`。
@@ -182,6 +183,14 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 所有页面都必须包含 `zh-CN` 语言标记，且不能渲染常见错误页标记。
 
 ## 最新浏览器 QA 记录
+
+2026-06-07 用户公开帖子列表接入复验记录：
+
+- 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:ui-primitives`、`npm run check:static`、`npm run check:routes` 和 `npm run build` 通过。
+- 后端合同只读复核：`GET /api/v1/users/:username` 和 `GET /api/v1/users/:username/posts?sort=new|hot` 均为 public + optional Bearer；本切片未改后端。
+- 匿名 API 复验：临时用户 `posts_15dojehg` 的 `GET /api/v1/users/posts_15dojehg/posts?sort=new` 返回 1 条 visible 帖子，作者 `posts_15dojehg`，社区 `/public`，无 Bearer。
+- 前端路由壳复验：`http://localhost:3010/users/posts_15dojehg/posts` 返回 `200`，HTML 包含 `用户帖子`、`posts_15dojehg` 和 `返回用户主页`，且不包含登录墙。
+- 本轮 in-app Browser 可见复验受当前会话限制：桌面 tab 的页面标题正确，但可见 body 持续停在全局 loading shell，控制台无 error；因此本条不作为桌面/移动端人工可视化通过证据，后续需要在可正常水合的浏览器中复验列表行、排序点击和移动端横向溢出。
 
 2026-06-07 搜索页未登录公开读取前端门禁复验记录：
 

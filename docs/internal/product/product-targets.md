@@ -105,6 +105,8 @@ Reddit-style campus community content system
 - 搜索 loading、empty、error 状态。
 - 公开用户主页 `/users/:username` 基础资料页。
 - 公开用户主页展示昵称、头像占位、签名、简介、徽章、角色和公开帖子 / 评论统计。
+- 用户公开帖子列表 `/users/:username/posts`。
+- 用户公开帖子列表支持未登录读取、最新 / 热门排序、empty、error 和返回用户主页。
 - 通知中心 `/notifications`。
 - 通知全部 / 未读 / 已读视图。
 - 通知标记已读。
@@ -181,7 +183,7 @@ V2 详细路线见 `docs/internal/product/v2-roadmap.md`。优先级固定为：
 
 ### P2：产品扩展能力
 
-- 用户公开帖子列表和公开评论列表页面。
+- 用户公开评论列表页面。
 - 个人资料编辑。
 - 头像上传。
 - 邮箱。

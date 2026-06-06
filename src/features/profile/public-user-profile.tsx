@@ -1,6 +1,7 @@
 "use client";
 
-import { CalendarDays, MessageSquare, User } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, CalendarDays, MessageSquare, User } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -156,8 +157,9 @@ function ProfileSummary({ user }: { user: PublicUser }) {
         </div>
         <div className="divide-y divide-border border-b border-border">
           <ComingSoonRow
+            href={`/users/${encodeURIComponent(user.username)}/posts`}
             label="公开帖子"
-            text="后端已有用户公开帖子接口；本切片先落地资料页，列表页后续单独拆。"
+            text="查看这个用户在公开社区发布过的可见帖子。"
           />
           <ComingSoonRow
             label="公开评论"
@@ -234,12 +236,32 @@ function ProfileRail({ user }: { user: PublicUser }) {
 }
 
 function ComingSoonRow({
+  href,
   label,
   text,
 }: {
+  href?: string;
   label: string;
   text: string;
 }) {
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="group grid gap-3 py-4 transition-colors hover:bg-background-soft/70 sm:grid-cols-[160px_minmax(0,1fr)_auto]"
+      >
+        <div className="font-semibold text-foreground group-hover:text-primary">
+          {label}
+        </div>
+        <p className="text-sm leading-6 text-muted-foreground">{text}</p>
+        <ArrowRight
+          className="size-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary"
+          aria-hidden="true"
+        />
+      </Link>
+    );
+  }
+
   return (
     <div className="grid gap-3 py-4 sm:grid-cols-[160px_minmax(0,1fr)_auto]">
       <div className="font-semibold text-foreground">{label}</div>

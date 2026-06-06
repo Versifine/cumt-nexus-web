@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { deletePost, getPost, listCommunityPosts, listLatestPosts, updatePost } from "./api";
+import {
+  deletePost,
+  getPost,
+  listCommunityPosts,
+  listLatestPosts,
+  listUserPosts,
+  updatePost,
+} from "./api";
 import type { PostSort, UpdatePostInput } from "./types";
 
 export const postQueryKeys = {
@@ -12,6 +19,10 @@ export const postQueryKeys = {
   communityPostsPrefix: (slug: string) => ["community-posts", slug] as const,
   communityPosts: (slug: string, limit: number, offset: number, sort: PostSort) =>
     ["community-posts", slug, { limit, offset, sort }] as const,
+  userPostsAll: () => ["user-posts"] as const,
+  userPostsPrefix: (username: string) => ["user-posts", username] as const,
+  userPosts: (username: string, limit: number, offset: number, sort: PostSort) =>
+    ["user-posts", username, { limit, offset, sort }] as const,
 };
 
 export function usePostQuery(id: string, enabled = true) {
@@ -49,6 +60,20 @@ export function useCommunityPostsQuery(
   });
 }
 
+export function useUserPostsQuery(
+  username: string,
+  limit = 20,
+  offset = 0,
+  enabled = true,
+  sort: PostSort = "new",
+) {
+  return useQuery({
+    queryKey: postQueryKeys.userPosts(username, limit, offset, sort),
+    queryFn: () => listUserPosts({ username, limit, offset, sort }),
+    enabled: enabled && Boolean(username.trim()),
+  });
+}
+
 export function useUpdatePostMutation(id: string) {
   const queryClient = useQueryClient();
 
@@ -61,6 +86,9 @@ export function useUpdatePostMutation(id: string) {
       });
       void queryClient.invalidateQueries({
         queryKey: postQueryKeys.communityPostsAll(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: postQueryKeys.userPostsAll(),
       });
     },
   });
@@ -80,6 +108,9 @@ export function useDeletePostMutation(id: string) {
       });
       void queryClient.invalidateQueries({
         queryKey: postQueryKeys.communityPostsAll(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: postQueryKeys.userPostsAll(),
       });
     },
   });
