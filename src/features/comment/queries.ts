@@ -32,6 +32,7 @@ export function usePostCommentsQuery(
   sort: "new" | "old" = "new",
   maxDepth = 6,
   enabled = true,
+  initialData?: ListCommentsResponse,
 ) {
   return useQuery({
     queryKey: commentQueryKeys.postComments(
@@ -44,6 +45,7 @@ export function usePostCommentsQuery(
     ),
     queryFn: () => listPostComments({ maxDepth, offset, postId, limit, sort, view }),
     enabled,
+    initialData,
   });
 }
 

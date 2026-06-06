@@ -23,6 +23,7 @@ import { useCurrentUserQuery } from "@/features/auth/queries";
 import { CommentForm } from "@/features/comment/comment-form";
 import { CommentTree } from "@/features/comment/comment-tree";
 import { usePostCommentsQuery } from "@/features/comment/queries";
+import type { ListCommentsResponse } from "@/features/comment/types";
 import { ContentBody } from "@/features/content/content-body";
 import { MediaAttachmentGallery } from "@/features/media/media-attachments";
 import { ModerationRemoveDialog } from "@/features/moderation/moderation-remove-dialog";
@@ -32,20 +33,26 @@ import { ApiError } from "@/lib/api/client";
 
 import { PostLifecycleControls } from "./post-lifecycle-controls";
 import { usePostQuery } from "./queries";
-import type { Post } from "./types";
+import type { GetPostResponse, Post } from "./types";
 
 type PostDetailProps = {
   id: string;
+  initialCommentsData?: ListCommentsResponse;
+  initialPostData?: GetPostResponse;
 };
 
-export function PostDetail({ id }: PostDetailProps) {
+export function PostDetail({
+  id,
+  initialCommentsData,
+  initialPostData,
+}: PostDetailProps) {
   const { isReady } = useAuthSession();
   const [navigationSource] = useState<PostNavigationSource | null>(() =>
     readPostNavigationSource(id),
   );
   const currentUserQuery = useCurrentUserQuery();
   const canRequestPost = isReady;
-  const postQuery = usePostQuery(id, canRequestPost);
+  const postQuery = usePostQuery(id, canRequestPost, initialPostData);
   const canRequestComments =
     canRequestPost && postQuery.isSuccess && Boolean(postQuery.data?.post);
   const commentsQuery = usePostCommentsQuery(
@@ -56,6 +63,7 @@ export function PostDetail({ id }: PostDetailProps) {
     "new",
     6,
     canRequestComments,
+    initialCommentsData,
   );
   const post = postQuery.data?.post;
   const comments = canRequestComments ? (commentsQuery.data?.comments ?? []) : [];
@@ -192,10 +200,11 @@ function PostBackLink({
   post?: Post;
   source: PostNavigationSource | null;
 }) {
-  const fallbackSlug = post?.community_slug?.trim();
-  const href = source?.href ?? (fallbackSlug ? `/communities/${fallbackSlug}` : "/communities");
+  const fallbackSlug = post?.community_slug?.trim() || post?.community?.slug?.trim();
+  const href =
+    source?.href ?? (fallbackSlug ? `/communities/${fallbackSlug}` : "/communities");
   const label =
-    source?.label ?? (fallbackSlug ? `返回 /${fallbackSlug}` : "返回社区索引");
+    source?.label ?? (fallbackSlug ? `返回 /${fallbackSlug}` : "返回社区");
 
   return (
     <SourceBackLink href={href}>{label}</SourceBackLink>

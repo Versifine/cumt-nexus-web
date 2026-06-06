@@ -26,6 +26,11 @@ type ListUserPostsInput = {
   token?: string | null;
 };
 
+type GetPostOptions = {
+  cache?: RequestCache;
+  token?: string | null;
+};
+
 export function listCommunityPosts({
   slug,
   limit = 20,
@@ -86,8 +91,14 @@ export function publishPost(slug: string, input: PublishPostInput) {
   );
 }
 
-export function getPost(id: string) {
-  return apiRequest<GetPostResponse>(`/api/v1/posts/${encodeURIComponent(id)}`);
+export function getPost(id: string, options: GetPostOptions = {}) {
+  return apiRequest<GetPostResponse>(
+    `/api/v1/posts/${encodeURIComponent(id)}`,
+    {
+      cache: options.cache,
+      token: options.token,
+    },
+  );
 }
 
 export function updatePost(id: string, input: UpdatePostInput) {

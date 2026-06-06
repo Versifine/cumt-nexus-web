@@ -15,6 +15,8 @@ type ListPostCommentsInput = {
   view?: "flat" | "tree";
   sort?: "new" | "old";
   maxDepth?: number;
+  cache?: RequestCache;
+  token?: string | null;
 };
 
 type ListUserCommentsInput = {
@@ -32,6 +34,8 @@ export function listPostComments({
   view = "tree",
   sort = "new",
   maxDepth = 6,
+  cache,
+  token,
 }: ListPostCommentsInput) {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -43,6 +47,10 @@ export function listPostComments({
 
   return apiRequest<ListCommentsResponse>(
     `/api/v1/posts/${encodeURIComponent(postId)}/comments?${params.toString()}`,
+    {
+      cache,
+      token,
+    },
   );
 }
 

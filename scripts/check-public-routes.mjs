@@ -94,7 +94,7 @@ const routes = [
     ],
     markers: [
       "CUMT Nexus",
-      "返回社区索引",
+      "返回社区",
       "正在加载",
       "浏览社区",
     ],

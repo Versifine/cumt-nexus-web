@@ -185,6 +185,14 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 最新浏览器 QA 记录
 
+2026-06-07 帖子详情首屏服务端预取和返回 fallback 复验记录：
+
+- 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:docs`、`npm run check:routes`、`npm run check:ui-primitives` 和 `npm run check:static` 通过。
+- 后端合同只读复核：`GET /api/v1/posts/:id` 和 `GET /api/v1/posts/:id/comments?view=tree&sort=new&max_depth=6` 为 public + optional Bearer；本切片未改后端。
+- 匿名 API 复验：帖子 `0fed7ec2-7f55-44bc-8f8f-41b1bc40018d` 返回标题 `User comments QA 71ibp9dt`、正文 `Body for user comments QA 71ibp9dt` 和社区 `public`；评论树返回 1 条 visible 评论，正文为 `Comment body for /users/:username/comments QA 71ibp9dt`，无 Bearer。
+- 前端路由壳/SSR 复验：`http://localhost:3000/posts/0fed7ec2-7f55-44bc-8f8f-41b1bc40018d?qa=ssr-post-detail` 返回 `200`，HTML 直接包含帖子标题、正文和评论正文，且不包含登录墙。
+- in-app Browser 可见复验：桌面 `1265px` 和移动端 `390px` 均直接显示帖子正文、评论树和未登录投票/评论门禁；无来源记录时返回入口显示 `返回 /public`，不再显示 `返回社区索引`；`scrollWidth` 等于 `clientWidth`，无横向溢出，控制台无 error/warning。
+
 2026-06-07 用户公开评论列表首屏服务端预取复验记录：
 
 - 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:docs`、`npm run check:routes`、`npm run check:ui-primitives` 和 `npm run check:static` 通过。

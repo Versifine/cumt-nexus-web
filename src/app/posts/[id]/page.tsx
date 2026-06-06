@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 
 import { AppShell } from "@/components/app-shell/app-shell";
+import { listPostComments } from "@/features/comment/api";
+import type { ListCommentsResponse } from "@/features/comment/types";
+import { getPost } from "@/features/post/api";
 import { PostDetail } from "@/features/post/post-detail";
+import type { GetPostResponse } from "@/features/post/types";
 
 type PostDetailPageProps = {
   params: Promise<{
@@ -24,10 +28,48 @@ export async function generateMetadata({
 export default async function PostDetailPage({ params }: PostDetailPageProps) {
   const { id } = await params;
   const shortId = id.slice(0, 8).replace(/-+$/, "");
+  const initialPostData = await getInitialPost(id);
+  const initialCommentsData = initialPostData
+    ? await getInitialPostComments(id)
+    : undefined;
 
   return (
     <AppShell contextLabel={`06 / 帖子 ${shortId}`}>
-      <PostDetail id={id} />
+      <PostDetail
+        id={id}
+        initialCommentsData={initialCommentsData}
+        initialPostData={initialPostData}
+      />
     </AppShell>
   );
+}
+
+async function getInitialPost(id: string): Promise<GetPostResponse | undefined> {
+  try {
+    return await getPost(id, {
+      cache: "no-store",
+      token: null,
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+async function getInitialPostComments(
+  id: string,
+): Promise<ListCommentsResponse | undefined> {
+  try {
+    return await listPostComments({
+      postId: id,
+      limit: 20,
+      offset: 0,
+      view: "tree",
+      sort: "new",
+      maxDepth: 6,
+      cache: "no-store",
+      token: null,
+    });
+  } catch {
+    return undefined;
+  }
 }
