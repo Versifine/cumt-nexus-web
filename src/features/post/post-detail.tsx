@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, MessageSquare } from "lucide-react";
+import Link from "next/link";
+import { ArrowDown, ArrowUp, MessageSquare, User } from "lucide-react";
 
 import {
   readPostNavigationSource,
@@ -222,6 +223,10 @@ function PostArticle({
   post: Post;
   commentCount: number;
 }) {
+  const communityHref = getCommunityHref(post);
+  const communityLabel = getCommunityLabel(post);
+  const communityName = getCommunityName(post);
+
   return (
     <article>
       <div className="border-b border-border pb-6">
@@ -230,11 +235,20 @@ function PostArticle({
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <StatusToken tone="primary">
-            {post.community_slug ? `/${post.community_slug}` : `社区 ${formatShortId(post.community_id)}`}
+            {communityHref ? (
+              <Link href={communityHref} className="hover:text-foreground">
+                {communityLabel}
+              </Link>
+            ) : (
+              communityLabel
+            )}
           </StatusToken>
+          {communityName !== communityLabel ? (
+            <StatusToken>{communityName}</StatusToken>
+          ) : null}
           <StatusToken>{formatPostStatus(post.status)}</StatusToken>
-          <StatusToken>作者 {formatShortId(post.author_id)}</StatusToken>
         </div>
+        <PostAuthorSummary post={post} />
         <h1 className="mt-4 break-words text-4xl font-black leading-tight tracking-normal text-foreground md:text-5xl">
           {post.title}
         </h1>
@@ -290,6 +304,10 @@ function PostRail({
   commentCount: number;
   isCommentsLoading: boolean;
 }) {
+  const communityHref = post ? getCommunityHref(post) : null;
+  const communityDisplay = post ? getCommunityDisplay(post) : "--";
+  const authorDisplay = post ? getAuthorDisplay(post) : "--";
+
   return (
     <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
       <div className="sticky top-6 space-y-8">
@@ -304,13 +322,22 @@ function PostRail({
               value={isCommentsLoading ? "--" : String(commentCount)}
             />
           </div>
+          {post ? <PostAuthorCard post={post} /> : null}
           <div className="mt-4 divide-y divide-border border-y border-border">
             <InfoRow label="状态" value={post ? formatPostStatus(post.status) : "--"} />
             <InfoRow
               label="社区"
-              value={post ? post.community_slug ?? formatShortId(post.community_id) : "--"}
+              value={
+                communityHref ? (
+                  <Link href={communityHref} className="hover:text-primary">
+                    {communityDisplay}
+                  </Link>
+                ) : (
+                  communityDisplay
+                )
+              }
             />
-            <InfoRow label="作者" value={post ? formatShortId(post.author_id) : "--"} />
+            <InfoRow label="作者" value={authorDisplay} />
             <InfoRow label="创建" value={post ? formatDate(post.created_at) : "--"} />
           </div>
         </section>
@@ -353,8 +380,186 @@ function PostRail({
   );
 }
 
-function formatShortId(value: string) {
-  return value.slice(0, 8);
+function PostAuthorSummary({ post }: { post: Post }) {
+  const authorName = getAuthorName(post);
+  const authorHandle = getAuthorHandle(post);
+  const authorHref = getAuthorHref(post);
+  const headline = post.author?.headline?.trim();
+  const badges = post.author?.badges ?? [];
+
+  const authorContent = (
+    <>
+      <PostAuthorAvatar name={authorName} post={post} size="large" />
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold text-foreground">
+          {authorName}
+        </span>
+        {authorHandle ? (
+          <span className="mt-1 block truncate font-mono text-xs text-primary">
+            {authorHandle}
+          </span>
+        ) : null}
+      </span>
+    </>
+  );
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-3">
+      <span className="font-mono text-xs text-muted-foreground">作者</span>
+      {authorHref ? (
+        <Link
+          href={authorHref}
+          className="inline-flex min-w-0 items-center gap-2 transition-colors hover:text-primary"
+        >
+          {authorContent}
+        </Link>
+      ) : (
+        <span className="inline-flex min-w-0 items-center gap-2">
+          {authorContent}
+        </span>
+      )}
+      {headline ? (
+        <span className="max-w-xl truncate text-sm text-muted-foreground">
+          {headline}
+        </span>
+      ) : null}
+      {badges.map((badge) => (
+        <StatusToken key={badge} tone="primary">
+          {badge}
+        </StatusToken>
+      ))}
+    </div>
+  );
+}
+
+function PostAuthorCard({ post }: { post: Post }) {
+  const authorName = getAuthorName(post);
+  const authorHandle = getAuthorHandle(post);
+  const authorHref = getAuthorHref(post);
+  const headline = post.author?.headline?.trim();
+
+  const content = (
+    <>
+      <PostAuthorAvatar name={authorName} post={post} size="small" />
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold text-foreground">
+          {authorName}
+        </span>
+        {authorHandle ? (
+          <span className="mt-1 block truncate font-mono text-xs text-primary">
+            {authorHandle}
+          </span>
+        ) : null}
+      </span>
+    </>
+  );
+
+  return (
+    <div className="mt-4 border-y border-border py-3">
+      {authorHref ? (
+        <Link
+          href={authorHref}
+          className="flex min-w-0 items-center gap-3 transition-colors hover:text-primary"
+        >
+          {content}
+        </Link>
+      ) : (
+        <div className="flex min-w-0 items-center gap-3">{content}</div>
+      )}
+      {headline ? (
+        <p className="mt-3 line-clamp-2 text-sm leading-6 text-muted-foreground">
+          {headline}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function PostAuthorAvatar({
+  name,
+  post,
+  size,
+}: {
+  name: string;
+  post: Post;
+  size: "large" | "small";
+}) {
+  const sizeClass = size === "large" ? "size-10" : "size-12";
+  const avatarUrl = post.author?.avatar_url?.trim();
+
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatarUrl}
+        alt={`${name} 的头像`}
+        className={`${sizeClass} shrink-0 rounded-full border border-border object-cover`}
+      />
+    );
+  }
+
+  return (
+    <span
+      className={`${sizeClass} inline-flex shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-primary`}
+      aria-label={`${name} 的头像占位`}
+    >
+      <User className="size-5" aria-hidden="true" />
+    </span>
+  );
+}
+
+function getCommunitySlug(post: Post) {
+  return post.community?.slug?.trim() || post.community_slug?.trim() || "";
+}
+
+function getCommunityLabel(post: Post) {
+  const slug = getCommunitySlug(post);
+
+  return slug ? `/${slug}` : getCommunityName(post);
+}
+
+function getCommunityName(post: Post) {
+  return post.community?.name?.trim() || post.community_name?.trim() || "社区";
+}
+
+function getCommunityDisplay(post: Post) {
+  const slug = getCommunitySlug(post);
+  const name = getCommunityName(post);
+
+  if (slug && name && name !== `/${slug}`) {
+    return `${name} /${slug}`;
+  }
+
+  return slug ? `/${slug}` : name;
+}
+
+function getCommunityHref(post: Post) {
+  const slug = getCommunitySlug(post);
+
+  return slug ? `/communities/${encodeURIComponent(slug)}` : null;
+}
+
+function getAuthorName(post: Post) {
+  return post.author?.display_name?.trim() || post.author?.username?.trim() || "用户";
+}
+
+function getAuthorHandle(post: Post) {
+  const username = post.author?.username?.trim();
+
+  return username ? `@${username}` : "";
+}
+
+function getAuthorDisplay(post: Post) {
+  const name = getAuthorName(post);
+  const handle = getAuthorHandle(post);
+
+  return handle ? `${name} ${handle}` : name;
+}
+
+function getAuthorHref(post: Post) {
+  const username = post.author?.username?.trim();
+
+  return username ? `/users/${encodeURIComponent(username)}` : null;
 }
 
 function formatDate(value: string) {

@@ -185,6 +185,13 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 最新浏览器 QA 记录
 
+2026-06-07 帖子详情身份信息展示复验记录：
+
+- 自动检查已复验：`npm run lint` 和 `npm run typecheck` 均通过；完整 `check:static` 见本轮最终验证。
+- 匿名 API 复验：`GET /api/v1/posts/0fed7ec2-7f55-44bc-8f8f-41b1bc40018d` 返回 `community.slug/name` 和 `author.display_name/username/avatar_url/headline/badges`；评论树同样返回 `comment.author` 摘要。
+- 浏览器复验帖子详情桌面和 `390px` 移动端：帖子 header、右侧栏和评论树展示 `Public`、`/public`、`comments_71ibp9dt`、`@comments_71ibp9dt`，可见 DOM 不再出现 `作者 {shortId}`、作者短 UUID 或社区短 UUID。
+- 浏览器复验帖子详情桌面和 `390px` 移动端：作者和社区入口链接到 `/users/comments_71ibp9dt`、`/communities/public`，`scrollWidth` 等于 `clientWidth`，控制台无 error。
+
 2026-06-07 首页排序来源返回复验记录：
 
 - 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary` 和 `npm run check:routes` 均通过；完整 `check:static` 见本轮最终验证。

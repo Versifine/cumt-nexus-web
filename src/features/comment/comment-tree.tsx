@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronRight, CornerDownRight } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ChevronRight, CornerDownRight, User } from "lucide-react";
 
 import { CommentLifecycleControls } from "@/features/comment/comment-lifecycle-controls";
 import { CommentForm } from "@/features/comment/comment-form";
@@ -145,9 +146,7 @@ function CommentBranch({
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="border border-border bg-background px-2 py-0.5 font-mono">
-              作者 {formatShortId(comment.author_id)}
-            </span>
+            <CommentAuthorMeta comment={comment} />
             <span>{formatCommentStatus(comment.status)}</span>
             <span>深度 {apiDepth}</span>
             {replyCount > 0 ? <span>{replyCount} 条回复</span> : null}
@@ -314,8 +313,91 @@ function sortTreeByInputOrder(nodes: CommentTreeNode[]) {
   nodes.forEach((node) => sortTreeByInputOrder(node.children));
 }
 
-function formatShortId(value: string) {
-  return value.slice(0, 8);
+function CommentAuthorMeta({ comment }: { comment: Comment }) {
+  const authorName = getCommentAuthorName(comment);
+  const authorHandle = getCommentAuthorHandle(comment);
+  const authorHref = getCommentAuthorHref(comment);
+
+  const content = (
+    <>
+      <CommentAuthorAvatar comment={comment} name={authorName} />
+      <span className="min-w-0">
+        <span className="block truncate text-foreground">{authorName}</span>
+        {authorHandle ? (
+          <span className="mt-0.5 block truncate font-mono text-[11px] text-primary">
+            {authorHandle}
+          </span>
+        ) : null}
+      </span>
+    </>
+  );
+
+  if (authorHref) {
+    return (
+      <Link
+        href={authorHref}
+        className="inline-flex min-w-0 items-center gap-1.5 border border-border bg-background px-2 py-1 transition-colors hover:border-primary/50 hover:text-primary"
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5 border border-border bg-background px-2 py-1">
+      {content}
+    </span>
+  );
+}
+
+function CommentAuthorAvatar({
+  comment,
+  name,
+}: {
+  comment: Comment;
+  name: string;
+}) {
+  const avatarUrl = comment.author?.avatar_url?.trim();
+
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatarUrl}
+        alt={`${name} 的头像`}
+        className="size-6 shrink-0 rounded-full border border-border object-cover"
+      />
+    );
+  }
+
+  return (
+    <span
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-primary"
+      aria-label={`${name} 的头像占位`}
+    >
+      <User className="size-3.5" aria-hidden="true" />
+    </span>
+  );
+}
+
+function getCommentAuthorName(comment: Comment) {
+  return (
+    comment.author?.display_name?.trim() ||
+    comment.author?.username?.trim() ||
+    "用户"
+  );
+}
+
+function getCommentAuthorHandle(comment: Comment) {
+  const username = comment.author?.username?.trim();
+
+  return username ? `@${username}` : "";
+}
+
+function getCommentAuthorHref(comment: Comment) {
+  const username = comment.author?.username?.trim();
+
+  return username ? `/users/${encodeURIComponent(username)}` : null;
 }
 
 function formatDate(value: string) {
