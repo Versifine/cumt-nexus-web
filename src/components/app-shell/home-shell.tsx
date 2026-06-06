@@ -2,23 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
-import {
-  ArrowDown,
-  ArrowUp,
-  Bell,
-  ChevronDown,
-  ClipboardCheck,
-  FilePlus2,
-  Hash,
-  Home,
-  LogOut,
-  MessageSquare,
-  Search,
-  ShieldAlert,
-  User,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, MessageSquare } from "lucide-react";
 
 import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -26,42 +11,13 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
 import { MetricBlock } from "@/components/ui/data-display";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
-import { useCurrentUserQuery } from "@/features/auth/queries";
 import { useLatestPostsQuery } from "@/features/post/queries";
 import type { Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { label: "最新", icon: Home, href: "/", active: true },
-  { label: "社区", icon: Hash, href: "/communities" },
-  { label: "搜索", icon: Search, href: "/search" },
-  { label: "通知", icon: Bell, href: "/notifications" },
-  { label: "申请", icon: FilePlus2, href: "/community-applications/new" },
-  {
-    label: "审核",
-    icon: ShieldAlert,
-    href: "/moderation",
-    requiresStaff: true,
-  },
-  {
-    label: "审批",
-    icon: ClipboardCheck,
-    href: "/community-applications/review",
-    requiresStaff: true,
-  },
-];
 
 const guideItems = [
   "先进入具体社区，再发布帖子。",
@@ -70,341 +26,131 @@ const guideItems = [
 ];
 
 export function HomeShell() {
-  const { isReady, token } = useAuthSession();
+  const { isReady } = useAuthSession();
   const [sort, setSort] = useState<PostSort>("new");
-  const canLoadLatestPosts = isReady && Boolean(token);
-  const currentUserQuery = useCurrentUserQuery();
-  const canAccessStaffRoutes =
-    currentUserQuery.data?.is_platform_staff === true;
-  const visibleNavItems = navItems.filter(
-    (item) => !item.requiresStaff || canAccessStaffRoutes,
-  );
-  const latestPostsQuery = useLatestPostsQuery(20, 0, canLoadLatestPosts, sort);
-  const posts = canLoadLatestPosts ? (latestPostsQuery.data?.posts ?? []) : [];
+  const canReadLatestPosts = isReady;
+  const latestPostsQuery = useLatestPostsQuery(20, 0, canReadLatestPosts, sort);
+  const posts = canReadLatestPosts ? (latestPostsQuery.data?.posts ?? []) : [];
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto grid min-h-screen w-full max-w-[1440px] grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-border bg-background px-5 py-5 lg:block">
-          <Link href="/" className="block border-b border-border pb-5">
-            <div className="inline-flex items-center border border-foreground bg-foreground px-2 py-1 text-xl font-black leading-none tracking-normal text-background">
-              CN
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <motion.section
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+        className="min-w-0"
+      >
+        <section className="border-b border-border pb-6">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="font-mono text-xs uppercase text-primary">
+                CUMT NEXUS / 最新讨论
+              </div>
+              <h1 className="mt-4 text-5xl font-black leading-[0.95] tracking-normal text-foreground md:text-6xl 2xl:text-7xl">
+                <span className="block whitespace-nowrap">校园里的</span>
+                <span className="block whitespace-nowrap">最新讨论</span>
+              </h1>
             </div>
-            <div className="mt-4 text-sm font-semibold">CUMT Nexus</div>
-            <div className="mt-1 text-xs text-muted-foreground">校园社区索引</div>
-          </Link>
 
-          <nav className="mt-6 divide-y divide-border border-y border-border">
-            {visibleNavItems.map((item, index) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={cn(
-                  "group flex items-center justify-between py-3 text-sm transition-colors",
-                  item.active
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+            <div className="grid grid-cols-3 border border-border text-center sm:min-w-80">
+              <MetricBlock label="帖子" value={String(posts.length)} />
+              <MetricBlock
+                label="总分"
+                value={String(
+                  posts.reduce((total, post) => total + post.score, 0),
                 )}
-              >
-                <span className="flex items-center gap-3">
-                  <span className="w-6 font-mono text-xs text-muted-foreground">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <item.icon className="size-4" aria-hidden="true" />
-                  {item.label}
-                </span>
-                <span
-                  className={cn(
-                    "h-1.5 w-1.5 rounded-full transition-colors",
-                    item.active
-                      ? "bg-primary"
-                      : "bg-border group-hover:bg-muted-foreground",
-                  )}
-                />
-              </Link>
-            ))}
-          </nav>
-
-          <div className="mt-6 border border-border bg-background-soft p-3">
-            <div className="font-mono text-[11px] uppercase text-muted-foreground">
-              当前阶段
+              />
+              <MetricBlock
+                label="状态"
+                value={canReadLatestPosts ? formatSortLabel(sort) : "准备中"}
+              />
             </div>
-            <p className="mt-2 text-sm leading-6 text-foreground">
-              首版主链路已接入，下一步打磨信息流质感和真实联调。
-            </p>
           </div>
-        </aside>
+        </section>
 
-        <section className="flex min-w-0 flex-col">
-          <header className="sticky top-0 z-20 border-b border-border bg-background/90 px-4 py-3 backdrop-blur md:px-6">
-            <div className="flex items-center justify-between gap-4">
-              <Link href="/" className="flex items-center gap-3 lg:hidden">
-                <span className="border border-foreground bg-foreground px-2 py-1 text-sm font-black leading-none text-background">
-                  CN
-                </span>
-                <span className="text-sm font-semibold">CUMT Nexus</span>
-              </Link>
-
-              <div className="hidden min-w-0 lg:block">
-                <div className="font-mono text-xs uppercase text-muted-foreground">
-                  01 / 讨论索引
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1 sm:gap-2">
-                <TextAction href="/search" className="hidden md:inline-flex">
-                  搜索
-                </TextAction>
-                <TextAction href="/notifications" className="hidden lg:inline-flex">
-                  通知
-                </TextAction>
-                {canAccessStaffRoutes ? (
-                  <TextAction href="/moderation" className="hidden xl:inline-flex">
-                    审核
-                  </TextAction>
-                ) : null}
-                <TextAction href="/communities" className="hidden sm:inline-flex">
-                  浏览社区
-                </TextAction>
-                <TextAction href="/communities" tone="primary">
-                  选择社区发帖
-                </TextAction>
-                <HeaderAuthControls />
-              </div>
+        <section className="border-b border-border py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">社区信息流</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                公开帖子流会直接展示给访客；登录后同一接口补充投票状态和个人权限。
+              </p>
             </div>
-          </header>
-
-          <div className="grid flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <motion.section
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-              className="min-w-0 px-4 py-6 md:px-6"
-            >
-              <section className="border-b border-border pb-6">
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                  <div className="max-w-3xl">
-                    <div className="font-mono text-xs uppercase text-primary">
-                      CUMT NEXUS / 最新讨论
-                    </div>
-                    <h1 className="mt-4 text-5xl font-black leading-[0.95] tracking-normal text-foreground md:text-6xl 2xl:text-7xl">
-                      <span className="block whitespace-nowrap">校园里的</span>
-                      <span className="block whitespace-nowrap">最新讨论</span>
-                    </h1>
-                  </div>
-
-                  <div className="grid grid-cols-3 border border-border text-center sm:min-w-80">
-                    <MetricBlock label="帖子" value={String(posts.length)} />
-                    <MetricBlock
-                      label="总分"
-                      value={String(posts.reduce((total, post) => total + post.score, 0))}
-                    />
-                    <MetricBlock
-                      label="状态"
-                      value={canLoadLatestPosts ? formatSortLabel(sort) : "待登录"}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              <section className="border-b border-border py-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold">社区信息流</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {canLoadLatestPosts
-                        ? "来自全站帖子接口，可在最新和热门之间切换。"
-                        : "登录后读取最新帖子、投票状态和评论入口。"}
-                    </p>
-                  </div>
-                  <FeedSortTabs
-                    disabled={!canLoadLatestPosts || latestPostsQuery.isFetching}
-                    onSortChange={setSort}
-                    sort={sort}
-                  />
-                </div>
-              </section>
-
-              <section>
-                {!isReady ? (
-                  <div className="border-b border-border py-5">
-                    <LoadingState rows={5} />
-                  </div>
-                ) : null}
-
-                {isReady && !token ? (
-                  <div className="py-5">
-                    <EmptyState
-                      title="登录后查看最新讨论"
-                      description="最新帖子需要身份上下文来展示投票状态。登录后即可查看社区里的实时讨论。"
-                      action={<TextAction href="/login">去登录</TextAction>}
-                    />
-                  </div>
-                ) : null}
-
-                {canLoadLatestPosts && latestPostsQuery.isLoading ? (
-                  <div className="border-b border-border py-5">
-                    <LoadingState rows={5} />
-                  </div>
-                ) : null}
-
-                {canLoadLatestPosts && latestPostsQuery.isError ? (
-                  <div className="py-5">
-                    <ErrorState
-                      title={getErrorTitle(latestPostsQuery.error)}
-                      description={getErrorDescription(latestPostsQuery.error)}
-                      action={
-                        isUnauthenticated(latestPostsQuery.error) ? (
-                          <TextAction href="/login" tone="primary">
-                            登录
-                          </TextAction>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => latestPostsQuery.refetch()}
-                          >
-                            重试
-                          </Button>
-                        )
-                      }
-                    />
-                  </div>
-                ) : null}
-
-                {canLoadLatestPosts && latestPostsQuery.isSuccess && posts.length === 0 ? (
-                  <div className="py-5">
-                    <EmptyState
-                      title="还没有帖子"
-                      description="公开社区开始发布内容后，最新帖子会出现在这里。"
-                      action={
-                        <TextAction href="/communities">去社区看看</TextAction>
-                      }
-                    />
-                  </div>
-                ) : null}
-
-                {canLoadLatestPosts && latestPostsQuery.isSuccess && posts.length > 0 ? (
-                  <div className="divide-y divide-border border-b border-border">
-                    {posts.map((post, index) => (
-                      <LatestPostRow key={post.id} index={index} post={post} />
-                    ))}
-                  </div>
-                ) : null}
-              </section>
-            </motion.section>
-
-            <RightRail
-              canLoadLatestPosts={canLoadLatestPosts}
-              posts={posts}
+            <FeedSortTabs
+              disabled={!canReadLatestPosts || latestPostsQuery.isFetching}
+              onSortChange={setSort}
               sort={sort}
             />
           </div>
         </section>
-      </div>
-    </main>
-  );
-}
 
-function HeaderAuthControls() {
-  const router = useRouter();
-  const { clearSession, isReady, token } = useAuthSession();
-  const currentUserQuery = useCurrentUserQuery();
+        <section>
+          {!isReady ? (
+            <div className="border-b border-border py-5">
+              <LoadingState rows={5} />
+            </div>
+          ) : null}
 
-  const signOut = () => {
-    clearSession();
-    router.push("/login");
-  };
+          {canReadLatestPosts && latestPostsQuery.isLoading ? (
+            <div className="border-b border-border py-5">
+              <LoadingState rows={5} />
+            </div>
+          ) : null}
 
-  if (!isReady || (token && currentUserQuery.isLoading)) {
-    return (
-      <div
-        className="h-10 w-10 animate-pulse border border-border bg-muted sm:w-28"
-        aria-label="正在加载用户"
+          {canReadLatestPosts && latestPostsQuery.isError ? (
+            <div className="py-5">
+              <ErrorState
+                title={getErrorTitle(latestPostsQuery.error)}
+                description={getErrorDescription(latestPostsQuery.error)}
+                action={
+                  isUnauthenticated(latestPostsQuery.error) ? (
+                    <TextAction href="/communities" tone="primary">
+                      浏览社区
+                    </TextAction>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => latestPostsQuery.refetch()}
+                    >
+                      重试
+                    </Button>
+                  )
+                }
+              />
+            </div>
+          ) : null}
+
+          {canReadLatestPosts &&
+          latestPostsQuery.isSuccess &&
+          posts.length === 0 ? (
+            <div className="py-5">
+              <EmptyState
+                title="还没有帖子"
+                description="公开社区开始发布内容后，最新帖子会出现在这里。"
+                action={<TextAction href="/communities">去社区看看</TextAction>}
+              />
+            </div>
+          ) : null}
+
+          {canReadLatestPosts &&
+          latestPostsQuery.isSuccess &&
+          posts.length > 0 ? (
+            <div className="divide-y divide-border border-b border-border">
+              {posts.map((post, index) => (
+                <LatestPostRow key={post.id} index={index} post={post} />
+              ))}
+            </div>
+          ) : null}
+        </section>
+      </motion.section>
+
+      <RightRail
+        canReadLatestPosts={canReadLatestPosts}
+        posts={posts}
+        sort={sort}
       />
-    );
-  }
-
-  if (!token || !currentUserQuery.data) {
-    if (token && currentUserQuery.isError) {
-      return (
-        <Button variant="outline" onClick={() => currentUserQuery.refetch()}>
-          重试
-        </Button>
-      );
-    }
-
-    return <TextAction href="/login">登录</TextAction>;
-  }
-
-  const user = currentUserQuery.data;
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="group inline-flex h-10 max-w-44 items-center gap-2 border border-border px-2 text-sm font-semibold transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          aria-label="打开用户菜单"
-        >
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-xs font-semibold text-primary">
-            {getUserInitial(user.username)}
-          </span>
-          <span className="hidden min-w-0 truncate text-sm sm:inline">
-            {user.username}
-          </span>
-          <ChevronDown
-            className="size-4 text-muted-foreground transition-transform group-hover:translate-y-0.5"
-            aria-hidden="true"
-          />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>
-          <span className="block truncate text-sm text-foreground">
-            {user.username}
-          </span>
-          <span className="mt-1 block text-xs font-normal text-muted-foreground">
-            {user.status}
-          </span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/communities">
-            <Hash className="size-4" aria-hidden="true" />
-            社区
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/community-applications/new">
-            <User className="size-4" aria-hidden="true" />
-            申请社区
-          </Link>
-        </DropdownMenuItem>
-        {user.is_platform_staff ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/moderation">
-                <ShieldAlert className="size-4" aria-hidden="true" />
-                举报审核
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/community-applications/review">
-                <ClipboardCheck className="size-4" aria-hidden="true" />
-                社区审批
-              </Link>
-            </DropdownMenuItem>
-          </>
-        ) : null}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onSelect={signOut}>
-          <LogOut className="size-4" aria-hidden="true" />
-          退出登录
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    </div>
   );
 }
 
@@ -499,11 +245,11 @@ function LatestPostRow({ index, post }: { index: number; post: Post }) {
 }
 
 function RightRail({
-  canLoadLatestPosts,
+  canReadLatestPosts,
   posts,
   sort,
 }: {
-  canLoadLatestPosts: boolean;
+  canReadLatestPosts: boolean;
   posts: Post[];
   sort: PostSort;
 }) {
@@ -565,9 +311,9 @@ function RightRail({
             </div>
           ) : (
             <p className="text-sm leading-6 text-muted-foreground">
-              {canLoadLatestPosts
+              {canReadLatestPosts
                 ? "等待帖子数据加载后展示。"
-                : "登录后展示高分讨论。"}
+                : "正在准备公开帖子流。"}
             </p>
           )}
         </section>
@@ -588,10 +334,6 @@ function RightRail({
       </div>
     </aside>
   );
-}
-
-function getUserInitial(username: string) {
-  return username.trim().charAt(0).toUpperCase() || "U";
 }
 
 function formatShortId(value: string) {
@@ -616,13 +358,17 @@ function isUnauthenticated(error: Error | null) {
 
 function getErrorTitle(error: Error | null) {
   if (isUnauthenticated(error)) {
-    return "需要登录";
+    return "公开信息流暂不可读";
   }
 
   return "无法加载最新帖子";
 }
 
 function getErrorDescription(error: Error | null) {
+  if (isUnauthenticated(error)) {
+    return "前端已按游客身份请求公开帖子流；如果仍返回认证错误，需要后端保持 optional Bearer 公开读取合同。";
+  }
+
   if (error instanceof ApiError) {
     return error.message;
   }

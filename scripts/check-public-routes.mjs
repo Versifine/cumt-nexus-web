@@ -22,8 +22,8 @@ const appShellHrefMarkers = ["/", "/communities"];
 
 const routes = [
   {
-    absentMarkers: ["无法加载最新帖子", "需要登录"],
-    markers: ["CUMT Nexus", "最新讨论", "浏览社区", "登录后查看最新讨论", "待登录"],
+    absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
+    markers: ["CUMT Nexus", "最新讨论", "社区信息流", "公开帖子流", "浏览社区"],
     path: "/",
   },
   {

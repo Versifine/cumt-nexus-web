@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AppShell } from "@/components/app-shell/app-shell";
 import { HomeShell } from "@/components/app-shell/home-shell";
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  return <HomeShell />;
+  return (
+    <AppShell contextLabel="01 / 首页">
+      <HomeShell />
+    </AppShell>
+  );
 }
