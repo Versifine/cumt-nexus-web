@@ -185,6 +185,13 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 最新浏览器 QA 记录
 
+2026-06-07 首页信息流行展示复验记录：
+
+- 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:ui-primitives`、`npm run check:copy`、`npm run check:docs`、`npm run check:routes` 和 `npm run check:static` 均通过。
+- 匿名 API 复验：`GET /api/v1/posts?limit=3&offset=0&sort=new` 返回帖子携带 `community.slug/name`、`author.display_name/username`、`comment_count`、`body_excerpt`、`preview` 和 `attachments` 字段，首条为 `/public`、作者 `comments_71ibp9dt`、`comment_count: 1`。
+- 浏览器复验 `/` 桌面和 `390px` 移动端：首页信息流行展示 `/public`、`Public`、作者用户名、帖子标题、正文摘要和 `1 评论`；页面不再以旧的 `社区 {shortId}` / `作者 {shortId}` 作为主要元信息。
+- 浏览器复验 `/` 桌面和 `390px` 移动端：未出现旧登录墙，`scrollWidth` 等于 `clientWidth`，无横向溢出，控制台无 error。
+
 2026-06-07 首页信息流首屏服务端预取复验记录：
 
 - 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:docs`、`npm run check:routes`、`npm run check:ui-primitives` 和 `npm run check:static` 通过。

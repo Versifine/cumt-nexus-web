@@ -196,6 +196,15 @@ function FeedSortTabs({
 }
 
 function LatestPostRow({ index, post }: { index: number; post: Post }) {
+  const communityLabel = getCommunityLabel(post);
+  const communityName = getCommunityName(post);
+  const authorName = getAuthorName(post);
+  const authorHandle = getAuthorHandle(post);
+  const authorInitial = getAuthorInitial(authorName);
+  const excerpt = getPostExcerpt(post);
+  const previewImage = getPreviewImage(post);
+  const commentCount = post.comment_count ?? 0;
+
   return (
     <Link
       href={`/posts/${post.id}`}
@@ -206,7 +215,7 @@ function LatestPostRow({ index, post }: { index: number; post: Post }) {
           postId: post.id,
         })
       }
-      className="group grid gap-4 py-5 transition-colors hover:bg-background-soft/70 md:grid-cols-[72px_minmax(0,1fr)_96px]"
+      className="group grid gap-4 py-5 transition-colors hover:bg-background-soft/70 md:grid-cols-[72px_minmax(0,1fr)_104px]"
     >
       <div className="flex items-center gap-3 md:block">
         <div className="font-mono text-xs text-muted-foreground">
@@ -226,19 +235,45 @@ function LatestPostRow({ index, post }: { index: number; post: Post }) {
       </div>
 
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="border border-border px-2 py-0.5 font-mono">
-            社区 {formatShortId(post.community_id)}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
+          <span className="border border-border px-2 py-0.5 font-mono text-foreground">
+            {communityLabel}
           </span>
-          <span>作者 {formatShortId(post.author_id)}</span>
+          {communityName !== communityLabel ? (
+            <span className="max-w-40 truncate text-foreground">
+              {communityName}
+            </span>
+          ) : null}
+          <span className="inline-flex min-w-0 items-center gap-1.5">
+            <span className="flex size-5 shrink-0 items-center justify-center border border-border bg-background-soft font-mono text-[10px] text-primary">
+              {authorInitial}
+            </span>
+            <span className="min-w-0 truncate">作者 {authorName}</span>
+            {authorHandle ? (
+              <span className="font-mono text-[11px]">{authorHandle}</span>
+            ) : null}
+          </span>
           <span>发布于 {formatDate(post.created_at)}</span>
         </div>
         <h2 className="mt-3 text-xl font-semibold leading-7 tracking-normal text-foreground transition-colors group-hover:text-primary">
           {post.title}
         </h2>
-        <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          {post.body}
-        </p>
+        {previewImage ? (
+          <div className="mt-3 overflow-hidden border border-border bg-background-soft sm:max-w-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewImage.url}
+              alt={previewImage.alt_text || post.title}
+              className="aspect-[16/9] w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        ) : null}
+        {excerpt ? (
+          <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            {excerpt}
+          </p>
+        ) : null}
       </div>
 
       <div className="flex items-center gap-3 text-sm text-muted-foreground md:flex-col md:items-end md:justify-center">
@@ -247,7 +282,7 @@ function LatestPostRow({ index, post }: { index: number; post: Post }) {
         </span>
         <span className="inline-flex items-center gap-1 text-xs">
           <MessageSquare className="size-3" aria-hidden="true" />
-          讨论
+          {commentCount} 评论
         </span>
       </div>
     </Link>
@@ -346,8 +381,42 @@ function RightRail({
   );
 }
 
-function formatShortId(value: string) {
-  return value.slice(0, 8);
+function getCommunityLabel(post: Post) {
+  const slug = post.community?.slug ?? post.community_slug;
+
+  return slug ? `/${slug}` : "社区";
+}
+
+function getCommunityName(post: Post) {
+  return post.community?.name ?? post.community_name ?? getCommunityLabel(post);
+}
+
+function getAuthorName(post: Post) {
+  return post.author?.display_name || post.author?.username || "用户";
+}
+
+function getAuthorHandle(post: Post) {
+  return post.author?.username ? `@${post.author.username}` : "";
+}
+
+function getAuthorInitial(value: string) {
+  return value.trim().slice(0, 1).toUpperCase() || "用";
+}
+
+function getPostExcerpt(post: Post) {
+  return post.body_excerpt || post.body;
+}
+
+function getPreviewImage(post: Post) {
+  if (post.preview?.image?.url) {
+    return post.preview.image;
+  }
+
+  const attachment = post.attachments?.find(
+    (item) => item.kind === "image" && item.status === "ready" && item.url,
+  );
+
+  return attachment ?? null;
 }
 
 function formatSortLabel(sort: PostSort) {
