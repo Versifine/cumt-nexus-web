@@ -291,6 +291,13 @@ function PostRow({
   index: number;
   post: Post;
 }) {
+  const authorName = getAuthorName(post);
+  const authorHandle = getAuthorHandle(post);
+  const authorInitial = getAuthorInitial(authorName);
+  const excerpt = getPostExcerpt(post);
+  const previewImage = getPreviewImage(post);
+  const commentCount = post.comment_count ?? 0;
+
   return (
     <Link
       href={`/posts/${post.id}`}
@@ -321,9 +328,18 @@ function PostRow({
       </div>
 
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="border border-border px-2 py-0.5 font-mono">
-            作者 {formatShortId(post.author_id)}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
+          <span className="border border-border px-2 py-0.5 font-mono text-foreground">
+            /{community.slug}
+          </span>
+          <span className="inline-flex min-w-0 items-center gap-1.5">
+            <span className="flex size-5 shrink-0 items-center justify-center border border-border bg-background-soft font-mono text-[10px] text-primary">
+              {authorInitial}
+            </span>
+            <span className="min-w-0 truncate">作者 {authorName}</span>
+            {authorHandle ? (
+              <span className="font-mono text-[11px]">{authorHandle}</span>
+            ) : null}
           </span>
           <span>发布于 {formatDate(post.created_at)}</span>
           <span>{formatPostStatus(post.status)}</span>
@@ -331,9 +347,22 @@ function PostRow({
         <h3 className="mt-3 text-xl font-semibold leading-7 tracking-normal text-foreground transition-colors group-hover:text-primary">
           {post.title}
         </h3>
-        <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          {post.body}
-        </p>
+        {previewImage ? (
+          <div className="mt-3 overflow-hidden border border-border bg-background-soft sm:max-w-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewImage.url}
+              alt={previewImage.alt_text || post.title}
+              className="aspect-[16/9] w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        ) : null}
+        {excerpt ? (
+          <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            {excerpt}
+          </p>
+        ) : null}
       </div>
 
       <div className="flex items-center gap-3 text-sm text-muted-foreground md:flex-col md:items-end md:justify-center">
@@ -342,7 +371,7 @@ function PostRow({
         </span>
         <span className="inline-flex items-center gap-1 text-xs">
           <MessageSquare className="size-3" aria-hidden="true" />
-          详情
+          {commentCount} 评论
         </span>
         <ArrowRight
           className="hidden size-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary md:block"
@@ -441,8 +470,32 @@ function CommunityRail({
   );
 }
 
-function formatShortId(value: string) {
-  return value.slice(0, 8);
+function getAuthorName(post: Post) {
+  return post.author?.display_name || post.author?.username || "用户";
+}
+
+function getAuthorHandle(post: Post) {
+  return post.author?.username ? `@${post.author.username}` : "";
+}
+
+function getAuthorInitial(value: string) {
+  return value.trim().slice(0, 1).toUpperCase() || "用";
+}
+
+function getPostExcerpt(post: Post) {
+  return post.body_excerpt || post.body;
+}
+
+function getPreviewImage(post: Post) {
+  if (post.preview?.image?.url) {
+    return post.preview.image;
+  }
+
+  const attachment = post.attachments?.find(
+    (item) => item.kind === "image" && item.status === "ready" && item.url,
+  );
+
+  return attachment ?? null;
 }
 
 function formatSortLabel(sort: PostSort) {

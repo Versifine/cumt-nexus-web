@@ -185,6 +185,12 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 最新浏览器 QA 记录
 
+2026-06-07 社区详情帖子流身份信息展示复验记录：
+
+- 自动检查已复验：`npm run lint`、`npm run typecheck` 和 `npm run check:api-boundary` 均通过；完整 `check:static` 见本轮最终验证。
+- 浏览器复验 `/communities/public` 桌面和 `390px` 移动端：社区帖子列表展示 `/public`、作者昵称/用户名、`@username`、正文摘要和评论数，可见 DOM 不再出现 `作者 {shortId}`。
+- 浏览器复验 `/communities/public` 桌面和 `390px` 移动端：帖子列表有真实详情入口，`scrollWidth` 等于 `clientWidth`，控制台无 error。
+
 2026-06-07 帖子详情身份信息展示复验记录：
 
 - 自动检查已复验：`npm run lint` 和 `npm run typecheck` 均通过；完整 `check:static` 见本轮最终验证。
