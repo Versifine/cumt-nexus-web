@@ -8,7 +8,7 @@ import {
   listUserPosts,
   updatePost,
 } from "./api";
-import type { PostSort, UpdatePostInput } from "./types";
+import type { ListPostsResponse, PostSort, UpdatePostInput } from "./types";
 
 export const postQueryKeys = {
   latestPrefix: () => ["latest-posts"] as const,
@@ -66,11 +66,13 @@ export function useUserPostsQuery(
   offset = 0,
   enabled = true,
   sort: PostSort = "new",
+  initialData?: ListPostsResponse,
 ) {
   return useQuery({
     queryKey: postQueryKeys.userPosts(username, limit, offset, sort),
     queryFn: () => listUserPosts({ username, limit, offset, sort }),
     enabled: enabled && Boolean(username.trim()),
+    initialData,
   });
 }
 

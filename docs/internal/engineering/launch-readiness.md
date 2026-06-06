@@ -185,6 +185,14 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 最新浏览器 QA 记录
 
+2026-06-07 用户公开帖子列表首屏服务端预取复验记录：
+
+- 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:docs`、`npm run check:routes`、`npm run check:ui-primitives` 和 `npm run check:static` 通过。
+- 后端合同只读复核：`GET /api/v1/users/:username` 和 `GET /api/v1/users/:username/posts?limit=...&offset=...&sort=new` 为 public + optional Bearer；本切片未改后端。
+- 匿名 API 复验：临时用户 `comments_71ibp9dt` 的公开资料返回 `post_count: 1`，`GET /api/v1/users/comments_71ibp9dt/posts?limit=20&offset=0&sort=new` 返回 1 条 visible 帖子，标题为 `User comments QA 71ibp9dt`，无 Bearer。
+- 前端路由壳/SSR 复验：`http://localhost:3000/users/comments_71ibp9dt/posts?qa=ssr-posts` 返回 `200`，HTML 直接包含 `comments_71ibp9dt` 和帖子标题 `User comments QA 71ibp9dt`，且不包含登录墙。
+- in-app Browser 可见复验：桌面 `1265px` 和移动端 `390px` 均直接显示用户帖子页、`最新/热门` 排序、公开帖子指标和真实帖子行；`scrollWidth` 等于 `clientWidth`，无横向溢出，控制台无 error/warning。
+
 2026-06-07 用户主页首屏服务端预取复验记录：
 
 - 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:docs`、`npm run check:routes` 和 `npm run check:static` 通过。

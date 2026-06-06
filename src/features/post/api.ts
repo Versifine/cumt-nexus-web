@@ -22,6 +22,8 @@ type ListUserPostsInput = {
   limit?: number;
   offset?: number;
   sort?: PostSort;
+  cache?: RequestCache;
+  token?: string | null;
 };
 
 export function listCommunityPosts({
@@ -56,6 +58,8 @@ export function listUserPosts({
   limit = 20,
   offset = 0,
   sort = "new",
+  cache,
+  token,
 }: ListUserPostsInput) {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -65,6 +69,10 @@ export function listUserPosts({
 
   return apiRequest<ListPostsResponse>(
     `/api/v1/users/${encodeURIComponent(username)}/posts?${params.toString()}`,
+    {
+      cache,
+      token,
+    },
   );
 }
 

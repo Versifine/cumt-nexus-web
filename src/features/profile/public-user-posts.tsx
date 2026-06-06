@@ -23,24 +23,42 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useUserPostsQuery } from "@/features/post/queries";
-import type { Post, PostPreviewImage, PostSort } from "@/features/post/types";
+import type {
+  ListPostsResponse,
+  Post,
+  PostPreviewImage,
+  PostSort,
+} from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 import { usePublicUserQuery } from "./queries";
-import type { PublicUser } from "./types";
+import type { GetPublicUserResponse, PublicUser } from "./types";
 
 type PublicUserPostsProps = {
+  initialPostsData?: ListPostsResponse;
+  initialProfileData?: GetPublicUserResponse;
   username: string;
 };
 
-export function PublicUserPosts({ username }: PublicUserPostsProps) {
+export function PublicUserPosts({
+  initialPostsData,
+  initialProfileData,
+  username,
+}: PublicUserPostsProps) {
   const { isReady } = useAuthSession();
   const [sort, setSort] = useState<PostSort>("new");
-  const profileQuery = usePublicUserQuery(username, isReady);
+  const profileQuery = usePublicUserQuery(username, isReady, initialProfileData);
   const user = profileQuery.data?.user;
   const canRequestPosts = isReady && profileQuery.isSuccess && Boolean(user);
-  const postsQuery = useUserPostsQuery(username, 20, 0, canRequestPosts, sort);
+  const postsQuery = useUserPostsQuery(
+    username,
+    20,
+    0,
+    canRequestPosts,
+    sort,
+    sort === "new" ? initialPostsData : undefined,
+  );
   const posts = canRequestPosts ? (postsQuery.data?.posts ?? []) : [];
 
   return (
