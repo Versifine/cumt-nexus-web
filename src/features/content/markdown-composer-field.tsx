@@ -52,6 +52,7 @@ type MarkdownComposerFieldProps = {
 };
 
 type ComposerMode = "edit" | "preview";
+type InlineImageInsertion = "cursor" | "end";
 
 export function MarkdownComposerField({
   boundAttachments,
@@ -173,6 +174,21 @@ export function MarkdownComposerField({
   async function handleTextareaPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
     textareaProps.onPaste?.(event);
 
+    await handleInlineImagePaste(event, "cursor");
+  }
+
+  async function handleComposerPaste(event: ClipboardEvent<HTMLDivElement>) {
+    if (isTextareaElement(event.target)) {
+      return;
+    }
+
+    await handleInlineImagePaste(event, "end");
+  }
+
+  async function handleInlineImagePaste(
+    event: ClipboardEvent<Element>,
+    insertion: InlineImageInsertion,
+  ) {
     if (event.defaultPrevented || !imageUpload) {
       return;
     }
@@ -187,6 +203,10 @@ export function MarkdownComposerField({
 
     if (disabled || textareaProps.disabled) {
       return;
+    }
+
+    if (insertion === "end") {
+      setMode("edit");
     }
 
     const remainingUploadSlots =
@@ -216,7 +236,7 @@ export function MarkdownComposerField({
       return;
     }
 
-    await uploadInlineImageFiles(imageFiles);
+    await uploadInlineImageFiles(imageFiles, { insertion });
   }
 
   async function handleImageFileChange(files: FileList | null) {
@@ -237,7 +257,10 @@ export function MarkdownComposerField({
     await uploadInlineImageFiles([file]);
   }
 
-  async function uploadInlineImageFiles(imageFiles: File[]) {
+  async function uploadInlineImageFiles(
+    imageFiles: File[],
+    options: { insertion?: InlineImageInsertion } = {},
+  ) {
     if (!imageUpload) {
       return;
     }
@@ -277,9 +300,13 @@ export function MarkdownComposerField({
       let nextAttachments = imageUpload.attachments;
       let nextBodyValue = bodyTextareaRef.current?.value ?? value;
       let insertionStart =
-        bodyTextareaRef.current?.selectionStart ?? nextBodyValue.length;
+        options.insertion === "end"
+          ? nextBodyValue.length
+          : bodyTextareaRef.current?.selectionStart ?? nextBodyValue.length;
       let insertionEnd =
-        bodyTextareaRef.current?.selectionEnd ?? insertionStart;
+        options.insertion === "end"
+          ? insertionStart
+          : bodyTextareaRef.current?.selectionEnd ?? insertionStart;
 
       for (const file of imageFiles) {
         const altText = getPastedImageAltText(file);
@@ -388,7 +415,7 @@ export function MarkdownComposerField({
   }
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-2", className)} onPaste={handleComposerPaste}>
       <Tabs
         className="gap-2"
         value={mode}
@@ -528,4 +555,8 @@ function getPastedImageAltText(file: File) {
 
 function isImageFile(file: File | null): file is File {
   return Boolean(file?.type.startsWith("image/"));
+}
+
+function isTextareaElement(value: EventTarget | null) {
+  return value instanceof HTMLTextAreaElement;
 }
