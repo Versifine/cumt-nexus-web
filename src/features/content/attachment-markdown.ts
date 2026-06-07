@@ -40,6 +40,31 @@ export function isAttachmentMarkdownUrl(value?: string | null) {
   return Boolean(getAttachmentIdFromMarkdownUrl(value));
 }
 
+export function hasUnsupportedMarkdownImageReferences(markdown: string) {
+  return getUnsupportedMarkdownImageReferenceCount(markdown) > 0;
+}
+
+export function getUnsupportedMarkdownImageReferenceCount(markdown: string) {
+  const imagePattern =
+    /!\[(?:\\.|[^\]\\])*\]\(\s*([^\s)]+)(?:\s+(?:"[^"]*"|'[^']*'|[^\s)]+))?\s*\)/g;
+  const scannableMarkdown = stripMarkdownCodeSegments(markdown);
+  let count = 0;
+
+  for (const match of scannableMarkdown.matchAll(imagePattern)) {
+    if (isEscapedMarkdownToken(scannableMarkdown, match.index)) {
+      continue;
+    }
+
+    if (isAttachmentMarkdownUrl(match[1])) {
+      continue;
+    }
+
+    count += 1;
+  }
+
+  return count;
+}
+
 export function getReferencedAttachmentIds(markdown: string) {
   const ids = new Set<string>();
   const imagePattern = new RegExp(

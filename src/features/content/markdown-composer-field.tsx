@@ -12,6 +12,7 @@ import {
   createAttachmentMarkdown,
   getReferencedAttachmentIds,
   getReferencedAttachmentIdsForSubmit,
+  hasUnsupportedMarkdownImageReferences,
   removeAttachmentMarkdownReferences,
   removeAttachmentMarkdownReferencesWithSelection,
 } from "@/features/content/attachment-markdown";
@@ -91,6 +92,10 @@ export function MarkdownComposerField({
   );
   const detachedPreviewImageNotice =
     "有图片还没有放入正文；切回编辑，把图片放到光标处后才会出现在预览和发布内容里。";
+  const hasUnsupportedMarkdownImages =
+    hasUnsupportedMarkdownImageReferences(value);
+  const unsupportedMarkdownImageNotice =
+    "外部 Markdown 图片不会作为正文图片保存；请用“添加图片”或粘贴、拖拽图片文件上传后插入正文。";
 
   function setBodyValue(nextValue: string) {
     onChange(nextValue);
@@ -538,6 +543,11 @@ export function MarkdownComposerField({
             ref={bindTextareaRef}
             value={value}
           />
+          {hasUnsupportedMarkdownImages ? (
+            <p className="border-l border-amber-400/50 bg-amber-400/5 px-3 py-2 text-sm text-muted-foreground">
+              {unsupportedMarkdownImageNotice}
+            </p>
+          ) : null}
         </TabsContent>
         <TabsContent
           className={cn("mt-0", mode !== "preview" && "hidden")}

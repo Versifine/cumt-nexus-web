@@ -14,6 +14,8 @@ const {
   getAttachmentIdFromMarkdownUrl,
   getReferencedAttachmentIds,
   getReferencedAttachmentIdsForSubmit,
+  getUnsupportedMarkdownImageReferenceCount,
+  hasUnsupportedMarkdownImageReferences,
   isAttachmentMarkdownUrl,
   removeAttachmentMarkdownReferences,
   removeAttachmentMarkdownReferencesWithSelection,
@@ -204,6 +206,30 @@ function checkAttachmentMarkdown() {
       ].join("\n"),
     )],
     ["visible-id"],
+  );
+
+  expectEqual(
+    "unsupported markdown images detect external image syntax",
+    hasUnsupportedMarkdownImageReferences(
+      "正文\n![外部](https://example.com/a.png)\n![附件](nexus-attachment:img-1)",
+    ),
+    true,
+  );
+
+  expectEqual(
+    "unsupported markdown images ignore attachments, links, code and escaped images",
+    getUnsupportedMarkdownImageReferenceCount(
+      [
+        "![正文图片](nexus-attachment:img-1)",
+        "[普通链接](https://example.com/a.png)",
+        "`![代码图片](https://example.com/code.png)`",
+        "\\![转义图片](https://example.com/escaped.png)",
+        "```",
+        "![代码块图片](https://example.com/fenced.png)",
+        "```",
+      ].join("\n"),
+    ),
+    0,
   );
 
   expectEqual(

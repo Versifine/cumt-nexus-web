@@ -291,6 +291,16 @@ function checkMarkdownComposerEntryPoint() {
     );
   }
 
+  if (
+    !composer.content.includes("hasUnsupportedMarkdownImageReferences") ||
+    !composer.content.includes("外部 Markdown 图片不会作为正文图片保存") ||
+    !composer.content.includes("{unsupportedMarkdownImageNotice}")
+  ) {
+    composerProblems.push(
+      "MarkdownComposerField must warn authors when external Markdown image syntax will not become uploaded content images",
+    );
+  }
+
   if (composerProblems.length > 0) {
     addFail("MarkdownComposerField preview boundary", composerProblems.join("; "));
     return;
