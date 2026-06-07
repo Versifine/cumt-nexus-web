@@ -115,6 +115,7 @@ remark-gfm
 - 禁止任意 iframe。
 - 禁止绕过 `ContentBody` 直接在帖子详情或评论树中实现另一套用户内容渲染。
 - 禁止 `javascript:`、`data:` 等危险链接协议。
+- 禁止 `//example.com` 这类协议相对 URL；站内链接必须使用单斜杠路径，例如 `/communities/public`。
 - 外链必须加 `rel="nofollow ugc noopener noreferrer"`。
 - 外链是否新窗口打开由统一组件决定，不在页面里临时变化。
 - 图片和 embed 必须由后端返回结构化附件或白名单 provider，不能只靠 Markdown URL 放行。

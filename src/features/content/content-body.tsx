@@ -13,6 +13,10 @@ import {
   getRedditToken,
   transformRedditMarkdown,
 } from "@/features/content/reddit-markdown";
+import {
+  isExternalMarkdownHref,
+  normalizeMarkdownHref,
+} from "@/features/content/markdown-url";
 import { MediaAttachmentFigure } from "@/features/media/media-attachments";
 import type { MediaAttachment } from "@/features/media/types";
 import { cn } from "@/lib/utils";
@@ -66,7 +70,7 @@ export function ContentBody({
         components={components}
         remarkPlugins={[remarkGfm]}
         skipHtml
-        urlTransform={safeUrlTransform}
+        urlTransform={normalizeMarkdownHref}
       >
         {transformed.markdown}
       </ReactMarkdown>
@@ -97,11 +101,11 @@ function createMarkdownComponents(
         return <sup className="align-super text-[0.72em]">{token.text}</sup>;
       }
 
-      const safeHref = safeUrlTransform(href ?? "");
+      const safeHref = normalizeMarkdownHref(href);
       if (isAttachmentMarkdownUrl(safeHref)) {
         return <span>{children}</span>;
       }
-      const isExternal = safeHref.startsWith("http://") || safeHref.startsWith("https://");
+      const isExternal = isExternalMarkdownHref(safeHref);
 
       if (!safeHref) {
         return <span>{children}</span>;
@@ -289,31 +293,6 @@ function MarkdownAttachmentImage({
       </span>
     </span>
   );
-}
-
-function safeUrlTransform(url: string) {
-  const trimmedUrl = url.trim();
-
-  if (!trimmedUrl) {
-    return "";
-  }
-
-  if (trimmedUrl.startsWith("#") || trimmedUrl.startsWith("/")) {
-    return trimmedUrl;
-  }
-
-  if (isAttachmentMarkdownUrl(trimmedUrl)) {
-    return trimmedUrl;
-  }
-
-  try {
-    const parsedUrl = new URL(trimmedUrl);
-    const allowedProtocols = new Set(["http:", "https:", "mailto:"]);
-
-    return allowedProtocols.has(parsedUrl.protocol) ? trimmedUrl : "";
-  } catch {
-    return "";
-  }
 }
 
 function isVisibleImageAttachment(attachment: MediaAttachment) {

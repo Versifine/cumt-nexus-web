@@ -16,6 +16,10 @@ const {
   isAttachmentMarkdownUrl,
   removeAttachmentMarkdownReferences,
 } = await importTypescriptModule("src/features/content/attachment-markdown.ts");
+const {
+  isExternalMarkdownHref,
+  normalizeMarkdownHref,
+} = await importTypescriptModule("src/features/content/markdown-url.ts");
 
 const spoilerCases = [
   {
@@ -92,6 +96,7 @@ for (const testCase of spoilerCases) {
 }
 
 checkAttachmentMarkdown();
+checkMarkdownUrl();
 
 console.log("");
 
@@ -175,6 +180,80 @@ function checkAttachmentMarkdown() {
       "img-1",
     ),
     "![十](nexus-attachment:img-10)",
+  );
+}
+
+function checkMarkdownUrl() {
+  expectEqual(
+    "http markdown links are allowed",
+    normalizeMarkdownHref("https://example.com/path?q=1"),
+    "https://example.com/path?q=1",
+  );
+
+  expectEqual(
+    "mailto markdown links are allowed",
+    normalizeMarkdownHref("mailto:hello@example.com"),
+    "mailto:hello@example.com",
+  );
+
+  expectEqual(
+    "site-relative markdown links are allowed",
+    normalizeMarkdownHref("/communities/public"),
+    "/communities/public",
+  );
+
+  expectEqual(
+    "hash markdown links are allowed",
+    normalizeMarkdownHref("#comments"),
+    "#comments",
+  );
+
+  expectEqual(
+    "attachment markdown links are allowed",
+    normalizeMarkdownHref("nexus-attachment:img-1"),
+    "nexus-attachment:img-1",
+  );
+
+  expectEqual(
+    "protocol-relative markdown links are blocked",
+    normalizeMarkdownHref("//example.com/path"),
+    "",
+  );
+
+  expectEqual(
+    "javascript markdown links are blocked",
+    normalizeMarkdownHref("javascript:alert(1)"),
+    "",
+  );
+
+  expectEqual(
+    "data markdown links are blocked",
+    normalizeMarkdownHref("data:text/html;base64,PHNjcmlwdA=="),
+    "",
+  );
+
+  expectEqual(
+    "control characters in markdown links are blocked",
+    normalizeMarkdownHref("https://example.com/\nnext"),
+    "",
+  );
+
+  expectEqual(
+    "http markdown links are marked external",
+    isExternalMarkdownHref("http://example.com"),
+    true,
+  );
+
+  expectEqual(
+    "uppercase http markdown links are marked external",
+    isExternalMarkdownHref("HTTPS://example.com"),
+    true,
+  );
+
+  expectEqual(
+    "site-relative markdown links are not marked external",
+    isExternalMarkdownHref("/communities/public"),
+    false,
   );
 }
 
