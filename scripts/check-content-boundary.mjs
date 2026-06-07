@@ -92,6 +92,7 @@ checkPublishedAttachmentNoFallbackGallery();
 checkPublishedAttachmentImageSizing();
 checkComposerImageCopy();
 checkComposerReferencedImageLimit();
+checkMarkdownTypographyBoundary();
 checkMarkdownSourceLeakage();
 checkMediaContractDocs();
 
@@ -882,6 +883,64 @@ function checkComposerReferencedImageLimit() {
   addPass(
     "composer referenced image limit",
     "composer blocks post/comment image references from exceeding their total content limits",
+  );
+}
+
+function checkMarkdownTypographyBoundary() {
+  const contentBody = sourceFiles.find(
+    (file) => file.path === "src/features/content/content-body.tsx",
+  );
+  const problems = [];
+
+  if (!contentBody) {
+    addFail("Markdown typography boundary", "src/features/content/content-body.tsx is missing");
+    return;
+  }
+
+  const blockedHeadingTokens = ["text-3xl", "text-2xl", "font-black"];
+  const foundBlockedHeadingTokens = blockedHeadingTokens.filter((token) =>
+    contentBody.content.includes(token),
+  );
+
+  if (foundBlockedHeadingTokens.length > 0) {
+    problems.push(
+      `Markdown headings must stay at content scale, found: ${foundBlockedHeadingTokens.join(", ")}`,
+    );
+  }
+
+  if (
+    !contentBody.content.includes("input({ checked, type })") ||
+    !contentBody.content.includes('type === "checkbox"') ||
+    !contentBody.content.includes("accent-primary") ||
+    !contentBody.content.includes('aria-label={checked ? "已完成" : "未完成"}')
+  ) {
+    problems.push("GFM task-list checkboxes must render through a stable ContentBody component");
+  }
+
+  if (
+    !contentBody.content.includes("li({ children, className })") ||
+    !contentBody.content.includes("[&>p]:my-0") ||
+    !contentBody.content.includes("task-list-item")
+  ) {
+    problems.push("Markdown list items must preserve task-list class names and remove nested paragraph gaps");
+  }
+
+  if (
+    !contentBody.content.includes("ul({ children, className })") ||
+    !contentBody.content.includes("contains-task-list") ||
+    !contentBody.content.includes("list-none pl-0")
+  ) {
+    problems.push("Markdown task lists must remove default bullets and padding");
+  }
+
+  if (problems.length > 0) {
+    addFail("Markdown typography boundary", problems.join("; "));
+    return;
+  }
+
+  addPass(
+    "Markdown typography boundary",
+    "ContentBody keeps Markdown headings and task lists at content scale",
   );
 }
 

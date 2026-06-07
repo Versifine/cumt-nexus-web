@@ -161,22 +161,50 @@ function createMarkdownComponents(
       return <del className="text-muted-foreground decoration-muted-foreground">{children}</del>;
     },
     h1({ children }) {
-      return <h1 className="mb-3 mt-6 text-3xl font-black leading-tight">{children}</h1>;
+      return <h1 className="mb-2 mt-5 text-xl font-semibold leading-7">{children}</h1>;
     },
     h2({ children }) {
-      return <h2 className="mb-3 mt-6 text-2xl font-black leading-tight">{children}</h2>;
+      return <h2 className="mb-2 mt-5 text-lg font-semibold leading-7">{children}</h2>;
     },
     h3({ children }) {
-      return <h3 className="mb-2 mt-5 text-xl font-semibold leading-tight">{children}</h3>;
+      return <h3 className="mb-2 mt-4 text-base font-semibold leading-6">{children}</h3>;
     },
     hr() {
       return <hr className="my-6 border-border" />;
     },
-    li({ children }) {
-      return <li className="pl-1 leading-7">{children}</li>;
+    input({ checked, type }) {
+      if (type === "checkbox") {
+        return (
+          <input
+            type="checkbox"
+            checked={Boolean(checked)}
+            disabled
+            readOnly
+            aria-label={checked ? "已完成" : "未完成"}
+            className="mr-2 size-4 translate-y-0.5 accent-primary"
+          />
+        );
+      }
+
+      return <input type={type} checked={checked} disabled readOnly />;
     },
-    ol({ children }) {
-      return <ol className="my-4 list-decimal space-y-1 pl-6">{children}</ol>;
+    li({ children, className }) {
+      const isTaskListItem = className?.includes("task-list-item");
+
+      return (
+        <li
+          className={cn(
+            "pl-1 leading-7 [&>p]:my-0",
+            isTaskListItem && "list-none pl-0",
+            className,
+          )}
+        >
+          {children}
+        </li>
+      );
+    },
+    ol({ children, className }) {
+      return <ol className={cn("my-4 list-decimal space-y-1 pl-6", className)}>{children}</ol>;
     },
     p({ children }) {
       return <p className="my-3 whitespace-pre-wrap leading-7 first:mt-0 last:mb-0">{children}</p>;
@@ -222,8 +250,20 @@ function createMarkdownComponents(
     thead({ children }) {
       return <thead className="border-b border-border">{children}</thead>;
     },
-    ul({ children }) {
-      return <ul className="my-4 list-disc space-y-1 pl-6">{children}</ul>;
+    ul({ children, className }) {
+      const containsTaskList = className?.includes("contains-task-list");
+
+      return (
+        <ul
+          className={cn(
+            "my-4 list-disc space-y-1 pl-6",
+            containsTaskList && "list-none pl-0",
+            className,
+          )}
+        >
+          {children}
+        </ul>
+      );
     },
   };
 }
