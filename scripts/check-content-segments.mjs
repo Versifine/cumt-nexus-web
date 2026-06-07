@@ -13,6 +13,7 @@ const {
   createAttachmentMarkdown,
   getAttachmentIdFromMarkdownUrl,
   getReferencedAttachmentIds,
+  getReferencedAttachmentIdsForSubmit,
   isAttachmentMarkdownUrl,
   removeAttachmentMarkdownReferences,
 } = await importTypescriptModule("src/features/content/attachment-markdown.ts");
@@ -177,6 +178,15 @@ function checkAttachmentMarkdown() {
       "正文\n![内容](nexus-attachment:img-1)\n![复杂](nexus-attachment:image%20id%2F%E4%B8%80%29)\n![外部](https://example.com/a.png)",
     )],
     ["img-1", "image id/一)"],
+  );
+
+  expectEqual(
+    "submit attachment ids only include uploaded images referenced by markdown",
+    getReferencedAttachmentIdsForSubmit(
+      "正文\n![二](nexus-attachment:img-2)\n![外来](nexus-attachment:manual-id)\n![一](nexus-attachment:img-1)",
+      [{ id: "img-1" }, { id: "img-2" }, { id: "img-3" }],
+    ),
+    ["img-1", "img-2"],
   );
 
   expectEqual(

@@ -60,6 +60,17 @@ export function getReferencedAttachmentIds(markdown: string) {
   return ids;
 }
 
+export function getReferencedAttachmentIdsForSubmit(
+  markdown: string,
+  attachments: Pick<MediaAttachment, "id">[],
+) {
+  const referencedIds = getReferencedAttachmentIds(markdown);
+
+  return attachments
+    .map((attachment) => attachment.id)
+    .filter((id) => referencedIds.has(id));
+}
+
 export function removeAttachmentMarkdownReferences(markdown: string, id: string) {
   const encodedId = encodeAttachmentIdForMarkdown(id);
   const imagePattern = new RegExp(

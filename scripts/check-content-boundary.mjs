@@ -453,6 +453,10 @@ function checkComposerImageCopy() {
   const mediaAttachments = sourceFiles.find(
     (file) => file.path === "src/features/media/media-attachments.tsx",
   );
+  const publishForms = [
+    "src/features/post/post-form.tsx",
+    "src/features/comment/comment-form.tsx",
+  ];
 
   if (!composer) {
     addFail("composer image copy", "src/features/content/markdown-composer-field.tsx is missing");
@@ -545,6 +549,38 @@ function checkComposerImageCopy() {
     );
     return;
   }
+
+  const submitBindingOffenders = [];
+  for (const formPath of publishForms) {
+    const form = sourceFiles.find((file) => file.path === formPath);
+
+    if (!form) {
+      submitBindingOffenders.push(`${formPath} is missing`);
+      continue;
+    }
+
+    if (
+      !form.content.includes("getReferencedAttachmentIdsForSubmit") ||
+      !form.content.includes("attachment_ids: getReferencedAttachmentIdsForSubmit(")
+    ) {
+      submitBindingOffenders.push(
+        `${formPath} must submit only Markdown-referenced image attachment ids`,
+      );
+    }
+  }
+
+  if (submitBindingOffenders.length > 0) {
+    addFail(
+      "composer submit attachment ids",
+      submitBindingOffenders.join("; "),
+    );
+    return;
+  }
+
+  addPass(
+    "composer submit attachment ids",
+    "publish forms submit only image attachment ids referenced by Markdown",
+  );
 
   if (
     !composer.content.includes('imageUpload && mode === "edit"') ||

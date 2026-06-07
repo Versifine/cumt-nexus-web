@@ -10,6 +10,7 @@ import { z } from "zod";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { getReferencedAttachmentIdsForSubmit } from "@/features/content/attachment-markdown";
 import { MarkdownComposerField } from "@/features/content/markdown-composer-field";
 import {
   IMAGE_UPLOAD_LIMITS,
@@ -50,7 +51,10 @@ export function PostForm({ className, slug }: PostFormProps) {
     mutationFn: (values: PostFormValues) =>
       publishPost(slug, {
         ...values,
-        attachment_ids: attachments.map((attachment) => attachment.id),
+        attachment_ids: getReferencedAttachmentIdsForSubmit(
+          values.body,
+          attachments,
+        ),
       }),
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({

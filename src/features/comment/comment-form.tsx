@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { getReferencedAttachmentIdsForSubmit } from "@/features/content/attachment-markdown";
 import { MarkdownComposerField } from "@/features/content/markdown-composer-field";
 import {
   IMAGE_UPLOAD_LIMITS,
@@ -59,7 +60,10 @@ export function CommentForm({
   const commentMutation = useMutation({
     mutationFn: (values: CommentFormValues) =>
       publishComment(postId, {
-        attachment_ids: attachments.map((attachment) => attachment.id),
+        attachment_ids: getReferencedAttachmentIdsForSubmit(
+          values.body,
+          attachments,
+        ),
         body: values.body,
         parent_id: parentId || undefined,
       }),
