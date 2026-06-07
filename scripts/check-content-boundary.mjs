@@ -216,6 +216,15 @@ function checkMarkdownComposerEntryPoint() {
     composerProblems.push("MarkdownComposerField preview renders without shared attachment-aware ContentBody");
   }
 
+  if (
+    !composer.content.includes("const hasPreviewContent = value.trim().length > 0") ||
+    composer.content.includes("previewAttachments.length > 0")
+  ) {
+    composerProblems.push(
+      "MarkdownComposerField preview empty state must be based on Markdown body text, not detached uploaded attachments",
+    );
+  }
+
   if (composerProblems.length > 0) {
     addFail("MarkdownComposerField preview boundary", composerProblems.join("; "));
     return;
@@ -223,7 +232,7 @@ function checkMarkdownComposerEntryPoint() {
 
   addPass(
     "MarkdownComposerField preview boundary",
-    "composer preview uses the same attachment-aware ContentBody renderer as published content",
+    "composer preview uses the same attachment-aware ContentBody renderer as published content and keeps detached uploads out of preview content state",
   );
 
   const missingConsumers = [];

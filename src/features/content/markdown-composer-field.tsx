@@ -77,8 +77,7 @@ export function MarkdownComposerField({
       ]),
     [boundAttachments, imageUpload?.attachments],
   );
-  const hasPreviewContent =
-    value.trim().length > 0 || previewAttachments.length > 0;
+  const hasPreviewContent = value.trim().length > 0;
 
   function setBodyValue(nextValue: string) {
     onChange(nextValue);
