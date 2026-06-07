@@ -51,6 +51,10 @@ export function getReferencedAttachmentIds(markdown: string) {
   const scannableMarkdown = stripMarkdownCodeSegments(markdown);
 
   for (const match of scannableMarkdown.matchAll(imagePattern)) {
+    if (isEscapedMarkdownToken(scannableMarkdown, match.index)) {
+      continue;
+    }
+
     const id = getAttachmentIdFromMarkdownUrl(match[1]);
 
     if (id) {
@@ -82,7 +86,9 @@ export function removeAttachmentMarkdownReferences(markdown: string, id: string)
   );
 
   return replaceMarkdownOutsideCodeSegments(markdown, (segment) =>
-    segment.replace(imagePattern, ""),
+    segment.replace(imagePattern, (matched, offset: number) =>
+      isEscapedMarkdownToken(segment, offset) ? matched : "",
+    ),
   )
     .replace(/\n{3,}/g, "\n\n")
     .trimEnd();
@@ -182,6 +188,20 @@ function replaceLineOutsideInlineCode(
   }
 
   return replacedLine;
+}
+
+function isEscapedMarkdownToken(markdown: string, index: number) {
+  let slashCount = 0;
+
+  for (let position = index - 1; position >= 0; position -= 1) {
+    if (markdown[position] !== "\\") {
+      break;
+    }
+
+    slashCount += 1;
+  }
+
+  return slashCount % 2 === 1;
 }
 
 function escapeMarkdownAltText(value: string) {

@@ -187,6 +187,7 @@ function checkAttachmentMarkdown() {
         "正文 nexus-attachment:raw-id",
         "[普通链接](nexus-attachment:link-id)",
         "`![代码图片](nexus-attachment:inline-code-id)`",
+        "\\![转义图片](nexus-attachment:escaped-id)",
         "```",
         "![代码块图片](nexus-attachment:fenced-code-id)",
         "```",
@@ -250,6 +251,7 @@ function checkAttachmentMarkdown() {
         "```",
         "![代码块图片](nexus-attachment:img-1)",
         "```",
+        "\\![转义图片](nexus-attachment:img-1)",
         "![正文图片](nexus-attachment:img-1)",
         "后文",
       ].join("\n"),
@@ -261,6 +263,7 @@ function checkAttachmentMarkdown() {
       "```",
       "![代码块图片](nexus-attachment:img-1)",
       "```",
+      "\\![转义图片](nexus-attachment:img-1)",
       "后文",
     ].join("\n"),
   );
