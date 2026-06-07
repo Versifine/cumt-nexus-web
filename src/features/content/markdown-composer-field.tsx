@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  type ClipboardDataImageSource,
   extractDataImageSourcesFromClipboardHtml,
+  extractDataImageSourcesFromClipboardText,
   getClipboardImageFileName,
 } from "@/features/content/clipboard-image";
 import {
@@ -649,7 +651,13 @@ function getImageFilesFromDataTransfer(dataTransfer: DataTransfer) {
     return itemFiles;
   }
 
-  return getDataImageFilesFromTransferHtml(dataTransfer);
+  const htmlImageFiles = getDataImageFilesFromTransferHtml(dataTransfer);
+
+  if (htmlImageFiles.length > 0) {
+    return htmlImageFiles;
+  }
+
+  return getDataImageFilesFromTransferText(dataTransfer);
 }
 
 function hasImageFileData(dataTransfer: DataTransfer) {
@@ -658,7 +666,8 @@ function hasImageFileData(dataTransfer: DataTransfer) {
     Array.from(dataTransfer.items).some(
       (item) => item.kind === "file" && item.type.startsWith("image/"),
     ) ||
-    hasDataImageInTransferHtml(dataTransfer)
+    hasDataImageInTransferHtml(dataTransfer) ||
+    hasDataImageInTransferText(dataTransfer)
   );
 }
 
@@ -692,8 +701,28 @@ function hasDataImageInTransferHtml(dataTransfer: DataTransfer) {
   );
 }
 
+function getDataImageFilesFromTransferText(dataTransfer: DataTransfer) {
+  const text = dataTransfer.getData("text/plain");
+
+  if (!text) {
+    return [];
+  }
+
+  return extractDataImageSourcesFromClipboardText(text)
+    .map((source, index) => createFileFromDataImageSource(source, index))
+    .filter(isImageFile);
+}
+
+function hasDataImageInTransferText(dataTransfer: DataTransfer) {
+  const text = dataTransfer.getData("text/plain");
+
+  return Boolean(
+    text && extractDataImageSourcesFromClipboardText(text).length > 0,
+  );
+}
+
 function createFileFromDataImageSource(
-  source: ReturnType<typeof extractDataImageSourcesFromClipboardHtml>[number],
+  source: ClipboardDataImageSource,
   index: number,
 ) {
   const commaIndex = source.dataUrl.indexOf(",");

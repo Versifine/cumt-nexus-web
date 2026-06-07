@@ -11,6 +11,7 @@ const { parseSpoilerSegments } = await importTypescriptModule(
 );
 const {
   extractDataImageSourcesFromClipboardHtml,
+  extractDataImageSourcesFromClipboardText,
   getClipboardImageFileName,
 } = await importTypescriptModule("src/features/content/clipboard-image.ts");
 const {
@@ -801,6 +802,44 @@ function checkClipboardImageExtraction() {
         dataUrl: "data:image/webp;base64,UklGRg==",
         extension: "webp",
         mimeType: "image/webp",
+      },
+    ],
+  );
+
+  expectEqual(
+    "clipboard plain text data image extracts image source",
+    extractDataImageSourcesFromClipboardText(
+      "data:image/png;base64,iVBORw0KGgo=",
+    ),
+    [
+      {
+        dataUrl: "data:image/png;base64,iVBORw0KGgo=",
+        extension: "png",
+        mimeType: "image/png",
+      },
+    ],
+  );
+
+  expectEqual(
+    "clipboard text data images extract markdown and raw occurrences once",
+    extractDataImageSourcesFromClipboardText(
+      [
+        "![inline](data:image/webp;base64,UklGRg==)",
+        "![duplicate](data:image/webp;base64,UklGRg==)",
+        "![remote](https://example.com/remote.png)",
+        "[plain link](data:image/png;base64,iVBORw0KGgo=)",
+      ].join("\n"),
+    ),
+    [
+      {
+        dataUrl: "data:image/webp;base64,UklGRg==",
+        extension: "webp",
+        mimeType: "image/webp",
+      },
+      {
+        dataUrl: "data:image/png;base64,iVBORw0KGgo=",
+        extension: "png",
+        mimeType: "image/png",
       },
     ],
   );

@@ -6,6 +6,10 @@ export type ClipboardDataImageSource = {
 
 const imageSrcPattern =
   /<img\b[^>]*?\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
+const markdownDataImagePattern =
+  /!\[[^\]\r\n]*\]\(\s*(data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+)\s*(?:"[^"]*"|'[^']*')?\s*\)/gi;
+const textDataImagePattern =
+  /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/gi;
 const base64DataImagePattern =
   /^data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/=\s]+)$/i;
 
@@ -25,6 +29,21 @@ export function extractDataImageSourcesFromClipboardHtml(html: string) {
 
     seen.add(source.dataUrl);
     sources.push(source);
+  }
+
+  return sources;
+}
+
+export function extractDataImageSourcesFromClipboardText(text: string) {
+  const sources: ClipboardDataImageSource[] = [];
+  const seen = new Set<string>();
+
+  for (const match of text.matchAll(markdownDataImagePattern)) {
+    addDataImageSource(sources, seen, match[1] ?? "");
+  }
+
+  for (const match of text.matchAll(textDataImagePattern)) {
+    addDataImageSource(sources, seen, match[0] ?? "");
   }
 
   return sources;
@@ -56,6 +75,21 @@ function parseBase64DataImage(value: string) {
     extension: getImageExtension(mimeType),
     mimeType,
   };
+}
+
+function addDataImageSource(
+  sources: ClipboardDataImageSource[],
+  seen: Set<string>,
+  rawSource: string,
+) {
+  const source = parseBase64DataImage(rawSource);
+
+  if (!source || seen.has(source.dataUrl)) {
+    return;
+  }
+
+  seen.add(source.dataUrl);
+  sources.push(source);
 }
 
 function normalizeHtmlAttributeValue(value: string) {
