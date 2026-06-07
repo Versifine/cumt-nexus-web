@@ -466,6 +466,10 @@ function checkComposerImageCopy() {
     "src/features/post/post-form.tsx",
     "src/features/comment/comment-form.tsx",
   ];
+  const lifecycleForms = [
+    "src/features/post/post-lifecycle-controls.tsx",
+    "src/features/comment/comment-lifecycle-controls.tsx",
+  ];
 
   if (!composer) {
     addFail("composer image copy", "src/features/content/markdown-composer-field.tsx is missing");
@@ -589,6 +593,40 @@ function checkComposerImageCopy() {
   addPass(
     "composer submit attachment ids",
     "publish forms submit only image attachment ids referenced by Markdown",
+  );
+
+  const editBindingOffenders = [];
+  for (const formPath of lifecycleForms) {
+    const form = sourceFiles.find((file) => file.path === formPath);
+
+    if (!form) {
+      editBindingOffenders.push(`${formPath} is missing`);
+      continue;
+    }
+
+    if (
+      !form.content.includes("getReferencedAttachmentIdsForSubmit") ||
+      !form.content.includes("attachment_ids: getReferencedAttachmentIdsForSubmit(") ||
+      !form.content.includes("imageUpload={{") ||
+      !form.content.includes("onUploadingChange: setIsUploadingImage")
+    ) {
+      editBindingOffenders.push(
+        `${formPath} must support edit-time image upload and submit only Markdown-referenced attachment ids`,
+      );
+    }
+  }
+
+  if (editBindingOffenders.length > 0) {
+    addFail(
+      "composer edit attachment ids",
+      editBindingOffenders.join("; "),
+    );
+    return;
+  }
+
+  addPass(
+    "composer edit attachment ids",
+    "post and comment edit dialogs upload images inside the Markdown composer and submit referenced attachment ids",
   );
 
   if (

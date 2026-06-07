@@ -19,7 +19,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { getReferencedAttachmentIdsForSubmit } from "@/features/content/attachment-markdown";
 import { MarkdownComposerField } from "@/features/content/markdown-composer-field";
+import {
+  IMAGE_UPLOAD_LIMITS,
+  type MediaAttachment,
+} from "@/features/media/types";
 import { ApiError } from "@/lib/api/client";
 
 import { useDeletePostMutation, useUpdatePostMutation } from "./queries";
@@ -44,6 +49,8 @@ export function PostLifecycleControls({
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editAttachments, setEditAttachments] = useState<MediaAttachment[]>([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const updateMutation = useUpdatePostMutation(post.id);
   const deleteMutation = useDeletePostMutation(post.id);
@@ -60,6 +67,12 @@ export function PostLifecycleControls({
   const { ref: bodyFieldRef, ...bodyFieldProps } = bodyField;
   const updateError = getSubmitError(updateMutation.error);
   const deleteError = getSubmitError(deleteMutation.error);
+  const boundPostAttachments = post.attachments ?? [];
+  const editImageMaxCount = Math.max(
+    0,
+    IMAGE_UPLOAD_LIMITS.maxCountPerPost -
+      getReferencedAttachmentIdsForSubmit(bodyValue, boundPostAttachments).length,
+  );
 
   function setBodyValue(nextValue: string) {
     form.setValue("body", nextValue, {
@@ -67,6 +80,23 @@ export function PostLifecycleControls({
       shouldTouch: true,
       shouldValidate: true,
     });
+  }
+
+  function resetEditImageState() {
+    setEditAttachments([]);
+    setIsUploadingImage(false);
+  }
+
+  function handleEditOpenChange(open: boolean) {
+    if (isUpdating || isUploadingImage) {
+      return;
+    }
+
+    setEditOpen(open);
+
+    if (!open) {
+      resetEditImageState();
+    }
   }
 
   useEffect(() => {
@@ -86,12 +116,19 @@ export function PostLifecycleControls({
   const isDeleting = deleteMutation.isPending;
 
   async function handleUpdate(values: PostLifecycleFormValues) {
-    const result = await updateMutation.mutateAsync(values);
+    const result = await updateMutation.mutateAsync({
+      ...values,
+      attachment_ids: getReferencedAttachmentIdsForSubmit(values.body, [
+        ...boundPostAttachments,
+        ...editAttachments,
+      ]),
+    });
 
     form.reset({
       title: result.post.title,
       body: result.post.body,
     });
+    resetEditImageState();
     setSuccessMessage("帖子已更新。");
     setEditOpen(false);
   }
@@ -116,11 +153,7 @@ export function PostLifecycleControls({
         <div className="flex shrink-0 flex-wrap gap-2">
           <Dialog
             open={editOpen}
-            onOpenChange={(open) => {
-              if (!isUpdating) {
-                setEditOpen(open);
-              }
-            }}
+            onOpenChange={handleEditOpenChange}
           >
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
@@ -189,6 +222,12 @@ export function PostLifecycleControls({
                     textareaRef={bodyFieldRef}
                     value={bodyValue}
                     boundAttachments={post.attachments}
+                    imageUpload={{
+                      attachments: editAttachments,
+                      maxCount: editImageMaxCount,
+                      onChange: setEditAttachments,
+                      onUploadingChange: setIsUploadingImage,
+                    }}
                   />
                   {form.formState.errors.body ? (
                     <p className="text-sm text-destructive">
@@ -196,7 +235,7 @@ export function PostLifecycleControls({
                     </p>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      默认显示发布后的正文样式；需要改内容时点“编辑”。
+                      默认显示发布后的正文样式；需要改内容时点“编辑”，可直接粘贴图片。
                     </p>
                   )}
                 </div>
@@ -205,13 +244,17 @@ export function PostLifecycleControls({
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={isUpdating}
+                    disabled={isUpdating || isUploadingImage}
                     onClick={() => setEditOpen(false)}
                   >
                     取消
                   </Button>
-                  <Button type="submit" disabled={isUpdating}>
-                    {isUpdating ? "正在保存..." : "保存修改"}
+                  <Button type="submit" disabled={isUpdating || isUploadingImage}>
+                    {isUploadingImage
+                      ? "图片上传中..."
+                      : isUpdating
+                        ? "正在保存..."
+                        : "保存修改"}
                   </Button>
                 </DialogFooter>
               </form>
