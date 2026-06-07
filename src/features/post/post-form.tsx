@@ -135,7 +135,6 @@ export function PostForm({ className, slug }: PostFormProps) {
             value={bodyValue}
             imageUpload={{
               attachments,
-              idPrefix: "post-image",
               maxCount: IMAGE_UPLOAD_LIMITS.maxCountPerPost,
               onChange: setAttachments,
               onUploadingChange: setIsUploadingImage,

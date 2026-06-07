@@ -291,9 +291,17 @@ function checkPublishedAttachmentRenderingBoundary() {
 }
 
 function checkComposerImageCopy() {
+  const composer = sourceFiles.find(
+    (file) => file.path === "src/features/content/markdown-composer-field.tsx",
+  );
   const mediaAttachments = sourceFiles.find(
     (file) => file.path === "src/features/media/media-attachments.tsx",
   );
+
+  if (!composer) {
+    addFail("composer image copy", "src/features/content/markdown-composer-field.tsx is missing");
+    return;
+  }
 
   if (!mediaAttachments) {
     addFail("composer image copy", "src/features/media/media-attachments.tsx is missing");
@@ -309,6 +317,62 @@ function checkComposerImageCopy() {
     addFail(
       "composer image copy",
       `image writing area must use 正文图片 wording, found: ${foundBlockedCopy.join(", ")}`,
+    );
+    return;
+  }
+
+  const detachedUploadPatterns = [
+    {
+      detail: "legacy detached image uploader component",
+      pattern: "ImageAttachmentUploader",
+    },
+    {
+      detail: "legacy detached alt-text field",
+      pattern: "图片说明",
+    },
+    {
+      detail: "legacy detached file field",
+      pattern: "选择图片",
+    },
+  ];
+  const detachedUploadOffenders = [];
+
+  for (const blocked of detachedUploadPatterns) {
+    for (const file of [composer, mediaAttachments]) {
+      if (file.content.includes(blocked.pattern)) {
+        detachedUploadOffenders.push(`${blocked.detail} in ${file.path}`);
+      }
+    }
+  }
+
+  if (detachedUploadOffenders.length > 0) {
+    addFail(
+      "composer image copy",
+      `image writing must stay inside the Markdown composer toolbar; found ${detachedUploadOffenders.join("; ")}`,
+    );
+    return;
+  }
+
+  if (
+    !composer.content.includes("trailingTools={renderImageTool()}") ||
+    !composer.content.includes('aria-label="添加图片"') ||
+    !composer.content.includes("onMouseDown={(event) => event.preventDefault()}")
+  ) {
+    addFail(
+      "composer image tool",
+      "MarkdownComposerField must expose image selection as a toolbar tool that preserves textarea selection",
+    );
+    return;
+  }
+
+  if (
+    !composer.content.includes("function removeInlineImageAttachment") ||
+    !composer.content.includes("imageUpload.onChange(") ||
+    !composer.content.includes("filter((item) => item.id !== attachment.id)")
+  ) {
+    addFail(
+      "composer image removal",
+      "removing an inline image must remove both Markdown references and pending attachment_ids",
     );
     return;
   }

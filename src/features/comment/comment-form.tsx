@@ -157,7 +157,6 @@ export function CommentForm({
           value={bodyValue}
           imageUpload={{
             attachments,
-            idPrefix: `comment-image-${parentId ?? "root"}-${postId}`,
             maxCount: IMAGE_UPLOAD_LIMITS.maxCountPerComment,
             onChange: setAttachments,
             onUploadingChange: setIsUploadingImage,

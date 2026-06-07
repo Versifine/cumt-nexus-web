@@ -40,6 +40,7 @@ type MarkdownToolbarProps = {
   disabled?: boolean;
   onChange: (value: string) => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
+  trailingTools?: ReactNode;
   value: string;
 };
 
@@ -114,6 +115,7 @@ export function MarkdownToolbar({
   disabled = false,
   onChange,
   textareaRef,
+  trailingTools,
   value,
 }: MarkdownToolbarProps) {
   function applyTool(tool: MarkdownTool) {
@@ -155,6 +157,7 @@ export function MarkdownToolbar({
           {tool.icon}
         </Button>
       ))}
+      {trailingTools}
     </div>
   );
 }

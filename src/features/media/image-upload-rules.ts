@@ -27,7 +27,7 @@ export function validateImageUploadFile(
   }
 
   if (altText.length > IMAGE_UPLOAD_LIMITS.altTextMaxLength) {
-    return `图片说明不能超过 ${IMAGE_UPLOAD_LIMITS.altTextMaxLength} 个字符。`;
+    return `图片文字不能超过 ${IMAGE_UPLOAD_LIMITS.altTextMaxLength} 个字符。`;
   }
 
   return null;
