@@ -10,6 +10,10 @@ const { parseSpoilerSegments } = await importTypescriptModule(
   "src/features/content/spoiler-segments.ts",
 );
 const {
+  extractDataImageSourcesFromClipboardHtml,
+  getClipboardImageFileName,
+} = await importTypescriptModule("src/features/content/clipboard-image.ts");
+const {
   createAttachmentMarkdown,
   getAttachmentIdFromMarkdownUrl,
   getReferencedAttachmentIds,
@@ -124,6 +128,7 @@ checkRedditMarkdownTransform();
 checkMarkdownSummary();
 checkMarkdownInsert();
 checkMarkdownToolbarActions();
+checkClipboardImageExtraction();
 
 console.log("");
 
@@ -747,6 +752,57 @@ function checkMarkdownInsert() {
       value:
         "正文\n![一](nexus-attachment:img-1)\n![二](nexus-attachment:img-2)\n",
     },
+  );
+}
+
+function checkClipboardImageExtraction() {
+  const pngDataUrl = "data:image/png;base64,iVBORw0KGgo=";
+  const jpegDataUrl = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
+  const sources = extractDataImageSourcesFromClipboardHtml(
+    [
+      `<p><img src="${pngDataUrl}"></p>`,
+      `<img alt="duplicate" src="${pngDataUrl}">`,
+      `<img src='${jpegDataUrl}'>`,
+      `<img src="https://example.com/remote.png">`,
+      `<img src="data:text/html;base64,PHNjcmlwdA==">`,
+    ].join("\n"),
+  );
+
+  expectEqual(
+    "clipboard html data images extract supported image sources once",
+    sources,
+    [
+      {
+        dataUrl: pngDataUrl,
+        extension: "png",
+        mimeType: "image/png",
+      },
+      {
+        dataUrl: jpegDataUrl,
+        extension: "jpg",
+        mimeType: "image/jpeg",
+      },
+    ],
+  );
+
+  expectEqual(
+    "clipboard html image filename uses Chinese paste copy",
+    getClipboardImageFileName(sources[0], 0),
+    "粘贴图片-1.png",
+  );
+
+  expectEqual(
+    "clipboard html data images decode html entities",
+    extractDataImageSourcesFromClipboardHtml(
+      `<img src=&quot;data:image/webp;base64,UklGRg==&quot;>`,
+    ),
+    [
+      {
+        dataUrl: "data:image/webp;base64,UklGRg==",
+        extension: "webp",
+        mimeType: "image/webp",
+      },
+    ],
   );
 }
 

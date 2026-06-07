@@ -678,13 +678,16 @@ function checkComposerImageCopy() {
     !composer.content.includes('await uploadInlineImageFiles(imageFiles, { insertion: "end" })') ||
     !composer.content.includes("event.clipboardData") ||
     !composer.content.includes("event.dataTransfer") ||
+    !composer.content.includes("extractDataImageSourcesFromClipboardHtml") ||
+    !composer.content.includes("getDataImageFilesFromTransferHtml") ||
+    !composer.content.includes("createFileFromDataImageSource") ||
     !composer.content.includes("applyMarkdownInsert") ||
     !composer.content.includes('setMode("edit")') ||
     !composer.content.includes('await uploadInlineImageFiles(imageFiles, { insertion })')
   ) {
     addFail(
       "composer pasted image insertion",
-      "MarkdownComposerField must upload pasted or dropped image files from the textarea or composer surface and insert them into the Markdown body",
+      "MarkdownComposerField must upload pasted or dropped image files, including clipboard HTML data images, and insert them into the Markdown body",
     );
     return;
   }

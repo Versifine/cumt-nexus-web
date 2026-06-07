@@ -9,6 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  extractDataImageSourcesFromClipboardHtml,
+  getClipboardImageFileName,
+} from "@/features/content/clipboard-image";
+import {
   createAttachmentMarkdown,
   getReferencedAttachmentIds,
   getReferencedAttachmentIdsForSubmit,
@@ -636,10 +640,16 @@ function getImageFilesFromDataTransfer(dataTransfer: DataTransfer) {
     return files;
   }
 
-  return Array.from(dataTransfer.items)
+  const itemFiles = Array.from(dataTransfer.items)
     .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
     .map((item) => item.getAsFile())
     .filter(isImageFile);
+
+  if (itemFiles.length > 0) {
+    return itemFiles;
+  }
+
+  return getDataImageFilesFromTransferHtml(dataTransfer);
 }
 
 function hasImageFileData(dataTransfer: DataTransfer) {
@@ -647,7 +657,8 @@ function hasImageFileData(dataTransfer: DataTransfer) {
     Array.from(dataTransfer.files).some(isImageFile) ||
     Array.from(dataTransfer.items).some(
       (item) => item.kind === "file" && item.type.startsWith("image/"),
-    )
+    ) ||
+    hasDataImageInTransferHtml(dataTransfer)
   );
 }
 
@@ -659,6 +670,51 @@ function getPastedImageAltText(file: File) {
 
 function isImageFile(file: File | null): file is File {
   return Boolean(file?.type.startsWith("image/"));
+}
+
+function getDataImageFilesFromTransferHtml(dataTransfer: DataTransfer) {
+  const html = dataTransfer.getData("text/html");
+
+  if (!html) {
+    return [];
+  }
+
+  return extractDataImageSourcesFromClipboardHtml(html)
+    .map((source, index) => createFileFromDataImageSource(source, index))
+    .filter(isImageFile);
+}
+
+function hasDataImageInTransferHtml(dataTransfer: DataTransfer) {
+  const html = dataTransfer.getData("text/html");
+
+  return Boolean(
+    html && extractDataImageSourcesFromClipboardHtml(html).length > 0,
+  );
+}
+
+function createFileFromDataImageSource(
+  source: ReturnType<typeof extractDataImageSourcesFromClipboardHtml>[number],
+  index: number,
+) {
+  const commaIndex = source.dataUrl.indexOf(",");
+  const base64 = commaIndex >= 0 ? source.dataUrl.slice(commaIndex + 1) : "";
+  let binary = "";
+
+  try {
+    binary = window.atob(base64);
+  } catch {
+    return null;
+  }
+
+  const bytes = new Uint8Array(binary.length);
+
+  for (let byteIndex = 0; byteIndex < binary.length; byteIndex += 1) {
+    bytes[byteIndex] = binary.charCodeAt(byteIndex);
+  }
+
+  return new File([bytes], getClipboardImageFileName(source, index), {
+    type: source.mimeType,
+  });
 }
 
 function isTextareaElement(value: EventTarget | null) {
