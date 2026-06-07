@@ -379,6 +379,7 @@ npm run check:readiness
 - `docs/prompts/backend-content-media-target-template.md`：后端内容媒体能力目标模式提示词。
 - `docs/internal/product/frontend-information-architecture.md`：前端信息架构、页面拓扑、URL、权限边界和后端目标合同蓝图。
 - `docs/internal/product/frontend-planning-completion.md`：前端规划收口证明，确认规划已完成并区分实现待办和后端缺口。
+- `docs/internal/product/frontend-implementation-audit.md`：前端规划落地摸排，区分已落地、部分落地和仍未实现的能力。
 - `docs/internal/product/product-targets.md`：产品目标总表，记录已实现能力、前端后续增强、后端缺口和派工顺序。
 - `docs/internal/product/v2-roadmap.md`：V2 后端能力全量前端接入路线图。
 - `docs/internal/product/frontend-experience-rebuild.md`：从真实页面体验反馈出发的前端重修拆分方案。

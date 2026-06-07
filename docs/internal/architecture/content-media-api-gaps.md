@@ -9,6 +9,8 @@
 - 媒体能力必须以后端为权威：上传、校验、对象存储、审核状态、链接解析和 embed provider 识别都在后端完成。
 - V2 前端已接入 `POST /api/v1/uploads/images`，并在发帖和评论写作器中形成可用上传体验。
 - 前端只提交后端返回的结构化 `attachment_id`、`embed_id` 或预览对象，不直接保存第三方 URL 作为附件。
+- 前端正文内图片使用 Markdown 引用 `![说明](nexus-attachment:<attachment_id>)`。该 marker 只负责在正文中表达位置；真正图片 URL、状态、尺寸和说明仍以后端返回的 `attachments` 为准。
+- 旧内容或用户未插入正文的已绑定附件由 `ContentBody` 作为正文后的兜底附件渲染，不再由帖子详情或评论树单独外挂图片画廊。
 - 帖子和评论图片均已接入；评论图片数量继续比帖子更克制。
 - 链接预览和播放器是两种能力：普通网页只做链接预览，Bilibili / 网易云音乐等只通过 provider 白名单 embed。
 - 任意 iframe、用户 HTML、`data:` 图片和浏览器端抓第三方网页元数据都禁止。
@@ -26,6 +28,22 @@
 - 前端当前不直接删除对象、不生成缩略图、不伪造 `thumbnail_url`。
 
 ## 后端缺口
+
+### CORS 方法
+
+浏览器端编辑帖子和评论需要调用 `PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id`。当前本地预检证据：
+
+```text
+OPTIONS /api/v1/posts/:id
+Origin: http://localhost:3000
+Access-Control-Request-Method: PATCH
+
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+```
+
+缺口：`Access-Control-Allow-Methods` 没有 `PATCH`。shell 直连 `PATCH /api/v1/posts/:id` 可以成功，浏览器保存失败，因此这是后端 CORS 配置缺口，不是前端写作器缺口。
+
+要求：后端 CORS allow methods 必须包含 `PATCH`，并覆盖帖子编辑、评论编辑、后续可能的局部更新接口。前端不得把浏览器编辑保存伪造成已完成，必须等后端放行后复验。
 
 ### 对象存储配置
 

@@ -7,6 +7,7 @@
 - `architecture/frontend-v1.md`：前端 V1 架构、路由、模块和 API 协作边界。
 - `product/frontend-information-architecture.md`：前端信息架构、页面拓扑、URL、权限边界和后端目标合同蓝图。
 - `product/frontend-planning-completion.md`：前端规划收口证明，确认哪些决策已经冻结、哪些属于实现或后端待办。
+- `product/frontend-implementation-audit.md`：前端规划落地摸排，区分已落地、部分落地和仍未实现的能力。
 - `product/product-targets.md`：产品目标总表，统一记录已实现能力、前端后续增强、后端缺口和派工顺序。
 - `product/v2-roadmap.md`：V2 后端能力全量前端接入路线图。
 - `product/frontend-experience-rebuild.md`：从真实页面体验反馈出发的前端重修拆分方案。
