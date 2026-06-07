@@ -55,7 +55,7 @@
 - 帖子编辑弹窗：默认进入预览态，textarea 和图片插入控件不显示；可见文本不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。登录测试账号后直接保存当前标题和正文，弹窗关闭并显示“帖子已更新。”，帖子更新时间刷新到 2026年6月8日。
 - 评论编辑弹窗：默认进入预览态，textarea 和图片插入控件不显示；可见文本不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。登录测试账号后直接保存当前正文，弹窗关闭并显示“评论已更新。”。
 - 发帖页剪贴板图片：登录测试账号后在 `/communities/public/new` 用系统剪贴板粘贴 PNG，正文 textarea 自动插入 `![clipboard](nexus-attachment:d62aa1b6-3976-45b6-9bdb-89d878d66324)`；正文图片列表显示 `1/9`、`已上传`、`已在正文`；切到预览后可见快照不包含 `nexus-attachment:`，并渲染 `img "clipboard"`，图片 URL 来自 `http://localhost:8080/uploads/images/...`。
-- 评论区剪贴板图片：`/posts/f397e709-f8cc-4a38-8e75-f987062958d0` 已确认评论表单使用同一 `MarkdownComposerField`、同一工具栏和 `添加图片` 入口；当前 in-app browser 在帖子详情页触发系统剪贴板粘贴时被测试工具虚拟剪贴板限制拦截，仍需后续用可控浏览器补一条评论区真实剪贴板图片端到端证据。
+- 评论区剪贴板图片：登录测试账号后在 `/posts/f397e709-f8cc-4a38-8e75-f987062958d0` 用 Chrome DevTools 控制的浏览器和系统剪贴板粘贴 PNG；评论 textarea 自动插入 `![image](nexus-attachment:0e11fef3-3518-4fed-9647-2863883c73ee)`；正文图片列表显示 `1/1`、`已上传`、`已在正文`；切到预览后渲染 `img "image"`，图片 URL 来自 `http://localhost:8080/uploads/images/...`；未点击“发布评论”，控制台无 error。
 - 本地运行时注意：后端源码和远端 `main` 已放行 CORS `PATCH`，但旧 Docker 容器曾返回 `GET, POST, PUT, DELETE, OPTIONS`，导致浏览器保存失败。重建 `cumt-nexus-api:local` 并按现有数据卷账号恢复 prod compose 后，`OPTIONS` 返回 `GET, POST, PUT, PATCH, DELETE, OPTIONS`，编辑保存通过。
 
 ## 后端需要补或确认
@@ -77,8 +77,7 @@
 不要再按“规划是否完成”讨论。后续按体验切片推进：
 
 1. 如果后端已经补齐编辑态 `attachment_ids` 合同，先同步后端合同文档和前端 `UpdatePostInput` / `UpdateCommentInput`，再让编辑弹窗开放新增图片入口。
-2. 补评论区真实剪贴板图片端到端复验：需要能稳定写入图片剪贴板的浏览器环境，验证评论 textarea 插入 marker、预览渲染图片，且不发布测试评论。
-3. 做 Feed source + 五种 sort 切片：先核对后端，再扩路由和 UI。
-4. 做通知分类切片：先定义类型映射，再做 Bilibili 式分类页。
-5. 做链接预览 / embed 后端合同文档，不在前端先伪造。
-6. 按 `docs/internal/engineering/browser-qa.md` 跑完整桌面 / 移动端人工 QA，把“反人类”的页面按 P0 / P1 切片修。
+2. 做 Feed source + 五种 sort 切片：先核对后端，再扩路由和 UI。
+3. 做通知分类切片：先定义类型映射，再做 Bilibili 式分类页。
+4. 做链接预览 / embed 后端合同文档，不在前端先伪造。
+5. 按 `docs/internal/engineering/browser-qa.md` 跑完整桌面 / 移动端人工 QA，把“反人类”的页面按 P0 / P1 切片修。
