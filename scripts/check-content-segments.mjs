@@ -181,12 +181,12 @@ function checkAttachmentMarkdown() {
   );
 
   expectEqual(
-    "submit attachment ids only include uploaded images referenced by markdown",
+    "submit attachment ids follow markdown order and ignore unuploaded ids",
     getReferencedAttachmentIdsForSubmit(
       "正文\n![二](nexus-attachment:img-2)\n![外来](nexus-attachment:manual-id)\n![一](nexus-attachment:img-1)",
       [{ id: "img-1" }, { id: "img-2" }, { id: "img-3" }],
     ),
-    ["img-1", "img-2"],
+    ["img-2", "img-1"],
   );
 
   expectEqual(

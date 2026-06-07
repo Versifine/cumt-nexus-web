@@ -41,7 +41,7 @@
 | 评论 sort | 帖子详情评论请求固定 `sort="new"`，没有评论 sort UI。 | 未完成。 | 若按 Reddit，需要评论区 `best | new | top` 等 query 合同和 UI。 |
 | Markdown 阅读态 | `ContentBody` 使用 `react-markdown` + `remark-gfm`，`skipHtml`，安全 URL，帖子和评论复用；本轮已验证帖子详情移动端长代码块不撑破页面，代码块内部横向滚动。 | 基础落地。 | 仍需 Reddit parity 用例审计，例如边界语法、移动端表格和评论深层场景。 |
 | Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，工具栏插入常用语法，覆盖行内代码和代码块，并提供复用 `ContentBody` 的轻量预览。编辑弹窗默认显示渲染后的发布态预览，点“编辑”才显示源码。浏览器已验证 UI 发帖、根评论、子评论提交、帖子编辑保存、评论编辑保存和阅读态渲染。 | 基础落地。 | 编辑时新增图片需要后端 `PATCH` 接收并重绑 `attachment_ids`。 |
-| 图片与正文一体化 | 图片上传后插入 `![说明](nexus-attachment:<id>)`；发布帖子和评论时只提交正文内实际引用的 `attachment_ids`；阅读态只渲染正文内 marker 引用的 attachments，不再把未引用附件追加成底部外置图集；未使用的外置图集组件已移除；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留，`check:content-segments` 覆盖批量图片插入顺序和发布绑定过滤，`check:content-boundary` 固化剪贴板图片入口。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；作者可在编辑器的已有图片列表中放回正文。编辑态新增图片仍需要后端更新接口接收 `attachment_ids`。 |
+| 图片与正文一体化 | 图片上传后插入 `![说明](nexus-attachment:<id>)`；发布帖子和评论时只按正文出现顺序提交实际引用的 `attachment_ids`；阅读态只渲染正文内 marker 引用的 attachments，不再把未引用附件追加成底部外置图集；未使用的外置图集组件已移除；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留，`check:content-segments` 覆盖批量图片插入顺序和发布绑定过滤，`check:content-boundary` 固化剪贴板图片入口。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；作者可在编辑器的已有图片列表中放回正文。编辑态新增图片仍需要后端更新接口接收 `attachment_ids`。 |
 | 普通外链 | Markdown 链接可渲染安全链接。 | 基础落地。 | 普通网页链接预览未实现，需要后端解析缓存。 |
 | 白名单 embed | Bilibili、抖音、网易云、QQ 音乐均未实现播放器嵌入。 | 未完成。 | 必须先做后端 provider 白名单和安全解析，前端不能伪造 iframe。 |
 | 评论树 | 评论树、回复、折叠和最大深度已有基础实现。 | 基础落地。 | 评论投票、特效、贴图和排序未实现。 |

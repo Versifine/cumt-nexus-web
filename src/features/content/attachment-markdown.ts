@@ -64,11 +64,11 @@ export function getReferencedAttachmentIdsForSubmit(
   markdown: string,
   attachments: Pick<MediaAttachment, "id">[],
 ) {
-  const referencedIds = getReferencedAttachmentIds(markdown);
+  const uploadedIds = new Set(attachments.map((attachment) => attachment.id));
 
-  return attachments
-    .map((attachment) => attachment.id)
-    .filter((id) => referencedIds.has(id));
+  return [...getReferencedAttachmentIds(markdown)].filter((id) =>
+    uploadedIds.has(id),
+  );
 }
 
 export function removeAttachmentMarkdownReferences(markdown: string, id: string) {
