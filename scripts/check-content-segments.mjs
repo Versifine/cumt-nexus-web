@@ -131,12 +131,12 @@ async function importTypescriptModule(relativePath) {
 
 function checkAttachmentMarkdown() {
   const attachment = {
-    alt_text: "图] 说明\n第二行",
+    alt_text: "图[草稿] 说明\n第二行",
     id: "image id/一)",
   };
   const attachmentMarkdown = createAttachmentMarkdown(attachment);
   const expectedAttachmentMarkdown =
-    "![图\\] 说明 第二行](nexus-attachment:image%20id%2F%E4%B8%80%29)";
+    "![图\\[草稿\\] 说明 第二行](nexus-attachment:image%20id%2F%E4%B8%80%29)";
 
   expectEqual(
     "attachment markdown escapes alt text and encodes id",
@@ -185,7 +185,7 @@ function checkAttachmentMarkdown() {
   expectEqual(
     "removing an attachment reference handles escaped alt text",
     removeAttachmentMarkdownReferences(
-      "前文\n![图\\] 说明 第二行](nexus-attachment:image%20id%2F%E4%B8%80%29)\n后文",
+      "前文\n![图\\[草稿\\] 说明 第二行](nexus-attachment:image%20id%2F%E4%B8%80%29)\n后文",
       "image id/一)",
     ),
     "前文\n后文",

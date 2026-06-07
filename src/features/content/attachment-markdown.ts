@@ -73,7 +73,11 @@ export function removeAttachmentMarkdownReferences(markdown: string, id: string)
 }
 
 function escapeMarkdownAltText(value: string) {
-  return value.replace(/\\/g, "\\\\").replace(/\]/g, "\\]").replace(/\r?\n/g, " ");
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/\[/g, "\\[")
+    .replace(/\]/g, "\\]")
+    .replace(/\r?\n/g, " ");
 }
 
 function encodeAttachmentIdForMarkdown(value: string) {
