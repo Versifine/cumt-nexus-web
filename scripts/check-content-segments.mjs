@@ -240,6 +240,30 @@ function checkAttachmentMarkdown() {
     ),
     "前文\n后文",
   );
+
+  expectEqual(
+    "removing an attachment reference ignores links and code",
+    removeAttachmentMarkdownReferences(
+      [
+        "[普通链接](nexus-attachment:img-1)",
+        "`![行内代码图片](nexus-attachment:img-1)`",
+        "```",
+        "![代码块图片](nexus-attachment:img-1)",
+        "```",
+        "![正文图片](nexus-attachment:img-1)",
+        "后文",
+      ].join("\n"),
+      "img-1",
+    ),
+    [
+      "[普通链接](nexus-attachment:img-1)",
+      "`![行内代码图片](nexus-attachment:img-1)`",
+      "```",
+      "![代码块图片](nexus-attachment:img-1)",
+      "```",
+      "后文",
+    ].join("\n"),
+  );
 }
 
 function checkMarkdownUrl() {

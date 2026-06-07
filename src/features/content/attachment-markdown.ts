@@ -75,13 +75,17 @@ export function getReferencedAttachmentIdsForSubmit(
 export function removeAttachmentMarkdownReferences(markdown: string, id: string) {
   const encodedId = encodeAttachmentIdForMarkdown(id);
   const imagePattern = new RegExp(
-    `!?\\[(?:\\\\.|[^\\]\\\\])*\\]\\(${escapeRegExp(
+    `!\\[(?:\\\\.|[^\\]\\\\])*\\]\\(\\s*${escapeRegExp(
       ATTACHMENT_MARKDOWN_URL_PREFIX,
-    )}${escapeRegExp(encodedId)}\\)\\r?\\n?`,
+    )}${escapeRegExp(encodedId)}(?:\\s+(?:"[^"]*"|'[^']*'|[^\\s)]+))?\\s*\\)\\r?\\n?`,
     "g",
   );
 
-  return markdown.replace(imagePattern, "").replace(/\n{3,}/g, "\n\n").trimEnd();
+  return replaceMarkdownOutsideCodeSegments(markdown, (segment) =>
+    segment.replace(imagePattern, ""),
+  )
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
 }
 
 function stripMarkdownCodeSegments(markdown: string) {
@@ -111,6 +115,73 @@ function stripMarkdownCodeSegments(markdown: string) {
     .join("\n");
 
   return withoutFencedCode.replace(/`[^`\n]*`/g, "");
+}
+
+function replaceMarkdownOutsideCodeSegments(
+  markdown: string,
+  replaceSegment: (segment: string) => string,
+) {
+  const lines = markdown.split(/\r?\n/);
+  let fenceMarker: "`" | "~" | null = null;
+  const replacedLines: string[] = [];
+
+  for (const line of lines) {
+    const fenceMatch = line.trimStart().match(/^(`{3,}|~{3,})/);
+
+    if (fenceMatch) {
+      const marker = fenceMatch[1].startsWith("`") ? "`" : "~";
+
+      if (!fenceMarker) {
+        fenceMarker = marker;
+        replacedLines.push(line);
+        continue;
+      }
+
+      if (fenceMarker === marker) {
+        fenceMarker = null;
+        replacedLines.push(line);
+        continue;
+      }
+    }
+
+    if (fenceMarker) {
+      replacedLines.push(line);
+      continue;
+    }
+
+    const replacedLine = replaceLineOutsideInlineCode(line, replaceSegment);
+
+    if (replacedLine !== null) {
+      replacedLines.push(replacedLine);
+    }
+  }
+
+  return replacedLines.join("\n");
+}
+
+function replaceLineOutsideInlineCode(
+  line: string,
+  replaceSegment: (segment: string) => string,
+) {
+  let changed = false;
+  const replacedLine = line
+    .split(/(`[^`\n]*`)/g)
+    .map((segment) => {
+      if (segment.startsWith("`") && segment.endsWith("`")) {
+        return segment;
+      }
+
+      const nextSegment = replaceSegment(segment);
+      changed ||= nextSegment !== segment;
+      return nextSegment;
+    })
+    .join("");
+
+  if (changed && replacedLine.trim() === "") {
+    return null;
+  }
+
+  return replacedLine;
 }
 
 function escapeMarkdownAltText(value: string) {
