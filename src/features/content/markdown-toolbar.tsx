@@ -17,6 +17,16 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  blockPrefixSelection,
+  fencedCodeBlockSelection,
+  linkSelection,
+  type MarkdownInsert,
+  orderedListSelection,
+  spoilerSelection,
+  tableSelection,
+  wrapSelection,
+} from "@/features/content/markdown-toolbar-actions";
 import { cn } from "@/lib/utils";
 
 type MarkdownTool = {
@@ -31,15 +41,6 @@ type MarkdownToolbarProps = {
   onChange: (value: string) => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   value: string;
-};
-
-export type MarkdownInsert = {
-  block?: boolean;
-  selection?: {
-    end: number;
-    start: number;
-  };
-  text: string;
 };
 
 const tools: MarkdownTool[] = [
@@ -92,33 +93,17 @@ const tools: MarkdownTool[] = [
     label: "代码块",
   },
   {
-    apply: (selectedText) => {
-      const label = selectedText || "链接文字";
-
-      return {
-        selection: {
-          end: label.length + 11,
-          start: label.length + 11,
-        },
-        text: `[${label}](https://)`,
-      };
-    },
+    apply: linkSelection,
     icon: <Link aria-hidden="true" />,
     label: "链接",
   },
   {
-    apply: (selectedText) => ({
-      text: `>! ${selectedText || "隐藏内容"} !<`,
-    }),
+    apply: spoilerSelection,
     icon: <EyeOff aria-hidden="true" />,
     label: "涂黑",
   },
   {
-    apply: () => ({
-      block: true,
-      text:
-        "| 项目 | 说明 |\n| --- | --- |\n| 第一项 | 内容 |\n| 第二项 | 内容 |",
-    }),
+    apply: tableSelection,
     icon: <Table aria-hidden="true" />,
     label: "表格",
   },
@@ -172,60 +157,6 @@ export function MarkdownToolbar({
       ))}
     </div>
   );
-}
-
-function wrapSelection(selectedText: string, marker: string, fallback: string) {
-  return {
-    text: `${marker}${selectedText || fallback}${marker}`,
-  };
-}
-
-function blockPrefixSelection(
-  selectedText: string,
-  prefix: string,
-  fallback: string,
-) {
-  return {
-    block: true,
-    text: selectedText
-      ? selectedText
-          .split(/\r?\n/)
-          .map((line) => `${prefix}${line}`)
-          .join("\n")
-      : fallback,
-  };
-}
-
-function orderedListSelection(selectedText: string) {
-  if (!selectedText) {
-    return {
-      block: true,
-      text: "1. 列表项",
-    };
-  }
-
-  return {
-    block: true,
-    text: selectedText
-      .split(/\r?\n/)
-      .map((line, index) => `${index + 1}. ${line}`)
-      .join("\n"),
-  };
-}
-
-function fencedCodeBlockSelection(selectedText: string): MarkdownInsert {
-  const code = selectedText || "代码内容";
-  const text = `\`\`\`\n${code}\n\`\`\``;
-  const start = "```\n".length;
-
-  return {
-    block: true,
-    selection: {
-      end: start + code.length,
-      start,
-    },
-    text,
-  };
 }
 
 function getCurrentSelectionText(

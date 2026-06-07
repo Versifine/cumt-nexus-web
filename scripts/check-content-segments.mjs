@@ -20,6 +20,12 @@ const {
   isExternalMarkdownHref,
   normalizeMarkdownHref,
 } = await importTypescriptModule("src/features/content/markdown-url.ts");
+const {
+  fencedCodeBlockSelection,
+  linkSelection,
+  spoilerSelection,
+  wrapSelection,
+} = await importTypescriptModule("src/features/content/markdown-toolbar-actions.ts");
 
 const spoilerCases = [
   {
@@ -97,6 +103,7 @@ for (const testCase of spoilerCases) {
 
 checkAttachmentMarkdown();
 checkMarkdownUrl();
+checkMarkdownToolbarActions();
 
 console.log("");
 
@@ -272,6 +279,54 @@ function checkMarkdownUrl() {
     "site-relative markdown links are not marked external",
     isExternalMarkdownHref("/communities/public"),
     false,
+  );
+}
+
+function checkMarkdownToolbarActions() {
+  expectEqual(
+    "toolbar inline fallback selects placeholder text",
+    wrapSelection("", "**", "加粗文字"),
+    {
+      selection: { end: 6, start: 2 },
+      text: "**加粗文字**",
+    },
+  );
+
+  expectEqual(
+    "toolbar inline selected text stays selected inside marker",
+    wrapSelection("重点", "*", "斜体文字"),
+    {
+      selection: { end: 3, start: 1 },
+      text: "*重点*",
+    },
+  );
+
+  expectEqual(
+    "toolbar spoiler fallback selects hidden placeholder",
+    spoilerSelection(""),
+    {
+      selection: { end: 7, start: 3 },
+      text: ">! 隐藏内容 !<",
+    },
+  );
+
+  expectEqual(
+    "toolbar link escapes label and places cursor in url",
+    linkSelection("图[草稿]"),
+    {
+      selection: { end: 18, start: 18 },
+      text: "[图\\[草稿\\]](https://)",
+    },
+  );
+
+  expectEqual(
+    "toolbar code block selects code placeholder",
+    fencedCodeBlockSelection(""),
+    {
+      block: true,
+      selection: { end: 8, start: 4 },
+      text: "```\n代码内容\n```",
+    },
   );
 }
 
