@@ -17,8 +17,9 @@ const spoilerLinkPrefix = "#nexus-spoiler-";
 const superscriptLinkPrefix = "#nexus-sup-";
 
 export function transformRedditMarkdown(value: string): RedditMarkdownTransform {
+  const withReferenceMarkdown = inlineReferenceMarkdown(value);
   const spoilerTokens: RedditToken[] = [];
-  const withSpoilers = transformOutsideFencedCodeBlocks(value, (line) =>
+  const withSpoilers = transformOutsideFencedCodeBlocks(withReferenceMarkdown, (line) =>
     replaceDelimitedTokensOutsideMarkdownSyntax({
       close: "!<",
       createMarkdown: (index) => `[显示隐藏内容](${spoilerLinkPrefix}${index})`,
@@ -56,6 +57,182 @@ export function getRedditToken(
   }
 
   return null;
+}
+
+function inlineReferenceMarkdown(value: string) {
+  const { definitions, markdown } = collectReferenceDefinitions(value);
+
+  if (definitions.size === 0) {
+    return value;
+  }
+
+  return transformOutsideFencedCodeBlocks(markdown, (line) =>
+    inlineReferenceMarkdownInLine(line, definitions),
+  );
+}
+
+function collectReferenceDefinitions(value: string) {
+  const definitions = new Map<string, string>();
+  const lines = value.split(/\r?\n/);
+  let fenceMarker: "`" | "~" | null = null;
+  const markdownLines: string[] = [];
+
+  for (const line of lines) {
+    const marker = getFenceMarker(line);
+
+    if (marker) {
+      if (!fenceMarker) {
+        fenceMarker = marker;
+      } else if (fenceMarker === marker) {
+        fenceMarker = null;
+      }
+
+      markdownLines.push(line);
+      continue;
+    }
+
+    if (!fenceMarker) {
+      const definition = readReferenceDefinition(line);
+
+      if (definition) {
+        definitions.set(definition.label, definition.destination);
+        markdownLines.push("");
+        continue;
+      }
+    }
+
+    markdownLines.push(line);
+  }
+
+  return {
+    definitions,
+    markdown: markdownLines.join("\n"),
+  };
+}
+
+function readReferenceDefinition(line: string) {
+  const match = line.match(
+    /^\s{0,3}\[([^\]\n]+)\]:\s*(\S+)(?:\s+["'][^"'\n]*["'])?\s*$/,
+  );
+
+  if (!match?.[1] || !match[2]) {
+    return null;
+  }
+
+  return {
+    destination: match[2],
+    label: normalizeReferenceLabel(match[1]),
+  };
+}
+
+function inlineReferenceMarkdownInLine(
+  line: string,
+  definitions: Map<string, string>,
+) {
+  const inlineCodeSpans = getInlineCodeSpans(line);
+  let cursor = 0;
+  let result = "";
+
+  while (cursor < line.length) {
+    const protectedSpan = getContainingProtectedSpan(inlineCodeSpans, cursor);
+
+    if (protectedSpan) {
+      result += line.slice(cursor, protectedSpan.end);
+      cursor = protectedSpan.end;
+      continue;
+    }
+
+    const reference = readReferenceMarkdown(line, cursor);
+
+    if (reference) {
+      const destination = definitions.get(reference.reference);
+
+      if (destination) {
+        result += createInlineMarkdownReference(reference, destination);
+        cursor = reference.end;
+        continue;
+      }
+    }
+
+    result += line[cursor];
+    cursor += 1;
+  }
+
+  return result;
+}
+
+function readReferenceMarkdown(line: string, start: number) {
+  let isImage = false;
+  let labelStart = start;
+
+  if (line[start] === "!") {
+    if (line[start + 1] !== "[" || isEscapedMarkdownToken(line, start)) {
+      return null;
+    }
+
+    isImage = true;
+    labelStart = start + 1;
+  } else if (
+    line[start] !== "[" ||
+    isEscapedMarkdownToken(line, start) ||
+    isImageLabelStart(line, start)
+  ) {
+    return null;
+  }
+
+  const labelEnd = findMatchingDelimiter(line, labelStart, "[", "]");
+
+  if (labelEnd === -1 || line[labelEnd + 1] !== "[") {
+    return null;
+  }
+
+  const referenceEnd = findMatchingDelimiter(line, labelEnd + 1, "[", "]");
+
+  if (referenceEnd === -1) {
+    return null;
+  }
+
+  const text = line.slice(labelStart + 1, labelEnd);
+  const referenceText = line.slice(labelEnd + 2, referenceEnd);
+  const reference = normalizeReferenceLabel(referenceText || text);
+
+  if (!text.trim() || !reference) {
+    return null;
+  }
+
+  return {
+    end: referenceEnd + 1,
+    isImage,
+    reference,
+    text,
+  };
+}
+
+function createInlineMarkdownReference(
+  reference: NonNullable<ReturnType<typeof readReferenceMarkdown>>,
+  destination: string,
+) {
+  const marker = reference.isImage ? "!" : "";
+
+  return `${marker}[${escapeMarkdownLinkText(reference.text)}](${escapeMarkdownDestination(destination)})`;
+}
+
+function escapeMarkdownDestination(destination: string) {
+  return destination.replace(/([\\()])/g, "\\$1");
+}
+
+function normalizeReferenceLabel(label: string) {
+  return label.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function isImageLabelStart(line: string, labelStart: number) {
+  const imageBangIndex = labelStart - 1;
+
+  return (
+    imageBangIndex >= 0 &&
+    line[imageBangIndex] === "!" &&
+    !isEscapedMarkdownToken(line, imageBangIndex)
+  );
 }
 
 function replaceSuperscriptOutsideMarkdownSyntax(
@@ -419,11 +596,9 @@ function transformOutsideFencedCodeBlocks(
   const transformedLines: string[] = [];
 
   for (const line of lines) {
-    const fenceMatch = line.trimStart().match(/^(`{3,}|~{3,})/);
+    const marker = getFenceMarker(line);
 
-    if (fenceMatch) {
-      const marker = fenceMatch[1].startsWith("`") ? "`" : "~";
-
+    if (marker) {
       if (!fenceMarker) {
         fenceMarker = marker;
         transformedLines.push(line);
@@ -441,4 +616,14 @@ function transformOutsideFencedCodeBlocks(
   }
 
   return transformedLines.join("\n");
+}
+
+function getFenceMarker(line: string): "`" | "~" | null {
+  const fenceMatch = line.trimStart().match(/^(`{3,}|~{3,})/);
+
+  if (!fenceMatch) {
+    return null;
+  }
+
+  return fenceMatch[1].startsWith("`") ? "`" : "~";
 }

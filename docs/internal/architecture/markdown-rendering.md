@@ -28,7 +28,8 @@ Reddit-style Markdown parity
 - 支持 GFM 表格、任务列表、删除线、代码块、引用、列表、标题和链接。
 - 支持 `>! ... !<` spoiler / 涂黑语法。
 - 支持 Reddit-style 上标预处理。
-- Reddit-style spoiler 和上标预处理不会改写行内代码、fenced code block、Markdown 链接 / 图片语法和引用式链接定义。
+- Reddit-style spoiler 和上标预处理不会改写行内代码、fenced code block、Markdown 链接 / 图片语法。
+- 支持显式引用式链接 / 图片 `[文本][ref]`、`![图][ref]` + `[ref]: URL`，会在统一渲染入口内转换为安全普通链接 / 图片语法，并隐藏定义行。
 - 支持 `r/community` 和 `u/user` 自动链接到本项目社区与用户路由。
 - 链接只允许站内路径、锚点、`http`、`https` 和 `mailto`。
 - 评论树在移动端使用窄缩进，避免深层回复挤压 Markdown 正文、图片、表格和代码块。
@@ -44,7 +45,6 @@ Reddit-style Markdown parity
 未实现：
 
 - 与 Reddit 细节完全一致的 Markdown 兼容性审查。
-- 引用式链接的产品化验证。
 - 白名单 embed。
 
 ## Reddit Markdown 能力范围
@@ -95,7 +95,7 @@ remark-gfm
 后续可选评估：
 
 - 是否需要引入 `rehype-sanitize` 作为额外 AST 白名单防线。
-- Reddit 引用式链接、转义、列表边界等细节是否需要更接近 Reddit。
+- Reddit 折叠引用式链接、转义、列表边界等细节是否需要更接近 Reddit。
 - 表格移动端是否需要更强的视觉处理。
 
 替代方案：

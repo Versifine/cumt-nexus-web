@@ -458,7 +458,7 @@ function checkRedditMarkdownTransform() {
   );
 
   expectEqual(
-    "reddit transforms preserve markdown links images and definitions",
+    "reddit transforms protect inline markdown and hide unused definitions",
     transformRedditMarkdown(
       [
         "链接 [^label](https://example.com/^path)",
@@ -471,7 +471,7 @@ function checkRedditMarkdownTransform() {
       markdown: [
         "链接 [^label](https://example.com/^path)",
         "图片 ![^alt >! no !<](nexus-attachment:img-1)",
-        "[ref]: https://example.com/^definition",
+        "",
         "正文 [显示隐藏内容](#nexus-spoiler-0) [ok](#nexus-sup-1)",
       ].join("\n"),
       tokens: [
@@ -487,6 +487,35 @@ function checkRedditMarkdownTransform() {
     {
       markdown: "\\^literal \\>! not hidden !< [ok](#nexus-sup-0)",
       tokens: [{ text: "ok", type: "sup" }],
+    },
+  );
+
+  expectEqual(
+    "reference-style links and images are inlined before reddit transforms",
+    transformRedditMarkdown(
+      [
+        "引用 [显示文字][ref] 和 [大小写][REF]",
+        "折叠 [same][] 不在本切片处理",
+        "图片 ![图][ref]",
+        "`[code][ref]`",
+        "```",
+        "[fenced][ref]",
+        "```",
+        "[ref]: https://example.com/^definition",
+      ].join("\n"),
+    ),
+    {
+      markdown: [
+        "引用 [显示文字](https://example.com/^definition) 和 [大小写](https://example.com/^definition)",
+        "折叠 [same][] 不在本切片处理",
+        "图片 ![图](https://example.com/^definition)",
+        "`[code][ref]`",
+        "```",
+        "[fenced][ref]",
+        "```",
+        "",
+      ].join("\n"),
+      tokens: [],
     },
   );
 }
