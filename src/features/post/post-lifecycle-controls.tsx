@@ -177,6 +177,7 @@ export function PostLifecycleControls({
                     </span>
                   </div>
                   <MarkdownComposerField
+                    defaultMode="preview"
                     disabled={isUpdating}
                     onChange={setBodyValue}
                     textareaProps={{
@@ -195,7 +196,7 @@ export function PostLifecycleControls({
                     </p>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      正文会保留 Markdown 和涂黑语法。
+                      默认显示发布后的正文样式；需要改内容时点“编辑”。
                     </p>
                   )}
                 </div>

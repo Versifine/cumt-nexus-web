@@ -78,6 +78,7 @@ checkBlockedDirectDependencies();
 checkContentEntryPoint();
 checkMarkdownComposerEntryPoint();
 checkMarkdownToolbarTools();
+checkLifecycleComposerDefaultMode();
 checkPublishedAttachmentRenderingBoundary();
 checkPublishedAttachmentNoFallbackGallery();
 checkComposerImageCopy();
@@ -263,6 +264,40 @@ function checkMarkdownToolbarTools() {
   addPass(
     "MarkdownToolbar tools",
     `${requiredToolbarLabels.length} Markdown tool action(s) are declared`,
+  );
+}
+
+function checkLifecycleComposerDefaultMode() {
+  const lifecycleConsumers = [
+    "src/features/post/post-lifecycle-controls.tsx",
+    "src/features/comment/comment-lifecycle-controls.tsx",
+  ];
+  const missingPreviewDefault = [];
+
+  for (const consumerPath of lifecycleConsumers) {
+    const consumer = sourceFiles.find((file) => file.path === consumerPath);
+
+    if (!consumer) {
+      missingPreviewDefault.push(`${consumerPath} is missing`);
+      continue;
+    }
+
+    if (!/<MarkdownComposerField[\s\S]*?\bdefaultMode="preview"/.test(consumer.content)) {
+      missingPreviewDefault.push(`${consumerPath} does not default edit dialog to preview`);
+    }
+  }
+
+  if (missingPreviewDefault.length > 0) {
+    addFail(
+      "Markdown lifecycle preview default",
+      missingPreviewDefault.join("; "),
+    );
+    return;
+  }
+
+  addPass(
+    "Markdown lifecycle preview default",
+    "post and comment edit dialogs render preview before exposing Markdown source",
   );
 }
 

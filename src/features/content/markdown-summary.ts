@@ -40,18 +40,34 @@ export function getMarkdownPlainTextSummary(
       return altText ? ` 图片：${altText} ` : " 图片 ";
     },
   );
-  const withoutLinks = withoutInlineImages.replace(
+  const withoutTruncatedImages = withoutInlineImages.replace(
+    /!\[((?:\\.|[^\]\\])*)\]\([^\s)]*/g,
+    (_match, label: string) => {
+      const altText = unescapeMarkdownLabel(label).trim();
+
+      return altText ? ` 图片：${altText} ` : " 图片 ";
+    },
+  );
+  const withoutLinks = withoutTruncatedImages.replace(
     /\[((?:\\.|[^\]\\])*)\]\([^)]+\)/g,
     (_match, label: string) => ` ${unescapeMarkdownLabel(label)} `,
   );
-  const withoutReferenceLinks = withoutLinks
+  const withoutTruncatedLinks = withoutLinks.replace(
+    /\[((?:\\.|[^\]\\])*)\]\([^\s)]*/g,
+    (_match, label: string) => ` ${unescapeMarkdownLabel(label)} `,
+  );
+  const withoutReferenceLinks = withoutTruncatedLinks
     .replace(/^\s*\[[^\]]+\]:\s+\S+.*$/gm, " ")
     .replace(
       /\[((?:\\.|[^\]\\])*)\]\[[^\]]+\]/g,
       (_match, label: string) => ` ${unescapeMarkdownLabel(label)} `,
     );
+  const withoutTableDividers = withoutReferenceLinks.replace(
+    /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/gm,
+    " ",
+  );
 
-  const plainText = withoutReferenceLinks
+  const plainText = withoutTableDividers
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/^\s*>\s?/gm, "")
     .replace(/^\s*[-*+]\s+/gm, "")

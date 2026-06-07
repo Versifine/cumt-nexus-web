@@ -302,6 +302,26 @@ function checkMarkdownSummary() {
   );
 
   expectEqual(
+    "markdown summary removes table divider rows",
+    getMarkdownPlainTextSummary("| 项 | 值 |\n| --- | --- |\n| A | B |"),
+    "项 值 A B",
+  );
+
+  expectEqual(
+    "markdown summary handles truncated attachment image syntax",
+    getMarkdownPlainTextSummary(
+      "正文 ![正文图片](nexus-attachment:6d5b2a68-30a4",
+    ),
+    "正文 图片：正文图片",
+  );
+
+  expectEqual(
+    "markdown summary handles truncated link syntax",
+    getMarkdownPlainTextSummary("正文 [链接](https://example.com/path"),
+    "正文 链接",
+  );
+
+  expectEqual(
     "markdown summary uses fallback for empty source",
     getMarkdownPlainTextSummary("   ", "没有摘要"),
     "没有摘要",

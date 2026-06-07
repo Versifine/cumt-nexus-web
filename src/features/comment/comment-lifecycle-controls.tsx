@@ -146,6 +146,7 @@ export function CommentLifecycleControls({
                   </span>
                 </div>
                 <MarkdownComposerField
+                  defaultMode="preview"
                   disabled={isUpdating}
                   onChange={setBodyValue}
                   textareaProps={{
@@ -164,7 +165,7 @@ export function CommentLifecycleControls({
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    修改只影响当前评论正文。
+                    默认显示发布后的评论样式；需要改内容时点“编辑”。
                   </p>
                 )}
               </div>

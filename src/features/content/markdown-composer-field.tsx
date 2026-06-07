@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 type MarkdownComposerFieldProps = {
   boundAttachments?: MediaAttachment[];
   className?: string;
+  defaultMode?: ComposerMode;
   disabled?: boolean;
   imageUpload?: {
     attachments: MediaAttachment[];
@@ -52,6 +53,7 @@ type ComposerMode = "edit" | "preview";
 export function MarkdownComposerField({
   boundAttachments,
   className,
+  defaultMode = "edit",
   disabled = false,
   imageUpload,
   onChange,
@@ -61,7 +63,7 @@ export function MarkdownComposerField({
 }: MarkdownComposerFieldProps) {
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
-  const [mode, setMode] = useState<ComposerMode>("edit");
+  const [mode, setMode] = useState<ComposerMode>(defaultMode);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [isUploadingInlineImage, setIsUploadingInlineImage] = useState(false);
   const inlineImageUploadMutation = useUploadImageMutation();
