@@ -17,17 +17,20 @@
 
 ## 当前已核对的图片合同
 
-截至 2026-06-04，前端按当前后端合同实现图片附件产品化：
+截至 2026-06-08，前端按当前后端合同实现图片附件产品化：
 
 - `POST /api/v1/uploads/images` 使用 `multipart/form-data`，字段为 `file` 和可选 `alt_text`。
 - 成功响应字段为 `attachment.id`、`kind`、`url`、`width`、`height`、`size_bytes`、`mime_type`、`alt_text`、`status`、`created_at`；当前响应没有 `thumbnail_url`。
 - 后端默认限制：单图片最大 `5242880` bytes，发帖最多 9 张，评论最多 1 张。
 - 后端只接受 `image/jpeg`、`image/png`、`image/webp`，并按文件头识别 MIME。
 - `alt_text` 最长 200 个字符。
-- 前端已按上述合同提示并拦截明显不合规输入，上传失败保留文件用于重试，删除待提交附件时提示未绑定对象由后端清理策略回收。
+- `POST /api/v1/communities/:slug/posts` 已支持 `attachment_ids`，帖子详情、社区帖子列表和全站帖子流返回 `attachments`。
+- `POST /api/v1/posts/:id/comments` 已支持 `attachment_ids`，评论 flat list 和 `view=tree` 均返回 `attachments`。
+- 前端已按上述合同提示并拦截明显不合规输入，上传失败保留文件用于重试，删除正文图片时提示未绑定对象由后端清理策略回收。
 - 前端当前不直接删除对象、不生成缩略图、不伪造 `thumbnail_url`。
+- 当前剩余合同缺口集中在编辑态新增或重绑图片：`PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 仍未接收 `attachment_ids`。
 
-## 后端缺口
+## 后端 / API 剩余缺口
 
 ### CORS 方法
 
@@ -76,7 +79,7 @@ OBJECT_STORAGE_ALLOWED_IMAGE_MIME=image/jpeg,image/png,image/webp
 
 ### 上传图片
 
-建议接口：
+当前接口：
 
 ```text
 POST /api/v1/uploads/images
@@ -90,7 +93,7 @@ multipart/form-data
 - alt_text optional
 ```
 
-建议响应：
+当前响应：
 
 ```json
 {
@@ -134,14 +137,13 @@ multipart/form-data
 POST /api/v1/communities/:slug/posts
 ```
 
-未来请求体建议扩展：
+当前请求体：
 
 ```json
 {
   "title": "帖子标题",
   "body": "Reddit-style Markdown 正文",
-  "attachment_ids": ["uuid"],
-  "embed_ids": ["uuid"]
+  "attachment_ids": ["uuid"]
 }
 ```
 
@@ -151,6 +153,7 @@ POST /api/v1/communities/:slug/posts
 - 未绑定的临时附件需要有过期清理策略。
 - 单帖图片数量需要后端限制。
 - 老请求体不带 `attachment_ids` 时必须继续兼容。
+- 外链预览和白名单 embed 不复用 `attachment_ids`；如需 `embed_ids`，必须另起合同。
 
 ### 附件绑定到评论
 
@@ -160,14 +163,13 @@ POST /api/v1/communities/:slug/posts
 POST /api/v1/posts/:id/comments
 ```
 
-未来请求体建议扩展：
+当前请求体：
 
 ```json
 {
   "body": "Reddit-style Markdown 评论",
   "parent_id": "nullable comment id",
-  "attachment_ids": ["uuid"],
-  "embed_ids": ["uuid"]
+  "attachment_ids": ["uuid"]
 }
 ```
 
@@ -176,12 +178,65 @@ POST /api/v1/posts/:id/comments
 - 评论图片可以晚于帖子图片上线。
 - 首版评论图片数量应比帖子更克制，例如最多 1 张。
 - 子评论和根评论使用同一绑定规则。
+- 外链预览和白名单 embed 不复用 `attachment_ids`；如需 `embed_ids`，必须另起合同。
+
+### 编辑态附件重绑
+
+当前编辑接口：
+
+```text
+PATCH /api/v1/posts/:id
+PATCH /api/v1/comments/:id
+```
+
+当前后端源码和合同显示：
+
+- `PATCH /api/v1/posts/:id` 请求体为 `title`、`body`。
+- `PATCH /api/v1/comments/:id` 请求体为 `body`。
+- 成功响应会继续返回最新 `attachments`，但编辑请求不会根据新的 `attachment_ids` 新增、删除或重绑图片。
+
+因此前端编辑弹窗当前只能：
+
+- 默认渲染发布态预览，不直接露出 Markdown 源码。
+- 切到“编辑”后修改正文和标题 / 评论内容。
+- 把已经绑定的正文图片重新插回正文位置，或删除正文中的图片 marker 让阅读态不展示。
+
+前端当前不能开放：
+
+- 编辑时上传新图片。
+- 编辑保存时提交新的 `attachment_ids`。
+- 把未绑定的新对象伪装成已保存图片。
+
+需要后端补齐的帖子编辑请求体：
+
+```json
+{
+  "title": "帖子标题",
+  "body": "Reddit-style Markdown 正文",
+  "attachment_ids": ["uuid"]
+}
+```
+
+评论编辑同理：
+
+```json
+{
+  "body": "Reddit-style Markdown 评论",
+  "attachment_ids": ["uuid"]
+}
+```
+
+规则：
+
+- 不带 `attachment_ids` 的老请求继续只更新正文。
+- 带 `attachment_ids` 时按当前作者和目标内容校验所有权。
+- 删除正文 marker 后是否解除绑定、未引用附件如何 TTL 清理，需要后端合同明确。
 
 ### 读取帖子和评论媒体
 
-帖子详情、帖子列表和评论列表需要返回结构化媒体。
+帖子详情、帖子列表和评论列表当前返回结构化媒体。
 
-建议字段：
+当前字段：
 
 ```json
 {
@@ -190,7 +245,6 @@ POST /api/v1/posts/:id/comments
       "id": "uuid",
       "kind": "image",
       "url": "https://cdn.example.com/...",
-      "thumbnail_url": "https://cdn.example.com/...",
       "width": 1200,
       "height": 800,
       "size_bytes": 123456,

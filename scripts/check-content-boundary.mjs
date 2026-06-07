@@ -6,10 +6,18 @@ import process from "node:process";
 
 const root = process.cwd();
 const sourceRoot = resolve(root, "src");
+const docsRoot = resolve(root, "docs");
 const results = [];
 
 const sourceFiles = existsSync(sourceRoot)
   ? listSourceFiles(sourceRoot).map((filePath) => ({
+      absolutePath: filePath,
+      content: readFileSync(filePath, "utf8"),
+      path: normalizePath(relative(root, filePath)),
+    }))
+  : [];
+const docsFiles = existsSync(docsRoot)
+  ? listMarkdownFiles(docsRoot).map((filePath) => ({
       absolutePath: filePath,
       content: readFileSync(filePath, "utf8"),
       path: normalizePath(relative(root, filePath)),
@@ -83,6 +91,7 @@ checkPublishedAttachmentRenderingBoundary();
 checkPublishedAttachmentNoFallbackGallery();
 checkComposerImageCopy();
 checkMarkdownSourceLeakage();
+checkMediaContractDocs();
 
 for (const result of results) {
   console.log(`[${result.status.toUpperCase()}] ${result.name} - ${result.detail}`);
@@ -339,6 +348,7 @@ function checkPublishedAttachmentNoFallbackGallery() {
 
   const blockedPatterns = [
     "fallbackAttachments",
+    "MediaAttachmentGallery",
     "MediaAttachmentFigure",
     "getReferencedAttachmentIds(value)",
   ];
@@ -357,6 +367,60 @@ function checkPublishedAttachmentNoFallbackGallery() {
   addPass(
     "published attachment fallback",
     "published attachments are not appended outside the Markdown body",
+  );
+}
+
+function checkMediaContractDocs() {
+  const docsByPath = new Map(docsFiles.map((file) => [file.path, file.content]));
+  const offenders = [];
+  const mediaGaps = docsByPath.get(
+    "docs/internal/architecture/content-media-api-gaps.md",
+  );
+  const roadmap = docsByPath.get("docs/internal/product/v2-roadmap.md");
+  const audit = docsByPath.get(
+    "docs/internal/product/frontend-implementation-audit.md",
+  );
+
+  if (!mediaGaps) {
+    offenders.push("content media API gaps doc is missing");
+  } else {
+    if (mediaGaps.includes("未来请求体建议扩展")) {
+      offenders.push("publish/comment attachment_ids docs still describe completed contracts as future");
+    }
+
+    if (!mediaGaps.includes("编辑态附件重绑")) {
+      offenders.push("content media API gaps doc must name the remaining edit attachment contract");
+    }
+  }
+
+  if (!roadmap) {
+    offenders.push("V2 roadmap doc is missing");
+  } else {
+    if (roadmap.includes("不再提供编辑 / 预览双模式")) {
+      offenders.push("V2 roadmap still claims the composer has no edit/preview mode");
+    }
+
+    if (roadmap.includes("帖子详情和评论树展示返回图片")) {
+      offenders.push("V2 roadmap still describes detached attachment rendering");
+    }
+  }
+
+  if (!audit) {
+    offenders.push("frontend implementation audit doc is missing");
+  } else if (
+    !audit.includes("编辑态新增图片仍需要后端更新接口接收 `attachment_ids`")
+  ) {
+    offenders.push("frontend audit must keep the edit image binding gap explicit");
+  }
+
+  if (offenders.length > 0) {
+    addFail("media contract docs", offenders.join("; "));
+    return;
+  }
+
+  addPass(
+    "media contract docs",
+    "docs distinguish completed publish/comment image binding from the remaining edit binding contract",
   );
 }
 
@@ -567,6 +631,26 @@ function listSourceFiles(directory) {
     }
 
     if (/\.(ts|tsx)$/.test(entry.name) && !entry.name.endsWith(".d.ts")) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
+}
+
+function listMarkdownFiles(directory) {
+  const entries = readdirSync(directory, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const fullPath = resolve(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      files.push(...listMarkdownFiles(fullPath));
+      continue;
+    }
+
+    if (/\.md$/.test(entry.name)) {
       files.push(fullPath);
     }
   }

@@ -113,30 +113,6 @@ export function InlineImageAttachmentManager({
   );
 }
 
-export function MediaAttachmentGallery({
-  attachments,
-  className,
-}: {
-  attachments?: MediaAttachment[];
-  className?: string;
-}) {
-  const visibleAttachments = (attachments ?? []).filter(
-    (attachment) => attachment.kind === "image" && attachment.status !== "blocked",
-  );
-
-  if (visibleAttachments.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className={cn("grid gap-3 sm:grid-cols-2", className)}>
-      {visibleAttachments.map((attachment) => (
-        <MediaAttachmentFigure key={attachment.id} attachment={attachment} />
-      ))}
-    </div>
-  );
-}
-
 export function InlineImageAttachmentReferences({
   attachments,
   className,
@@ -203,34 +179,6 @@ export function InlineImageAttachmentReferences({
   );
 }
 
-export function MediaAttachmentFigure({
-  attachment,
-  caption,
-  className,
-}: {
-  attachment: MediaAttachment;
-  caption?: string;
-  className?: string;
-}) {
-  return (
-    <figure className={cn("border border-border bg-background-soft", className)}>
-      <img
-        src={attachment.url}
-        alt={caption || attachment.alt_text || "内容图片"}
-        loading="lazy"
-        decoding="async"
-        className="max-h-[520px] w-full object-contain"
-      />
-      <figcaption className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground">
-        <span className="truncate">
-          {caption || formatPublishedAttachmentCaption(attachment)}
-        </span>
-        <span className="font-mono">{formatFileSize(attachment.size_bytes)}</span>
-      </figcaption>
-    </figure>
-  );
-}
-
 function isVisibleImageAttachment(attachment: MediaAttachment) {
   return (
     attachment.kind === "image" &&
@@ -261,27 +209,6 @@ function formatAttachmentMeta(attachment: MediaAttachment) {
 
   parts.push(formatFileSize(attachment.size_bytes));
   return parts.join(" / ");
-}
-
-function formatPublishedAttachmentCaption(attachment: MediaAttachment) {
-  if (attachment.alt_text.trim()) {
-    return attachment.alt_text;
-  }
-
-  switch (attachment.status) {
-    case "ready":
-      return "图片附件";
-    case "pending":
-      return "等待处理";
-    case "processing":
-      return "处理中";
-    case "blocked":
-      return "已拦截";
-    case "failed":
-      return "图片不可用";
-    default:
-      return attachment.status;
-  }
 }
 
 function formatAttachmentStatus(status: string) {
