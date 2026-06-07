@@ -22,6 +22,7 @@ import { InfoRow, MetricBlock, StatusToken } from "@/components/ui/data-display"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { useUserPostsQuery } from "@/features/post/queries";
 import type {
   ListPostsResponse,
@@ -520,7 +521,7 @@ function getCommunityLabel(post: Post) {
 }
 
 function getPostExcerpt(post: Post) {
-  return post.body_excerpt || post.body || "暂无摘要。";
+  return getMarkdownPlainTextSummary(post.body_excerpt || post.body);
 }
 
 function formatSortLabel(sort: PostSort) {

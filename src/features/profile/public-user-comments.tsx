@@ -23,6 +23,7 @@ import { useAuthSession } from "@/features/auth/auth-session";
 import { useUserCommentsQuery } from "@/features/comment/queries";
 import type { Comment, ListCommentsResponse } from "@/features/comment/types";
 import { ContentBody } from "@/features/content/content-body";
+import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -362,7 +363,7 @@ function UserCommentsRail({
                     {comment.score ?? 0} 分 / 可查看原帖
                   </div>
                   <div className="mt-1 line-clamp-2 text-sm font-medium">
-                    {comment.body || "暂无内容。"}
+                    {getMarkdownPlainTextSummary(comment.body, "暂无内容。")}
                   </div>
                 </Link>
               ))}

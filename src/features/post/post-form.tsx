@@ -149,18 +149,6 @@ export function PostForm({ className, slug }: PostFormProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 border-b border-border py-5 md:grid-cols-[160px_minmax(0,1fr)]">
-        <FieldLabel
-          description="先上传图片，再随帖子一起发布。"
-          htmlFor="post-image-upload"
-          index="03"
-          title="图片"
-        />
-        <p className="text-sm leading-6 text-muted-foreground">
-          图片上传入口已经并入正文写作区；上传成功后会自动插入当前位置。
-        </p>
-      </div>
-
       <div className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-muted-foreground">
           {form.formState.isDirty ? "草稿尚未发布。" : "开始输入后会在这里保留草稿状态。"}

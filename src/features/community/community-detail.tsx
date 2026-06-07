@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { useCommunityPostsQuery } from "@/features/post/queries";
 import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
@@ -483,7 +484,7 @@ function getAuthorInitial(value: string) {
 }
 
 function getPostExcerpt(post: Post) {
-  return post.body_excerpt || post.body;
+  return getMarkdownPlainTextSummary(post.body_excerpt || post.body, "");
 }
 
 function getPreviewImage(post: Post) {

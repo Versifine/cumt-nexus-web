@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { ApiError } from "@/lib/api/client";
 
 import { useSearchQuery } from "./queries";
@@ -433,7 +434,7 @@ function PostResultRow({
           {post.title}
         </h3>
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
-          {post.body_excerpt || "暂无摘要。"}
+          {getMarkdownPlainTextSummary(post.body_excerpt)}
         </p>
       </div>
       <div className="flex items-center justify-end gap-2 text-sm font-semibold text-muted-foreground group-hover:text-primary">

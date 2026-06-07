@@ -1,8 +1,9 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import type { ClipboardEvent, ComponentProps } from "react";
 import { useMemo, useRef, useState } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -19,6 +20,11 @@ import {
   ImageAttachmentUploader,
   InlineImageAttachmentReferences,
 } from "@/features/media/media-attachments";
+import {
+  getUploadError,
+  validateImageUploadFile,
+} from "@/features/media/image-upload-rules";
+import { useUploadImageMutation } from "@/features/media/queries";
 import type { MediaAttachment } from "@/features/media/types";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +59,9 @@ export function MarkdownComposerField({
 }: MarkdownComposerFieldProps) {
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [mode, setMode] = useState<ComposerMode>("edit");
+  const [pasteUploadError, setPasteUploadError] = useState<string | null>(null);
+  const [isPastingImage, setIsPastingImage] = useState(false);
+  const pasteUploadMutation = useUploadImageMutation();
   const referencedAttachmentIds = getReferencedAttachmentIds(value);
   const previewAttachments = useMemo(
     () =>
@@ -77,7 +86,7 @@ export function MarkdownComposerField({
       },
       onChange: setBodyValue,
       textarea: bodyTextareaRef.current,
-      value,
+      value: bodyTextareaRef.current?.value ?? value,
     });
   }
 
@@ -88,6 +97,78 @@ export function MarkdownComposerField({
   function bindTextareaRef(element: HTMLTextAreaElement | null) {
     bodyTextareaRef.current = element;
     textareaRef?.(element);
+  }
+
+  async function handleTextareaPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    textareaProps.onPaste?.(event);
+
+    if (event.defaultPrevented || !imageUpload) {
+      return;
+    }
+
+    const imageFiles = getImageFilesFromClipboard(event.clipboardData);
+
+    if (imageFiles.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (disabled || textareaProps.disabled) {
+      return;
+    }
+
+    const remainingSlots = imageUpload.maxCount - imageUpload.attachments.length;
+
+    if (remainingSlots <= 0) {
+      setPasteUploadError(
+        `当前最多上传 ${imageUpload.maxCount} 张图片，先移除一张再继续。`,
+      );
+      return;
+    }
+
+    if (imageFiles.length > remainingSlots) {
+      setPasteUploadError(
+        `当前还能粘贴 ${remainingSlots} 张图片，请减少数量后再试。`,
+      );
+      return;
+    }
+
+    setPasteUploadError(null);
+    setIsPastingImage(true);
+    imageUpload.onUploadingChange?.(true);
+
+    try {
+      let nextAttachments = imageUpload.attachments;
+
+      for (const file of imageFiles) {
+        const altText = getPastedImageAltText(file);
+        const validationError = validateImageUploadFile(file, {
+          altText,
+          currentCount: nextAttachments.length,
+          maxCount: imageUpload.maxCount,
+        });
+
+        if (validationError) {
+          setPasteUploadError(validationError);
+          return;
+        }
+
+        const result = await pasteUploadMutation.mutateAsync({
+          alt_text: altText,
+          file,
+        });
+
+        nextAttachments = [...nextAttachments, result.attachment];
+        imageUpload.onChange(nextAttachments);
+        insertAttachmentMarkdown(result.attachment);
+      }
+    } catch (error) {
+      setPasteUploadError(getUploadError(error));
+    } finally {
+      setIsPastingImage(false);
+      imageUpload.onUploadingChange?.(false);
+    }
   }
 
   return (
@@ -124,6 +205,7 @@ export function MarkdownComposerField({
           <Textarea
             {...textareaProps}
             disabled={disabled || textareaProps.disabled}
+            onPaste={handleTextareaPaste}
             ref={bindTextareaRef}
             value={value}
           />
@@ -149,19 +231,32 @@ export function MarkdownComposerField({
         </TabsContent>
       </Tabs>
       {imageUpload ? (
-        <ImageAttachmentUploader
-          attachments={imageUpload.attachments}
-          disabled={disabled}
-          idPrefix={imageUpload.idPrefix}
-          isAttachmentInserted={(attachment) =>
-            referencedAttachmentIds.has(attachment.id)
-          }
-          maxCount={imageUpload.maxCount}
-          onChange={imageUpload.onChange}
-          onInsertAttachment={insertAttachmentMarkdown}
-          onRemoveAttachment={removeAttachmentMarkdown}
-          onUploadingChange={imageUpload.onUploadingChange}
-        />
+        <>
+          {isPastingImage ? (
+            <div className="border-l border-primary px-3 py-2 text-sm text-muted-foreground">
+              正在上传粘贴的图片，完成后会插入到正文当前位置。
+            </div>
+          ) : null}
+          {pasteUploadError ? (
+            <Alert variant="destructive">
+              <AlertTitle>粘贴图片失败</AlertTitle>
+              <AlertDescription>{pasteUploadError}</AlertDescription>
+            </Alert>
+          ) : null}
+          <ImageAttachmentUploader
+            attachments={imageUpload.attachments}
+            disabled={disabled || isPastingImage}
+            idPrefix={imageUpload.idPrefix}
+            isAttachmentInserted={(attachment) =>
+              referencedAttachmentIds.has(attachment.id)
+            }
+            maxCount={imageUpload.maxCount}
+            onChange={imageUpload.onChange}
+            onInsertAttachment={insertAttachmentMarkdown}
+            onRemoveAttachment={removeAttachmentMarkdown}
+            onUploadingChange={imageUpload.onUploadingChange}
+          />
+        </>
       ) : null}
       {boundAttachments ? (
         <InlineImageAttachmentReferences
@@ -185,4 +280,27 @@ function dedupeAttachments(attachments: MediaAttachment[]) {
   }
 
   return [...attachmentById.values()];
+}
+
+function getImageFilesFromClipboard(clipboardData: DataTransfer) {
+  const files = Array.from(clipboardData.files).filter(isImageFile);
+
+  if (files.length > 0) {
+    return files;
+  }
+
+  return Array.from(clipboardData.items)
+    .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+    .map((item) => item.getAsFile())
+    .filter(isImageFile);
+}
+
+function getPastedImageAltText(file: File) {
+  const name = file.name.trim().replace(/\.[^.]+$/, "");
+
+  return name || "粘贴图片";
+}
+
+function isImageFile(file: File | null): file is File {
+  return Boolean(file?.type.startsWith("image/"));
 }

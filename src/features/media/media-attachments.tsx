@@ -9,9 +9,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusToken, type StatusTokenTone } from "@/components/ui/data-display";
-import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
+import {
+  formatFileSize,
+  getUploadError,
+  validateImageUploadFile,
+} from "./image-upload-rules";
 import { useUploadImageMutation } from "./queries";
 import {
   IMAGE_UPLOAD_ACCEPT,
@@ -72,7 +76,7 @@ export function ImageAttachmentUploader({
     }
 
     const nextAltText = altText.trim();
-    const validationError = validateImageUpload(file, {
+    const validationError = validateImageUploadFile(file, {
       altText: nextAltText,
       currentCount: attachments.length,
       maxCount,
@@ -140,7 +144,7 @@ export function ImageAttachmentUploader({
     }
 
     const nextAltText = altText.trim();
-    const validationError = validateImageUpload(pendingUpload.file, {
+    const validationError = validateImageUploadFile(pendingUpload.file, {
       altText: nextAltText,
       currentCount: attachments.length,
       maxCount,
@@ -187,7 +191,7 @@ export function ImageAttachmentUploader({
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground md:col-span-2">
           <ImagePlus className="size-4 text-primary" aria-hidden="true" />
-          <span>{policyText}</span>
+          <span>{policyText} 也可以把图片直接粘贴到正文框。</span>
           <StatusToken tone={canAddMore ? "primary" : "warning"}>
             {attachments.length}/{maxCount}
           </StatusToken>
@@ -449,61 +453,6 @@ function isVisibleImageAttachment(attachment: MediaAttachment) {
     attachment.status !== "blocked" &&
     Boolean(attachment.url)
   );
-}
-
-function validateImageUpload(
-  file: File,
-  {
-    altText,
-    currentCount,
-    maxCount,
-  }: {
-    altText: string;
-    currentCount: number;
-    maxCount: number;
-  },
-) {
-  if (currentCount >= maxCount) {
-    return `当前最多上传 ${maxCount} 张图片，先移除一张再继续。`;
-  }
-
-  if (!IMAGE_UPLOAD_LIMITS.allowedMimeTypes.some((mimeType) => mimeType === file.type)) {
-    return "只能上传 JPEG、PNG 或 WebP 图片。";
-  }
-
-  if (file.size > IMAGE_UPLOAD_LIMITS.maxBytes) {
-    return `单张图片不能超过 ${formatFileSize(IMAGE_UPLOAD_LIMITS.maxBytes)}。`;
-  }
-
-  if (altText.length > IMAGE_UPLOAD_LIMITS.altTextMaxLength) {
-    return `图片说明不能超过 ${IMAGE_UPLOAD_LIMITS.altTextMaxLength} 个字符。`;
-  }
-
-  return null;
-}
-
-function getUploadError(error: unknown) {
-  if (!error) {
-    return "请求失败，请稍后重试。";
-  }
-
-  if (error instanceof ApiError) {
-    return error.message;
-  }
-
-  return "请求失败，请稍后重试。";
-}
-
-function formatFileSize(sizeBytes: number) {
-  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
-    return "--";
-  }
-
-  if (sizeBytes < 1024 * 1024) {
-    return `${Math.ceil(sizeBytes / 1024)} KB`;
-  }
-
-  return `${(sizeBytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function formatMimeType(mimeType: string) {

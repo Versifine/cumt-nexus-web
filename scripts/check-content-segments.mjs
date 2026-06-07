@@ -21,6 +21,9 @@ const {
   normalizeMarkdownHref,
 } = await importTypescriptModule("src/features/content/markdown-url.ts");
 const {
+  getMarkdownPlainTextSummary,
+} = await importTypescriptModule("src/features/content/markdown-summary.ts");
+const {
   fencedCodeBlockSelection,
   linkSelection,
   spoilerSelection,
@@ -103,6 +106,7 @@ for (const testCase of spoilerCases) {
 
 checkAttachmentMarkdown();
 checkMarkdownUrl();
+checkMarkdownSummary();
 checkMarkdownToolbarActions();
 
 console.log("");
@@ -279,6 +283,28 @@ function checkMarkdownUrl() {
     "site-relative markdown links are not marked external",
     isExternalMarkdownHref("/communities/public"),
     false,
+  );
+}
+
+function checkMarkdownSummary() {
+  expectEqual(
+    "markdown summary removes source markers and keeps readable text",
+    getMarkdownPlainTextSummary(
+      "## 标题\n\n**重点** [链接](https://example.com)\n\n![图\\[草稿\\]](nexus-attachment:img-1)\n>! 隐藏内容 !<",
+    ),
+    "标题 重点 链接 图片：图[草稿] 隐藏内容",
+  );
+
+  expectEqual(
+    "markdown summary turns external image syntax into image text",
+    getMarkdownPlainTextSummary("![外部图](https://example.com/a.png)\n正文"),
+    "图片：外部图 正文",
+  );
+
+  expectEqual(
+    "markdown summary uses fallback for empty source",
+    getMarkdownPlainTextSummary("   ", "没有摘要"),
+    "没有摘要",
   );
 }
 
