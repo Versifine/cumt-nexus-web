@@ -41,7 +41,7 @@
 | 评论 sort | 帖子详情评论请求固定 `sort="new"`，没有评论 sort UI。 | 未完成。 | 若按 Reddit，需要评论区 `best | new | top` 等 query 合同和 UI。 |
 | Markdown 阅读态 | `ContentBody` 使用 `react-markdown` + `remark-gfm`，`skipHtml`，安全 URL，帖子和评论复用；本轮已验证帖子详情移动端长代码块不撑破页面，代码块内部横向滚动。 | 基础落地。 | 仍需 Reddit parity 用例审计，例如边界语法、移动端表格和评论深层场景。 |
 | Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，工具栏插入常用语法，覆盖行内代码和代码块，并提供复用 `ContentBody` 的轻量预览。编辑弹窗默认显示渲染后的发布态预览，点“编辑”才显示源码。浏览器已验证 UI 发帖、根评论、子评论提交、帖子编辑保存、评论编辑保存和阅读态渲染。 | 基础落地。 | 编辑时新增图片需要后端 `PATCH` 接收并重绑 `attachment_ids`。 |
-| 图片与正文一体化 | 图片上传后插入 `![说明](nexus-attachment:<id>)`；阅读态只渲染正文内 marker 引用的 attachments，不再把未引用附件追加成底部外置图集；未使用的外置图集组件已移除；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；作者可在编辑器的已有图片列表中放回正文。编辑态新增图片仍需要后端更新接口接收 `attachment_ids`。 |
+| 图片与正文一体化 | 图片上传后插入 `![说明](nexus-attachment:<id>)`；阅读态只渲染正文内 marker 引用的 attachments，不再把未引用附件追加成底部外置图集；未使用的外置图集组件已移除；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留，`check:content-segments` 覆盖批量图片插入顺序，`check:content-boundary` 固化剪贴板图片入口。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；作者可在编辑器的已有图片列表中放回正文。编辑态新增图片仍需要后端更新接口接收 `attachment_ids`。 |
 | 普通外链 | Markdown 链接可渲染安全链接。 | 基础落地。 | 普通网页链接预览未实现，需要后端解析缓存。 |
 | 白名单 embed | Bilibili、抖音、网易云、QQ 音乐均未实现播放器嵌入。 | 未完成。 | 必须先做后端 provider 白名单和安全解析，前端不能伪造 iframe。 |
 | 评论树 | 评论树、回复、折叠和最大深度已有基础实现。 | 基础落地。 | 评论投票、特效、贴图和排序未实现。 |
@@ -54,6 +54,8 @@
 - 子评论回复：回复后评论树变成 `TREE / 2 条评论`，子评论深度为 1，spoiler 不露原始语法。
 - 帖子编辑弹窗：默认进入预览态，textarea 和图片插入控件不显示；可见文本不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。登录测试账号后直接保存当前标题和正文，弹窗关闭并显示“帖子已更新。”，帖子更新时间刷新到 2026年6月8日。
 - 评论编辑弹窗：默认进入预览态，textarea 和图片插入控件不显示；可见文本不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。登录测试账号后直接保存当前正文，弹窗关闭并显示“评论已更新。”。
+- 发帖页剪贴板图片：登录测试账号后在 `/communities/public/new` 用系统剪贴板粘贴 PNG，正文 textarea 自动插入 `![clipboard](nexus-attachment:d62aa1b6-3976-45b6-9bdb-89d878d66324)`；正文图片列表显示 `1/9`、`已上传`、`已在正文`；切到预览后可见快照不包含 `nexus-attachment:`，并渲染 `img "clipboard"`，图片 URL 来自 `http://localhost:8080/uploads/images/...`。
+- 评论区剪贴板图片：`/posts/f397e709-f8cc-4a38-8e75-f987062958d0` 已确认评论表单使用同一 `MarkdownComposerField`、同一工具栏和 `添加图片` 入口；当前 in-app browser 在帖子详情页触发系统剪贴板粘贴时被测试工具虚拟剪贴板限制拦截，仍需后续用可控浏览器补一条评论区真实剪贴板图片端到端证据。
 - 本地运行时注意：后端源码和远端 `main` 已放行 CORS `PATCH`，但旧 Docker 容器曾返回 `GET, POST, PUT, DELETE, OPTIONS`，导致浏览器保存失败。重建 `cumt-nexus-api:local` 并按现有数据卷账号恢复 prod compose 后，`OPTIONS` 返回 `GET, POST, PUT, PATCH, DELETE, OPTIONS`，编辑保存通过。
 
 ## 后端需要补或确认
@@ -75,7 +77,8 @@
 不要再按“规划是否完成”讨论。后续按体验切片推进：
 
 1. 如果后端已经补齐编辑态 `attachment_ids` 合同，先同步后端合同文档和前端 `UpdatePostInput` / `UpdateCommentInput`，再让编辑弹窗开放新增图片入口。
-2. 做 Feed source + 五种 sort 切片：先核对后端，再扩路由和 UI。
-3. 做通知分类切片：先定义类型映射，再做 Bilibili 式分类页。
-4. 做链接预览 / embed 后端合同文档，不在前端先伪造。
-5. 按 `docs/internal/engineering/browser-qa.md` 跑完整桌面 / 移动端人工 QA，把“反人类”的页面按 P0 / P1 切片修。
+2. 补评论区真实剪贴板图片端到端复验：需要能稳定写入图片剪贴板的浏览器环境，验证评论 textarea 插入 marker、预览渲染图片，且不发布测试评论。
+3. 做 Feed source + 五种 sort 切片：先核对后端，再扩路由和 UI。
+4. 做通知分类切片：先定义类型映射，再做 Bilibili 式分类页。
+5. 做链接预览 / embed 后端合同文档，不在前端先伪造。
+6. 按 `docs/internal/engineering/browser-qa.md` 跑完整桌面 / 移动端人工 QA，把“反人类”的页面按 P0 / P1 切片修。
