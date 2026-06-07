@@ -14,6 +14,7 @@ import type { MediaAttachment } from "./types";
 
 export function InlineImageAttachmentManager({
   attachments,
+  canInsertAttachment,
   className,
   disabled = false,
   isAttachmentInserted,
@@ -22,6 +23,7 @@ export function InlineImageAttachmentManager({
   onRemoveAttachment,
 }: {
   attachments: MediaAttachment[];
+  canInsertAttachment?: (attachment: MediaAttachment) => boolean;
   className?: string;
   disabled?: boolean;
   isAttachmentInserted: (attachment: MediaAttachment) => boolean;
@@ -58,56 +60,66 @@ export function InlineImageAttachmentManager({
             {attachments.length}/{maxCount}
           </span>
         </div>
-        {attachments.map((attachment) => (
-          <div key={attachment.id} className="flex items-center gap-3 py-3">
-            <img
-              src={attachment.url}
-              alt={attachment.alt_text || "已上传图片"}
-              loading="lazy"
-              decoding="async"
-              className="size-14 shrink-0 border border-border object-cover"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusToken tone={getAttachmentStatusTone(attachment.status)}>
-                  {formatAttachmentStatus(attachment.status)}
-                </StatusToken>
-                <StatusToken
-                  tone={isAttachmentInserted(attachment) ? "primary" : "warning"}
-                >
-                  {isAttachmentInserted(attachment) ? "已在正文" : "未放入正文"}
-                </StatusToken>
-                <span className="font-mono text-xs text-muted-foreground">
-                  {formatFileSize(attachment.size_bytes)}
-                </span>
+        {attachments.map((attachment) => {
+          const inserted = isAttachmentInserted(attachment);
+          const canInsert = canInsertAttachment?.(attachment) ?? true;
+
+          return (
+            <div key={attachment.id} className="flex items-center gap-3 py-3">
+              <img
+                src={attachment.url}
+                alt={attachment.alt_text || "已上传图片"}
+                loading="lazy"
+                decoding="async"
+                className="size-14 shrink-0 border border-border object-cover"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusToken tone={getAttachmentStatusTone(attachment.status)}>
+                    {formatAttachmentStatus(attachment.status)}
+                  </StatusToken>
+                  <StatusToken
+                    tone={inserted ? "primary" : canInsert ? "warning" : "danger"}
+                  >
+                    {inserted
+                      ? "已在正文"
+                      : canInsert
+                        ? "未放入正文"
+                        : "已达上限"}
+                  </StatusToken>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {formatFileSize(attachment.size_bytes)}
+                  </span>
+                </div>
+                <p className="mt-1 truncate text-sm text-muted-foreground">
+                  {attachment.alt_text || formatMimeType(attachment.mime_type)}
+                </p>
+                <p className="mt-1 truncate text-xs text-muted-foreground">
+                  {formatAttachmentMeta(attachment)}
+                </p>
               </div>
-              <p className="mt-1 truncate text-sm text-muted-foreground">
-                {attachment.alt_text || formatMimeType(attachment.mime_type)}
-              </p>
-              <p className="mt-1 truncate text-xs text-muted-foreground">
-                {formatAttachmentMeta(attachment)}
-              </p>
+              <button
+                type="button"
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 border border-border px-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={disabled || inserted || !canInsert}
+                onClick={() => onInsertAttachment(attachment)}
+                title={!inserted && !canInsert ? "正文图片数量已达到上限" : undefined}
+              >
+                <CornerDownLeft className="size-3.5" aria-hidden="true" />
+                放到光标处
+              </button>
+              <button
+                type="button"
+                className="inline-flex size-9 items-center justify-center border border-border text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                disabled={disabled}
+                onClick={() => removeAttachment(attachment)}
+                aria-label="移除图片"
+              >
+                <X className="size-4" aria-hidden="true" />
+              </button>
             </div>
-            <button
-              type="button"
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 border border-border px-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={disabled || isAttachmentInserted(attachment)}
-              onClick={() => onInsertAttachment(attachment)}
-            >
-              <CornerDownLeft className="size-3.5" aria-hidden="true" />
-              放到光标处
-            </button>
-            <button
-              type="button"
-              className="inline-flex size-9 items-center justify-center border border-border text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              disabled={disabled}
-              onClick={() => removeAttachment(attachment)}
-              aria-label="移除图片"
-            >
-              <X className="size-4" aria-hidden="true" />
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -115,12 +127,14 @@ export function InlineImageAttachmentManager({
 
 export function InlineImageAttachmentReferences({
   attachments,
+  canInsertAttachment,
   className,
   disabled = false,
   isAttachmentInserted,
   onInsertAttachment,
 }: {
   attachments?: MediaAttachment[];
+  canInsertAttachment?: (attachment: MediaAttachment) => boolean;
   className?: string;
   disabled?: boolean;
   isAttachmentInserted: (attachment: MediaAttachment) => boolean;
@@ -140,6 +154,7 @@ export function InlineImageAttachmentReferences({
       </div>
       {visibleAttachments.map((attachment) => {
         const inserted = isAttachmentInserted(attachment);
+        const canInsert = canInsertAttachment?.(attachment) ?? true;
 
         return (
           <div key={attachment.id} className="flex items-center gap-3 py-3">
@@ -152,8 +167,14 @@ export function InlineImageAttachmentReferences({
             />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <StatusToken tone={inserted ? "primary" : "warning"}>
-                  {inserted ? "已插入正文" : "未插入正文"}
+                <StatusToken
+                  tone={inserted ? "primary" : canInsert ? "warning" : "danger"}
+                >
+                  {inserted
+                    ? "已插入正文"
+                    : canInsert
+                      ? "未插入正文"
+                      : "已达上限"}
                 </StatusToken>
                 <span className="font-mono text-xs text-muted-foreground">
                   {formatFileSize(attachment.size_bytes)}
@@ -166,8 +187,9 @@ export function InlineImageAttachmentReferences({
             <button
               type="button"
               className="inline-flex h-9 shrink-0 items-center gap-1.5 border border-border px-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={disabled || inserted}
+              disabled={disabled || inserted || !canInsert}
               onClick={() => onInsertAttachment(attachment)}
+              title={!inserted && !canInsert ? "正文图片数量已达到上限" : undefined}
             >
               <CornerDownLeft className="size-3.5" aria-hidden="true" />
               放到光标处

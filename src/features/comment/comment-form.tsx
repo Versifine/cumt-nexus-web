@@ -149,6 +149,7 @@ export function CommentForm({
       <div className="space-y-2">
         <MarkdownComposerField
           disabled={commentMutation.isPending}
+          maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerComment}
           onChange={setBodyValue}
           textareaProps={{
             ...bodyFieldProps,

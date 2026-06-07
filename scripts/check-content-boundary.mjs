@@ -91,6 +91,7 @@ checkPublishedAttachmentRenderingBoundary();
 checkPublishedAttachmentNoFallbackGallery();
 checkPublishedAttachmentImageSizing();
 checkComposerImageCopy();
+checkComposerReferencedImageLimit();
 checkMarkdownSourceLeakage();
 checkMediaContractDocs();
 
@@ -781,6 +782,99 @@ function checkMarkdownSourceLeakage() {
   addPass(
     "Markdown source leakage",
     "destructive dialogs and moderation previews use cleaned Markdown summaries",
+  );
+}
+
+function checkComposerReferencedImageLimit() {
+  const composer = sourceFiles.find(
+    (file) => file.path === "src/features/content/markdown-composer-field.tsx",
+  );
+  const mediaAttachments = sourceFiles.find(
+    (file) => file.path === "src/features/media/media-attachments.tsx",
+  );
+  const consumers = [
+    {
+      path: "src/features/post/post-form.tsx",
+      token: "maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerPost}",
+    },
+    {
+      path: "src/features/comment/comment-form.tsx",
+      token: "maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerComment}",
+    },
+    {
+      path: "src/features/post/post-lifecycle-controls.tsx",
+      token: "maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerPost}",
+    },
+    {
+      path: "src/features/comment/comment-lifecycle-controls.tsx",
+      token: "maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerComment}",
+    },
+  ];
+  const problems = [];
+
+  if (!composer) {
+    problems.push("src/features/content/markdown-composer-field.tsx is missing");
+  } else {
+    if (!composer.content.includes("maxReferencedAttachments?: number")) {
+      problems.push("MarkdownComposerField must accept a total referenced image limit");
+    }
+
+    if (
+      !composer.content.includes("function canInsertAttachmentReference") ||
+      !composer.content.includes("function getRemainingReferenceSlots") ||
+      !composer.content.includes("正文最多放入")
+    ) {
+      problems.push(
+        "MarkdownComposerField must block old and newly uploaded images from exceeding the referenced image limit",
+      );
+    }
+
+    if (
+      !composer.content.includes("canInsertAttachment={canInsertAttachmentReference}")
+    ) {
+      problems.push(
+        "MarkdownComposerField must pass insert limit state to inline image controls",
+      );
+    }
+  }
+
+  if (!mediaAttachments) {
+    problems.push("src/features/media/media-attachments.tsx is missing");
+  } else {
+    if (
+      !mediaAttachments.content.includes("canInsertAttachment?:") ||
+      !mediaAttachments.content.includes("已达上限") ||
+      !mediaAttachments.content.includes("disabled={disabled || inserted || !canInsert}")
+    ) {
+      problems.push(
+        "inline image controls must disable insert actions when the composer reference limit is reached",
+      );
+    }
+  }
+
+  for (const consumerConfig of consumers) {
+    const consumer = sourceFiles.find((file) => file.path === consumerConfig.path);
+
+    if (!consumer) {
+      problems.push(`${consumerConfig.path} is missing`);
+      continue;
+    }
+
+    if (!consumer.content.includes(consumerConfig.token)) {
+      problems.push(
+        `${consumerConfig.path} does not pass the total referenced image limit`,
+      );
+    }
+  }
+
+  if (problems.length > 0) {
+    addFail("composer referenced image limit", problems.join("; "));
+    return;
+  }
+
+  addPass(
+    "composer referenced image limit",
+    "composer blocks post/comment image references from exceeding their total content limits",
   );
 }
 

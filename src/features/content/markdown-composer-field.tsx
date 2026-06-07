@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   createAttachmentMarkdown,
   getReferencedAttachmentIds,
+  getReferencedAttachmentIdsForSubmit,
   removeAttachmentMarkdownReferences,
 } from "@/features/content/attachment-markdown";
 import { ContentBody } from "@/features/content/content-body";
@@ -43,6 +44,7 @@ type MarkdownComposerFieldProps = {
     onChange: (attachments: MediaAttachment[]) => void;
     onUploadingChange?: (isUploading: boolean) => void;
   };
+  maxReferencedAttachments?: number;
   onChange: (value: string) => void;
   textareaProps: Omit<ComponentProps<typeof Textarea>, "ref" | "value">;
   textareaRef?: (element: HTMLTextAreaElement | null) => void;
@@ -57,6 +59,7 @@ export function MarkdownComposerField({
   defaultMode = "edit",
   disabled = false,
   imageUpload,
+  maxReferencedAttachments,
   onChange,
   textareaProps,
   textareaRef,
@@ -77,6 +80,12 @@ export function MarkdownComposerField({
       ]),
     [boundAttachments, imageUpload?.attachments],
   );
+  const referencedKnownAttachmentIds = useMemo(
+    () => getReferencedAttachmentIdsForSubmit(value, previewAttachments),
+    [previewAttachments, value],
+  );
+  const maxReferencedImageAttachments =
+    maxReferencedAttachments ?? imageUpload?.maxCount;
   const hasPreviewContent = value.trim().length > 0;
   const hasDetachedPreviewImages = previewAttachments.some(
     (attachment) => !referencedAttachmentIds.has(attachment.id),
@@ -89,6 +98,12 @@ export function MarkdownComposerField({
   }
 
   function insertAttachmentMarkdown(attachment: MediaAttachment) {
+    if (!canInsertAttachmentReference(attachment)) {
+      setImageUploadError(getReferenceLimitMessage());
+      return;
+    }
+
+    setImageUploadError(null);
     return insertMarkdownAtCursor({
       insert: {
         block: true,
@@ -102,6 +117,41 @@ export function MarkdownComposerField({
 
   function removeAttachmentMarkdown(attachment: MediaAttachment) {
     setBodyValue(removeAttachmentMarkdownReferences(value, attachment.id));
+  }
+
+  function canInsertAttachmentReference(attachment: MediaAttachment) {
+    if (referencedAttachmentIds.has(attachment.id)) {
+      return true;
+    }
+
+    if (maxReferencedImageAttachments === undefined) {
+      return true;
+    }
+
+    return referencedKnownAttachmentIds.length < maxReferencedImageAttachments;
+  }
+
+  function getRemainingReferenceSlots(
+    markdown: string,
+    attachments = previewAttachments,
+  ) {
+    if (maxReferencedImageAttachments === undefined) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    return Math.max(
+      0,
+      maxReferencedImageAttachments -
+        getReferencedAttachmentIdsForSubmit(markdown, attachments).length,
+    );
+  }
+
+  function getReferenceLimitMessage() {
+    if (maxReferencedImageAttachments === undefined) {
+      return "正文图片数量已达到上限，先从正文移除一张再继续。";
+    }
+
+    return `正文最多放入 ${maxReferencedImageAttachments} 张图片，先从正文移除一张再继续。`;
   }
 
   function removeInlineImageAttachment(attachment: MediaAttachment) {
@@ -139,18 +189,29 @@ export function MarkdownComposerField({
       return;
     }
 
-    const remainingSlots = imageUpload.maxCount - imageUpload.attachments.length;
+    const remainingUploadSlots =
+      imageUpload.maxCount - imageUpload.attachments.length;
+    const remainingReferenceSlots = getRemainingReferenceSlots(
+      bodyTextareaRef.current?.value ?? value,
+    );
 
-    if (remainingSlots <= 0) {
+    if (remainingUploadSlots <= 0) {
       setImageUploadError(
         `当前最多上传 ${imageUpload.maxCount} 张图片，先移除一张再继续。`,
       );
       return;
     }
 
+    if (remainingReferenceSlots <= 0) {
+      setImageUploadError(getReferenceLimitMessage());
+      return;
+    }
+
+    const remainingSlots = Math.min(remainingUploadSlots, remainingReferenceSlots);
+
     if (imageFiles.length > remainingSlots) {
       setImageUploadError(
-        `当前还能粘贴 ${remainingSlots} 张图片，请减少数量后再试。`,
+        `当前还能放入 ${remainingSlots} 张图片，请减少数量后再试。`,
       );
       return;
     }
@@ -181,18 +242,29 @@ export function MarkdownComposerField({
       return;
     }
 
-    const remainingSlots = imageUpload.maxCount - imageUpload.attachments.length;
+    const remainingUploadSlots =
+      imageUpload.maxCount - imageUpload.attachments.length;
+    const remainingReferenceSlots = getRemainingReferenceSlots(
+      bodyTextareaRef.current?.value ?? value,
+    );
 
-    if (remainingSlots <= 0) {
+    if (remainingUploadSlots <= 0) {
       setImageUploadError(
         `当前最多上传 ${imageUpload.maxCount} 张图片，先移除一张再继续。`,
       );
       return;
     }
 
+    if (remainingReferenceSlots <= 0) {
+      setImageUploadError(getReferenceLimitMessage());
+      return;
+    }
+
+    const remainingSlots = Math.min(remainingUploadSlots, remainingReferenceSlots);
+
     if (imageFiles.length > remainingSlots) {
       setImageUploadError(
-        `当前还能添加 ${remainingSlots} 张图片，请减少数量后再试。`,
+        `当前还能放入 ${remainingSlots} 张图片，请减少数量后再试。`,
       );
       return;
     }
@@ -211,6 +283,20 @@ export function MarkdownComposerField({
 
       for (const file of imageFiles) {
         const altText = getPastedImageAltText(file);
+        const nextKnownAttachments = dedupeAttachments([
+          ...(boundAttachments ?? []),
+          ...nextAttachments,
+        ]);
+        const remainingReferenceSlots = getRemainingReferenceSlots(
+          nextBodyValue,
+          nextKnownAttachments,
+        );
+
+        if (remainingReferenceSlots <= 0) {
+          setImageUploadError(getReferenceLimitMessage());
+          return;
+        }
+
         const validationError = validateImageUploadFile(file, {
           altText,
           currentCount: nextAttachments.length,
@@ -271,7 +357,8 @@ export function MarkdownComposerField({
       !disabled &&
       !textareaProps.disabled &&
       !isUploadingInlineImage &&
-      imageUpload.attachments.length < imageUpload.maxCount;
+      imageUpload.attachments.length < imageUpload.maxCount &&
+      getRemainingReferenceSlots(value) > 0;
 
     return (
       <>
@@ -384,6 +471,7 @@ export function MarkdownComposerField({
           ) : null}
           <InlineImageAttachmentManager
             attachments={imageUpload.attachments}
+            canInsertAttachment={canInsertAttachmentReference}
             disabled={disabled || isUploadingInlineImage}
             isAttachmentInserted={(attachment) =>
               referencedAttachmentIds.has(attachment.id)
@@ -397,6 +485,7 @@ export function MarkdownComposerField({
       {boundAttachments && mode === "edit" ? (
         <InlineImageAttachmentReferences
           attachments={boundAttachments}
+          canInsertAttachment={canInsertAttachmentReference}
           disabled={disabled}
           isAttachmentInserted={(attachment) =>
             referencedAttachmentIds.has(attachment.id)

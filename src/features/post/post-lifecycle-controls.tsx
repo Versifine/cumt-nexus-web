@@ -212,6 +212,7 @@ export function PostLifecycleControls({
                   <MarkdownComposerField
                     defaultMode="preview"
                     disabled={isUpdating}
+                    maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerPost}
                     onChange={setBodyValue}
                     textareaProps={{
                       ...bodyFieldProps,

@@ -186,6 +186,7 @@ export function CommentLifecycleControls({
                 <MarkdownComposerField
                   defaultMode="preview"
                   disabled={isUpdating}
+                  maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerComment}
                   onChange={setBodyValue}
                   textareaProps={{
                     ...bodyFieldProps,
