@@ -43,6 +43,8 @@ Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
 
 缺口：`Access-Control-Allow-Methods` 没有 `PATCH`。shell 直连 `PATCH /api/v1/posts/:id` 可以成功，浏览器保存失败，因此这是后端 CORS 配置缺口，不是前端写作器缺口。
 
+已排除的前端绕法：`PUT` 虽然出现在 `Access-Control-Allow-Methods` 中，但当前后端 `PUT /api/v1/posts/:id` 和 `PUT /api/v1/comments/:id` 返回 `404`；同一条 smoke 数据用 `PATCH` 可以更新成功。因此前端不能把编辑接口改成 `PUT` 来绕过 CORS，必须由后端放行 `PATCH`。
+
 要求：后端 CORS allow methods 必须包含 `PATCH`，并覆盖帖子编辑、评论编辑、后续可能的局部更新接口。前端不得把浏览器编辑保存伪造成已完成，必须等后端放行后复验。
 
 ### 对象存储配置
