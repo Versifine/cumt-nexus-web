@@ -28,7 +28,7 @@ Reddit-style Markdown parity
 - 支持 GFM 表格、任务列表、删除线、代码块、引用、列表、标题和链接。
 - 支持 `>! ... !<` spoiler / 涂黑语法。
 - 支持 Reddit-style 上标预处理。
-- Reddit-style spoiler 和上标预处理不会改写行内代码或 fenced code block。
+- Reddit-style spoiler 和上标预处理不会改写行内代码、fenced code block、Markdown 链接 / 图片语法和引用式链接定义。
 - 支持 `r/community` 和 `u/user` 自动链接到本项目社区与用户路由。
 - 链接只允许站内路径、锚点、`http`、`https` 和 `mailto`。
 - 评论树在移动端使用窄缩进，避免深层回复挤压 Markdown 正文、图片、表格和代码块。

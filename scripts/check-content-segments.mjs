@@ -456,6 +456,39 @@ function checkRedditMarkdownTransform() {
       ],
     },
   );
+
+  expectEqual(
+    "reddit transforms preserve markdown links images and definitions",
+    transformRedditMarkdown(
+      [
+        "链接 [^label](https://example.com/^path)",
+        "图片 ![^alt >! no !<](nexus-attachment:img-1)",
+        "[ref]: https://example.com/^definition",
+        "正文 >! [链接](https://example.com/^inside) !< ^ok",
+      ].join("\n"),
+    ),
+    {
+      markdown: [
+        "链接 [^label](https://example.com/^path)",
+        "图片 ![^alt >! no !<](nexus-attachment:img-1)",
+        "[ref]: https://example.com/^definition",
+        "正文 [显示隐藏内容](#nexus-spoiler-0) [ok](#nexus-sup-1)",
+      ].join("\n"),
+      tokens: [
+        { text: "[链接](https://example.com/^inside)", type: "spoiler" },
+        { text: "ok", type: "sup" },
+      ],
+    },
+  );
+
+  expectEqual(
+    "reddit transforms respect escaped markers",
+    transformRedditMarkdown("\\^literal \\>! not hidden !< ^ok"),
+    {
+      markdown: "\\^literal \\>! not hidden !< [ok](#nexus-sup-0)",
+      tokens: [{ text: "ok", type: "sup" }],
+    },
+  );
 }
 
 function checkMarkdownSummary() {
