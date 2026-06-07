@@ -18,27 +18,38 @@ const superscriptLinkPrefix = "#nexus-sup-";
 
 export function transformRedditMarkdown(value: string): RedditMarkdownTransform {
   const spoilerTokens: RedditToken[] = [];
-  const withSpoilers = replaceDelimitedTokens({
-    close: "!<",
-    createMarkdown: (index) => `[显示隐藏内容](${spoilerLinkPrefix}${index})`,
-    open: ">!",
-    tokens: spoilerTokens,
-    type: "spoiler",
-    value,
-  });
+  const withSpoilers = transformOutsideCodeSegments(value, (segment) =>
+    replaceDelimitedTokens({
+      close: "!<",
+      createMarkdown: (index) => `[显示隐藏内容](${spoilerLinkPrefix}${index})`,
+      open: ">!",
+      tokens: spoilerTokens,
+      type: "spoiler",
+      value: segment,
+    }),
+  );
 
   const tokens = [...spoilerTokens];
-  const markdown = withSpoilers.replace(/\^\(([^)\n]+)\)|\^([^\s^]+)/g, (match, parenthesized: string | undefined, bare: string | undefined) => {
-    const text = normalizeTokenText(parenthesized ?? bare ?? "");
+  const markdown = transformOutsideCodeSegments(withSpoilers, (segment) =>
+    segment.replace(
+      /\^\(([^)\n]+)\)|\^([^\s^]+)/g,
+      (
+        match,
+        parenthesized: string | undefined,
+        bare: string | undefined,
+      ) => {
+        const text = normalizeTokenText(parenthesized ?? bare ?? "");
 
-    if (!text) {
-      return match;
-    }
+        if (!text) {
+          return match;
+        }
 
-    const index = tokens.length;
-    tokens.push({ text, type: "sup" });
-    return `[${escapeMarkdownLinkText(text)}](${superscriptLinkPrefix}${index})`;
-  });
+        const index = tokens.length;
+        tokens.push({ text, type: "sup" });
+        return `[${escapeMarkdownLinkText(text)}](${superscriptLinkPrefix}${index})`;
+      },
+    ),
+  );
 
   return {
     markdown,
@@ -131,4 +142,53 @@ function normalizeTokenText(text: string) {
 
 function escapeMarkdownLinkText(text: string) {
   return text.replace(/([\\[\]])/g, "\\$1");
+}
+
+function transformOutsideCodeSegments(
+  markdown: string,
+  transformSegment: (segment: string) => string,
+) {
+  const lines = markdown.split(/\r?\n/);
+  let fenceMarker: "`" | "~" | null = null;
+  const transformedLines: string[] = [];
+
+  for (const line of lines) {
+    const fenceMatch = line.trimStart().match(/^(`{3,}|~{3,})/);
+
+    if (fenceMatch) {
+      const marker = fenceMatch[1].startsWith("`") ? "`" : "~";
+
+      if (!fenceMarker) {
+        fenceMarker = marker;
+        transformedLines.push(line);
+        continue;
+      }
+
+      if (fenceMarker === marker) {
+        fenceMarker = null;
+        transformedLines.push(line);
+        continue;
+      }
+    }
+
+    transformedLines.push(
+      fenceMarker ? line : transformInlineTextOutsideCode(line, transformSegment),
+    );
+  }
+
+  return transformedLines.join("\n");
+}
+
+function transformInlineTextOutsideCode(
+  line: string,
+  transformSegment: (segment: string) => string,
+) {
+  return line
+    .split(/(`[^`\n]*`)/g)
+    .map((segment) =>
+      segment.startsWith("`") && segment.endsWith("`")
+        ? segment
+        : transformSegment(segment),
+    )
+    .join("");
 }

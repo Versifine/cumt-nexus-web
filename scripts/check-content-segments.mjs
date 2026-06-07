@@ -25,6 +25,9 @@ const {
   remarkRedditAutolink,
 } = await importTypescriptModule("src/features/content/reddit-autolink.ts");
 const {
+  transformRedditMarkdown,
+} = await importTypescriptModule("src/features/content/reddit-markdown.ts");
+const {
   getMarkdownPlainTextSummary,
 } = await importTypescriptModule("src/features/content/markdown-summary.ts");
 const {
@@ -114,6 +117,7 @@ for (const testCase of spoilerCases) {
 checkAttachmentMarkdown();
 checkMarkdownUrl();
 checkRedditAutolink();
+checkRedditMarkdownTransform();
 checkMarkdownSummary();
 checkMarkdownInsert();
 checkMarkdownToolbarActions();
@@ -405,6 +409,52 @@ function checkRedditAutolink() {
         "text: https://example.com/r/path /u/not-a-ref wordu/nope",
       ],
     ],
+  );
+}
+
+function checkRedditMarkdownTransform() {
+  const transformed = transformRedditMarkdown(
+    "普通 >! hidden !< ^(two words) ^one",
+  );
+
+  expectEqual(
+    "reddit spoiler and superscript transform outside code",
+    transformed,
+    {
+      markdown:
+        "普通 [显示隐藏内容](#nexus-spoiler-0) [two words](#nexus-sup-1) [one](#nexus-sup-2)",
+      tokens: [
+        { text: "hidden", type: "spoiler" },
+        { text: "two words", type: "sup" },
+        { text: "one", type: "sup" },
+      ],
+    },
+  );
+
+  expectEqual(
+    "reddit transforms ignore inline and fenced code",
+    transformRedditMarkdown(
+      [
+        "`>! code !< ^code`",
+        "```",
+        ">! fenced !< ^fenced",
+        "```",
+        "正文 >! ok !< ^ok",
+      ].join("\n"),
+    ),
+    {
+      markdown: [
+        "`>! code !< ^code`",
+        "```",
+        ">! fenced !< ^fenced",
+        "```",
+        "正文 [显示隐藏内容](#nexus-spoiler-0) [ok](#nexus-sup-1)",
+      ].join("\n"),
+      tokens: [
+        { text: "ok", type: "spoiler" },
+        { text: "ok", type: "sup" },
+      ],
+    },
   );
 }
 
