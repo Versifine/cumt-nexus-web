@@ -380,6 +380,14 @@ function checkMediaContractDocs() {
   const audit = docsByPath.get(
     "docs/internal/product/frontend-implementation-audit.md",
   );
+  const blockedDocPhrases = [
+    "待提交图片",
+    "待提交附件",
+    "帖子详情和评论树展示附件",
+    "图片上传与附件展示",
+    "图片上传和附件展示",
+  ];
+  const docPhraseOffenders = [];
 
   if (!mediaGaps) {
     offenders.push("content media API gaps doc is missing");
@@ -411,6 +419,20 @@ function checkMediaContractDocs() {
     !audit.includes("编辑态新增图片仍需要后端更新接口接收 `attachment_ids`")
   ) {
     offenders.push("frontend audit must keep the edit image binding gap explicit");
+  }
+
+  for (const file of docsFiles) {
+    for (const phrase of blockedDocPhrases) {
+      if (file.content.includes(phrase)) {
+        docPhraseOffenders.push(`${file.path}: ${phrase}`);
+      }
+    }
+  }
+
+  if (docPhraseOffenders.length > 0) {
+    offenders.push(
+      `media docs still use detached attachment wording: ${docPhraseOffenders.join("; ")}`,
+    );
   }
 
   if (offenders.length > 0) {

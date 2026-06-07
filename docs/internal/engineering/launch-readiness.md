@@ -154,7 +154,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 - 后端 `/healthz` 是否可达。
 - 图片上传接口是否返回可用于发帖和评论的附件 ID。
-- 发帖和评论提交 `attachment_ids` 后，详情和评论树是否展示附件。
+- 发帖和评论提交 `attachment_ids` 后，详情和评论树是否按正文内 `nexus-attachment` marker 渲染图片。
 - 帖子编辑和评论编辑的浏览器 CORS 预检是否允许当前前端 origin、`PATCH` 方法、`Authorization` 和 `Content-Type` 请求头。
 - 全站和社区帖子流 `sort=new|hot` 是否可用。
 - `GET /api/v1/search` 的 `all | communities | posts` scope 是否可用。
