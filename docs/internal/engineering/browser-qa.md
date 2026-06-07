@@ -10,6 +10,14 @@
 $env:HTTP_CORS_ALLOWED_ORIGINS='http://localhost:3000'
 ```
 
+后端 CORS 方法也必须覆盖浏览器会发起预检的写操作。至少确认：
+
+```text
+Access-Control-Allow-Methods 包含 PATCH
+```
+
+如果 `PATCH` 未放行，帖子编辑和评论编辑会在浏览器中保存失败，即使 shell 直连 API 可以成功。
+
 前端必须运行：
 
 ```powershell
@@ -28,6 +36,7 @@ npm run check:env
 npm run check:routes
 npm run check:readiness
 npm run check:main-path
+npm run check:v2-path
 ```
 
 `npm run check:env:production` 在没有正式 HTTPS 前端域名和 API 地址前会失败；该失败必须记录为生产配置阻塞，不能忽略。
@@ -121,6 +130,8 @@ npm run check:main-path
 - 输入标题和正文后，提交按钮进入 loading/disabled 状态。
 - 发帖成功后进入帖子详情页。
 - 发帖失败不清空输入。
+- 正文写入 Markdown 后，详情页阅读态正确渲染标题、加粗、斜体、列表、表格、链接和涂黑。
+- 上传图片后，正文中出现 `nexus-attachment` 图片引用；发布成功后图片显示在正文位置，而不是挂在正文外。
 
 ### 7. 帖子详情、评论和投票
 
@@ -135,9 +146,28 @@ npm run check:main-path
 - 未登录和普通用户不显示 `平台移除` 审核动作。
 - 空评论提交显示字段级中文校验。
 - 发布评论后，评论列表出现新评论。
+- 评论正文写入 Markdown 后，评论阅读态正确渲染加粗、表格、链接和涂黑。
+- 回复评论后，子评论进入树状结构，Markdown 渲染不破坏评论缩进。
+- 作者编辑帖子后，标题和 Markdown 正文保存成功，刷新后仍保留格式。
+- 作者编辑评论后，Markdown 正文保存成功，刷新后仍保留格式。
 - upvote、downvote 和取消投票都会更新当前帖子状态。
 - 投票失败不能伪造成成功；如果本轮无法制造失败，记录为未覆盖项。
 - 页面没有横向溢出，长标题和长正文不会挤压操作区。
+
+### 7.1 Markdown / 图片专项
+
+路径：发帖成功后的 `/posts/:id`
+
+必须确认：
+
+- 发帖、根评论、回复评论、帖子编辑和评论编辑都使用同一套 Markdown 写作器。
+- 工具栏至少覆盖加粗、斜体、标题、删除线、引用、无序列表、有序列表、代码、链接、涂黑和表格。
+- 工具栏点击不会让正文 textarea 丢失光标位置，也不会把表格和后续链接粘在同一行。
+- 普通外部 Markdown 图片不会直接渲染远程图片，而是提示使用图片上传。
+- 已上传图片可以插入正文，并在阅读态按正文位置显示。
+- 删除待提交图片引用后，正文内对应 `nexus-attachment` marker 被移除。
+- 移动端表格和代码块可以横向滚动，不撑破页面。
+- 编辑保存必须走真实浏览器操作验证；只用 shell 直连 `PATCH` 成功不能证明浏览器可用。
 
 ### 8. 社区申请
 
