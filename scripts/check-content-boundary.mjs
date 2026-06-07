@@ -79,6 +79,7 @@ checkContentEntryPoint();
 checkMarkdownComposerEntryPoint();
 checkMarkdownToolbarTools();
 checkPublishedAttachmentRenderingBoundary();
+checkPublishedAttachmentNoFallbackGallery();
 checkComposerImageCopy();
 
 for (const result of results) {
@@ -287,6 +288,39 @@ function checkPublishedAttachmentRenderingBoundary() {
   addPass(
     "published attachment rendering boundary",
     "published posts and comments keep images inside the shared Markdown content renderer",
+  );
+}
+
+function checkPublishedAttachmentNoFallbackGallery() {
+  const contentBody = sourceFiles.find(
+    (file) => file.path === "src/features/content/content-body.tsx",
+  );
+
+  if (!contentBody) {
+    addFail("published attachment fallback", "src/features/content/content-body.tsx is missing");
+    return;
+  }
+
+  const blockedPatterns = [
+    "fallbackAttachments",
+    "MediaAttachmentFigure",
+    "getReferencedAttachmentIds(value)",
+  ];
+  const foundBlockedPatterns = blockedPatterns.filter((pattern) =>
+    contentBody.content.includes(pattern),
+  );
+
+  if (foundBlockedPatterns.length > 0) {
+    addFail(
+      "published attachment fallback",
+      `published attachments must render only when referenced by Markdown; found fallback pattern(s): ${foundBlockedPatterns.join(", ")}`,
+    );
+    return;
+  }
+
+  addPass(
+    "published attachment fallback",
+    "published attachments are not appended outside the Markdown body",
   );
 }
 

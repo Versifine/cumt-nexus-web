@@ -6,7 +6,6 @@ import remarkGfm from "remark-gfm";
 
 import {
   getAttachmentIdFromMarkdownUrl,
-  getReferencedAttachmentIds,
   isAttachmentMarkdownUrl,
 } from "@/features/content/attachment-markdown";
 import {
@@ -17,7 +16,6 @@ import {
   isExternalMarkdownHref,
   normalizeMarkdownHref,
 } from "@/features/content/markdown-url";
-import { MediaAttachmentFigure } from "@/features/media/media-attachments";
 import type { MediaAttachment } from "@/features/media/types";
 import { cn } from "@/lib/utils";
 
@@ -40,19 +38,6 @@ export function ContentBody({
       ),
     [attachments],
   );
-  const referencedAttachmentIds = useMemo(
-    () => getReferencedAttachmentIds(value),
-    [value],
-  );
-  const fallbackAttachments = useMemo(
-    () =>
-      attachments.filter(
-        (attachment) =>
-          isVisibleImageAttachment(attachment) &&
-          !referencedAttachmentIds.has(attachment.id),
-      ),
-    [attachments, referencedAttachmentIds],
-  );
   const components = useMemo(
     () => createMarkdownComponents(transformed.tokens, attachmentById),
     [attachmentById, transformed.tokens],
@@ -74,13 +59,6 @@ export function ContentBody({
       >
         {transformed.markdown}
       </ReactMarkdown>
-      {fallbackAttachments.length > 0 ? (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {fallbackAttachments.map((attachment) => (
-            <MediaAttachmentFigure key={attachment.id} attachment={attachment} />
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }
