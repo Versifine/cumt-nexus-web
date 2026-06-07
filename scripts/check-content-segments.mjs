@@ -591,11 +591,38 @@ function checkMarkdownToolbarActions() {
   );
 
   expectEqual(
-    "toolbar link escapes label and places cursor in url",
+    "toolbar link fallback selects label placeholder",
+    linkSelection(""),
+    {
+      selection: { end: 5, start: 1 },
+      text: "[链接文字](https://)",
+    },
+  );
+
+  expectEqual(
+    "toolbar link selected text becomes label and selects url placeholder",
     linkSelection("图[草稿]"),
     {
-      selection: { end: 18, start: 18 },
+      selection: { end: 18, start: 10 },
       text: "[图\\[草稿\\]](https://)",
+    },
+  );
+
+  expectEqual(
+    "toolbar link selected url becomes href and selects label placeholder",
+    linkSelection("https://example.com/path?q=1"),
+    {
+      selection: { end: 5, start: 1 },
+      text: "[链接文字](https://example.com/path?q=1)",
+    },
+  );
+
+  expectEqual(
+    "toolbar link does not treat attachment marker as href",
+    linkSelection("nexus-attachment:img-1"),
+    {
+      selection: { end: 33, start: 25 },
+      text: "[nexus-attachment:img-1](https://)",
     },
   );
 

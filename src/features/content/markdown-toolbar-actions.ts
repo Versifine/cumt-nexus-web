@@ -7,6 +7,12 @@ export type MarkdownInsert = {
   text: string;
 };
 
+const defaultLinkLabel = "链接文字";
+const defaultLinkHref = "https://";
+const attachmentMarkdownUrlPrefix = "nexus-attachment:";
+const allowedAbsoluteLinkProtocols = new Set(["http:", "https:", "mailto:"]);
+const controlCharacterPattern = /[\u0000-\u001f\u007f]/;
+
 export function wrapSelection(
   selectedText: string,
   marker: string,
@@ -72,14 +78,37 @@ export function fencedCodeBlockSelection(selectedText: string): MarkdownInsert {
 }
 
 export function linkSelection(selectedText: string): MarkdownInsert {
-  const label = escapeMarkdownLinkLabel(selectedText || "链接文字");
+  if (!selectedText) {
+    return {
+      selection: {
+        end: 1 + defaultLinkLabel.length,
+        start: 1,
+      },
+      text: `[${defaultLinkLabel}](${defaultLinkHref})`,
+    };
+  }
+
+  const normalizedHref = getSafeSelectedLinkHref(selectedText);
+
+  if (normalizedHref) {
+    return {
+      selection: {
+        end: 1 + defaultLinkLabel.length,
+        start: 1,
+      },
+      text: `[${defaultLinkLabel}](${escapeMarkdownLinkDestination(normalizedHref)})`,
+    };
+  }
+
+  const label = escapeMarkdownLinkLabel(selectedText);
+  const hrefStart = label.length + 3;
 
   return {
     selection: {
-      end: label.length + 11,
-      start: label.length + 11,
+      end: hrefStart + defaultLinkHref.length,
+      start: hrefStart,
     },
-    text: `[${label}](https://)`,
+    text: `[${label}](${defaultLinkHref})`,
   };
 }
 
@@ -109,4 +138,38 @@ function escapeMarkdownLinkLabel(value: string) {
     .replace(/\[/g, "\\[")
     .replace(/\]/g, "\\]")
     .replace(/\r?\n/g, " ");
+}
+
+function escapeMarkdownLinkDestination(value: string) {
+  return value.replace(/\(/g, "%28").replace(/\)/g, "%29");
+}
+
+function getSafeSelectedLinkHref(value: string) {
+  const trimmedValue = value.trim();
+
+  if (
+    !trimmedValue ||
+    controlCharacterPattern.test(trimmedValue) ||
+    trimmedValue.startsWith(attachmentMarkdownUrlPrefix)
+  ) {
+    return "";
+  }
+
+  if (trimmedValue.startsWith("#")) {
+    return trimmedValue;
+  }
+
+  if (trimmedValue.startsWith("/")) {
+    return trimmedValue.startsWith("//") ? "" : trimmedValue;
+  }
+
+  try {
+    const parsedUrl = new URL(trimmedValue);
+
+    return allowedAbsoluteLinkProtocols.has(parsedUrl.protocol)
+      ? trimmedValue
+      : "";
+  } catch {
+    return "";
+  }
 }
