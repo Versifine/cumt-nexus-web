@@ -30,6 +30,7 @@ Reddit-style Markdown parity
 - 支持 Reddit-style 上标预处理。
 - 支持 `r/community` 和 `u/user` 自动链接到本项目社区与用户路由。
 - 链接只允许站内路径、锚点、`http`、`https` 和 `mailto`。
+- 评论树在移动端使用窄缩进，避免深层回复挤压 Markdown 正文、图片、表格和代码块。
 - 写作器提供轻量预览，预览复用 `ContentBody`，阅读态仍负责最终渲染。
 - UI smoke 已验证发帖、根评论、子评论回复、帖子编辑保存和评论编辑保存可以提交并在阅读态渲染 Markdown。
 - 编辑弹窗已接入同一写作器，默认显示复用 `ContentBody` 的预览态；textarea、正文图片插入和已有图片放回正文控件只在切到“编辑”后显示。

@@ -140,7 +140,7 @@ function CommentBranch({
     <div
       className={cn(
         "relative py-5",
-        visualDepth > 0 && "ml-3 border-l border-border pl-3 sm:ml-5 sm:pl-5",
+        visualDepth > 0 && "border-l border-border pl-2 sm:pl-4",
       )}
     >
       <article className="grid gap-3 md:grid-cols-[72px_minmax(0,1fr)_128px]">
@@ -225,7 +225,7 @@ function CommentBranch({
           {isDepthLimited ? (
             <button
               type="button"
-              className="ml-3 inline-flex min-h-10 items-center gap-2 border-l border-primary/50 px-3 py-2 text-xs text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:ml-5"
+              className="inline-flex min-h-10 items-center gap-2 border-l border-primary/50 px-3 py-2 text-xs text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               onClick={() => onExpandDepth(comment.id)}
             >
               查看后续 {children.length} 条回复

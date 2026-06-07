@@ -94,6 +94,7 @@ checkPublishedAttachmentImageSizing();
 checkComposerImageCopy();
 checkComposerReferencedImageLimit();
 checkMarkdownTypographyBoundary();
+checkCommentTreeMobileIndentBoundary();
 checkMarkdownSourceLeakage();
 checkMediaContractDocs();
 
@@ -991,6 +992,43 @@ function checkMarkdownTypographyBoundary() {
   addPass(
     "Markdown typography boundary",
     "ContentBody keeps Markdown headings and task lists at content scale",
+  );
+}
+
+function checkCommentTreeMobileIndentBoundary() {
+  const commentTree = sourceFiles.find(
+    (file) => file.path === "src/features/comment/comment-tree.tsx",
+  );
+  const problems = [];
+
+  if (!commentTree) {
+    addFail("comment tree mobile indent", "src/features/comment/comment-tree.tsx is missing");
+    return;
+  }
+
+  if (
+    /visualDepth\s*>\s*0\s*&&\s*["'][^"']*\bml-\d/.test(commentTree.content) ||
+    /visualDepth\s*>\s*0\s*&&\s*["'][^"']*\bsm:ml-\d/.test(commentTree.content)
+  ) {
+    problems.push("nested comments must not add recursive left margin on mobile");
+  }
+
+  if (!commentTree.content.includes('visualDepth > 0 && "border-l border-border pl-2 sm:pl-4"')) {
+    problems.push("nested comments must use a narrow mobile border and padding indentation");
+  }
+
+  if (commentTree.content.includes("ml-3 inline-flex min-h-10")) {
+    problems.push("depth expansion action must not add extra mobile left margin");
+  }
+
+  if (problems.length > 0) {
+    addFail("comment tree mobile indent", problems.join("; "));
+    return;
+  }
+
+  addPass(
+    "comment tree mobile indent",
+    "nested comments keep mobile indentation narrow so Markdown content remains readable",
   );
 }
 
