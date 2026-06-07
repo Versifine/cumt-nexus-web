@@ -660,38 +660,45 @@ function checkComposerImageCopy() {
     "publish forms submit only image attachment ids referenced by Markdown",
   );
 
-  const editBindingOffenders = [];
+  const editContractOffenders = [];
   for (const formPath of lifecycleForms) {
     const form = sourceFiles.find((file) => file.path === formPath);
 
     if (!form) {
-      editBindingOffenders.push(`${formPath} is missing`);
+      editContractOffenders.push(`${formPath} is missing`);
       continue;
     }
 
-    if (
-      !form.content.includes("getReferencedAttachmentIdsForSubmit") ||
-      !form.content.includes("attachment_ids: getReferencedAttachmentIdsForSubmit(") ||
-      !form.content.includes("imageUpload={{") ||
-      !form.content.includes("onUploadingChange: setIsUploadingImage")
-    ) {
-      editBindingOffenders.push(
-        `${formPath} must support edit-time image upload and submit only Markdown-referenced attachment ids`,
+    if (form.content.includes("imageUpload={{")) {
+      editContractOffenders.push(
+        `${formPath} must not expose edit-time image upload until PATCH attachment_ids is supported`,
+      );
+    }
+
+    if (form.content.includes("attachment_ids:")) {
+      editContractOffenders.push(
+        `${formPath} must not send attachment_ids to current edit PATCH endpoints`,
+      );
+    }
+
+    if (!form.content.includes("boundAttachments=")) {
+      editContractOffenders.push(
+        `${formPath} must still let authors place already-bound images back into the Markdown body`,
       );
     }
   }
 
-  if (editBindingOffenders.length > 0) {
+  if (editContractOffenders.length > 0) {
     addFail(
-      "composer edit attachment ids",
-      editBindingOffenders.join("; "),
+      "composer edit attachment contract",
+      editContractOffenders.join("; "),
     );
     return;
   }
 
   addPass(
-    "composer edit attachment ids",
-    "post and comment edit dialogs upload images inside the Markdown composer and submit referenced attachment ids",
+    "composer edit attachment contract",
+    "post and comment edit dialogs do not expose unsupported new image binding but keep already-bound image placement available",
   );
 
   if (

@@ -63,7 +63,6 @@ export type PublishCommentResponse = {
 
 export type UpdateCommentInput = {
   body: string;
-  attachment_ids?: string[];
 };
 
 export type UpdateCommentResponse = {

@@ -23,13 +23,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { getReferencedAttachmentIdsForSubmit } from "@/features/content/attachment-markdown";
 import { MarkdownComposerField } from "@/features/content/markdown-composer-field";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
-import {
-  IMAGE_UPLOAD_LIMITS,
-  type MediaAttachment,
-} from "@/features/media/types";
+import { IMAGE_UPLOAD_LIMITS } from "@/features/media/types";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -58,8 +54,6 @@ export function CommentLifecycleControls({
 }: CommentLifecycleControlsProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [editAttachments, setEditAttachments] = useState<MediaAttachment[]>([]);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const updateMutation = useUpdateCommentMutation(comment.id, postId);
   const deleteMutation = useDeleteCommentMutation(comment.id, postId);
@@ -74,15 +68,6 @@ export function CommentLifecycleControls({
   const { ref: bodyFieldRef, ...bodyFieldProps } = bodyField;
   const updateError = getSubmitError(updateMutation.error);
   const deleteError = getSubmitError(deleteMutation.error);
-  const boundCommentAttachments = comment.attachments ?? [];
-  const editImageMaxCount = Math.max(
-    0,
-    IMAGE_UPLOAD_LIMITS.maxCountPerComment -
-      getReferencedAttachmentIdsForSubmit(
-        bodyValue,
-        boundCommentAttachments,
-      ).length,
-  );
 
   function setBodyValue(nextValue: string) {
     form.setValue("body", nextValue, {
@@ -92,21 +77,12 @@ export function CommentLifecycleControls({
     });
   }
 
-  function resetEditImageState() {
-    setEditAttachments([]);
-    setIsUploadingImage(false);
-  }
-
   function handleEditOpenChange(open: boolean) {
-    if (isUpdating || isUploadingImage) {
+    if (isUpdating) {
       return;
     }
 
     setEditOpen(open);
-
-    if (!open) {
-      resetEditImageState();
-    }
   }
 
   useEffect(() => {
@@ -127,13 +103,8 @@ export function CommentLifecycleControls({
 
   async function handleUpdate(values: CommentLifecycleFormValues) {
     await updateMutation.mutateAsync({
-      ...values,
-      attachment_ids: getReferencedAttachmentIdsForSubmit(values.body, [
-        ...boundCommentAttachments,
-        ...editAttachments,
-      ]),
+      body: values.body,
     });
-    resetEditImageState();
     setSuccessMessage("评论已更新。");
     setEditOpen(false);
   }
@@ -197,12 +168,6 @@ export function CommentLifecycleControls({
                   textareaRef={bodyFieldRef}
                   value={bodyValue}
                   boundAttachments={comment.attachments}
-                  imageUpload={{
-                    attachments: editAttachments,
-                    maxCount: editImageMaxCount,
-                    onChange: setEditAttachments,
-                    onUploadingChange: setIsUploadingImage,
-                  }}
                 />
                 {form.formState.errors.body ? (
                   <p className="text-sm text-destructive">
@@ -210,7 +175,7 @@ export function CommentLifecycleControls({
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    默认显示发布后的评论样式；需要改内容时点“编辑”，可直接粘贴图片。
+                    默认显示发布后的评论样式；需要改内容时点“编辑”，可把已有图片重新放入正文。
                   </p>
                 )}
               </div>
@@ -219,17 +184,13 @@ export function CommentLifecycleControls({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={isUpdating || isUploadingImage}
+                  disabled={isUpdating}
                   onClick={() => setEditOpen(false)}
                 >
                   取消
                 </Button>
-                <Button type="submit" disabled={isUpdating || isUploadingImage}>
-                  {isUploadingImage
-                    ? "图片上传中..."
-                    : isUpdating
-                      ? "正在保存..."
-                      : "保存修改"}
+                <Button type="submit" disabled={isUpdating}>
+                  {isUpdating ? "正在保存..." : "保存修改"}
                 </Button>
               </DialogFooter>
             </form>
