@@ -7,7 +7,6 @@ import { ChevronDown, ChevronRight, CornerDownRight, User } from "lucide-react";
 import { CommentLifecycleControls } from "@/features/comment/comment-lifecycle-controls";
 import { CommentForm } from "@/features/comment/comment-form";
 import { ContentBody } from "@/features/content/content-body";
-import { MediaAttachmentGallery } from "@/features/media/media-attachments";
 import { ModerationRemoveDialog } from "@/features/moderation/moderation-remove-dialog";
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
 import { cn } from "@/lib/utils";
@@ -152,10 +151,10 @@ function CommentBranch({
             {replyCount > 0 ? <span>{replyCount} 条回复</span> : null}
           </div>
 
-          <ContentBody value={comment.body} className="mt-3 text-sm leading-7" />
-          <MediaAttachmentGallery
+          <ContentBody
             attachments={comment.attachments}
-            className="mt-3 sm:grid-cols-1"
+            value={comment.body}
+            className="mt-3 text-sm leading-7"
           />
 
           <CommentLifecycleControls

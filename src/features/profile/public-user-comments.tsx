@@ -23,7 +23,6 @@ import { useAuthSession } from "@/features/auth/auth-session";
 import { useUserCommentsQuery } from "@/features/comment/queries";
 import type { Comment, ListCommentsResponse } from "@/features/comment/types";
 import { ContentBody } from "@/features/content/content-body";
-import { MediaAttachmentGallery } from "@/features/media/media-attachments";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -265,10 +264,10 @@ function UserCommentRow({
           <span>{getAuthorLabel(comment, user)}</span>
           <span>发布于 {formatDate(comment.created_at)}</span>
         </div>
-        <ContentBody value={comment.body} className="mt-3 text-sm leading-7" />
-        <MediaAttachmentGallery
+        <ContentBody
           attachments={comment.attachments}
-          className="mt-3 sm:grid-cols-1"
+          value={comment.body}
+          className="mt-3 text-sm leading-7"
         />
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <StatusToken>{formatCommentStatus(comment.status)}</StatusToken>

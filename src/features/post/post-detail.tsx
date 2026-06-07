@@ -26,7 +26,6 @@ import { CommentTree } from "@/features/comment/comment-tree";
 import { usePostCommentsQuery } from "@/features/comment/queries";
 import type { ListCommentsResponse } from "@/features/comment/types";
 import { ContentBody } from "@/features/content/content-body";
-import { MediaAttachmentGallery } from "@/features/media/media-attachments";
 import { ModerationRemoveDialog } from "@/features/moderation/moderation-remove-dialog";
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
 import { VoteControl } from "@/features/vote/vote-control";
@@ -258,8 +257,11 @@ function PostArticle({
       </div>
 
       <div className="border-b border-border py-6">
-        <ContentBody value={post.body} className="text-base leading-8" />
-        <MediaAttachmentGallery attachments={post.attachments} className="mt-5" />
+        <ContentBody
+          attachments={post.attachments}
+          value={post.body}
+          className="text-base leading-8"
+        />
       </div>
 
       <PostLifecycleControls canManage={canManage} post={post} />

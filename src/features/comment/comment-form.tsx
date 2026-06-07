@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
@@ -10,10 +10,8 @@ import { z } from "zod";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuthSession } from "@/features/auth/auth-session";
-import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
-import { ImageAttachmentUploader } from "@/features/media/media-attachments";
+import { MarkdownComposerField } from "@/features/content/markdown-composer-field";
 import {
   IMAGE_UPLOAD_LIMITS,
   type MediaAttachment,
@@ -49,7 +47,6 @@ export function CommentForm({
   const pathname = usePathname();
   const { isReady, token } = useAuthSession();
   const queryClient = useQueryClient();
-  const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [attachments, setAttachments] = useState<MediaAttachment[]>([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const form = useForm<CommentFormValues>({
@@ -82,6 +79,15 @@ export function CommentForm({
   const registerHref = `/register?next=${encodeURIComponent(next)}`;
   const bodyValue = useWatch({ control: form.control, name: "body" }) ?? "";
   const bodyField = form.register("body");
+  const { ref: bodyFieldRef, ...bodyFieldProps } = bodyField;
+
+  function setBodyValue(nextValue: string) {
+    form.setValue("body", nextValue, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+  }
 
   if (!isReady) {
     return (
@@ -137,28 +143,24 @@ export function CommentForm({
       ) : null}
 
       <div className="space-y-2">
-        <MarkdownToolbar
+        <MarkdownComposerField
           disabled={commentMutation.isPending}
-          onChange={(nextValue) =>
-            form.setValue("body", nextValue, {
-              shouldDirty: true,
-              shouldTouch: true,
-              shouldValidate: true,
-            })
-          }
-          textareaRef={bodyTextareaRef}
+          onChange={setBodyValue}
+          textareaProps={{
+            ...bodyFieldProps,
+            "aria-label": "评论内容",
+            "aria-invalid": Boolean(form.formState.errors.body),
+            className: compact ? "min-h-28" : undefined,
+            placeholder: placeholder ?? (parentId ? "回复这条评论。" : "写下你的评论。"),
+          }}
+          textareaRef={bodyFieldRef}
           value={bodyValue}
-        />
-        <Textarea
-          aria-label="评论内容"
-          aria-invalid={Boolean(form.formState.errors.body)}
-          disabled={commentMutation.isPending}
-          placeholder={placeholder ?? (parentId ? "回复这条评论。" : "写下你的评论。")}
-          className={compact ? "min-h-28" : undefined}
-          {...bodyField}
-          ref={(element) => {
-            bodyField.ref(element);
-            bodyTextareaRef.current = element;
+          imageUpload={{
+            attachments,
+            idPrefix: `comment-image-${parentId ?? "root"}-${postId}`,
+            maxCount: IMAGE_UPLOAD_LIMITS.maxCountPerComment,
+            onChange: setAttachments,
+            onUploadingChange: setIsUploadingImage,
           }}
         />
         {form.formState.errors.body ? (
@@ -167,15 +169,6 @@ export function CommentForm({
           </p>
         ) : null}
       </div>
-
-      <ImageAttachmentUploader
-        attachments={attachments}
-        disabled={commentMutation.isPending}
-        idPrefix={`comment-image-${parentId ?? "root"}-${postId}`}
-        maxCount={IMAGE_UPLOAD_LIMITS.maxCountPerComment}
-        onChange={setAttachments}
-        onUploadingChange={setIsUploadingImage}
-      />
 
       <div className="flex justify-end">
         <Button type="submit" disabled={commentMutation.isPending || isUploadingImage}>

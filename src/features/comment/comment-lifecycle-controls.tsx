@@ -3,7 +3,6 @@
 import {
   forwardRef,
   useEffect,
-  useRef,
   useState,
   type ComponentProps,
   type ReactNode,
@@ -24,8 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
+import { MarkdownComposerField } from "@/features/content/markdown-composer-field";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -52,7 +50,6 @@ export function CommentLifecycleControls({
   comment,
   postId,
 }: CommentLifecycleControlsProps) {
-  const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -66,8 +63,17 @@ export function CommentLifecycleControls({
   });
   const bodyValue = useWatch({ control: form.control, name: "body" }) ?? "";
   const bodyField = form.register("body");
+  const { ref: bodyFieldRef, ...bodyFieldProps } = bodyField;
   const updateError = getSubmitError(updateMutation.error);
   const deleteError = getSubmitError(deleteMutation.error);
+
+  function setBodyValue(nextValue: string) {
+    form.setValue("body", nextValue, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+  }
 
   useEffect(() => {
     if (!editOpen) {
@@ -139,28 +145,18 @@ export function CommentLifecycleControls({
                     {bodyValue.trim().length} 字
                   </span>
                 </div>
-                <MarkdownToolbar
+                <MarkdownComposerField
                   disabled={isUpdating}
-                  onChange={(nextValue) =>
-                    form.setValue("body", nextValue, {
-                      shouldDirty: true,
-                      shouldTouch: true,
-                      shouldValidate: true,
-                    })
-                  }
-                  textareaRef={bodyTextareaRef}
-                  value={bodyValue}
-                />
-                <Textarea
-                  aria-label="评论内容"
-                  aria-invalid={Boolean(form.formState.errors.body)}
-                  disabled={isUpdating}
-                  className="min-h-36 border-border bg-background text-sm leading-7"
-                  {...bodyField}
-                  ref={(element) => {
-                    bodyField.ref(element);
-                    bodyTextareaRef.current = element;
+                  onChange={setBodyValue}
+                  textareaProps={{
+                    ...bodyFieldProps,
+                    "aria-label": "评论内容",
+                    "aria-invalid": Boolean(form.formState.errors.body),
+                    className: "min-h-36 border-border bg-background text-sm leading-7",
                   }}
+                  textareaRef={bodyFieldRef}
+                  value={bodyValue}
+                  boundAttachments={comment.attachments}
                 />
                 {form.formState.errors.body ? (
                   <p className="text-sm text-destructive">

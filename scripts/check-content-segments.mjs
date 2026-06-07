@@ -6,20 +6,18 @@ import process from "node:process";
 import ts from "typescript";
 
 const root = process.cwd();
-const sourcePath = resolve(root, "src/features/content/spoiler-segments.ts");
-const source = readFileSync(sourcePath, "utf8");
-const transpiled = ts.transpileModule(source, {
-  compilerOptions: {
-    module: ts.ModuleKind.ES2022,
-    target: ts.ScriptTarget.ES2020,
-  },
-});
-const moduleUrl = `data:text/javascript;base64,${Buffer.from(
-  transpiled.outputText,
-).toString("base64")}`;
-const { parseSpoilerSegments } = await import(moduleUrl);
+const { parseSpoilerSegments } = await importTypescriptModule(
+  "src/features/content/spoiler-segments.ts",
+);
+const {
+  createAttachmentMarkdown,
+  getAttachmentIdFromMarkdownUrl,
+  getReferencedAttachmentIds,
+  isAttachmentMarkdownUrl,
+  removeAttachmentMarkdownReferences,
+} = await importTypescriptModule("src/features/content/attachment-markdown.ts");
 
-const cases = [
+const spoilerCases = [
   {
     expected: [{ text: "", type: "text" }],
     name: "empty input stays plain text",
@@ -81,7 +79,7 @@ console.log("");
 
 const failures = [];
 
-for (const testCase of cases) {
+for (const testCase of spoilerCases) {
   const actual = parseSpoilerSegments(testCase.value);
 
   if (!deepEqual(actual, testCase.expected)) {
@@ -92,6 +90,8 @@ for (const testCase of cases) {
 
   console.log(`[PASS] ${testCase.name}`);
 }
+
+checkAttachmentMarkdown();
 
 console.log("");
 
@@ -107,6 +107,86 @@ if (failures.length > 0) {
 }
 
 console.log("Content segment check passed.");
+
+async function importTypescriptModule(relativePath) {
+  const sourcePath = resolve(root, relativePath);
+  const source = readFileSync(sourcePath, "utf8");
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.ES2022,
+      target: ts.ScriptTarget.ES2020,
+    },
+  });
+  const moduleUrl = `data:text/javascript;base64,${Buffer.from(
+    transpiled.outputText,
+  ).toString("base64")}`;
+
+  return import(moduleUrl);
+}
+
+function checkAttachmentMarkdown() {
+  const attachment = {
+    alt_text: "图] 说明\n第二行",
+    id: "image id/一)",
+  };
+  const attachmentMarkdown = createAttachmentMarkdown(attachment);
+  const expectedAttachmentMarkdown =
+    "![图\\] 说明 第二行](nexus-attachment:image%20id%2F%E4%B8%80%29)";
+
+  expectEqual(
+    "attachment markdown escapes alt text and encodes id",
+    attachmentMarkdown,
+    expectedAttachmentMarkdown,
+  );
+
+  expectEqual(
+    "attachment markdown url decodes id",
+    getAttachmentIdFromMarkdownUrl("nexus-attachment:image%20id%2F%E4%B8%80%29"),
+    "image id/一)",
+  );
+
+  expectEqual(
+    "invalid attachment markdown url is rejected",
+    isAttachmentMarkdownUrl("https://example.com/image.png"),
+    false,
+  );
+
+  expectEqual(
+    "attachment references are extracted as decoded ids",
+    [...getReferencedAttachmentIds(
+      "正文\n![内容](nexus-attachment:img-1)\n![复杂](nexus-attachment:image%20id%2F%E4%B8%80%29)\n![外部](https://example.com/a.png)",
+    )],
+    ["img-1", "image id/一)"],
+  );
+
+  expectEqual(
+    "removing an attachment reference keeps surrounding content and external images",
+    removeAttachmentMarkdownReferences(
+      "前文\n![内容](nexus-attachment:img-1)\n后文\n![外部](https://example.com/a.png)",
+      "img-1",
+    ),
+    "前文\n后文\n![外部](https://example.com/a.png)",
+  );
+
+  expectEqual(
+    "removing an attachment reference only removes the exact id",
+    removeAttachmentMarkdownReferences(
+      "![一](nexus-attachment:img-1)\n![十](nexus-attachment:img-10)",
+      "img-1",
+    ),
+    "![十](nexus-attachment:img-10)",
+  );
+}
+
+function expectEqual(name, actual, expected) {
+  if (!deepEqual(actual, expected)) {
+    failures.push({ actual, expected, name });
+    console.log(`[FAIL] ${name}`);
+    return;
+  }
+
+  console.log(`[PASS] ${name}`);
+}
 
 function deepEqual(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);

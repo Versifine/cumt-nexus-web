@@ -85,7 +85,7 @@ export default async function NewPostPage({ params }: NewPostPageProps) {
               <section className="border-b border-border pb-6">
                 <h2 className="text-sm font-semibold">发布后</h2>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                  发布成功后会直接进入帖子详情页。当前版本暂不支持发布后立即编辑，请在提交前检查标题和正文。
+                  发布成功后会直接进入帖子详情页。作者可以在详情页继续编辑标题和正文。
                 </p>
               </section>
 

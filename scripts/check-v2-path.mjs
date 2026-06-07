@@ -133,6 +133,19 @@ async function checkUploadPostAndComments() {
     return;
   }
 
+  const postAttachmentMarkdown = createSmokeAttachmentMarkdown(
+    postAttachment.id,
+    "v2 post image",
+  );
+  const rootAttachmentMarkdown = createSmokeAttachmentMarkdown(
+    rootAttachment.id,
+    "v2 root comment image",
+  );
+  const childAttachmentMarkdown = createSmokeAttachmentMarkdown(
+    childAttachment.id,
+    "v2 child comment image",
+  );
+
   const postResponse = await request("/api/v1/communities/public/posts", {
     body: {
       attachment_ids: [postAttachment.id],
@@ -144,6 +157,8 @@ async function checkUploadPostAndComments() {
         "> 引用",
         "",
         ">! 隐藏内容 !<",
+        "",
+        postAttachmentMarkdown,
         "",
         "| 项 | 值 |",
         "| --- | --- |",
@@ -160,17 +175,38 @@ async function checkUploadPostAndComments() {
   }
 
   const post = postResponse.json?.post;
-  if (!post?.id || !Array.isArray(post.attachments) || post.attachments[0]?.id !== postAttachment.id) {
+  if (
+    !post?.id ||
+    !post.body?.includes(postAttachmentMarkdown) ||
+    !Array.isArray(post.attachments) ||
+    post.attachments[0]?.id !== postAttachment.id
+  ) {
     addFail("publish post with image", `unexpected response payload: ${preview(postResponse.bodyText)}`);
     return;
   }
 
   postId = post.id;
 
+  const postDetailResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}`, {
+    token: reporter.token,
+  });
+  if (!expectOk(postDetailResponse, "post detail preserves inline image marker")) {
+    return;
+  }
+  if (
+    !postDetailResponse.json?.post?.body?.includes(postAttachmentMarkdown) ||
+    !postDetailResponse.json?.post?.attachments?.some(
+      (attachment) => attachment?.id === postAttachment.id,
+    )
+  ) {
+    addFail("post detail preserves inline image marker", `unexpected response payload: ${preview(postDetailResponse.bodyText)}`);
+    return;
+  }
+
   const rootResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}/comments`, {
     body: {
       attachment_ids: [rootAttachment.id],
-      body: `${marker} root comment **markdown** >!hidden!<`,
+      body: `${marker} root comment **markdown** >!hidden!<\n\n${rootAttachmentMarkdown}`,
     },
     method: "POST",
     token: reporter.token,
@@ -181,7 +217,12 @@ async function checkUploadPostAndComments() {
   }
 
   const rootComment = rootResponse.json?.comment;
-  if (!rootComment?.id || !Array.isArray(rootComment.attachments) || rootComment.attachments[0]?.id !== rootAttachment.id) {
+  if (
+    !rootComment?.id ||
+    !rootComment.body?.includes(rootAttachmentMarkdown) ||
+    !Array.isArray(rootComment.attachments) ||
+    rootComment.attachments[0]?.id !== rootAttachment.id
+  ) {
     addFail("publish root comment with image", `unexpected response payload: ${preview(rootResponse.bodyText)}`);
     return;
   }
@@ -191,7 +232,7 @@ async function checkUploadPostAndComments() {
   const childResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}/comments`, {
     body: {
       attachment_ids: [childAttachment.id],
-      body: `${marker} child comment`,
+      body: `${marker} child comment\n\n${childAttachmentMarkdown}`,
       parent_id: rootCommentId,
     },
     method: "POST",
@@ -203,7 +244,12 @@ async function checkUploadPostAndComments() {
   }
 
   const childComment = childResponse.json?.comment;
-  if (!childComment?.id || childComment.parent_id !== rootCommentId || childComment.attachments?.[0]?.id !== childAttachment.id) {
+  if (
+    !childComment?.id ||
+    !childComment.body?.includes(childAttachmentMarkdown) ||
+    childComment.parent_id !== rootCommentId ||
+    childComment.attachments?.[0]?.id !== childAttachment.id
+  ) {
     addFail("publish child comment with image", `unexpected response payload: ${preview(childResponse.bodyText)}`);
     return;
   }
@@ -227,12 +273,17 @@ async function checkUploadPostAndComments() {
     ? comments.find((comment) => comment?.id === childCommentId)
     : null;
 
-  if (!rootFromTree?.attachments?.length || !childFromTree?.attachments?.length) {
+  if (
+    !rootFromTree?.body?.includes(rootAttachmentMarkdown) ||
+    !childFromTree?.body?.includes(childAttachmentMarkdown) ||
+    !rootFromTree?.attachments?.length ||
+    !childFromTree?.attachments?.length
+  ) {
     addFail("comment tree with attachments", `attachments missing from tree: ${preview(treeResponse.bodyText)}`);
     return;
   }
 
-  addPass("content media path", `created post ${postId}, root comment ${rootCommentId} and child comment ${childCommentId}`);
+  addPass("content media path", `created post ${postId}, root comment ${rootCommentId} and child comment ${childCommentId} with inline image markers`);
 }
 
 async function checkFeedSort() {
@@ -872,6 +923,20 @@ function findRunningPostgresContainer() {
 
   const preferred = candidates.find((entry) => entry.name.includes("cumt-nexus"));
   return preferred?.name ?? candidates[0]?.name ?? "";
+}
+
+function createSmokeAttachmentMarkdown(id, altText) {
+  return `![${escapeMarkdownAltText(altText)}](nexus-attachment:${encodeAttachmentIdForMarkdown(id)})`;
+}
+
+function escapeMarkdownAltText(value) {
+  return value.replace(/\\/g, "\\\\").replace(/\]/g, "\\]").replace(/\r?\n/g, " ");
+}
+
+function encodeAttachmentIdForMarkdown(value) {
+  return encodeURIComponent(value).replace(/[()]/g, (character) =>
+    `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 }
 
 function getArgValue(name) {

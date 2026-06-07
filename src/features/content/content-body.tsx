@@ -5,21 +5,53 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import {
+  getAttachmentIdFromMarkdownUrl,
+  getReferencedAttachmentIds,
+  isAttachmentMarkdownUrl,
+} from "@/features/content/attachment-markdown";
+import {
   getRedditToken,
   transformRedditMarkdown,
 } from "@/features/content/reddit-markdown";
+import { MediaAttachmentFigure } from "@/features/media/media-attachments";
+import type { MediaAttachment } from "@/features/media/types";
 import { cn } from "@/lib/utils";
 
 type ContentBodyProps = {
+  attachments?: MediaAttachment[];
   className?: string;
   value: string;
 };
 
-export function ContentBody({ className, value }: ContentBodyProps) {
+export function ContentBody({
+  attachments = [],
+  className,
+  value,
+}: ContentBodyProps) {
   const transformed = useMemo(() => transformRedditMarkdown(value), [value]);
+  const attachmentById = useMemo(
+    () =>
+      new Map(
+        attachments.map((attachment) => [attachment.id, attachment] as const),
+      ),
+    [attachments],
+  );
+  const referencedAttachmentIds = useMemo(
+    () => getReferencedAttachmentIds(value),
+    [value],
+  );
+  const fallbackAttachments = useMemo(
+    () =>
+      attachments.filter(
+        (attachment) =>
+          isVisibleImageAttachment(attachment) &&
+          !referencedAttachmentIds.has(attachment.id),
+      ),
+    [attachments, referencedAttachmentIds],
+  );
   const components = useMemo(
-    () => createMarkdownComponents(transformed.tokens),
-    [transformed.tokens],
+    () => createMarkdownComponents(transformed.tokens, attachmentById),
+    [attachmentById, transformed.tokens],
   );
 
   return (
@@ -38,11 +70,21 @@ export function ContentBody({ className, value }: ContentBodyProps) {
       >
         {transformed.markdown}
       </ReactMarkdown>
+      {fallbackAttachments.length > 0 ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {fallbackAttachments.map((attachment) => (
+            <MediaAttachmentFigure key={attachment.id} attachment={attachment} />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function createMarkdownComponents(tokens: ReturnType<typeof transformRedditMarkdown>["tokens"]): Components {
+function createMarkdownComponents(
+  tokens: ReturnType<typeof transformRedditMarkdown>["tokens"],
+  attachmentById: Map<string, MediaAttachment>,
+): Components {
   return {
     a({ children, href }) {
       const token = getRedditToken(href, tokens);
@@ -56,6 +98,9 @@ function createMarkdownComponents(tokens: ReturnType<typeof transformRedditMarkd
       }
 
       const safeHref = safeUrlTransform(href ?? "");
+      if (isAttachmentMarkdownUrl(safeHref)) {
+        return <span>{children}</span>;
+      }
       const isExternal = safeHref.startsWith("http://") || safeHref.startsWith("https://");
 
       if (!safeHref) {
@@ -71,6 +116,44 @@ function createMarkdownComponents(tokens: ReturnType<typeof transformRedditMarkd
         >
           {children}
         </a>
+      );
+    },
+    img({ alt, src }) {
+      const attachmentId = getAttachmentIdFromMarkdownUrl(
+        typeof src === "string" ? src : null,
+      );
+
+      if (!attachmentId) {
+        return (
+          <span className="my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
+            外部图片不会直接渲染；请使用图片上传后插入正文。
+          </span>
+        );
+      }
+
+      const attachment = attachmentById.get(attachmentId);
+
+      if (!attachment) {
+        return (
+          <span className="my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
+            图片附件不存在或尚未随内容返回。
+          </span>
+        );
+      }
+
+      if (!isVisibleImageAttachment(attachment)) {
+        return (
+          <span className="my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
+            图片当前不可显示。
+          </span>
+        );
+      }
+
+      return (
+        <MarkdownAttachmentImage
+          attachment={attachment}
+          caption={typeof alt === "string" ? alt : undefined}
+        />
       );
     },
     blockquote({ children }) {
@@ -174,6 +257,31 @@ function SpoilerText({ text }: { text: string }) {
   );
 }
 
+function MarkdownAttachmentImage({
+  attachment,
+  caption,
+}: {
+  attachment: MediaAttachment;
+  caption?: string;
+}) {
+  return (
+    <span className="my-4 block border border-border bg-background-soft">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={attachment.url}
+        alt={caption || attachment.alt_text || "内容图片"}
+        loading="lazy"
+        decoding="async"
+        className="max-h-[520px] w-full object-contain"
+      />
+      <span className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground">
+        <span className="truncate">{caption || getAttachmentCaption(attachment)}</span>
+        <span className="font-mono">{formatFileSize(attachment.size_bytes)}</span>
+      </span>
+    </span>
+  );
+}
+
 function safeUrlTransform(url: string) {
   const trimmedUrl = url.trim();
 
@@ -185,6 +293,10 @@ function safeUrlTransform(url: string) {
     return trimmedUrl;
   }
 
+  if (isAttachmentMarkdownUrl(trimmedUrl)) {
+    return trimmedUrl;
+  }
+
   try {
     const parsedUrl = new URL(trimmedUrl);
     const allowedProtocols = new Set(["http:", "https:", "mailto:"]);
@@ -193,4 +305,45 @@ function safeUrlTransform(url: string) {
   } catch {
     return "";
   }
+}
+
+function isVisibleImageAttachment(attachment: MediaAttachment) {
+  return (
+    attachment.kind === "image" &&
+    attachment.status !== "blocked" &&
+    Boolean(attachment.url)
+  );
+}
+
+function getAttachmentCaption(attachment: MediaAttachment) {
+  if (attachment.alt_text.trim()) {
+    return attachment.alt_text;
+  }
+
+  switch (attachment.status) {
+    case "ready":
+      return "图片附件";
+    case "pending":
+      return "等待处理";
+    case "processing":
+      return "处理中";
+    case "blocked":
+      return "已拦截";
+    case "failed":
+      return "图片不可用";
+    default:
+      return attachment.status;
+  }
+}
+
+function formatFileSize(sizeBytes: number) {
+  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
+    return "--";
+  }
+
+  if (sizeBytes < 1024 * 1024) {
+    return `${Math.ceil(sizeBytes / 1024)} KB`;
+  }
+
+  return `${(sizeBytes / 1024 / 1024).toFixed(1)} MB`;
 }

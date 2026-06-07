@@ -19,6 +19,14 @@ const sourceFiles = existsSync(sourceRoot)
 const requiredContentEntryConsumers = [
   "src/features/post/post-detail.tsx",
   "src/features/comment/comment-tree.tsx",
+  "src/features/profile/public-user-comments.tsx",
+];
+
+const requiredComposerConsumers = [
+  "src/features/post/post-form.tsx",
+  "src/features/comment/comment-form.tsx",
+  "src/features/post/post-lifecycle-controls.tsx",
+  "src/features/comment/comment-lifecycle-controls.tsx",
 ];
 
 const blockedPatterns = [
@@ -53,6 +61,8 @@ checkSourceRoot();
 checkBlockedSourcePatterns();
 checkBlockedDirectDependencies();
 checkContentEntryPoint();
+checkMarkdownComposerEntryPoint();
+checkPublishedAttachmentRenderingBoundary();
 
 for (const result of results) {
   console.log(`[${result.status.toUpperCase()}] ${result.name} - ${result.detail}`);
@@ -140,6 +150,10 @@ function checkContentEntryPoint() {
     if (!consumer.content.includes("@/features/content/content-body")) {
       missingConsumers.push(`${consumerPath} does not import ContentBody`);
     }
+
+    if (!/<ContentBody[\s\S]*?\battachments=/.test(consumer.content)) {
+      missingConsumers.push(`${consumerPath} renders ContentBody without attachments`);
+    }
   }
 
   if (missingConsumers.length > 0) {
@@ -150,6 +164,67 @@ function checkContentEntryPoint() {
   addPass(
     "ContentBody consumers",
     `${requiredContentEntryConsumers.length} approved consumer(s) use the shared content renderer`,
+  );
+}
+
+function checkMarkdownComposerEntryPoint() {
+  const composer = sourceFiles.find(
+    (file) => file.path === "src/features/content/markdown-composer-field.tsx",
+  );
+
+  if (!composer) {
+    addFail("MarkdownComposerField entry", "src/features/content/markdown-composer-field.tsx is missing");
+    return;
+  }
+
+  const missingConsumers = [];
+
+  for (const consumerPath of requiredComposerConsumers) {
+    const consumer = sourceFiles.find((file) => file.path === consumerPath);
+
+    if (!consumer) {
+      missingConsumers.push(`${consumerPath} is missing`);
+      continue;
+    }
+
+    if (!consumer.content.includes("@/features/content/markdown-composer-field")) {
+      missingConsumers.push(`${consumerPath} does not import MarkdownComposerField`);
+    }
+  }
+
+  if (missingConsumers.length > 0) {
+    addFail("MarkdownComposerField consumers", missingConsumers.join("; "));
+    return;
+  }
+
+  addPass(
+    "MarkdownComposerField consumers",
+    `${requiredComposerConsumers.length} writing surface(s) use the shared Markdown composer`,
+  );
+}
+
+function checkPublishedAttachmentRenderingBoundary() {
+  const galleryOffenders = [];
+
+  for (const consumerPath of requiredContentEntryConsumers) {
+    const consumer = sourceFiles.find((file) => file.path === consumerPath);
+
+    if (consumer?.content.includes("MediaAttachmentGallery")) {
+      galleryOffenders.push(consumerPath);
+    }
+  }
+
+  if (galleryOffenders.length > 0) {
+    addFail(
+      "published attachment rendering boundary",
+      `published posts and comments must render attachments through ContentBody; found gallery imports in ${galleryOffenders.join(", ")}`,
+    );
+    return;
+  }
+
+  addPass(
+    "published attachment rendering boundary",
+    "published posts and comments keep images inside the shared Markdown content renderer",
   );
 }
 

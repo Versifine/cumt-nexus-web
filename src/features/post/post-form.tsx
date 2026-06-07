@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -10,9 +10,7 @@ import { z } from "zod";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
-import { ImageAttachmentUploader } from "@/features/media/media-attachments";
+import { MarkdownComposerField } from "@/features/content/markdown-composer-field";
 import {
   IMAGE_UPLOAD_LIMITS,
   type MediaAttachment,
@@ -38,7 +36,6 @@ type PostFormProps = {
 export function PostForm({ className, slug }: PostFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [attachments, setAttachments] = useState<MediaAttachment[]>([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const form = useForm<PostFormValues>({
@@ -69,6 +66,15 @@ export function PostForm({ className, slug }: PostFormProps) {
   const titleLength = titleValue.trim().length;
   const bodyLength = bodyValue.trim().length;
   const bodyField = form.register("body");
+  const { ref: bodyFieldRef, ...bodyFieldProps } = bodyField;
+
+  function setBodyValue(nextValue: string) {
+    form.setValue("body", nextValue, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+  }
 
   return (
     <form
@@ -115,28 +121,24 @@ export function PostForm({ className, slug }: PostFormProps) {
           title="正文"
         />
         <div className="min-w-0 space-y-2">
-          <MarkdownToolbar
+          <MarkdownComposerField
             disabled={postMutation.isPending}
-            onChange={(nextValue) =>
-              form.setValue("body", nextValue, {
-                shouldDirty: true,
-                shouldTouch: true,
-                shouldValidate: true,
-              })
-            }
-            textareaRef={bodyTextareaRef}
+            onChange={setBodyValue}
+            textareaProps={{
+              ...bodyFieldProps,
+              "aria-invalid": Boolean(form.formState.errors.body),
+              className: "min-h-72 border-border bg-background text-base leading-7",
+              id: "body",
+              placeholder: "支持加粗、引用、代码、链接、列表、表格、涂黑和图片插入。",
+            }}
+            textareaRef={bodyFieldRef}
             value={bodyValue}
-          />
-          <Textarea
-            id="body"
-            aria-invalid={Boolean(form.formState.errors.body)}
-            disabled={postMutation.isPending}
-            placeholder="支持加粗、引用、代码、链接和涂黑。"
-            className="min-h-72 border-border bg-background text-base leading-7"
-            {...bodyField}
-            ref={(element) => {
-              bodyField.ref(element);
-              bodyTextareaRef.current = element;
+            imageUpload={{
+              attachments,
+              idPrefix: "post-image",
+              maxCount: IMAGE_UPLOAD_LIMITS.maxCountPerPost,
+              onChange: setAttachments,
+              onUploadingChange: setIsUploadingImage,
             }}
           />
           <FieldMeta
@@ -154,14 +156,9 @@ export function PostForm({ className, slug }: PostFormProps) {
           index="03"
           title="图片"
         />
-        <ImageAttachmentUploader
-          attachments={attachments}
-          disabled={postMutation.isPending}
-          idPrefix="post-image"
-          maxCount={IMAGE_UPLOAD_LIMITS.maxCountPerPost}
-          onChange={setAttachments}
-          onUploadingChange={setIsUploadingImage}
-        />
+        <p className="text-sm leading-6 text-muted-foreground">
+          图片上传入口已经并入正文写作区；上传成功后会自动插入当前位置。
+        </p>
       </div>
 
       <div className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">

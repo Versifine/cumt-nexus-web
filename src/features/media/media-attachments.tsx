@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, RotateCcw, X } from "lucide-react";
+import { CornerDownLeft, ImagePlus, RotateCcw, X } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -23,8 +23,11 @@ type ImageAttachmentUploaderProps = {
   attachments: MediaAttachment[];
   disabled?: boolean;
   idPrefix?: string;
+  isAttachmentInserted?: (attachment: MediaAttachment) => boolean;
   maxCount?: number;
   onChange: (attachments: MediaAttachment[]) => void;
+  onInsertAttachment?: (attachment: MediaAttachment) => void;
+  onRemoveAttachment?: (attachment: MediaAttachment) => void;
   onUploadingChange?: (isUploading: boolean) => void;
 };
 
@@ -38,8 +41,11 @@ export function ImageAttachmentUploader({
   attachments,
   disabled = false,
   idPrefix = "image-attachment",
+  isAttachmentInserted,
   maxCount = IMAGE_UPLOAD_LIMITS.maxCountPerPost,
   onChange,
+  onInsertAttachment,
+  onRemoveAttachment,
   onUploadingChange,
 }: ImageAttachmentUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -102,6 +108,7 @@ export function ImageAttachmentUploader({
       {
         onSuccess: (result) => {
           onChange([...attachments, result.attachment]);
+          onInsertAttachment?.(result.attachment);
           setAltText("");
           setPendingUpload(null);
         },
@@ -117,7 +124,12 @@ export function ImageAttachmentUploader({
   }
 
   function removeAttachment(id: string) {
+    const removedAttachment = attachments.find((attachment) => attachment.id === id);
+
     onChange(attachments.filter((attachment) => attachment.id !== id));
+    if (removedAttachment) {
+      onRemoveAttachment?.(removedAttachment);
+    }
     setRemovedNoticeVisible(true);
     setLocalError(null);
   }
@@ -267,6 +279,13 @@ export function ImageAttachmentUploader({
                   <StatusToken tone={getAttachmentStatusTone(attachment.status)}>
                     {formatAttachmentStatus(attachment.status)}
                   </StatusToken>
+                  {isAttachmentInserted ? (
+                    <StatusToken
+                      tone={isAttachmentInserted(attachment) ? "primary" : "warning"}
+                    >
+                      {isAttachmentInserted(attachment) ? "已插入正文" : "未插入正文"}
+                    </StatusToken>
+                  ) : null}
                   <span className="font-mono text-xs text-muted-foreground">
                     {formatFileSize(attachment.size_bytes)}
                   </span>
@@ -278,6 +297,17 @@ export function ImageAttachmentUploader({
                   {formatAttachmentMeta(attachment)}
                 </p>
               </div>
+              {onInsertAttachment ? (
+                <button
+                  type="button"
+                  className="inline-flex h-9 shrink-0 items-center gap-1.5 border border-border px-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={disabled || isAttachmentInserted?.(attachment)}
+                  onClick={() => onInsertAttachment(attachment)}
+                >
+                  <CornerDownLeft className="size-3.5" aria-hidden="true" />
+                  插入正文
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="inline-flex size-9 items-center justify-center border border-border text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -313,21 +343,111 @@ export function MediaAttachmentGallery({
   return (
     <div className={cn("grid gap-3 sm:grid-cols-2", className)}>
       {visibleAttachments.map((attachment) => (
-        <figure key={attachment.id} className="border border-border bg-background-soft">
-          <img
-            src={attachment.url}
-            alt={attachment.alt_text || "内容图片"}
-            loading="lazy"
-            decoding="async"
-            className="max-h-[420px] w-full object-contain"
-          />
-          <figcaption className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground">
-            <span className="truncate">{formatPublishedAttachmentCaption(attachment)}</span>
-            <span className="font-mono">{formatFileSize(attachment.size_bytes)}</span>
-          </figcaption>
-        </figure>
+        <MediaAttachmentFigure key={attachment.id} attachment={attachment} />
       ))}
     </div>
+  );
+}
+
+export function InlineImageAttachmentReferences({
+  attachments,
+  className,
+  disabled = false,
+  isAttachmentInserted,
+  onInsertAttachment,
+}: {
+  attachments?: MediaAttachment[];
+  className?: string;
+  disabled?: boolean;
+  isAttachmentInserted: (attachment: MediaAttachment) => boolean;
+  onInsertAttachment: (attachment: MediaAttachment) => void;
+}) {
+  const visibleAttachments = (attachments ?? []).filter(isVisibleImageAttachment);
+
+  if (visibleAttachments.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className={cn("divide-y divide-border border-y border-border", className)}>
+      <div className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs text-muted-foreground">
+        <span>已绑定图片</span>
+        <span>选择图片可插入到当前正文光标位置。</span>
+      </div>
+      {visibleAttachments.map((attachment) => {
+        const inserted = isAttachmentInserted(attachment);
+
+        return (
+          <div key={attachment.id} className="flex items-center gap-3 py-3">
+            <img
+              src={attachment.url}
+              alt={attachment.alt_text || "内容图片"}
+              loading="lazy"
+              decoding="async"
+              className="size-12 shrink-0 border border-border object-cover"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusToken tone={inserted ? "primary" : "warning"}>
+                  {inserted ? "已插入正文" : "未插入正文"}
+                </StatusToken>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {formatFileSize(attachment.size_bytes)}
+                </span>
+              </div>
+              <p className="mt-1 truncate text-sm text-muted-foreground">
+                {attachment.alt_text || formatMimeType(attachment.mime_type)}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 border border-border px-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={disabled || inserted}
+              onClick={() => onInsertAttachment(attachment)}
+            >
+              <CornerDownLeft className="size-3.5" aria-hidden="true" />
+              插入正文
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function MediaAttachmentFigure({
+  attachment,
+  caption,
+  className,
+}: {
+  attachment: MediaAttachment;
+  caption?: string;
+  className?: string;
+}) {
+  return (
+    <figure className={cn("border border-border bg-background-soft", className)}>
+      <img
+        src={attachment.url}
+        alt={caption || attachment.alt_text || "内容图片"}
+        loading="lazy"
+        decoding="async"
+        className="max-h-[520px] w-full object-contain"
+      />
+      <figcaption className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground">
+        <span className="truncate">
+          {caption || formatPublishedAttachmentCaption(attachment)}
+        </span>
+        <span className="font-mono">{formatFileSize(attachment.size_bytes)}</span>
+      </figcaption>
+    </figure>
+  );
+}
+
+function isVisibleImageAttachment(attachment: MediaAttachment) {
+  return (
+    attachment.kind === "image" &&
+    attachment.status !== "blocked" &&
+    Boolean(attachment.url)
   );
 }
 
