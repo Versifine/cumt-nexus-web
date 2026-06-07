@@ -177,6 +177,26 @@ function checkMarkdownComposerEntryPoint() {
     return;
   }
 
+  const composerProblems = [];
+
+  if (!composer.content.includes("@/features/content/content-body")) {
+    composerProblems.push("MarkdownComposerField preview does not import ContentBody");
+  }
+
+  if (!/<ContentBody[\s\S]*?\battachments=/.test(composer.content)) {
+    composerProblems.push("MarkdownComposerField preview renders without shared attachment-aware ContentBody");
+  }
+
+  if (composerProblems.length > 0) {
+    addFail("MarkdownComposerField preview boundary", composerProblems.join("; "));
+    return;
+  }
+
+  addPass(
+    "MarkdownComposerField preview boundary",
+    "composer preview uses the same attachment-aware ContentBody renderer as published content",
+  );
+
   const missingConsumers = [];
 
   for (const consumerPath of requiredComposerConsumers) {

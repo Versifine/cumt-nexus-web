@@ -39,7 +39,7 @@
 | Feed source | 当前没有 `src/features/feed`；首页仍复用 `features/post` 的最新帖子接口。 | 明显未完成。 | 需要推荐 feed、全站 feed、关注 feed、社区 feed 的前后端合同。 |
 | 评论 sort | 帖子详情评论请求固定 `sort="new"`，没有评论 sort UI。 | 未完成。 | 若按 Reddit，需要评论区 `best | new | top` 等 query 合同和 UI。 |
 | Markdown 阅读态 | `ContentBody` 使用 `react-markdown` + `remark-gfm`，`skipHtml`，安全 URL，帖子和评论复用。 | 基础落地。 | 仍需 Reddit parity 用例审计，例如边界语法、移动端表格、长代码块。 |
-| Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，工具栏插入常用语法；浏览器已验证 UI 发帖、根评论、子评论提交和阅读态渲染。 | 本次刚补齐。 | 编辑弹窗已接入写作器，但保存会被后端 CORS `PATCH` 预检挡住，需要后端放行后复验。 |
+| Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，工具栏插入常用语法，并提供复用 `ContentBody` 的轻量预览。浏览器已验证 UI 发帖、根评论、子评论提交和阅读态渲染。 | 本次刚补齐，预览边界已补强。 | 编辑弹窗已接入写作器，但保存会被后端 CORS `PATCH` 预检挡住，需要后端放行后复验。 |
 | 图片与正文一体化 | 图片上传后插入 `![说明](nexus-attachment:<id>)`；阅读态按后端 attachments 渲染；旧外置附件 fallback 仍展示；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留。 | 本次刚补齐。 | 需要后端继续保证 attachment 返回、缩略图、失败对象回收和 TTL。 |
 | 普通外链 | Markdown 链接可渲染安全链接。 | 基础落地。 | 普通网页链接预览未实现，需要后端解析缓存。 |
 | 白名单 embed | Bilibili、抖音、网易云、QQ 音乐均未实现播放器嵌入。 | 未完成。 | 必须先做后端 provider 白名单和安全解析，前端不能伪造 iframe。 |

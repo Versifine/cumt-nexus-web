@@ -13,7 +13,7 @@ Reddit-style Markdown parity
 - 帖子和评论正文能力对齐 Reddit Markdown。
 - 常用格式通过写作器工具动作承接。
 - 高级用户可以直接输入 Markdown。
-- 不强制编辑 / 预览双模式。
+- 提供轻量编辑 / 预览切换，但不强制用户使用预览。
 - 阅读态直接渲染最终内容。
 - 不存用户 HTML，不开放任意 iframe。
 
@@ -29,7 +29,7 @@ Reddit-style Markdown parity
 - 支持 `>! ... !<` spoiler / 涂黑语法。
 - 支持 Reddit-style 上标预处理。
 - 链接只允许站内路径、锚点、`http`、`https` 和 `mailto`。
-- 不提供编辑 / 预览双模式，阅读态负责最终渲染。
+- 写作器提供轻量预览，预览复用 `ContentBody`，阅读态仍负责最终渲染。
 - UI smoke 已验证发帖、根评论和子评论回复可以提交并在阅读态渲染 Markdown。
 - 编辑弹窗已接入同一写作器，但浏览器保存会被后端 CORS `PATCH` 预检挡住；后端放行 `PATCH` 后必须复验帖子编辑和评论编辑保存。
 - 不使用 `dangerouslySetInnerHTML`。
@@ -244,7 +244,7 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 
 - 发帖、根评论、回复评论提供同一套格式工具动作。
 - 工具动作插入或包裹 Reddit Markdown 语法。
-- 不强制编辑 / 预览双模式。
+- 预览不另造 renderer，必须和阅读态使用同一套 `ContentBody` 渲染入口。
 - 提交 payload 仍是后端当前支持的 `body` 字段。
 
 验证：
