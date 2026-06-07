@@ -36,6 +36,7 @@ Reddit-style Markdown parity
 - 写作器提供轻量预览，预览复用 `ContentBody`，阅读态仍负责最终渲染。
 - UI smoke 已验证发帖、根评论、子评论回复、帖子编辑保存和评论编辑保存可以提交并在阅读态渲染 Markdown。
 - 编辑弹窗已接入同一写作器，默认显示复用 `ContentBody` 的预览态；textarea、正文图片插入和已有图片放回正文控件只在切到“编辑”后显示。
+- 当前后端 `PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 不接收 `attachment_ids`；编辑弹窗明确提示暂不支持新增图片，只允许重新放置已经绑定到该内容的图片。
 - 不使用 `dangerouslySetInnerHTML`。
 - 不存用户 HTML。
 - 不使用 `rehype-raw`。

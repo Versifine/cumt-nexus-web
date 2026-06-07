@@ -749,6 +749,12 @@ function checkComposerImageCopy() {
         `${formPath} must still let authors place already-bound images back into the Markdown body`,
       );
     }
+
+    if (!form.content.includes("当前编辑接口暂不支持新增图片")) {
+      editContractOffenders.push(
+        `${formPath} must tell authors edit-time new image upload is not supported by the current PATCH contract`,
+      );
+    }
   }
 
   if (editContractOffenders.length > 0) {
