@@ -259,8 +259,8 @@ function UserCommentRow({
 
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="border border-border px-2 py-0.5 font-mono">
-            帖子 {formatShortId(comment.post_id)}
+          <span className="border border-border px-2 py-0.5 text-foreground">
+            关联原帖
           </span>
           <span>{getAuthorLabel(comment, user)}</span>
           <span>发布于 {formatDate(comment.created_at)}</span>
@@ -360,7 +360,7 @@ function UserCommentsRail({
                   className="block py-3 transition-colors hover:text-primary"
                 >
                   <div className="font-mono text-xs text-muted-foreground">
-                    {comment.score ?? 0} 分 / 帖子 {formatShortId(comment.post_id)}
+                    {comment.score ?? 0} 分 / 可查看原帖
                   </div>
                   <div className="mt-1 line-clamp-2 text-sm font-medium">
                     {comment.body || "暂无内容。"}
@@ -437,10 +437,6 @@ function getAuthorLabel(comment: Comment, user: PublicUser) {
   }
 
   return `@${user.username}`;
-}
-
-function formatShortId(value: string) {
-  return value.slice(0, 8);
 }
 
 function formatCommentStatus(status: string) {

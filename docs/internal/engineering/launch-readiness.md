@@ -185,6 +185,12 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 最新浏览器 QA 记录
 
+2026-06-07 用户公开帖子/评论短 ID 展示复验记录：
+
+- 自动检查已复验：`npm run lint`、`npm run typecheck` 和 `npm run check:api-boundary` 均通过；完整 `check:static` 见本轮最终验证。
+- 浏览器复验 `/users/comments_71ibp9dt/comments` 桌面和 `390px` 移动端：评论列表显示“关联原帖”和“查看原帖”，可见 DOM 不再出现 `帖子 {shortId}`；原帖链接仍指向真实 `/posts/:id`。
+- 浏览器复验 `/users/comments_71ibp9dt/posts` 桌面和 `390px` 移动端：公开帖子列表展示 `/public`、作者和评论数，可见 DOM 不出现 `社区 {shortId}` 或 `帖子 {shortId}`；两页 `scrollWidth` 等于 `clientWidth`，控制台无 error。
+
 2026-06-07 社区详情帖子流身份信息展示复验记录：
 
 - 自动检查已复验：`npm run lint`、`npm run typecheck` 和 `npm run check:api-boundary` 均通过；完整 `check:static` 见本轮最终验证。

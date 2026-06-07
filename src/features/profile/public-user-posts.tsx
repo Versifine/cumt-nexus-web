@@ -516,7 +516,7 @@ function getCommunityLabel(post: Post) {
     return `/${slug}`;
   }
 
-  return `社区 ${post.community_id.slice(0, 8)}`;
+  return "社区";
 }
 
 function getPostExcerpt(post: Post) {
