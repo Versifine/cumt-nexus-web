@@ -14,6 +14,7 @@ import {
   removeAttachmentMarkdownReferences,
 } from "@/features/content/attachment-markdown";
 import { ContentBody } from "@/features/content/content-body";
+import { applyMarkdownInsert } from "@/features/content/markdown-insert";
 import {
   insertMarkdownAtCursor,
   MarkdownToolbar,
@@ -84,7 +85,7 @@ export function MarkdownComposerField({
   }
 
   function insertAttachmentMarkdown(attachment: MediaAttachment) {
-    insertMarkdownAtCursor({
+    return insertMarkdownAtCursor({
       insert: {
         block: true,
         text: createAttachmentMarkdown(attachment),
@@ -198,6 +199,11 @@ export function MarkdownComposerField({
 
     try {
       let nextAttachments = imageUpload.attachments;
+      let nextBodyValue = bodyTextareaRef.current?.value ?? value;
+      let insertionStart =
+        bodyTextareaRef.current?.selectionStart ?? nextBodyValue.length;
+      let insertionEnd =
+        bodyTextareaRef.current?.selectionEnd ?? insertionStart;
 
       for (const file of imageFiles) {
         const altText = getPastedImageAltText(file);
@@ -219,14 +225,37 @@ export function MarkdownComposerField({
 
         nextAttachments = [...nextAttachments, result.attachment];
         imageUpload.onChange(nextAttachments);
-        insertAttachmentMarkdown(result.attachment);
+        const bodyInsertion = applyMarkdownInsert({
+          end: insertionEnd,
+          insert: {
+            block: true,
+            text: createAttachmentMarkdown(result.attachment),
+          },
+          start: insertionStart,
+          value: nextBodyValue,
+        });
+        nextBodyValue = bodyInsertion.value;
+        insertionStart = bodyInsertion.selection.end;
+        insertionEnd = bodyInsertion.selection.end;
+        setBodyValue(nextBodyValue);
       }
+
+      focusTextareaSelection(insertionStart, insertionEnd);
     } catch (error) {
       setImageUploadError(getUploadError(error));
     } finally {
       setIsUploadingInlineImage(false);
       imageUpload.onUploadingChange?.(false);
     }
+  }
+
+  function focusTextareaSelection(start: number, end: number) {
+    window.requestAnimationFrame(() => {
+      const textarea = bodyTextareaRef.current;
+
+      textarea?.focus();
+      textarea?.setSelectionRange(start, end);
+    });
   }
 
   function renderImageTool() {

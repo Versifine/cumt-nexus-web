@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { applyMarkdownInsert } from "@/features/content/markdown-insert";
 import {
   blockPrefixSelection,
   fencedCodeBlockSelection,
@@ -187,20 +188,14 @@ export function insertMarkdownAtCursor({
     typeof insert === "string" ? { text: insert } : insert;
   const start = textarea?.selectionStart ?? value.length;
   const end = textarea?.selectionEnd ?? value.length;
-  const before = value.slice(0, start);
-  const after = value.slice(end);
-  const shouldPadBefore =
-    normalizedInsert.block && Boolean(before) && !before.endsWith("\n");
-  const shouldPadAfter =
-    normalizedInsert.block && (!after || !after.startsWith("\n"));
-  const insertedText = [
-    shouldPadBefore ? "\n" : "",
-    normalizedInsert.text,
-    shouldPadAfter ? "\n" : "",
-  ].join("");
-  const nextValue = `${before}${insertedText}${after}`;
+  const result = applyMarkdownInsert({
+    end,
+    insert: normalizedInsert,
+    start,
+    value,
+  });
 
-  onChange(nextValue);
+  onChange(result.value);
 
   window.requestAnimationFrame(() => {
     textarea?.focus();
@@ -209,14 +204,8 @@ export function insertMarkdownAtCursor({
       return;
     }
 
-    const selection = normalizedInsert.selection ?? {
-      end: insertedText.length,
-      start: insertedText.length,
-    };
-    const insertionOffset = shouldPadBefore ? 1 : 0;
-    textarea.setSelectionRange(
-      start + insertionOffset + selection.start,
-      start + insertionOffset + selection.end,
-    );
+    textarea.setSelectionRange(result.selection.start, result.selection.end);
   });
+
+  return result;
 }

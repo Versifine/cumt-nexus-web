@@ -29,6 +29,9 @@ const {
   spoilerSelection,
   wrapSelection,
 } = await importTypescriptModule("src/features/content/markdown-toolbar-actions.ts");
+const { applyMarkdownInsert } = await importTypescriptModule(
+  "src/features/content/markdown-insert.ts",
+);
 
 const spoilerCases = [
   {
@@ -107,6 +110,7 @@ for (const testCase of spoilerCases) {
 checkAttachmentMarkdown();
 checkMarkdownUrl();
 checkMarkdownSummary();
+checkMarkdownInsert();
 checkMarkdownToolbarActions();
 
 console.log("");
@@ -372,6 +376,45 @@ function checkMarkdownToolbarActions() {
       block: true,
       selection: { end: 8, start: 4 },
       text: "```\n代码内容\n```",
+    },
+  );
+}
+
+function checkMarkdownInsert() {
+  expectEqual(
+    "block insert pads around inline text",
+    applyMarkdownInsert({
+      end: 1,
+      insert: { block: true, text: "![图](nexus-attachment:img-1)" },
+      start: 1,
+      value: "前后",
+    }),
+    {
+      selection: { end: 32, start: 32 },
+      value: "前\n![图](nexus-attachment:img-1)\n后",
+    },
+  );
+
+  const first = applyMarkdownInsert({
+    end: 2,
+    insert: { block: true, text: "![一](nexus-attachment:img-1)" },
+    start: 2,
+    value: "正文",
+  });
+  const second = applyMarkdownInsert({
+    end: first.selection.end,
+    insert: { block: true, text: "![二](nexus-attachment:img-2)" },
+    start: first.selection.end,
+    value: first.value,
+  });
+
+  expectEqual(
+    "batch image insert keeps pasted image order",
+    second,
+    {
+      selection: { end: 62, start: 62 },
+      value:
+        "正文\n![一](nexus-attachment:img-1)\n![二](nexus-attachment:img-2)\n",
     },
   );
 }

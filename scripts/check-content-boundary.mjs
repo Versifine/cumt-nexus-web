@@ -500,6 +500,19 @@ function checkComposerImageCopy() {
   }
 
   if (
+    !composer.content.includes("onPaste={handleTextareaPaste}") ||
+    !composer.content.includes("getImageFilesFromClipboard") ||
+    !composer.content.includes("event.clipboardData") ||
+    !composer.content.includes("applyMarkdownInsert")
+  ) {
+    addFail(
+      "composer pasted image insertion",
+      "MarkdownComposerField must upload pasted clipboard images and insert them into the Markdown body",
+    );
+    return;
+  }
+
+  if (
     !composer.content.includes("function removeInlineImageAttachment") ||
     !composer.content.includes("imageUpload.onChange(") ||
     !composer.content.includes("filter((item) => item.id !== attachment.id)")
