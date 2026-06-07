@@ -181,6 +181,24 @@ function checkAttachmentMarkdown() {
     ),
     "![十](nexus-attachment:img-10)",
   );
+
+  expectEqual(
+    "removing an attachment reference handles escaped alt text",
+    removeAttachmentMarkdownReferences(
+      "前文\n![图\\] 说明 第二行](nexus-attachment:image%20id%2F%E4%B8%80%29)\n后文",
+      "image id/一)",
+    ),
+    "前文\n后文",
+  );
+
+  expectEqual(
+    "removing an attachment reference handles escaped backslash alt text",
+    removeAttachmentMarkdownReferences(
+      "前文\n![路径 \\\\ 说明](nexus-attachment:img-escape)\n后文",
+      "img-escape",
+    ),
+    "前文\n后文",
+  );
 }
 
 function checkMarkdownUrl() {

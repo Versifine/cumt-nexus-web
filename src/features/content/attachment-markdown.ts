@@ -63,9 +63,9 @@ export function getReferencedAttachmentIds(markdown: string) {
 export function removeAttachmentMarkdownReferences(markdown: string, id: string) {
   const encodedId = encodeAttachmentIdForMarkdown(id);
   const imagePattern = new RegExp(
-    `!?\\[[^\\]]*\\]\\(${escapeRegExp(
+    `!?\\[(?:\\\\.|[^\\]\\\\])*\\]\\(${escapeRegExp(
       ATTACHMENT_MARKDOWN_URL_PREFIX,
-    )}${escapeRegExp(encodedId)}\\)\\n?`,
+    )}${escapeRegExp(encodedId)}\\)\\r?\\n?`,
     "g",
   );
 
