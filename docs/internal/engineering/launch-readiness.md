@@ -71,7 +71,7 @@ V2 主链路检查：
 npm run check:v2-path
 ```
 
-该命令用于确认 V2 新增真实后端能力可用。它会创建 smoke 用户和内容，接入图片上传、附件提交、new/hot 排序、搜索、通知、举报、审核台、`target_preview`、dismiss、remove-target、帖子/评论 moderation remove，以及社区申请 approve / reject。该命令会写入测试数据，并通过本地 PostgreSQL 容器把测试用户提升为 staff，只应在本地或预发布环境运行。
+该命令用于确认 V2 新增真实后端能力可用。它会创建 smoke 用户和内容，接入图片上传、附件提交、浏览器编辑 `PATCH` CORS 预检、new/hot 排序、搜索、通知、举报、审核台、`target_preview`、dismiss、remove-target、帖子/评论 moderation remove，以及社区申请 approve / reject。该命令会写入测试数据，并通过本地 PostgreSQL 容器把测试用户提升为 staff，只应在本地或预发布环境运行。
 
 公开页面冒烟检查：
 
@@ -89,7 +89,7 @@ node scripts/check-api-boundary.mjs
 node scripts/check-dependency-boundary.mjs
 node scripts/check-env.mjs --production
 node scripts/check-main-path.mjs --api-base-url=http://localhost:8080 --community-slug=public --timeout-ms=10000
-node scripts/check-v2-path.mjs --api-base-url=http://localhost:8080 --community-slug=public --timeout-ms=10000
+node scripts/check-v2-path.mjs --api-base-url=http://localhost:8080 --frontend-origin=http://localhost:3000 --community-slug=public --timeout-ms=10000
 node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --timeout-ms=8000
 ```
 
@@ -155,6 +155,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 后端 `/healthz` 是否可达。
 - 图片上传接口是否返回可用于发帖和评论的附件 ID。
 - 发帖和评论提交 `attachment_ids` 后，详情和评论树是否展示附件。
+- 帖子编辑和评论编辑的浏览器 CORS 预检是否允许当前前端 origin、`PATCH` 方法、`Authorization` 和 `Content-Type` 请求头。
 - 全站和社区帖子流 `sort=new|hot` 是否可用。
 - `GET /api/v1/search` 的 `all | communities | posts` scope 是否可用。
 - 通知列表、未读列表、标记已读和已读列表是否可用。

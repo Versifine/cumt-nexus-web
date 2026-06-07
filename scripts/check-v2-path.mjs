@@ -19,6 +19,11 @@ const apiBaseUrl = normalizeUrl(
     env.NEXT_PUBLIC_API_BASE_URL ??
     "http://localhost:8080",
 );
+const frontendOrigin = normalizeUrl(
+  getArgValue("--frontend-origin") ??
+    env.NEXT_PUBLIC_SITE_URL ??
+    "http://localhost:3000",
+);
 
 const runId = createRunId();
 const slugRunId = runId.replaceAll("_", "-");
@@ -35,6 +40,7 @@ let commentReportId = "";
 
 console.log("CUMT Nexus Web V2 backend path check");
 console.log(`backend: ${apiBaseUrl}`);
+console.log(`frontend origin: ${frontendOrigin}`);
 console.log(`run id:  ${runId}`);
 console.log("");
 
@@ -43,6 +49,7 @@ await createUsers();
 await promoteStaffUser();
 await checkCurrentUserStaffFlag();
 await checkUploadPostAndComments();
+await checkBrowserEditCors();
 await checkFeedSort();
 await checkSearch();
 await checkNotifications();
@@ -284,6 +291,42 @@ async function checkUploadPostAndComments() {
   }
 
   addPass("content media path", `created post ${postId}, root comment ${rootCommentId} and child comment ${childCommentId} with inline image markers`);
+}
+
+async function checkBrowserEditCors() {
+  if (!postId || !rootCommentId) {
+    addFail("browser edit CORS", "post/comment smoke content was not created");
+    return;
+  }
+
+  const postPreflight = await corsPreflight(
+    `/api/v1/posts/${encodeURIComponent(postId)}`,
+    "PATCH",
+  );
+  const commentPreflight = await corsPreflight(
+    `/api/v1/comments/${encodeURIComponent(rootCommentId)}`,
+    "PATCH",
+  );
+
+  const postOk = expectCorsPreflight(
+    postPreflight,
+    "browser edit CORS post PATCH",
+    "PATCH",
+  );
+  const commentOk = expectCorsPreflight(
+    commentPreflight,
+    "browser edit CORS comment PATCH",
+    "PATCH",
+  );
+
+  if (!postOk || !commentOk) {
+    return;
+  }
+
+  addPass(
+    "browser edit CORS",
+    `PATCH preflight allows ${frontendOrigin} for post and comment edit endpoints`,
+  );
 }
 
 async function checkFeedSort() {
@@ -817,6 +860,41 @@ async function request(path, options = {}) {
   }
 }
 
+async function corsPreflight(path, method) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      headers: {
+        "Access-Control-Request-Headers": "authorization,content-type",
+        "Access-Control-Request-Method": method,
+        Origin: frontendOrigin,
+      },
+      method: "OPTIONS",
+      signal: controller.signal,
+    });
+
+    return {
+      allowHeaders: response.headers.get("access-control-allow-headers") ?? "",
+      allowMethods: response.headers.get("access-control-allow-methods") ?? "",
+      allowOrigin: response.headers.get("access-control-allow-origin") ?? "",
+      ok: true,
+      status: response.status,
+    };
+  } catch (error) {
+    return {
+      detail:
+        error?.name === "AbortError"
+          ? `preflight timed out after ${timeoutMs}ms: ${path}`
+          : `${error?.message ?? error}: ${path}`,
+      ok: false,
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function expectOk(response, name) {
   if (!response.ok) {
     addFail(name, response.detail);
@@ -845,6 +923,49 @@ function expectErrorCode(response, name, status, code) {
 
   addFail(name, `expected HTTP ${status} ${code}, got HTTP ${response.status}: ${preview(response.bodyText)}`);
   return false;
+}
+
+function expectCorsPreflight(response, name, method) {
+  if (!response.ok) {
+    addFail(name, response.detail);
+    return false;
+  }
+
+  if (response.status < 200 || response.status >= 300) {
+    addFail(name, `OPTIONS returned HTTP ${response.status}`);
+    return false;
+  }
+
+  if (response.allowOrigin !== frontendOrigin && response.allowOrigin !== "*") {
+    addFail(
+      name,
+      `expected Access-Control-Allow-Origin ${frontendOrigin} or *, got ${response.allowOrigin || "(empty)"}`,
+    );
+    return false;
+  }
+
+  const methods = splitHeaderList(response.allowMethods);
+  if (!methods.has(method.toLowerCase())) {
+    addFail(
+      name,
+      `expected Access-Control-Allow-Methods to include ${method}, got ${response.allowMethods || "(empty)"}`,
+    );
+    return false;
+  }
+
+  const headers = splitHeaderList(response.allowHeaders);
+  for (const requiredHeader of ["authorization", "content-type"]) {
+    if (!headers.has(requiredHeader)) {
+      addFail(
+        name,
+        `expected Access-Control-Allow-Headers to include ${requiredHeader}, got ${response.allowHeaders || "(empty)"}`,
+      );
+      return false;
+    }
+  }
+
+  addPass(name, `OPTIONS allows ${method} from ${frontendOrigin}`);
+  return true;
 }
 
 function runDockerPsql(sql) {
@@ -1002,6 +1123,15 @@ function parseJson(value) {
 
 function preview(value = "") {
   return value.replace(/\s+/g, " ").trim().slice(0, 180);
+}
+
+function splitHeaderList(value = "") {
+  return new Set(
+    value
+      .split(",")
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean),
+  );
 }
 
 function escapeSql(value) {
