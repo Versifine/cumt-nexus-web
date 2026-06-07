@@ -7,6 +7,7 @@ import { ChevronDown, ChevronRight, CornerDownRight, User } from "lucide-react";
 import { CommentLifecycleControls } from "@/features/comment/comment-lifecycle-controls";
 import { CommentForm } from "@/features/comment/comment-form";
 import { ContentBody } from "@/features/content/content-body";
+import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { ModerationRemoveDialog } from "@/features/moderation/moderation-remove-dialog";
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
 import { cn } from "@/lib/utils";
@@ -130,6 +131,10 @@ function CommentBranch({
   const isDepthLimited =
     apiDepth >= maxDepth && hasChildren && !expandedDepthIds.has(comment.id);
   const hasMoreReplies = comment.has_more_replies || isDepthLimited;
+  const commentTargetLabel = getMarkdownPlainTextSummary(comment.body, "评论").slice(
+    0,
+    80,
+  );
 
   return (
     <div
@@ -184,13 +189,13 @@ function CommentBranch({
 
             <ReportContentDialog
               targetId={comment.id}
-              targetLabel={comment.body.slice(0, 80) || "评论"}
+              targetLabel={commentTargetLabel || "评论"}
               targetType="comment"
             />
             {canModerate ? (
               <ModerationRemoveDialog
                 targetId={comment.id}
-                targetLabel={comment.body.slice(0, 80) || "评论"}
+                targetLabel={commentTargetLabel || "评论"}
                 targetType="comment"
               />
             ) : null}

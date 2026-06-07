@@ -32,6 +32,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -299,6 +300,7 @@ function ReportStatusTabs({
 
 function ReportRow({ index, report }: { index: number; report: ContentReport }) {
   const preview = report.target_preview;
+  const title = preview?.title || getMarkdownPlainTextSummary(preview?.body_excerpt, report.reason);
 
   return (
     <Link
@@ -319,7 +321,7 @@ function ReportRow({ index, report }: { index: number; report: ContentReport }) 
           </span>
         </div>
         <h2 className="mt-3 break-words text-xl font-semibold leading-7 group-hover:text-primary">
-          {preview?.title || preview?.body_excerpt || report.reason}
+          {title}
         </h2>
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
           {report.reason}
@@ -337,6 +339,11 @@ function ReportRow({ index, report }: { index: number; report: ContentReport }) 
 }
 
 function TargetPreviewPanel({ preview }: { preview?: ReportTargetPreview | null }) {
+  const previewText = getMarkdownPlainTextSummary(
+    preview?.body_excerpt,
+    "暂无预览。",
+  );
+
   return (
     <section className="border-b border-border py-6">
       <div className="font-mono text-xs uppercase text-primary">TARGET / 目标预览</div>
@@ -353,7 +360,7 @@ function TargetPreviewPanel({ preview }: { preview?: ReportTargetPreview | null 
             </h2>
           ) : null}
           <p className="break-words text-sm leading-7 text-muted-foreground">
-            {preview.body_excerpt || "暂无预览。"}
+            {previewText}
           </p>
           <div className="flex flex-wrap gap-3">
             {preview.post_id ? (

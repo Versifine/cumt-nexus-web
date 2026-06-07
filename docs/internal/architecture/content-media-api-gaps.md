@@ -10,7 +10,7 @@
 - V2 前端已接入 `POST /api/v1/uploads/images`，并在发帖和评论写作器中形成可用上传体验。
 - 前端只提交后端返回的结构化 `attachment_id`、`embed_id` 或预览对象，不直接保存第三方 URL 作为附件。
 - 前端正文内图片使用 Markdown 引用 `![说明](nexus-attachment:<attachment_id>)`。该 marker 只负责在正文中表达位置；真正图片 URL、状态、尺寸和说明仍以后端返回的 `attachments` 为准。
-- 旧内容或用户未插入正文的已绑定附件由 `ContentBody` 作为正文后的兜底附件渲染，不再由帖子详情或评论树单独外挂图片画廊。
+- 旧内容或用户未插入正文的已绑定附件不再由 `ContentBody` 追加成正文外图集；发布态只渲染正文内 `nexus-attachment` marker 引用到的附件。
 - 帖子和评论图片均已接入；评论图片数量继续比帖子更克制。
 - 链接预览和播放器是两种能力：普通网页只做链接预览，Bilibili / 网易云音乐等只通过 provider 白名单 embed。
 - 任意 iframe、用户 HTML、`data:` 图片和浏览器端抓第三方网页元数据都禁止。
@@ -41,11 +41,13 @@ Access-Control-Request-Method: PATCH
 Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
 ```
 
-缺口：`Access-Control-Allow-Methods` 没有 `PATCH`。shell 直连 `PATCH /api/v1/posts/:id` 可以成功，浏览器保存失败，因此这是后端 CORS 配置缺口，不是前端写作器缺口。
+上述是旧证据。2026-06-08 复核后端当前远端 `main`，`internal/platform/httpserver/middleware.go` 已返回：
 
-已排除的前端绕法：`PUT` 虽然出现在 `Access-Control-Allow-Methods` 中，但当前后端 `PUT /api/v1/posts/:id` 和 `PUT /api/v1/comments/:id` 返回 `404`；同一条 smoke 数据用 `PATCH` 可以更新成功。因此前端不能把编辑接口改成 `PUT` 来绕过 CORS，必须由后端放行 `PATCH`。
+```text
+Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+```
 
-要求：后端 CORS allow methods 必须包含 `PATCH`，并覆盖帖子编辑、评论编辑、后续可能的局部更新接口。前端不得把浏览器编辑保存伪造成已完成，必须等后端放行后复验。
+结论：CORS 方法缺口已不再作为当前阻塞。前端仍必须用真实浏览器复验帖子编辑和评论编辑保存，因为 shell 直连成功不能覆盖浏览器预检、会话、TanStack Query 刷新和弹窗状态。
 
 ### 对象存储配置
 

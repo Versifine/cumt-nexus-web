@@ -24,6 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { MarkdownComposerField } from "@/features/content/markdown-composer-field";
+import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -89,6 +90,7 @@ export function CommentLifecycleControls({
 
   const isUpdating = updateMutation.isPending;
   const isDeleting = deleteMutation.isPending;
+  const deletePreview = getMarkdownPlainTextSummary(comment.body, "暂无内容。");
 
   async function handleUpdate(values: CommentLifecycleFormValues) {
     await updateMutation.mutateAsync(values);
@@ -221,7 +223,7 @@ export function CommentLifecycleControls({
                 将删除
               </div>
               <p className="mt-2 line-clamp-3 break-words text-sm leading-6">
-                {comment.body}
+                {deletePreview}
               </p>
             </div>
 

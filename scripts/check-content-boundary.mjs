@@ -82,6 +82,7 @@ checkLifecycleComposerDefaultMode();
 checkPublishedAttachmentRenderingBoundary();
 checkPublishedAttachmentNoFallbackGallery();
 checkComposerImageCopy();
+checkMarkdownSourceLeakage();
 
 for (const result of results) {
   console.log(`[${result.status.toUpperCase()}] ${result.name} - ${result.detail}`);
@@ -446,6 +447,17 @@ function checkComposerImageCopy() {
     return;
   }
 
+  if (
+    !composer.content.includes('imageUpload && mode === "edit"') ||
+    !composer.content.includes('boundAttachments && mode === "edit"')
+  ) {
+    addFail(
+      "composer preview editing controls",
+      "image insertion and attachment management controls must stay hidden until the editor tab is active",
+    );
+    return;
+  }
+
   if (!mediaAttachments.content.includes("正文图片")) {
     addFail(
       "composer image copy",
@@ -457,6 +469,72 @@ function checkComposerImageCopy() {
   addPass(
     "composer image copy",
     "image writing area uses 正文图片 wording instead of detached attachment wording",
+  );
+}
+
+function checkMarkdownSourceLeakage() {
+  const leaks = [];
+  const lifecycle = sourceFiles.find(
+    (file) => file.path === "src/features/comment/comment-lifecycle-controls.tsx",
+  );
+  const commentTree = sourceFiles.find(
+    (file) => file.path === "src/features/comment/comment-tree.tsx",
+  );
+  const moderationConsole = sourceFiles.find(
+    (file) => file.path === "src/features/moderation/moderation-console.tsx",
+  );
+
+  if (!lifecycle) {
+    leaks.push("src/features/comment/comment-lifecycle-controls.tsx is missing");
+  } else {
+    if (!lifecycle.content.includes("@/features/content/markdown-summary")) {
+      leaks.push("comment delete confirmation must import Markdown summary cleanup");
+    }
+
+    if (/line-clamp-3[\s\S]*?\{comment\.body\}/.test(lifecycle.content)) {
+      leaks.push("comment delete confirmation renders raw comment.body");
+    }
+  }
+
+  if (!commentTree) {
+    leaks.push("src/features/comment/comment-tree.tsx is missing");
+  } else {
+    if (!commentTree.content.includes("@/features/content/markdown-summary")) {
+      leaks.push("comment action target labels must import Markdown summary cleanup");
+    }
+
+    if (/targetLabel=\{comment\.body/.test(commentTree.content)) {
+      leaks.push("comment report/moderation target labels render raw comment.body");
+    }
+  }
+
+  if (!moderationConsole) {
+    leaks.push("src/features/moderation/moderation-console.tsx is missing");
+  } else {
+    if (!moderationConsole.content.includes("@/features/content/markdown-summary")) {
+      leaks.push("moderation target previews must import Markdown summary cleanup");
+    }
+
+    if (
+      /\{preview\?\.title\s*\|\|\s*preview\?\.body_excerpt\s*\|\|\s*report\.reason\}/.test(
+        moderationConsole.content,
+      ) ||
+      /\{preview\.body_excerpt\s*\|\|\s*["']暂无预览。["']\}/.test(
+        moderationConsole.content,
+      )
+    ) {
+      leaks.push("moderation target previews render raw body_excerpt");
+    }
+  }
+
+  if (leaks.length > 0) {
+    addFail("Markdown source leakage", leaks.join("; "));
+    return;
+  }
+
+  addPass(
+    "Markdown source leakage",
+    "destructive dialogs and moderation previews use cleaned Markdown summaries",
   );
 }
 

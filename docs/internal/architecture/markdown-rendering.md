@@ -31,7 +31,7 @@ Reddit-style Markdown parity
 - 链接只允许站内路径、锚点、`http`、`https` 和 `mailto`。
 - 写作器提供轻量预览，预览复用 `ContentBody`，阅读态仍负责最终渲染。
 - UI smoke 已验证发帖、根评论和子评论回复可以提交并在阅读态渲染 Markdown。
-- 编辑弹窗已接入同一写作器，但浏览器保存会被后端 CORS `PATCH` 预检挡住；后端放行 `PATCH` 后必须复验帖子编辑和评论编辑保存。
+- 编辑弹窗已接入同一写作器，后端当前远端 `main` 已放行 CORS `PATCH`；帖子编辑和评论编辑保存仍需要重新做真实浏览器复验。
 - 不使用 `dangerouslySetInnerHTML`。
 - 不存用户 HTML。
 - 不使用 `rehype-raw`。

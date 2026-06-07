@@ -327,7 +327,7 @@ export function MarkdownComposerField({
           </div>
         </TabsContent>
       </Tabs>
-      {imageUpload ? (
+      {imageUpload && mode === "edit" ? (
         <>
           {isUploadingInlineImage ? (
             <div className="border-l border-primary px-3 py-2 text-sm text-muted-foreground">
@@ -352,7 +352,7 @@ export function MarkdownComposerField({
           />
         </>
       ) : null}
-      {boundAttachments ? (
+      {boundAttachments && mode === "edit" ? (
         <InlineImageAttachmentReferences
           attachments={boundAttachments}
           disabled={disabled}

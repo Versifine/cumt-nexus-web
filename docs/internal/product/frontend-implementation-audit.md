@@ -18,7 +18,7 @@
 
 - App Shell、基础路由、顶部搜索、顶部通知入口、头像菜单、最近访问社区、个人主页基础壳已经落地。
 - 未登录公开读取在前端意图上已经打开，但仍依赖后端 optional Bearer / 公开读取合同保持一致。
-- 帖子和评论 Markdown / 图片一体化已补齐统一入口；发帖、评论、回复的 UI smoke 已通过。编辑保存仍依赖后端 CORS `PATCH` 放行，编辑时新增图片还依赖后端更新接口支持 `attachment_ids`。
+- 帖子和评论 Markdown / 图片一体化已补齐统一入口；发帖、评论、回复的 UI smoke 已通过。后端当前远端 `main` 已放行 CORS `PATCH`，编辑保存需要重新做真实浏览器复验；编辑时新增图片仍依赖后端更新接口支持 `attachment_ids`。
 - Feed 规划明显没有完整落地：当前只有 `new | hot`，没有 `best | top | rising`，也没有推荐 / 全站 / 关注 feed source 的独立前端架构。
 - 通知中心只是最低可用列表，不是规划里的 Bilibili 式分类通知中心。
 - 链接预览、Bilibili / 抖音 / 网易云 / QQ 音乐白名单 embed、评论投票、积分特效和个性化推荐都没有落地。
@@ -40,8 +40,8 @@
 | Feed source | 当前没有 `src/features/feed`；首页仍复用 `features/post` 的最新帖子接口。 | 明显未完成。 | 需要推荐 feed、全站 feed、关注 feed、社区 feed 的前后端合同。 |
 | 评论 sort | 帖子详情评论请求固定 `sort="new"`，没有评论 sort UI。 | 未完成。 | 若按 Reddit，需要评论区 `best | new | top` 等 query 合同和 UI。 |
 | Markdown 阅读态 | `ContentBody` 使用 `react-markdown` + `remark-gfm`，`skipHtml`，安全 URL，帖子和评论复用；本轮已验证帖子详情移动端长代码块不撑破页面，代码块内部横向滚动。 | 基础落地。 | 仍需 Reddit parity 用例审计，例如边界语法、移动端表格和评论深层场景。 |
-| Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，工具栏插入常用语法，覆盖行内代码和代码块，并提供复用 `ContentBody` 的轻量预览。浏览器已验证 UI 发帖、根评论、子评论提交和阅读态渲染。 | 基础落地。 | 编辑弹窗已接入写作器，但保存会被后端 CORS `PATCH` 预检挡住；编辑时新增图片需要后端 `PATCH` 接收并重绑 `attachment_ids`。 |
-| 图片与正文一体化 | 图片上传后插入 `![说明](nexus-attachment:<id>)`；阅读态只渲染正文内 marker 引用的 attachments，不再把未引用附件追加成底部外置图集；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；作者可在编辑器的已有图片列表中放回正文。需要后端继续保证 attachment 返回、缩略图、失败对象回收和 TTL。 |
+| Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，工具栏插入常用语法，覆盖行内代码和代码块，并提供复用 `ContentBody` 的轻量预览。浏览器已验证 UI 发帖、根评论、子评论提交和阅读态渲染；后端当前远端 `main` 已放行 CORS `PATCH`。 | 基础落地。 | 编辑保存需要重新做真实浏览器复验；编辑时新增图片需要后端 `PATCH` 接收并重绑 `attachment_ids`。 |
+| 图片与正文一体化 | 图片上传后插入 `![说明](nexus-attachment:<id>)`；阅读态只渲染正文内 marker 引用的 attachments，不再把未引用附件追加成底部外置图集；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；作者可在编辑器的已有图片列表中放回正文。编辑态新增图片仍需要后端更新接口接收 `attachment_ids`。 |
 | 普通外链 | Markdown 链接可渲染安全链接。 | 基础落地。 | 普通网页链接预览未实现，需要后端解析缓存。 |
 | 白名单 embed | Bilibili、抖音、网易云、QQ 音乐均未实现播放器嵌入。 | 未完成。 | 必须先做后端 provider 白名单和安全解析，前端不能伪造 iframe。 |
 | 评论树 | 评论树、回复、折叠和最大深度已有基础实现。 | 基础落地。 | 评论投票、特效、贴图和排序未实现。 |
@@ -52,8 +52,8 @@
 - UI 发布 smoke 帖子 `3777ac41-d402-4c57-986e-877d45dbdfe3`：提交后进入详情页，正文 Markdown 渲染出 heading、strong、emphasis、list、table、link 和 spoiler，不显示原始表格或 spoiler 语法。
 - 根评论提交：评论树从空态变成 `TREE / 1 条评论`，评论中的 strong、table 和 spoiler 正常渲染，提交后 textarea 清空。
 - 子评论回复：回复后评论树变成 `TREE / 2 条评论`，子评论深度为 1，spoiler 不露原始语法。
-- 帖子编辑弹窗：已显示统一工具栏和保留原始 Markdown 的正文 textarea，但浏览器保存失败。
-- 浏览器保存失败原因：shell 直连 `PATCH /api/v1/posts/:id` 成功；真实 `OPTIONS` 预检返回 `Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS`，没有 `PATCH`，所以浏览器 `PATCH` 会被 CORS 拦截。
+- 帖子编辑弹窗：已接入统一写作器，后续需要基于当前后端重新做真实浏览器保存复验。
+- 旧浏览器保存失败原因：当时 `OPTIONS` 预检没有返回 `PATCH`；2026-06-08 复核后端当前远端 `main`，`internal/platform/httpserver/middleware.go` 已返回 `GET, POST, PUT, PATCH, DELETE, OPTIONS`。
 
 ## 后端需要补或确认
 
@@ -67,14 +67,13 @@
 - 链接预览：普通网页解析、缓存、失败降级、图片安全策略。
 - 白名单 embed：Bilibili、抖音、网易云、QQ 音乐 provider 解析、权限和安全边界。
 - 图片后处理：缩略图 URL、对象物理删除、未绑定对象 TTL、失败对象回收。
-- CORS 方法放行：浏览器编辑帖子和评论需要后端 `OPTIONS` 预检返回允许 `PATCH`；当前只允许 `GET, POST, PUT, DELETE, OPTIONS`，导致前端编辑保存无法在浏览器完成。
-- 编辑绑定图片：`PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 当前请求体只接收标题 / 正文或正文；如果要让编辑态像发布态一样新增、删除或重绑正文图片，后端需要接收 `attachment_ids` 并按帖子 / 评论所有权重新绑定，响应继续返回最新 `attachments`。
+- 编辑绑定图片：2026-06-08 复核后端当前远端 `main`，`PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 请求体仍只接收标题 / 正文或正文；如果要让编辑态像发布态一样新增、删除或重绑正文图片，后端需要接收 `attachment_ids` 并按帖子 / 评论所有权重新绑定，响应继续返回最新 `attachments`。
 
 ## 下一步建议
 
 不要再按“规划是否完成”讨论。后续按体验切片推进：
 
-1. 先修后端 CORS `PATCH` 放行，再复验帖子编辑和评论编辑保存。
+1. 基于当前后端重新复验帖子编辑和评论编辑保存。
 2. 补后端编辑态 `attachment_ids` 合同，再让前端编辑弹窗开放新增图片入口。
 3. 做 Feed source + 五种 sort 切片：先核对后端，再扩路由和 UI。
 4. 做通知分类切片：先定义类型映射，再做 Bilibili 式分类页。
