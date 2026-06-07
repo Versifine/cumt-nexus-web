@@ -6,12 +6,17 @@
 
 - `docs/design/DESIGN.md`：视觉和交互方向。
 - `docs/internal/product/frontend-information-architecture.md`：前端信息架构、页面拓扑、URL、权限边界和后端目标合同蓝图。
+- `docs/internal/product/frontend-planning-completion.md`：前端规划收口证明。
 - `docs/internal/product/v2-roadmap.md`：V2 产品路线图和实施顺序。
 - `docs/internal/architecture/frontend-v1.md`：前端架构和模块边界。
 - `docs/internal/architecture/content-system.md`：内容系统讨论稿。
 - `docs/internal/engineering/launch-readiness.md`：上线前验收边界。
 
 本文记录到产品能力层级，不细化到文件、组件或接口实现细节。实现任何能力前仍要重新核对后端当前合同，并按 `AGENTS.md` 的小纵向切片推进。
+
+## 规划状态
+
+前端规划部分已收口，完成证明见 `docs/internal/product/frontend-planning-completion.md`。后续工作应进入实现、QA、后端合同补齐或上线收口；除非用户明确推翻已确认方向，不再重新讨论基础拓扑、权限边界、URL 规则或内容模型。
 
 ## 产品方向
 

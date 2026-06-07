@@ -8,6 +8,7 @@
 - 视觉方向：dark editorial product / magazine-grade campus community interface。
 - 界面语言：用户可见文案默认使用简体中文，品牌名、技术名、URL slug、API 字段和用户生成内容保留原文。
 - 当前分支：`stage/0-web-planning`。该分支名来自早期规划阶段，当前实际承载 V1 本地封版和 V2 本地产品化推进。
+- 前端规划部分已收口：页面拓扑、App Shell、权限边界、URL 规则、内容模型和后端需求完成证明见 `docs/internal/product/frontend-planning-completion.md`。
 - 当前目标：V2 后端能力全量前端接入已完成本地初版收口；生产 HTTPS 域名、正式 API origin 和生产 CORS 在没有域名前保持 deferred。
 - 最新 V2 本地验收（2026-06-03）：`npm run check:static`、`npm run check:docs`、`npm run check:routes`、严格 `npm run check:readiness`、严格 `npm run check:main-path` 和 `npm run check:v2-path` 通过；后端补齐后已复跑 `lint`、`typecheck`、严格 `check:main-path` 和 `check:v2-path`。
 - 当前 V2.1 推进（2026-06-03）：后端已补齐社区申请列表 / 详情和 `/api/v1/me.is_platform_staff`，前端已接入完整申请审核台和 staff 入口显隐；生产配置仍保持 deferred。
@@ -377,6 +378,7 @@ npm run check:readiness
 - `docs/prompts/frontend-review-template.md`：前端审查任务模板。
 - `docs/prompts/backend-content-media-target-template.md`：后端内容媒体能力目标模式提示词。
 - `docs/internal/product/frontend-information-architecture.md`：前端信息架构、页面拓扑、URL、权限边界和后端目标合同蓝图。
+- `docs/internal/product/frontend-planning-completion.md`：前端规划收口证明，确认规划已完成并区分实现待办和后端缺口。
 - `docs/internal/product/product-targets.md`：产品目标总表，记录已实现能力、前端后续增强、后端缺口和派工顺序。
 - `docs/internal/product/v2-roadmap.md`：V2 后端能力全量前端接入路线图。
 - `docs/internal/product/frontend-experience-rebuild.md`：从真实页面体验反馈出发的前端重修拆分方案。

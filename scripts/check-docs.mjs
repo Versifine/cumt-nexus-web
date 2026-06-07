@@ -19,6 +19,7 @@ const requiredRootDocs = [
   "docs/prompts/backend-content-media-target-template.md",
   "docs/internal/README.md",
   "docs/internal/product/frontend-information-architecture.md",
+  "docs/internal/product/frontend-planning-completion.md",
   "docs/internal/product/frontend-experience-rebuild.md",
   "docs/internal/product/product-targets.md",
   "docs/internal/product/v2-roadmap.md",
@@ -42,6 +43,7 @@ const readmeIndexedDocs = [
   "docs/prompts/frontend-review-template.md",
   "docs/prompts/backend-content-media-target-template.md",
   "docs/internal/product/frontend-information-architecture.md",
+  "docs/internal/product/frontend-planning-completion.md",
   "docs/internal/product/frontend-experience-rebuild.md",
   "docs/internal/product/product-targets.md",
   "docs/internal/product/v2-roadmap.md",
@@ -57,6 +59,7 @@ const readmeIndexedDocs = [
 
 const internalIndexedDocs = [
   "product/frontend-information-architecture.md",
+  "product/frontend-planning-completion.md",
   "product/frontend-experience-rebuild.md",
   "product/product-targets.md",
   "product/v2-roadmap.md",
