@@ -22,6 +22,9 @@ const {
   normalizeMarkdownHref,
 } = await importTypescriptModule("src/features/content/markdown-url.ts");
 const {
+  remarkRedditAutolink,
+} = await importTypescriptModule("src/features/content/reddit-autolink.ts");
+const {
   getMarkdownPlainTextSummary,
 } = await importTypescriptModule("src/features/content/markdown-summary.ts");
 const {
@@ -110,6 +113,7 @@ for (const testCase of spoilerCases) {
 
 checkAttachmentMarkdown();
 checkMarkdownUrl();
+checkRedditAutolink();
 checkMarkdownSummary();
 checkMarkdownInsert();
 checkMarkdownToolbarActions();
@@ -343,6 +347,67 @@ function checkMarkdownUrl() {
   );
 }
 
+function checkRedditAutolink() {
+  const tree = {
+    children: [
+      {
+        children: [{ type: "text", value: "看 r/public 和 u/alice。" }],
+        type: "paragraph",
+      },
+      {
+        children: [
+          {
+            children: [{ type: "text", value: "r/inside-link" }],
+            type: "link",
+            url: "/existing",
+          },
+        ],
+        type: "paragraph",
+      },
+      { type: "code", value: "r/code u/code" },
+      {
+        children: [
+          { type: "inlineCode", value: "u/inline-code" },
+          { type: "text", value: " https://example.com/r/path /u/not-a-ref wordu/nope" },
+        ],
+        type: "paragraph",
+      },
+    ],
+    type: "root",
+  };
+
+  remarkRedditAutolink()(tree);
+
+  expectEqual(
+    "reddit r/u references become site links",
+    tree.children[0].children.map(summarizeMarkdownNode),
+    [
+      "text:看 ",
+      "link:/communities/public:r/public",
+      "text: 和 ",
+      "link:/users/alice:u/alice",
+      "text:。",
+    ],
+  );
+
+  expectEqual(
+    "reddit autolink ignores existing links and code",
+    [
+      tree.children[1].children[0].children[0].value,
+      tree.children[2].value,
+      tree.children[3].children.map(summarizeMarkdownNode),
+    ],
+    [
+      "r/inside-link",
+      "r/code u/code",
+      [
+        "inlineCode:u/inline-code",
+        "text: https://example.com/r/path /u/not-a-ref wordu/nope",
+      ],
+    ],
+  );
+}
+
 function checkMarkdownSummary() {
   expectEqual(
     "markdown summary removes source markers and keeps readable text",
@@ -470,6 +535,18 @@ function checkMarkdownInsert() {
         "正文\n![一](nexus-attachment:img-1)\n![二](nexus-attachment:img-2)\n",
     },
   );
+}
+
+function summarizeMarkdownNode(node) {
+  if (node.type === "link") {
+    return `link:${node.url}:${node.children.map((child) => child.value ?? "").join("")}`;
+  }
+
+  return summarizeMarkdownNodeText(node);
+}
+
+function summarizeMarkdownNodeText(node) {
+  return `${node.type}:${node.value ?? ""}`;
 }
 
 function expectEqual(name, actual, expected) {

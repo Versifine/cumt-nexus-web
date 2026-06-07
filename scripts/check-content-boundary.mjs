@@ -84,6 +84,7 @@ checkSourceRoot();
 checkBlockedSourcePatterns();
 checkBlockedDirectDependencies();
 checkContentEntryPoint();
+checkRedditAutolinkBoundary();
 checkMarkdownComposerEntryPoint();
 checkMarkdownToolbarTools();
 checkLifecycleComposerDefaultMode();
@@ -196,6 +197,55 @@ function checkContentEntryPoint() {
   addPass(
     "ContentBody consumers",
     `${requiredContentEntryConsumers.length} approved consumer(s) use the shared content renderer`,
+  );
+}
+
+function checkRedditAutolinkBoundary() {
+  const contentBody = sourceFiles.find(
+    (file) => file.path === "src/features/content/content-body.tsx",
+  );
+  const autolink = sourceFiles.find(
+    (file) => file.path === "src/features/content/reddit-autolink.ts",
+  );
+  const problems = [];
+
+  if (!contentBody) {
+    problems.push("src/features/content/content-body.tsx is missing");
+  } else {
+    if (!contentBody.content.includes("@/features/content/reddit-autolink")) {
+      problems.push("ContentBody must import the Reddit-style autolink plugin");
+    }
+
+    if (!contentBody.content.includes("remarkPlugins={[remarkGfm, remarkRedditAutolink]}")) {
+      problems.push("ContentBody must run Reddit-style autolink through the shared Markdown renderer");
+    }
+  }
+
+  if (!autolink) {
+    problems.push("src/features/content/reddit-autolink.ts is missing");
+  } else {
+    if (
+      !autolink.content.includes("/communities/${encodeURIComponent(name)}") ||
+      !autolink.content.includes("/users/${encodeURIComponent(name)}")
+    ) {
+      problems.push("Reddit-style autolink must map r/* and u/* to site routes");
+    }
+
+    for (const skippedType of ["code", "inlineCode", "link", "image"]) {
+      if (!autolink.content.includes(`"${skippedType}"`)) {
+        problems.push(`Reddit-style autolink must skip ${skippedType} nodes`);
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    addFail("Reddit-style autolink boundary", problems.join("; "));
+    return;
+  }
+
+  addPass(
+    "Reddit-style autolink boundary",
+    "ContentBody maps r/community and u/user references without touching code, links or images",
   );
 }
 

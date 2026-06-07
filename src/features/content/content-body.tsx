@@ -12,6 +12,7 @@ import {
   getRedditToken,
   transformRedditMarkdown,
 } from "@/features/content/reddit-markdown";
+import { remarkRedditAutolink } from "@/features/content/reddit-autolink";
 import {
   isExternalMarkdownHref,
   normalizeMarkdownHref,
@@ -53,7 +54,7 @@ export function ContentBody({
     >
       <ReactMarkdown
         components={components}
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkRedditAutolink]}
         skipHtml
         urlTransform={normalizeMarkdownHref}
       >

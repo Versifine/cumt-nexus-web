@@ -28,6 +28,7 @@ Reddit-style Markdown parity
 - 支持 GFM 表格、任务列表、删除线、代码块、引用、列表、标题和链接。
 - 支持 `>! ... !<` spoiler / 涂黑语法。
 - 支持 Reddit-style 上标预处理。
+- 支持 `r/community` 和 `u/user` 自动链接到本项目社区与用户路由。
 - 链接只允许站内路径、锚点、`http`、`https` 和 `mailto`。
 - 写作器提供轻量预览，预览复用 `ContentBody`，阅读态仍负责最终渲染。
 - UI smoke 已验证发帖、根评论、子评论回复、帖子编辑保存和评论编辑保存可以提交并在阅读态渲染 Markdown。
@@ -41,7 +42,6 @@ Reddit-style Markdown parity
 未实现：
 
 - 与 Reddit 细节完全一致的 Markdown 兼容性审查。
-- `r/community` 和 `u/user` 自动链接。
 - 引用式链接的产品化验证。
 - 白名单 embed。
 
@@ -93,7 +93,6 @@ remark-gfm
 后续可选评估：
 
 - 是否需要引入 `rehype-sanitize` 作为额外 AST 白名单防线。
-- `r/community` 和 `u/user` 自动链接是否要映射到本项目路由。
 - Reddit 引用式链接、转义、列表边界等细节是否需要更接近 Reddit。
 - 表格移动端是否需要更强的视觉处理。
 
