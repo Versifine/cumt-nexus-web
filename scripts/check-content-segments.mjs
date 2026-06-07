@@ -16,6 +16,7 @@ const {
   getReferencedAttachmentIdsForSubmit,
   isAttachmentMarkdownUrl,
   removeAttachmentMarkdownReferences,
+  removeAttachmentMarkdownReferencesWithSelection,
 } = await importTypescriptModule("src/features/content/attachment-markdown.ts");
 const {
   isExternalMarkdownHref,
@@ -274,6 +275,53 @@ function checkAttachmentMarkdown() {
       "\\![转义图片](nexus-attachment:img-1)",
       "后文",
     ].join("\n"),
+  );
+
+  const moveSource = "前文\n![内容](nexus-attachment:img-1)\n中间正文";
+  const moveTargetSelection = moveSource.indexOf("正文");
+  const movedReferenceResult = removeAttachmentMarkdownReferencesWithSelection(
+    moveSource,
+    "img-1",
+    {
+      end: moveTargetSelection,
+      start: moveTargetSelection,
+    },
+  );
+  const movedReferenceMarkdown = "前文\n中间正文";
+  const movedReferenceSelection = movedReferenceMarkdown.indexOf("正文");
+
+  expectEqual(
+    "moving an attachment reference keeps cursor at the same writing position",
+    movedReferenceResult,
+    {
+      markdown: movedReferenceMarkdown,
+      selection: {
+        end: movedReferenceSelection,
+        start: movedReferenceSelection,
+      },
+    },
+  );
+
+  const insideReferenceSource = "前文\n![内容](nexus-attachment:img-1)\n后文";
+  const insideReferenceSelection = insideReferenceSource.indexOf("nexus");
+
+  expectEqual(
+    "moving an attachment reference maps a cursor inside the old marker to its removed position",
+    removeAttachmentMarkdownReferencesWithSelection(
+      insideReferenceSource,
+      "img-1",
+      {
+        end: insideReferenceSelection,
+        start: insideReferenceSelection,
+      },
+    ),
+    {
+      markdown: "前文\n后文",
+      selection: {
+        end: "前文\n".length,
+        start: "前文\n".length,
+      },
+    },
   );
 }
 

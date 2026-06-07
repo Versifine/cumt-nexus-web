@@ -77,21 +77,28 @@ export function getReferencedAttachmentIdsForSubmit(
 }
 
 export function removeAttachmentMarkdownReferences(markdown: string, id: string) {
-  const encodedId = encodeAttachmentIdForMarkdown(id);
-  const imagePattern = new RegExp(
-    `!\\[(?:\\\\.|[^\\]\\\\])*\\]\\(\\s*${escapeRegExp(
-      ATTACHMENT_MARKDOWN_URL_PREFIX,
-    )}${escapeRegExp(encodedId)}(?:\\s+(?:"[^"]*"|'[^']*'|[^\\s)]+))?\\s*\\)\\r?\\n?`,
-    "g",
-  );
-
-  return replaceMarkdownOutsideCodeSegments(markdown, (segment) =>
-    segment.replace(imagePattern, (matched, offset: number) =>
-      isEscapedMarkdownToken(segment, offset) ? matched : "",
-    ),
+  return removeMarkdownRanges(
+    markdown,
+    getAttachmentMarkdownReferenceRanges(markdown, id),
   )
     .replace(/\n{3,}/g, "\n\n")
     .trimEnd();
+}
+
+export function removeAttachmentMarkdownReferencesWithSelection(
+  markdown: string,
+  id: string,
+  selection: { end: number; start: number },
+) {
+  const ranges = getAttachmentMarkdownReferenceRanges(markdown, id);
+
+  return {
+    markdown: removeMarkdownRanges(markdown, ranges),
+    selection: {
+      end: mapRemovedMarkdownOffset(selection.end, ranges),
+      start: mapRemovedMarkdownOffset(selection.start, ranges),
+    },
+  };
 }
 
 function stripMarkdownCodeSegments(markdown: string) {
@@ -123,71 +130,119 @@ function stripMarkdownCodeSegments(markdown: string) {
   return withoutFencedCode.replace(/`[^`\n]*`/g, "");
 }
 
-function replaceMarkdownOutsideCodeSegments(
-  markdown: string,
-  replaceSegment: (segment: string) => string,
-) {
+function getAttachmentMarkdownReferenceRanges(markdown: string, id: string) {
+  const encodedId = encodeAttachmentIdForMarkdown(id);
+  const imagePattern = new RegExp(
+    `!\\[(?:\\\\.|[^\\]\\\\])*\\]\\(\\s*${escapeRegExp(
+      ATTACHMENT_MARKDOWN_URL_PREFIX,
+    )}${escapeRegExp(encodedId)}(?:\\s+(?:"[^"]*"|'[^']*'|[^\\s)]+))?\\s*\\)\\r?\\n?`,
+    "g",
+  );
   const lines = markdown.split(/\r?\n/);
   let fenceMarker: "`" | "~" | null = null;
-  const replacedLines: string[] = [];
+  const ranges: Array<{ end: number; start: number }> = [];
+  let offset = 0;
 
   for (const line of lines) {
     const fenceMatch = line.trimStart().match(/^(`{3,}|~{3,})/);
+    const lineEndLength = getLineEndLength(markdown, offset + line.length);
 
     if (fenceMatch) {
       const marker = fenceMatch[1].startsWith("`") ? "`" : "~";
 
       if (!fenceMarker) {
         fenceMarker = marker;
-        replacedLines.push(line);
+        offset += line.length + lineEndLength;
         continue;
       }
 
       if (fenceMarker === marker) {
         fenceMarker = null;
-        replacedLines.push(line);
+        offset += line.length + lineEndLength;
         continue;
       }
     }
 
     if (fenceMarker) {
-      replacedLines.push(line);
+      offset += line.length + lineEndLength;
       continue;
     }
 
-    const replacedLine = replaceLineOutsideInlineCode(line, replaceSegment);
+    const searchableLine = markdown.slice(offset, offset + line.length + lineEndLength);
 
-    if (replacedLine !== null) {
-      replacedLines.push(replacedLine);
+    for (const match of searchableLine.matchAll(imagePattern)) {
+      const matchIndex = match.index ?? 0;
+
+      if (
+        isEscapedMarkdownToken(searchableLine, matchIndex) ||
+        isInsideInlineCode(searchableLine, matchIndex)
+      ) {
+        continue;
+      }
+
+      ranges.push({
+        end: offset + matchIndex + match[0].length,
+        start: offset + matchIndex,
+      });
+    }
+
+    offset += line.length + lineEndLength;
+  }
+
+  return ranges;
+}
+
+function removeMarkdownRanges(
+  markdown: string,
+  ranges: Array<{ end: number; start: number }>,
+) {
+  let nextMarkdown = markdown;
+
+  for (const range of [...ranges].reverse()) {
+    nextMarkdown = `${nextMarkdown.slice(0, range.start)}${nextMarkdown.slice(
+      range.end,
+    )}`;
+  }
+
+  return nextMarkdown;
+}
+
+function mapRemovedMarkdownOffset(
+  offset: number,
+  ranges: Array<{ end: number; start: number }>,
+) {
+  let nextOffset = offset;
+
+  for (const range of ranges) {
+    if (offset <= range.start) {
+      break;
+    }
+
+    nextOffset -= Math.min(offset, range.end) - range.start;
+  }
+
+  return Math.max(0, nextOffset);
+}
+
+function getLineEndLength(markdown: string, index: number) {
+  if (markdown[index] === "\r" && markdown[index + 1] === "\n") {
+    return 2;
+  }
+
+  return markdown[index] === "\n" ? 1 : 0;
+}
+
+function isInsideInlineCode(markdown: string, index: number) {
+  for (const match of markdown.matchAll(/`[^`\n]*`/g)) {
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+
+    if (index > start && index < end) {
+      return true;
     }
   }
 
-  return replacedLines.join("\n");
-}
-
-function replaceLineOutsideInlineCode(
-  line: string,
-  replaceSegment: (segment: string) => string,
-) {
-  let changed = false;
-  const replacedLine = line
-    .split(/(`[^`\n]*`)/g)
-    .map((segment) => {
-      if (segment.startsWith("`") && segment.endsWith("`")) {
-        return segment;
-      }
-
-      const nextSegment = replaceSegment(segment);
-      changed ||= nextSegment !== segment;
-      return nextSegment;
-    })
-    .join("");
-
-  if (changed && replacedLine.trim() === "") {
-    return null;
-  }
-
-  return replacedLine;
+  return false;
 }
 
 function isEscapedMarkdownToken(markdown: string, index: number) {

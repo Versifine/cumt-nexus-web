@@ -101,12 +101,12 @@ export function InlineImageAttachmentManager({
               <button
                 type="button"
                 className="inline-flex h-9 shrink-0 items-center gap-1.5 border border-border px-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={disabled || inserted || !canInsert}
+                disabled={disabled || !canInsert}
                 onClick={() => onInsertAttachment(attachment)}
                 title={!inserted && !canInsert ? "正文图片数量已达到上限" : undefined}
               >
                 <CornerDownLeft className="size-3.5" aria-hidden="true" />
-                放到光标处
+                {inserted ? "移动到光标处" : "放到光标处"}
               </button>
               <button
                 type="button"
@@ -187,12 +187,12 @@ export function InlineImageAttachmentReferences({
             <button
               type="button"
               className="inline-flex h-9 shrink-0 items-center gap-1.5 border border-border px-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={disabled || inserted || !canInsert}
+              disabled={disabled || !canInsert}
               onClick={() => onInsertAttachment(attachment)}
               title={!inserted && !canInsert ? "正文图片数量已达到上限" : undefined}
             >
               <CornerDownLeft className="size-3.5" aria-hidden="true" />
-              放到光标处
+              {inserted ? "移动到光标处" : "放到光标处"}
             </button>
           </div>
         );

@@ -920,10 +920,11 @@ function checkComposerReferencedImageLimit() {
     if (
       !mediaAttachments.content.includes("canInsertAttachment?:") ||
       !mediaAttachments.content.includes("已达上限") ||
-      !mediaAttachments.content.includes("disabled={disabled || inserted || !canInsert}")
+      !mediaAttachments.content.includes("移动到光标处") ||
+      !mediaAttachments.content.includes("disabled={disabled || !canInsert}")
     ) {
       problems.push(
-        "inline image controls must disable insert actions when the composer reference limit is reached",
+        "inline image controls must allow inserted images to move while disabling actions when the composer reference limit is reached",
       );
     }
   }

@@ -13,13 +13,11 @@ import {
   getReferencedAttachmentIds,
   getReferencedAttachmentIdsForSubmit,
   removeAttachmentMarkdownReferences,
+  removeAttachmentMarkdownReferencesWithSelection,
 } from "@/features/content/attachment-markdown";
 import { ContentBody } from "@/features/content/content-body";
 import { applyMarkdownInsert } from "@/features/content/markdown-insert";
-import {
-  insertMarkdownAtCursor,
-  MarkdownToolbar,
-} from "@/features/content/markdown-toolbar";
+import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
 import {
   InlineImageAttachmentManager,
   InlineImageAttachmentReferences,
@@ -104,16 +102,35 @@ export function MarkdownComposerField({
       return;
     }
 
-    setImageUploadError(null);
-    return insertMarkdownAtCursor({
+    const currentValue = bodyTextareaRef.current?.value ?? value;
+    const currentSelection = {
+      end: bodyTextareaRef.current?.selectionEnd ?? currentValue.length,
+      start: bodyTextareaRef.current?.selectionStart ?? currentValue.length,
+    };
+    const nextBodyState = referencedAttachmentIds.has(attachment.id)
+      ? removeAttachmentMarkdownReferencesWithSelection(
+          currentValue,
+          attachment.id,
+          currentSelection,
+        )
+      : {
+          markdown: currentValue,
+          selection: currentSelection,
+        };
+    const result = applyMarkdownInsert({
+      end: nextBodyState.selection.end,
       insert: {
         block: true,
         text: createAttachmentMarkdown(attachment),
       },
-      onChange: setBodyValue,
-      textarea: bodyTextareaRef.current,
-      value: bodyTextareaRef.current?.value ?? value,
+      start: nextBodyState.selection.start,
+      value: nextBodyState.markdown,
     });
+
+    setImageUploadError(null);
+    setBodyValue(result.value);
+    focusTextareaSelection(result.selection.start, result.selection.end);
+    return result;
   }
 
   function removeAttachmentMarkdown(attachment: MediaAttachment) {
