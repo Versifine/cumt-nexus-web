@@ -1,6 +1,6 @@
 "use client";
 
-import type { ClipboardEvent, ComponentProps } from "react";
+import type { ClipboardEvent, ComponentProps, DragEvent } from "react";
 import { useMemo, useRef, useState } from "react";
 import { ImagePlus } from "lucide-react";
 
@@ -185,6 +185,33 @@ export function MarkdownComposerField({
     await handleInlineImagePaste(event, "end");
   }
 
+  function handleComposerDragOver(event: DragEvent<HTMLDivElement>) {
+    if (!hasImageFileData(event.dataTransfer)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect =
+      imageUpload && !disabled && !textareaProps.disabled ? "copy" : "none";
+  }
+
+  async function handleComposerDrop(event: DragEvent<HTMLDivElement>) {
+    const imageFiles = getImageFilesFromDataTransfer(event.dataTransfer);
+
+    if (imageFiles.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (!imageUpload || disabled || textareaProps.disabled) {
+      return;
+    }
+
+    setMode("edit");
+    await uploadInlineImageFiles(imageFiles, { insertion: "end" });
+  }
+
   async function handleInlineImagePaste(
     event: ClipboardEvent<Element>,
     insertion: InlineImageInsertion,
@@ -193,7 +220,7 @@ export function MarkdownComposerField({
       return;
     }
 
-    const imageFiles = getImageFilesFromClipboard(event.clipboardData);
+    const imageFiles = getImageFilesFromDataTransfer(event.clipboardData);
 
     if (imageFiles.length === 0) {
       return;
@@ -415,7 +442,12 @@ export function MarkdownComposerField({
   }
 
   return (
-    <div className={cn("space-y-2", className)} onPaste={handleComposerPaste}>
+    <div
+      className={cn("space-y-2", className)}
+      onDragOver={handleComposerDragOver}
+      onDrop={handleComposerDrop}
+      onPaste={handleComposerPaste}
+    >
       <Tabs
         className="gap-2"
         value={mode}
@@ -534,17 +566,26 @@ function dedupeAttachments(attachments: MediaAttachment[]) {
   return [...attachmentById.values()];
 }
 
-function getImageFilesFromClipboard(clipboardData: DataTransfer) {
-  const files = Array.from(clipboardData.files).filter(isImageFile);
+function getImageFilesFromDataTransfer(dataTransfer: DataTransfer) {
+  const files = Array.from(dataTransfer.files).filter(isImageFile);
 
   if (files.length > 0) {
     return files;
   }
 
-  return Array.from(clipboardData.items)
+  return Array.from(dataTransfer.items)
     .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
     .map((item) => item.getAsFile())
     .filter(isImageFile);
+}
+
+function hasImageFileData(dataTransfer: DataTransfer) {
+  return (
+    Array.from(dataTransfer.files).some(isImageFile) ||
+    Array.from(dataTransfer.items).some(
+      (item) => item.kind === "file" && item.type.startsWith("image/"),
+    )
+  );
 }
 
 function getPastedImageAltText(file: File) {
