@@ -181,6 +181,22 @@ function checkAttachmentMarkdown() {
   );
 
   expectEqual(
+    "attachment references ignore raw markers, links and code",
+    [...getReferencedAttachmentIds(
+      [
+        "正文 nexus-attachment:raw-id",
+        "[普通链接](nexus-attachment:link-id)",
+        "`![代码图片](nexus-attachment:inline-code-id)`",
+        "```",
+        "![代码块图片](nexus-attachment:fenced-code-id)",
+        "```",
+        "![正文图片](nexus-attachment:visible-id)",
+      ].join("\n"),
+    )],
+    ["visible-id"],
+  );
+
+  expectEqual(
     "submit attachment ids follow markdown order and ignore unuploaded ids",
     getReferencedAttachmentIdsForSubmit(
       "正文\n![二](nexus-attachment:img-2)\n![外来](nexus-attachment:manual-id)\n![一](nexus-attachment:img-1)",

@@ -42,15 +42,16 @@ export function isAttachmentMarkdownUrl(value?: string | null) {
 
 export function getReferencedAttachmentIds(markdown: string) {
   const ids = new Set<string>();
-  const pattern = new RegExp(
-    `${escapeRegExp(ATTACHMENT_MARKDOWN_URL_PREFIX)}([^\\s)]+)`,
+  const imagePattern = new RegExp(
+    `!\\[(?:\\\\.|[^\\]\\\\])*\\]\\(\\s*(${escapeRegExp(
+      ATTACHMENT_MARKDOWN_URL_PREFIX,
+    )}[^\\s)]+)(?:\\s+(?:"[^"]*"|'[^']*'|[^\\s)]+))?\\s*\\)`,
     "g",
   );
+  const scannableMarkdown = stripMarkdownCodeSegments(markdown);
 
-  for (const match of markdown.matchAll(pattern)) {
-    const id = getAttachmentIdFromMarkdownUrl(
-      `${ATTACHMENT_MARKDOWN_URL_PREFIX}${match[1]}`,
-    );
+  for (const match of scannableMarkdown.matchAll(imagePattern)) {
+    const id = getAttachmentIdFromMarkdownUrl(match[1]);
 
     if (id) {
       ids.add(id);
@@ -81,6 +82,35 @@ export function removeAttachmentMarkdownReferences(markdown: string, id: string)
   );
 
   return markdown.replace(imagePattern, "").replace(/\n{3,}/g, "\n\n").trimEnd();
+}
+
+function stripMarkdownCodeSegments(markdown: string) {
+  const lines = markdown.split(/\r?\n/);
+  let fenceMarker: "`" | "~" | null = null;
+
+  const withoutFencedCode = lines
+    .map((line) => {
+      const fenceMatch = line.trimStart().match(/^(`{3,}|~{3,})/);
+
+      if (fenceMatch) {
+        const marker = fenceMatch[1].startsWith("`") ? "`" : "~";
+
+        if (!fenceMarker) {
+          fenceMarker = marker;
+          return "";
+        }
+
+        if (fenceMarker === marker) {
+          fenceMarker = null;
+          return "";
+        }
+      }
+
+      return fenceMarker ? "" : line;
+    })
+    .join("\n");
+
+  return withoutFencedCode.replace(/`[^`\n]*`/g, "");
 }
 
 function escapeMarkdownAltText(value: string) {
