@@ -186,6 +186,10 @@ export function MarkdownComposerField({
   }
 
   function handleComposerDragOver(event: DragEvent<HTMLDivElement>) {
+    if (isTextareaElement(event.target)) {
+      return;
+    }
+
     if (!hasImageFileData(event.dataTransfer)) {
       return;
     }
@@ -196,6 +200,10 @@ export function MarkdownComposerField({
   }
 
   async function handleComposerDrop(event: DragEvent<HTMLDivElement>) {
+    if (isTextareaElement(event.target)) {
+      return;
+    }
+
     const imageFiles = getImageFilesFromDataTransfer(event.dataTransfer);
 
     if (imageFiles.length === 0) {
@@ -210,6 +218,32 @@ export function MarkdownComposerField({
 
     setMode("edit");
     await uploadInlineImageFiles(imageFiles, { insertion: "end" });
+  }
+
+  function handleTextareaDragOver(event: DragEvent<HTMLTextAreaElement>) {
+    if (!hasImageFileData(event.dataTransfer)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect =
+      imageUpload && !disabled && !textareaProps.disabled ? "copy" : "none";
+  }
+
+  async function handleTextareaDrop(event: DragEvent<HTMLTextAreaElement>) {
+    const imageFiles = getImageFilesFromDataTransfer(event.dataTransfer);
+
+    if (imageFiles.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (!imageUpload || disabled || textareaProps.disabled) {
+      return;
+    }
+
+    await uploadInlineImageFiles(imageFiles, { insertion: "cursor" });
   }
 
   async function handleInlineImagePaste(
@@ -481,6 +515,8 @@ export function MarkdownComposerField({
           <Textarea
             {...textareaProps}
             disabled={disabled || textareaProps.disabled}
+            onDragOver={handleTextareaDragOver}
+            onDrop={handleTextareaDrop}
             onPaste={handleTextareaPaste}
             ref={bindTextareaRef}
             value={value}

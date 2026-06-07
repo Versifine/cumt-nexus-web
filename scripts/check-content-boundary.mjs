@@ -660,8 +660,12 @@ function checkComposerImageCopy() {
     !composer.content.includes("onPaste={handleComposerPaste}") ||
     !composer.content.includes("onDrop={handleComposerDrop}") ||
     !composer.content.includes("onDragOver={handleComposerDragOver}") ||
+    !composer.content.includes("onDrop={handleTextareaDrop}") ||
+    !composer.content.includes("onDragOver={handleTextareaDragOver}") ||
     !composer.content.includes("getImageFilesFromDataTransfer") ||
     !composer.content.includes("hasImageFileData") ||
+    !composer.content.includes('await uploadInlineImageFiles(imageFiles, { insertion: "cursor" })') ||
+    !composer.content.includes('await uploadInlineImageFiles(imageFiles, { insertion: "end" })') ||
     !composer.content.includes("event.clipboardData") ||
     !composer.content.includes("event.dataTransfer") ||
     !composer.content.includes("applyMarkdownInsert") ||
