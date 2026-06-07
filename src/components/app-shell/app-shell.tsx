@@ -381,21 +381,12 @@ function HeaderUserMenu() {
             个人主页
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/notifications">
-            <Bell className="size-4" aria-hidden="true" />
-            通知
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/communities">
-            <Hash className="size-4" aria-hidden="true" />
-            社区
-          </Link>
-        </DropdownMenuItem>
         {user.is_platform_staff ? (
           <>
             <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+              平台工作台
+            </DropdownMenuLabel>
             <DropdownMenuItem asChild>
               <Link href="/moderation">
                 <ShieldAlert className="size-4" aria-hidden="true" />

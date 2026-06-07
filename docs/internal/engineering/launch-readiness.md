@@ -185,6 +185,12 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 最新浏览器 QA 记录
 
+2026-06-07 App Shell 头像菜单入口复验记录：
+
+- 自动检查已复验：`npm run lint`、`npm run typecheck` 和 `npm run check:actions` 均通过；完整 `check:static` 见本轮最终验证。
+- 真实登录态浏览器复验 `/` 桌面和 `390px` 移动端：顶部通知图标仍指向 `/notifications`，头像菜单不再重复展示“通知”或“社区”。
+- 真实登录态浏览器复验普通用户头像菜单：菜单只显示账号信息、个人主页和退出登录；普通用户不显示举报审核或社区审批；`scrollWidth` 等于 `clientWidth`，控制台无 error。
+
 2026-06-07 用户公开帖子/评论短 ID 展示复验记录：
 
 - 自动检查已复验：`npm run lint`、`npm run typecheck` 和 `npm run check:api-boundary` 均通过；完整 `check:static` 见本轮最终验证。
