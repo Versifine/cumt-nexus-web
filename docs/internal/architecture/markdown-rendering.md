@@ -22,7 +22,7 @@ Reddit-style Markdown parity
 已实现：
 
 - 发帖、根评论、回复评论、帖子编辑和评论编辑使用单一写作面板。
-- 写作器提供加粗、斜体、标题、删除线、引用、无序列表、有序列表、代码、链接、涂黑和表格工具动作。
+- 写作器提供加粗、斜体、标题、删除线、引用、无序列表、有序列表、行内代码、代码块、链接、涂黑和表格工具动作。
 - 帖子正文和评论正文通过 `src/features/content/content-body.tsx` 渲染。
 - 当前渲染器使用 `react-markdown` + `remark-gfm`。
 - 支持 GFM 表格、任务列表、删除线、代码块、引用、列表、标题和链接。
@@ -35,7 +35,7 @@ Reddit-style Markdown parity
 - 不使用 `dangerouslySetInnerHTML`。
 - 不存用户 HTML。
 - 不使用 `rehype-raw`。
-- `npm run check:content-boundary` 已经固化当前安全边界：帖子详情和评论树必须复用 `ContentBody`，源码中不得出现 `dangerouslySetInnerHTML`、原始 HTML 写入、`rehype-raw` 或未批准 iframe/srcDoc。
+- `npm run check:content-boundary` 已经固化当前安全边界：帖子详情和评论树必须复用 `ContentBody`，写作器预览必须复用 `ContentBody`，工具栏必须保留当前核心动作，源码中不得出现 `dangerouslySetInnerHTML`、原始 HTML 写入、`rehype-raw` 或未批准 iframe/srcDoc。
 - `npm run check:content-segments` 已经固化当前 spoiler / 涂黑解析边界：普通文本、多段涂黑、未闭合涂黑、空涂黑和多行涂黑必须保持稳定。
 
 未实现：

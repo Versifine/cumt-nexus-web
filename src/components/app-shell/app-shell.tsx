@@ -121,7 +121,7 @@ export function AppShell({ children, className, contextLabel }: AppShellProps) {
           </header>
 
           <div className="min-w-0 flex-1">
-            <div className={cn("mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6", className)}>
+            <div className={cn("mx-auto box-border min-w-0 w-full max-w-full px-4 py-6 md:max-w-[1180px] md:px-6", className)}>
               {children}
             </div>
           </div>

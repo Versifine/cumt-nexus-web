@@ -75,7 +75,7 @@ export function PostDetail({
     currentUserId === post?.author_id;
 
   return (
-    <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="min-w-0">
         <PostBackLink post={post} source={navigationSource} />
 

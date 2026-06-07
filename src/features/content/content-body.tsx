@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { cloneElement, isValidElement, useMemo, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -200,9 +200,18 @@ function createMarkdownComponents(
       return <p className="my-3 whitespace-pre-wrap leading-7 first:mt-0 last:mb-0">{children}</p>;
     },
     pre({ children }) {
+      const codeBlock = isValidElement<{ className?: string }>(children)
+        ? cloneElement(children, {
+            className: cn(
+              children.props.className,
+              "block border-0 bg-transparent px-0 py-0 text-sm leading-6",
+            ),
+          })
+        : children;
+
       return (
-        <pre className="my-4 overflow-x-auto border border-border bg-background-soft p-3 text-sm leading-6">
-          {children}
+        <pre className="my-4 min-w-0 max-w-full overflow-x-auto border border-border bg-background-soft p-3 font-mono text-sm leading-6">
+          {codeBlock}
         </pre>
       );
     },

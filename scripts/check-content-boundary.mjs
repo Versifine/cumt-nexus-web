@@ -29,6 +29,21 @@ const requiredComposerConsumers = [
   "src/features/comment/comment-lifecycle-controls.tsx",
 ];
 
+const requiredToolbarLabels = [
+  "加粗",
+  "斜体",
+  "标题",
+  "删除线",
+  "引用",
+  "无序列表",
+  "有序列表",
+  "代码",
+  "代码块",
+  "链接",
+  "涂黑",
+  "表格",
+];
+
 const blockedPatterns = [
   {
     detail: "user content must be rendered as React nodes, not injected HTML",
@@ -62,6 +77,7 @@ checkBlockedSourcePatterns();
 checkBlockedDirectDependencies();
 checkContentEntryPoint();
 checkMarkdownComposerEntryPoint();
+checkMarkdownToolbarTools();
 checkPublishedAttachmentRenderingBoundary();
 
 for (const result of results) {
@@ -220,6 +236,31 @@ function checkMarkdownComposerEntryPoint() {
   addPass(
     "MarkdownComposerField consumers",
     `${requiredComposerConsumers.length} writing surface(s) use the shared Markdown composer`,
+  );
+}
+
+function checkMarkdownToolbarTools() {
+  const toolbar = sourceFiles.find(
+    (file) => file.path === "src/features/content/markdown-toolbar.tsx",
+  );
+
+  if (!toolbar) {
+    addFail("MarkdownToolbar entry", "src/features/content/markdown-toolbar.tsx is missing");
+    return;
+  }
+
+  const missingLabels = requiredToolbarLabels.filter(
+    (label) => !toolbar.content.includes(`label: "${label}"`),
+  );
+
+  if (missingLabels.length > 0) {
+    addFail("MarkdownToolbar tools", `missing tool label(s): ${missingLabels.join(", ")}`);
+    return;
+  }
+
+  addPass(
+    "MarkdownToolbar tools",
+    `${requiredToolbarLabels.length} Markdown tool action(s) are declared`,
   );
 }
 

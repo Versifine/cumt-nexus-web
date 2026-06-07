@@ -4,6 +4,7 @@ import type { ReactNode, RefObject } from "react";
 import {
   Bold,
   Code,
+  CodeXml,
   EyeOff,
   Heading2,
   Italic,
@@ -84,6 +85,11 @@ const tools: MarkdownTool[] = [
     apply: (selectedText) => wrapSelection(selectedText, "`", "代码"),
     icon: <Code aria-hidden="true" />,
     label: "代码",
+  },
+  {
+    apply: (selectedText) => fencedCodeBlockSelection(selectedText),
+    icon: <CodeXml aria-hidden="true" />,
+    label: "代码块",
   },
   {
     apply: (selectedText) => {
@@ -204,6 +210,21 @@ function orderedListSelection(selectedText: string) {
       .split(/\r?\n/)
       .map((line, index) => `${index + 1}. ${line}`)
       .join("\n"),
+  };
+}
+
+function fencedCodeBlockSelection(selectedText: string): MarkdownInsert {
+  const code = selectedText || "代码内容";
+  const text = `\`\`\`\n${code}\n\`\`\``;
+  const start = "```\n".length;
+
+  return {
+    block: true,
+    selection: {
+      end: start + code.length,
+      start,
+    },
+    text,
   };
 }
 

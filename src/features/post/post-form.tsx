@@ -129,7 +129,7 @@ export function PostForm({ className, slug }: PostFormProps) {
               "aria-invalid": Boolean(form.formState.errors.body),
               className: "min-h-72 border-border bg-background text-base leading-7",
               id: "body",
-              placeholder: "支持加粗、引用、代码、链接、列表、表格、涂黑和图片插入。",
+              placeholder: "支持加粗、引用、代码、代码块、链接、列表、表格、涂黑和图片插入。",
             }}
             textareaRef={bodyFieldRef}
             value={bodyValue}
