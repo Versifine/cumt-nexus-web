@@ -256,17 +256,19 @@ function MarkdownAttachmentImage({
   caption?: string;
 }) {
   return (
-    <span className="my-4 block border border-border bg-background-soft">
+    <span className="my-4 block w-fit max-w-full border border-border bg-background-soft">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={attachment.url}
         alt={caption || attachment.alt_text || "内容图片"}
         loading="lazy"
         decoding="async"
-        className="max-h-[520px] w-full object-contain"
+        className="block h-auto max-h-[520px] max-w-full object-contain"
       />
-      <span className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground">
-        <span className="truncate">{caption || getAttachmentCaption(attachment)}</span>
+      <span className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground">
+        <span className="min-w-0 truncate">
+          {caption || getAttachmentCaption(attachment)}
+        </span>
         <span className="font-mono">{formatFileSize(attachment.size_bytes)}</span>
       </span>
     </span>

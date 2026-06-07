@@ -89,6 +89,7 @@ checkMarkdownToolbarTools();
 checkLifecycleComposerDefaultMode();
 checkPublishedAttachmentRenderingBoundary();
 checkPublishedAttachmentNoFallbackGallery();
+checkPublishedAttachmentImageSizing();
 checkComposerImageCopy();
 checkMarkdownSourceLeakage();
 checkMediaContractDocs();
@@ -389,6 +390,57 @@ function checkPublishedAttachmentNoFallbackGallery() {
     "published attachment fallback",
     "published attachments are not appended outside the Markdown body",
   );
+}
+
+function checkPublishedAttachmentImageSizing() {
+  const contentBody = sourceFiles.find(
+    (file) => file.path === "src/features/content/content-body.tsx",
+  );
+
+  if (!contentBody) {
+    addFail("published attachment image sizing", "src/features/content/content-body.tsx is missing");
+    return;
+  }
+
+  const imageComponentMatch = contentBody.content.match(
+    /function MarkdownAttachmentImage[\s\S]*?function isVisibleImageAttachment/,
+  );
+  const imageComponent = imageComponentMatch?.[0] ?? "";
+  const sizingProblems = [];
+
+  if (!imageComponent.includes("w-fit max-w-full")) {
+    sizingProblems.push("attachment image wrapper must keep natural width while respecting the content column");
+  }
+
+  if (!imageComponent.includes("h-auto max-h-[520px] max-w-full")) {
+    sizingProblems.push("attachment img must not force small images to full column width");
+  }
+
+  if (hasClassToken(imageComponent, "w-full")) {
+    sizingProblems.push("attachment image renderer must not force images to w-full");
+  }
+
+  if (sizingProblems.length > 0) {
+    addFail("published attachment image sizing", sizingProblems.join("; "));
+    return;
+  }
+
+  addPass(
+    "published attachment image sizing",
+    "inline attachment images keep natural size and stay within the content column",
+  );
+}
+
+function hasClassToken(source, token) {
+  const classNamePattern = /className=["']([^"']*)["']/g;
+
+  for (const match of source.matchAll(classNamePattern)) {
+    if (match[1].split(/\s+/).includes(token)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function checkMediaContractDocs() {
