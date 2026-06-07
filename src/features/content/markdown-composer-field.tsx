@@ -78,6 +78,11 @@ export function MarkdownComposerField({
     [boundAttachments, imageUpload?.attachments],
   );
   const hasPreviewContent = value.trim().length > 0;
+  const hasDetachedPreviewImages = previewAttachments.some(
+    (attachment) => !referencedAttachmentIds.has(attachment.id),
+  );
+  const detachedPreviewImageNotice =
+    "有图片还没有放入正文；切回编辑，把图片放到光标处后才会出现在预览和发布内容里。";
 
   function setBodyValue(nextValue: string) {
     onChange(nextValue);
@@ -342,14 +347,23 @@ export function MarkdownComposerField({
         >
           <div className="min-h-32 border border-border bg-background px-3 py-3">
             {hasPreviewContent ? (
-              <ContentBody
-                attachments={previewAttachments}
-                className="text-sm"
-                value={value}
-              />
+              <>
+                <ContentBody
+                  attachments={previewAttachments}
+                  className="text-sm"
+                  value={value}
+                />
+                {hasDetachedPreviewImages ? (
+                  <p className="mt-3 border-l border-primary px-3 py-2 text-sm text-muted-foreground">
+                    {detachedPreviewImageNotice}
+                  </p>
+                ) : null}
+              </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                正文预览会显示在这里。
+                {hasDetachedPreviewImages
+                  ? detachedPreviewImageNotice
+                  : "正文预览会显示在这里。"}
               </p>
             )}
           </div>

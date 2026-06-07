@@ -218,10 +218,22 @@ function checkMarkdownComposerEntryPoint() {
 
   if (
     !composer.content.includes("const hasPreviewContent = value.trim().length > 0") ||
-    composer.content.includes("previewAttachments.length > 0")
+    /const\s+hasPreviewContent\s*=[^;]*(?:previewAttachments|imageUpload|boundAttachments)/.test(
+      composer.content,
+    )
   ) {
     composerProblems.push(
       "MarkdownComposerField preview empty state must be based on Markdown body text, not detached uploaded attachments",
+    );
+  }
+
+  if (
+    !composer.content.includes("const hasDetachedPreviewImages =") ||
+    !composer.content.includes("有图片还没有放入正文") ||
+    !composer.content.includes("{detachedPreviewImageNotice}")
+  ) {
+    composerProblems.push(
+      "MarkdownComposerField preview must explain uploaded images that are not inserted into the Markdown body",
     );
   }
 
