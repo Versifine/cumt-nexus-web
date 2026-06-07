@@ -79,6 +79,7 @@ checkContentEntryPoint();
 checkMarkdownComposerEntryPoint();
 checkMarkdownToolbarTools();
 checkPublishedAttachmentRenderingBoundary();
+checkComposerImageCopy();
 
 for (const result of results) {
   console.log(`[${result.status.toUpperCase()}] ${result.name} - ${result.detail}`);
@@ -286,6 +287,43 @@ function checkPublishedAttachmentRenderingBoundary() {
   addPass(
     "published attachment rendering boundary",
     "published posts and comments keep images inside the shared Markdown content renderer",
+  );
+}
+
+function checkComposerImageCopy() {
+  const mediaAttachments = sourceFiles.find(
+    (file) => file.path === "src/features/media/media-attachments.tsx",
+  );
+
+  if (!mediaAttachments) {
+    addFail("composer image copy", "src/features/media/media-attachments.tsx is missing");
+    return;
+  }
+
+  const blockedCopy = ["待提交图片", "已移除待提交图片", "已绑定图片"];
+  const foundBlockedCopy = blockedCopy.filter((copy) =>
+    mediaAttachments.content.includes(copy),
+  );
+
+  if (foundBlockedCopy.length > 0) {
+    addFail(
+      "composer image copy",
+      `image writing area must use 正文图片 wording, found: ${foundBlockedCopy.join(", ")}`,
+    );
+    return;
+  }
+
+  if (!mediaAttachments.content.includes("正文图片")) {
+    addFail(
+      "composer image copy",
+      "image writing area must label uploaded images as 正文图片",
+    );
+    return;
+  }
+
+  addPass(
+    "composer image copy",
+    "image writing area uses 正文图片 wording instead of detached attachment wording",
   );
 }
 

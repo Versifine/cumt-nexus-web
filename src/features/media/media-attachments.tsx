@@ -161,6 +161,19 @@ export function ImageAttachmentUploader({
   return (
     <div className="space-y-3">
       <div className="grid gap-3 border border-border bg-background-soft p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3 md:col-span-2">
+          <div>
+            <div className="font-mono text-[11px] text-primary">
+              正文图片
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              粘贴图片或选择文件后，会自动插入到正文光标位置。
+            </p>
+          </div>
+          <StatusToken tone={canAddMore ? "primary" : "warning"}>
+            {attachments.length}/{maxCount}
+          </StatusToken>
+        </div>
         <div className="min-w-0 space-y-1.5">
           <label className="text-xs font-semibold text-muted-foreground" htmlFor={altTextId}>
             图片说明
@@ -191,10 +204,7 @@ export function ImageAttachmentUploader({
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground md:col-span-2">
           <ImagePlus className="size-4 text-primary" aria-hidden="true" />
-          <span>{policyText} 也可以把图片直接粘贴到正文框。</span>
-          <StatusToken tone={canAddMore ? "primary" : "warning"}>
-            {attachments.length}/{maxCount}
-          </StatusToken>
+          <span>{policyText}</span>
         </div>
       </div>
 
@@ -254,7 +264,7 @@ export function ImageAttachmentUploader({
 
       {removedNoticeVisible ? (
         <Alert>
-          <AlertTitle>已移除待提交图片</AlertTitle>
+          <AlertTitle>已从正文移除图片</AlertTitle>
           <AlertDescription>
             这张图片不会随正文发布；已上传但未绑定的对象由后端清理策略回收。
           </AlertDescription>
@@ -264,7 +274,7 @@ export function ImageAttachmentUploader({
       {attachments.length > 0 ? (
         <div className="divide-y divide-border border-y border-border">
           <div className="flex items-center justify-between gap-3 py-2 text-xs text-muted-foreground">
-            <span>待提交图片</span>
+            <span>正文图片</span>
             <span className="font-mono">
               {attachments.length}/{maxCount}
             </span>
@@ -309,7 +319,7 @@ export function ImageAttachmentUploader({
                   onClick={() => onInsertAttachment(attachment)}
                 >
                   <CornerDownLeft className="size-3.5" aria-hidden="true" />
-                  插入正文
+                  放到光标处
                 </button>
               ) : null}
               <button
@@ -375,8 +385,8 @@ export function InlineImageAttachmentReferences({
   return (
     <div className={cn("divide-y divide-border border-y border-border", className)}>
       <div className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs text-muted-foreground">
-        <span>已绑定图片</span>
-        <span>选择图片可插入到当前正文光标位置。</span>
+        <span>正文图片</span>
+        <span>选择已有图片可放到当前光标位置。</span>
       </div>
       {visibleAttachments.map((attachment) => {
         const inserted = isAttachmentInserted(attachment);
@@ -410,7 +420,7 @@ export function InlineImageAttachmentReferences({
               onClick={() => onInsertAttachment(attachment)}
             >
               <CornerDownLeft className="size-3.5" aria-hidden="true" />
-              插入正文
+              放到光标处
             </button>
           </div>
         );
@@ -503,7 +513,7 @@ function formatPublishedAttachmentCaption(attachment: MediaAttachment) {
 function formatAttachmentStatus(status: string) {
   switch (status) {
     case "ready":
-      return "待提交";
+      return "已上传";
     case "pending":
       return "待处理";
     case "processing":
