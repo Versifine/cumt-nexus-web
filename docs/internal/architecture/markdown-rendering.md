@@ -39,8 +39,8 @@ Reddit-style Markdown parity
 - 写作器编辑区直接显示排版后的内容；Markdown 源码只作为提交 / 存储格式存在，不作为默认 UI。
 - 写作器会识别外部 Markdown 图片语法，并提示作者这类图片不会作为正文图片保存；正文图片必须走上传、粘贴图片文件或拖拽图片文件入口。
 - UI smoke 已验证发帖、根评论、子评论回复、帖子编辑保存和评论编辑保存可以提交并在阅读态渲染 Markdown。
-- 发帖、根评论、回复评论、帖子编辑和评论编辑都已接入同一 Tiptap 写作器；正文图片入口和已有图片放回正文控件保持可见。
-- 当前后端 `PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 已接收可选 `attachment_ids`；编辑弹窗支持新增图片、粘贴图片、拖拽图片和重新放置已绑定图片，保存时只提交正文实际引用到的图片 ID。
+- 发帖、根评论、回复评论、帖子编辑和评论编辑都已接入同一 Tiptap 写作器；图片入口只存在于工具栏、粘贴和拖拽，不再在编辑器外展示正文图片清单。
+- 当前后端 `PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 已接收可选 `attachment_ids`；编辑弹窗支持新增图片、粘贴图片和拖拽图片，保存时只提交正文实际引用到的图片 ID。
 - 不使用 `dangerouslySetInnerHTML`。
 - 不存用户 HTML。
 - 不使用 `rehype-raw`。
@@ -102,7 +102,7 @@ remark-gfm
   - QQ 音乐：`i.y.qq.com/v8/playsong.html?songid=...`、`y.qq.com/n/ryqq/songDetail/<songmid>` 和 `i.y.qq.com/n2/m/outchain/player/index.html?...`。
 - 当前前端只做明确白名单 canonical URL 的本地识别；`v.douyin.com`、`b23.tv`、分享短链、标题、封面、审核状态和持久化 `embed_ids` 仍应由后端 `/api/v1/embeds/resolve` 处理。
 - 支持在写作器中直接粘贴图片，也支持把图片文件拖到写作器区域；图片会上传为 attachment 并按当前光标位置插入正文。除浏览器直接提供的图片文件外，写作器也会识别剪贴板 HTML、纯文本或 Markdown 图片语法里的 `data:image/...;base64,...` 图片并转入同一上传流程；粘贴的纯文本片段如果同时包含文字和内联图片，会保留周边文字，只把图片源码替换成 `nexus-attachment` 正文图片引用。
-- 已插入正文的图片可以再次移动到当前光标位置，避免用户手工剪切 Markdown marker。
+- 删除编辑器正文里的图片后，该图片不会随内容提交；新增图片必须重新通过工具栏、粘贴或拖拽进入当前正文位置。
 - 裸贴的 Bilibili、抖音、网易云音乐和 QQ 音乐白名单 URL 在写作器内会转换成 `mediaEmbed` 块并显示同一个受控播放器；序列化时仍输出原始裸链接，后端不接收 HTML 或 iframe。
 - 普通 `https://...` Markdown 图片不会直接渲染为远程图片，也不会作为正文图片保存；写作器会在编辑态提示用户必须走图片上传和后端 attachment 合同。本阶段不从远程 URL 抓图，只处理真实图片文件或剪贴板内联 `data:image`。
 

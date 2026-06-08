@@ -41,7 +41,7 @@
 | 评论 sort | 帖子详情评论请求固定 `sort="new"`，没有评论 sort UI。 | 未完成。 | 若按 Reddit，需要评论区 `best | new | top` 等 query 合同和 UI。 |
 | Markdown 阅读态 | `ContentBody` 使用 `react-markdown` + `remark-gfm`，`skipHtml`，安全 URL，帖子和评论复用；本轮已验证帖子详情移动端长代码块不撑破页面，代码块内部横向滚动。 | 基础落地。 | 仍需 Reddit parity 用例审计，例如边界语法、移动端表格和评论深层场景。 |
 | Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，改为 Tiptap 单一实时渲染编辑面；工具栏对当前选区或当前块执行格式命令，覆盖行内代码和代码块。Markdown 源码不作为默认编辑 UI 暴露，`editor.getMarkdown()` 负责提交格式。 | 基础落地。 | 仍需继续做 Reddit parity 用例审计、移动端完整 QA，以及真实编辑弹窗新增 / 删除图片的手动复验。 |
-| 图片与正文一体化 | 图片上传后进入 Tiptap image 节点并序列化为 `![说明](nexus-attachment:<id>)`；发布帖子、评论和编辑保存都会按正文出现顺序提交实际引用的 `attachment_ids`；阅读态只渲染正文内 marker 引用到的 attachments，不再把未引用附件追加成底部外置图集；未使用的外置图集组件已移除；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留，`check:content-segments` 覆盖批量图片插入顺序和发布绑定过滤，`check:content-boundary` 固化 Tiptap 写作入口、剪贴板图片入口、编辑态新增图片绑定已接入和未插入图片提示。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；作者可在编辑器中放回已有图片，也可在编辑态新增正文图片。 |
+| 图片与正文一体化 | 图片上传后进入 Tiptap image 节点并序列化为 `![说明](nexus-attachment:<id>)`；发布帖子、评论和编辑保存都会按正文出现顺序提交实际引用的 `attachment_ids`；阅读态只渲染正文内 marker 引用到的 attachments，不再把未引用附件追加成底部外置图集；外置图片管理组件已移除；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留，`check:content-segments` 覆盖批量图片插入顺序和发布绑定过滤，`check:content-boundary` 固化 Tiptap 写作入口、剪贴板图片入口、编辑态新增图片绑定已接入和内联图片约束。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；新增图片只通过编辑器正文位置进入内容，删除正文里的图片后不会随内容提交。 |
 | 普通外链 | Markdown 链接可渲染安全链接。 | 基础落地。 | 普通网页链接预览未实现，需要后端解析缓存。 |
 | 白名单 embed | `ContentBody` 和 Tiptap 写作器会把裸贴的 Bilibili、抖音、网易云、QQ 音乐 canonical URL 渲染为受控播放器；自定义文字 Markdown 链接仍保持普通链接；源码中只允许白名单播放器组件使用 iframe。 | 前端基础落地。 | 后端仍需 provider resolve、短链展开、元数据、审核状态和 `embed_ids` 持久化。 |
 | 评论树 | 评论树、回复、折叠和最大深度已有基础实现。 | 基础落地。 | 评论投票、特效、贴图和排序未实现。 |
@@ -59,7 +59,7 @@
 - 子评论回复：回复后评论树变成 `TREE / 2 条评论`，子评论深度为 1，spoiler 不露原始语法。
 - 帖子编辑弹窗：打开后直接是排版后的编辑器，可编辑当前正文；可见正文不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。
 - 评论编辑弹窗：打开后直接是排版后的编辑器，可编辑当前评论；可见正文不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。
-- 发帖页剪贴板图片：登录测试账号后在 `/communities/public/new` 用系统剪贴板粘贴 PNG，写作器上传图片并在当前位置渲染图片节点；正文图片列表显示上传状态；提交时仍序列化为 `nexus-attachment` Markdown marker 和 `attachment_ids`。
+- 发帖页剪贴板图片：登录测试账号后在 `/communities/public/new` 用系统剪贴板粘贴 PNG，写作器上传图片并在当前位置渲染图片节点；提交时仍序列化为 `nexus-attachment` Markdown marker 和 `attachment_ids`。
 - 评论区剪贴板图片：评论写作器同样支持粘贴 PNG，上传后在当前位置渲染图片节点；提交时仍序列化为 `nexus-attachment` Markdown marker 和 `attachment_ids`。
 - 本地运行时注意：后端源码和远端 `main` 已放行 CORS `PATCH`，但旧 Docker 容器曾返回 `GET, POST, PUT, DELETE, OPTIONS`，导致浏览器保存失败。重建 `cumt-nexus-api:local` 并按现有数据卷账号恢复 prod compose 后，`OPTIONS` 返回 `GET, POST, PUT, PATCH, DELETE, OPTIONS`，编辑保存通过。
 

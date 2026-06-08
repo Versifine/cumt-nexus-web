@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -67,10 +68,6 @@ import {
 import { normalizeMarkdownHref } from "@/features/content/markdown-url";
 import { resolveWhitelistedMediaEmbed } from "@/features/content/media-embed";
 import { createMediaEmbedPlayerElement } from "@/features/content/media-embed-player";
-import {
-  InlineImageAttachmentManager,
-  InlineImageAttachmentReferences,
-} from "@/features/media/media-attachments";
 import {
   getUploadError,
   validateImageUploadFile,
@@ -353,7 +350,6 @@ export function MarkdownComposerField({
 }: MarkdownComposerFieldProps) {
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
   const latestValueRef = useRef(value);
-  const latestAttachmentsRef = useRef<MediaAttachment[]>([]);
   const mediaEmbedSyncFrameRef = useRef<number | null>(null);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [isUploadingInlineImage, setIsUploadingInlineImage] = useState(false);
@@ -366,18 +362,21 @@ export function MarkdownComposerField({
       ]),
     [boundAttachments, imageUpload?.attachments],
   );
-  const referencedAttachmentIds = getReferencedAttachmentIds(value);
-  const referencedKnownAttachmentIds = useMemo(
-    () => getReferencedAttachmentIdsForSubmit(value, previewAttachments),
-    [previewAttachments, value],
+  const attachmentById = useMemo(
+    () =>
+      new Map(
+        previewAttachments.map((attachment) => [attachment.id, attachment] as const),
+      ),
+    [previewAttachments],
   );
+  const referencedAttachmentIds = getReferencedAttachmentIds(value);
   const maxReferencedImageAttachments =
     maxReferencedAttachments ?? imageUpload?.maxCount;
-  const hasDetachedPreviewImages = previewAttachments.some(
+  const hasUnreferencedUploadedImages = (imageUpload?.attachments ?? []).some(
     (attachment) => !referencedAttachmentIds.has(attachment.id),
   );
-  const detachedPreviewImageNotice =
-    "有图片还没有放入正文；选择图片可重新放入正文。";
+  const unreferencedUploadedImageNotice =
+    "未留在正文里的上传图片不会随内容发布；需要时请重新添加到正文当前位置。";
   const hasUnsupportedMarkdownImages =
     hasUnsupportedMarkdownImageReferences(value);
   const unsupportedMarkdownImageNotice =
@@ -388,10 +387,6 @@ export function MarkdownComposerField({
     latestValueRef.current = value;
   }, [value]);
 
-  useEffect(() => {
-    latestAttachmentsRef.current = previewAttachments;
-  }, [previewAttachments]);
-
   useEffect(
     () => () => {
       if (mediaEmbedSyncFrameRef.current !== null) {
@@ -400,6 +395,20 @@ export function MarkdownComposerField({
     },
     [],
   );
+
+  const scheduleMediaEmbedSync = useCallback((targetEditor: Editor) => {
+    if (mediaEmbedSyncFrameRef.current !== null) {
+      return;
+    }
+
+    mediaEmbedSyncFrameRef.current = window.requestAnimationFrame(() => {
+      mediaEmbedSyncFrameRef.current = null;
+
+      if (!targetEditor.isDestroyed) {
+        syncWhitelistedMediaEmbeds(targetEditor);
+      }
+    });
+  }, []);
 
   const editorExtensions = useMemo(
     () => [
@@ -426,9 +435,7 @@ export function MarkdownComposerField({
           "直接在这里写正文，选中文字后用工具栏设置格式。",
       }),
       AttachmentImage.configure({
-        getAttachmentById: (id: string) =>
-          latestAttachmentsRef.current.find((attachment) => attachment.id === id) ??
-          null,
+        getAttachmentById: (id: string) => attachmentById.get(id) ?? null,
       }),
       MediaEmbedNode,
       Table.configure({
@@ -444,7 +451,7 @@ export function MarkdownComposerField({
         },
       }),
     ],
-    [fieldProps?.placeholder],
+    [attachmentById, fieldProps?.placeholder],
   );
 
   const editor = useEditor(
@@ -455,6 +462,8 @@ export function MarkdownComposerField({
       extensions: editorExtensions,
       editorProps: {
         attributes: {
+          ...(fieldProps?.["aria-invalid"] ? { "aria-invalid": "true" } : {}),
+          ...(fieldProps?.id ? { id: fieldProps.id } : {}),
           "aria-label":
             typeof fieldProps?.["aria-label"] === "string"
               ? fieldProps["aria-label"]
@@ -477,6 +486,7 @@ export function MarkdownComposerField({
             "[&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_td]:align-top",
             "[&_th]:border [&_th]:border-border [&_th]:bg-background-soft [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-muted-foreground",
             "[&_ul]:my-4 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-6",
+            fieldProps?.className,
           ),
         },
       },
@@ -540,60 +550,11 @@ export function MarkdownComposerField({
       });
       scheduleMediaEmbedSync(editor);
     }
-  }, [editor, value]);
-
-  function scheduleMediaEmbedSync(targetEditor: Editor) {
-    if (mediaEmbedSyncFrameRef.current !== null) {
-      return;
-    }
-
-    mediaEmbedSyncFrameRef.current = window.requestAnimationFrame(() => {
-      mediaEmbedSyncFrameRef.current = null;
-
-      if (!targetEditor.isDestroyed) {
-        syncWhitelistedMediaEmbeds(targetEditor);
-      }
-    });
-  }
+  }, [editor, scheduleMediaEmbedSync, value]);
 
   function setBodyValue(nextValue: string) {
     latestValueRef.current = nextValue;
     onChange(nextValue);
-  }
-
-  function insertAttachmentMarkdown(attachment: MediaAttachment) {
-    if (!editor) {
-      return;
-    }
-
-    if (!canInsertAttachmentReference(attachment)) {
-      setImageUploadError(getReferenceLimitMessage());
-      return;
-    }
-
-    removeAttachmentNodes(editor, attachment.id);
-    insertAttachmentIntoEditor(editor, attachment, "cursor");
-    setImageUploadError(null);
-  }
-
-  function removeAttachmentMarkdown(attachment: MediaAttachment) {
-    if (!editor) {
-      return;
-    }
-
-    removeAttachmentNodes(editor, attachment.id);
-  }
-
-  function canInsertAttachmentReference(attachment: MediaAttachment) {
-    if (referencedAttachmentIds.has(attachment.id)) {
-      return true;
-    }
-
-    if (maxReferencedImageAttachments === undefined) {
-      return true;
-    }
-
-    return referencedKnownAttachmentIds.length < maxReferencedImageAttachments;
   }
 
   function getRemainingReferenceSlots(markdown = getCurrentMarkdown()) {
@@ -608,23 +569,24 @@ export function MarkdownComposerField({
     );
   }
 
+  function getReferencedUploadedAttachments(markdown = getCurrentMarkdown()) {
+    if (!imageUpload) {
+      return [];
+    }
+
+    const referencedIds = getReferencedAttachmentIds(markdown);
+
+    return imageUpload.attachments.filter((attachment) =>
+      referencedIds.has(attachment.id),
+    );
+  }
+
   function getReferenceLimitMessage() {
     if (maxReferencedImageAttachments === undefined) {
       return "正文图片数量已达到上限，先从正文移除一张再继续。";
     }
 
     return `正文最多放入 ${maxReferencedImageAttachments} 张图片，先从正文移除一张再继续。`;
-  }
-
-  function removeInlineImageAttachment(attachment: MediaAttachment) {
-    if (!imageUpload) {
-      return;
-    }
-
-    imageUpload.onChange(
-      imageUpload.attachments.filter((item) => item.id !== attachment.id),
-    );
-    removeAttachmentMarkdown(attachment);
   }
 
   async function handleComposerPaste(event: ClipboardEvent<HTMLDivElement>) {
@@ -693,7 +655,7 @@ export function MarkdownComposerField({
     }
 
     const remainingUploadSlots =
-      imageUpload.maxCount - imageUpload.attachments.length;
+      imageUpload.maxCount - getReferencedUploadedAttachments().length;
     const remainingReferenceSlots = getRemainingReferenceSlots();
 
     if (remainingUploadSlots <= 0) {
@@ -749,8 +711,10 @@ export function MarkdownComposerField({
     }
 
     const currentValue = getCurrentMarkdown();
+    const referencedUploadAttachments =
+      getReferencedUploadedAttachments(currentValue);
     const remainingUploadSlots =
-      imageUpload.maxCount - imageUpload.attachments.length;
+      imageUpload.maxCount - referencedUploadAttachments.length;
     const remainingReferenceSlots = getRemainingReferenceSlots(currentValue);
 
     if (remainingUploadSlots <= 0) {
@@ -786,7 +750,7 @@ export function MarkdownComposerField({
 
       const validationError = validateImageUploadFile(file, {
         altText: getPastedImageAltText(file),
-        currentCount: imageUpload.attachments.length + files.length,
+        currentCount: referencedUploadAttachments.length + files.length,
         maxCount: imageUpload.maxCount,
       });
 
@@ -803,7 +767,7 @@ export function MarkdownComposerField({
     imageUpload.onUploadingChange?.(true);
 
     try {
-      let nextAttachments = imageUpload.attachments;
+      let nextAttachments = referencedUploadAttachments;
       const markdownByPlaceholder = new Map<string, string>();
 
       for (const [index, file] of files.entries()) {
@@ -843,8 +807,9 @@ export function MarkdownComposerField({
       return;
     }
 
+    const referencedUploadAttachments = getReferencedUploadedAttachments();
     const remainingUploadSlots =
-      imageUpload.maxCount - imageUpload.attachments.length;
+      imageUpload.maxCount - referencedUploadAttachments.length;
     const remainingReferenceSlots = getRemainingReferenceSlots();
 
     if (remainingUploadSlots <= 0) {
@@ -873,7 +838,7 @@ export function MarkdownComposerField({
     imageUpload.onUploadingChange?.(true);
 
     try {
-      let nextAttachments = imageUpload.attachments;
+      let nextAttachments = referencedUploadAttachments;
 
       for (const file of imageFiles) {
         const altText = getPastedImageAltText(file);
@@ -936,7 +901,7 @@ export function MarkdownComposerField({
     const canAddImage =
       !isEditorDisabled &&
       !isUploadingInlineImage &&
-      imageUpload.attachments.length < imageUpload.maxCount &&
+      getReferencedUploadedAttachments(value).length < imageUpload.maxCount &&
       getRemainingReferenceSlots(value) > 0;
 
     return (
@@ -989,9 +954,9 @@ export function MarkdownComposerField({
           正在上传图片，完成后会插入到正文当前位置。
         </div>
       ) : null}
-      {hasDetachedPreviewImages ? (
+      {hasUnreferencedUploadedImages ? (
         <p className="border-l border-primary px-3 py-2 text-sm text-muted-foreground">
-          {detachedPreviewImageNotice}
+          {unreferencedUploadedImageNotice}
         </p>
       ) : null}
       {hasUnsupportedMarkdownImages ? (
@@ -1004,38 +969,6 @@ export function MarkdownComposerField({
           <AlertTitle>添加图片失败</AlertTitle>
           <AlertDescription>{imageUploadError}</AlertDescription>
         </Alert>
-      ) : null}
-      {imageUpload ? (
-        <InlineImageAttachmentManager
-          attachments={imageUpload.attachments}
-          canInsertAttachment={canInsertAttachmentReference}
-          disabled={isEditorDisabled || isUploadingInlineImage}
-          isAttachmentInserted={(attachment) =>
-            referencedAttachmentIds.has(attachment.id)
-          }
-          insertActionLabels={{
-            inserted: "移动到当前位置",
-            notInserted: "放到当前位置",
-          }}
-          maxCount={imageUpload.maxCount}
-          onInsertAttachment={insertAttachmentMarkdown}
-          onRemoveAttachment={removeInlineImageAttachment}
-        />
-      ) : null}
-      {boundAttachments ? (
-        <InlineImageAttachmentReferences
-          attachments={boundAttachments}
-          canInsertAttachment={canInsertAttachmentReference}
-          disabled={isEditorDisabled}
-          isAttachmentInserted={(attachment) =>
-            referencedAttachmentIds.has(attachment.id)
-          }
-          insertActionLabels={{
-            inserted: "移动到当前位置",
-            notInserted: "放到当前位置",
-          }}
-          onInsertAttachment={insertAttachmentMarkdown}
-        />
       ) : null}
     </div>
   );
@@ -1332,42 +1265,6 @@ function insertAttachmentIntoEditor(
     insertion === "end" ? editor.chain().focus("end") : editor.chain().focus();
 
   chain.insertContent(imageNode).run();
-}
-
-function removeAttachmentNodes(editor: Editor, id: string) {
-  const ranges: Array<{ from: number; to: number }> = [];
-
-  editor.state.doc.descendants((node, position) => {
-    if (node.type.name !== "image") {
-      return;
-    }
-
-    const attachmentId =
-      typeof node.attrs.attachmentId === "string"
-        ? node.attrs.attachmentId
-        : getAttachmentIdFromMarkdownUrl(
-            typeof node.attrs.src === "string" ? node.attrs.src : null,
-          );
-
-    if (attachmentId === id) {
-      ranges.push({
-        from: position,
-        to: position + node.nodeSize,
-      });
-    }
-  });
-
-  if (ranges.length === 0) {
-    return;
-  }
-
-  let transaction = editor.state.tr;
-
-  for (const range of [...ranges].reverse()) {
-    transaction = transaction.delete(range.from, range.to);
-  }
-
-  editor.view.dispatch(transaction);
 }
 
 function getImageFilesFromDataTransfer(dataTransfer: DataTransfer) {

@@ -27,9 +27,9 @@
 - `alt_text` 最长 200 个字符。
 - `POST /api/v1/communities/:slug/posts` 已支持 `attachment_ids`，帖子详情、社区帖子列表和全站帖子流返回 `attachments`。
 - `POST /api/v1/posts/:id/comments` 已支持 `attachment_ids`，评论 flat list 和 `view=tree` 均返回 `attachments`。
-- 前端已按上述合同提示并拦截明显不合规输入，上传失败保留文件用于重试，删除正文图片时提示未绑定对象由后端清理策略回收。
+- 前端已按上述合同提示并拦截明显不合规输入；图片只通过写作器工具栏、粘贴或拖拽进入正文，未留在正文里的上传图片不会随内容提交。
 - 前端当前不直接删除对象、不生成缩略图、不伪造 `thumbnail_url`。
-- 编辑态附件重绑已接入：`PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 已接收可选 `attachment_ids`，前端编辑弹窗可以新增图片、重新放置已有图片，并在保存时只提交正文实际引用到的图片 ID。
+- 编辑态附件重绑已接入：`PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 已接收可选 `attachment_ids`，前端编辑弹窗可以新增图片，并在保存时只提交正文实际引用到的图片 ID。
 
 ## 后端 / API 剩余缺口
 
@@ -199,10 +199,10 @@ PATCH /api/v1/comments/:id
 
 因此前端编辑弹窗当前支持：
 
-- 默认渲染发布态预览，不直接露出 Markdown 源码。
-- 打开“编辑正文”后修改正文和标题 / 评论内容。
+- 打开编辑弹窗后直接显示渲染编辑面，不直接露出 Markdown 源码。
+- 在同一个渲染编辑面里修改正文和标题 / 评论内容。
 - 上传、粘贴或拖拽新增图片并插入正文位置。
-- 把已经绑定的正文图片重新插回正文位置，或删除正文中的图片 marker 让阅读态不展示。
+- 删除正文中的图片 marker 后阅读态不展示这张图片，保存时也不提交对应 `attachment_id`。
 - 保存时按正文实际引用顺序提交 `attachment_ids`，未引用图片不随内容绑定。
 
 帖子编辑请求体：

@@ -383,7 +383,7 @@ E. 全局收口与上线验收
 - `src/app/communities/[slug]/new/page.tsx`
 - `src/features/post/post-form.tsx`
 - `src/features/content/markdown-composer-field.tsx`
-- `src/features/media/media-attachments.tsx`
+- `src/features/media/queries.ts`
 
 体验目标：
 
@@ -409,7 +409,6 @@ E. 全局收口与上线验收
 - `src/app/posts/[id]/page.tsx`
 - `src/features/post/post-detail.tsx`
 - `src/features/content/content-body.tsx`
-- `src/features/media/media-attachments.tsx`
 - `src/features/vote/vote-control.tsx`
 
 体验目标：
@@ -453,7 +452,7 @@ E. 全局收口与上线验收
 - `src/features/comment/comment-tree.tsx`
 - `src/features/comment/comment-lifecycle-controls.tsx`
 - `src/features/content/content-body.tsx`
-- `src/features/media/media-attachments.tsx`
+- `src/features/content/markdown-composer-field.tsx`
 
 体验目标：
 

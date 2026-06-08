@@ -385,12 +385,12 @@ function checkMarkdownComposerEntryPoint() {
   }
 
   if (
-    !composer.content.includes("const hasDetachedPreviewImages =") ||
-    !composer.content.includes("有图片还没有放入正文") ||
-    !composer.content.includes("{detachedPreviewImageNotice}")
+    !composer.content.includes("const hasUnreferencedUploadedImages =") ||
+    !composer.content.includes("未留在正文里的上传图片不会随内容发布") ||
+    !composer.content.includes("{unreferencedUploadedImageNotice}")
   ) {
     composerProblems.push(
-      "MarkdownComposerField preview must explain uploaded images that are not inserted into the Markdown body",
+      "MarkdownComposerField must explain that uploaded images deleted from the editor are not submitted",
     );
   }
 
@@ -769,9 +769,6 @@ function checkComposerImageCopy() {
   const composer = sourceFiles.find(
     (file) => file.path === "src/features/content/markdown-composer-field.tsx",
   );
-  const mediaAttachments = sourceFiles.find(
-    (file) => file.path === "src/features/media/media-attachments.tsx",
-  );
   const publishForms = [
     "src/features/post/post-form.tsx",
     "src/features/comment/comment-form.tsx",
@@ -786,25 +783,38 @@ function checkComposerImageCopy() {
     return;
   }
 
-  if (!mediaAttachments) {
-    addFail("composer image copy", "src/features/media/media-attachments.tsx is missing");
-    return;
-  }
-
-  const blockedCopy = ["待提交图片", "已移除待提交图片", "已绑定图片"];
+  const blockedCopy = [
+    "待提交图片",
+    "已移除待提交图片",
+    "已绑定图片",
+    "有图片还没有放入正文",
+    "选择图片可重新放入正文",
+  ];
   const foundBlockedCopy = blockedCopy.filter((copy) =>
-    mediaAttachments.content.includes(copy),
+    composer.content.includes(copy),
   );
 
   if (foundBlockedCopy.length > 0) {
     addFail(
       "composer image copy",
-      `image writing area must use 正文图片 wording, found: ${foundBlockedCopy.join(", ")}`,
+      `image writing area must not expose detached image-list wording, found: ${foundBlockedCopy.join(", ")}`,
     );
     return;
   }
 
   const detachedUploadPatterns = [
+    {
+      detail: "external inline image manager import",
+      pattern: "@/features/media/media-attachments",
+    },
+    {
+      detail: "external uploaded image manager component",
+      pattern: "InlineImageAttachmentManager",
+    },
+    {
+      detail: "external bound image reference component",
+      pattern: "InlineImageAttachmentReferences",
+    },
     {
       detail: "legacy detached image uploader component",
       pattern: "ImageAttachmentUploader",
@@ -817,10 +827,8 @@ function checkComposerImageCopy() {
   const detachedUploadOffenders = [];
 
   for (const blocked of detachedUploadPatterns) {
-    for (const file of [composer, mediaAttachments]) {
-      if (file.content.includes(blocked.pattern)) {
-        detachedUploadOffenders.push(`${blocked.detail} in ${file.path}`);
-      }
+    if (composer.content.includes(blocked.pattern)) {
+      detachedUploadOffenders.push(`${blocked.detail} in ${composer.path}`);
     }
   }
 
@@ -889,14 +897,10 @@ function checkComposerImageCopy() {
     return;
   }
 
-  if (
-    !composer.content.includes("function removeInlineImageAttachment") ||
-    !composer.content.includes("imageUpload.onChange(") ||
-    !composer.content.includes("filter((item) => item.id !== attachment.id)")
-  ) {
+  if (!composer.content.includes("function getReferencedUploadedAttachments")) {
     addFail(
       "composer image removal",
-      "removing an inline image must remove both Markdown references and pending attachment_ids",
+      "composer must derive upload slots from images still referenced by the rendered editor body",
     );
     return;
   }
@@ -966,7 +970,7 @@ function checkComposerImageCopy() {
 
     if (!form.content.includes("boundAttachments=")) {
       editBindingOffenders.push(
-        `${formPath} must still let authors place already-bound images back into the Markdown body`,
+        `${formPath} must pass bound attachments so existing Markdown image nodes render in the editor`,
       );
     }
 
@@ -1010,17 +1014,9 @@ function checkComposerImageCopy() {
     return;
   }
 
-  if (!mediaAttachments.content.includes("正文图片")) {
-    addFail(
-      "composer image copy",
-      "image writing area must label uploaded images as 正文图片",
-    );
-    return;
-  }
-
   addPass(
     "composer image copy",
-    "image writing area uses 正文图片 wording instead of detached attachment wording",
+    "image writing keeps image controls in the toolbar and rendered editor instead of a detached attachment list",
   );
 }
 
@@ -1094,9 +1090,6 @@ function checkComposerReferencedImageLimit() {
   const composer = sourceFiles.find(
     (file) => file.path === "src/features/content/markdown-composer-field.tsx",
   );
-  const mediaAttachments = sourceFiles.find(
-    (file) => file.path === "src/features/media/media-attachments.tsx",
-  );
   const consumers = [
     {
       path: "src/features/post/post-form.tsx",
@@ -1125,35 +1118,20 @@ function checkComposerReferencedImageLimit() {
     }
 
     if (
-      !composer.content.includes("function canInsertAttachmentReference") ||
       !composer.content.includes("function getRemainingReferenceSlots") ||
+      !composer.content.includes("function getReferencedUploadedAttachments") ||
       !composer.content.includes("正文最多放入")
     ) {
       problems.push(
-        "MarkdownComposerField must block old and newly uploaded images from exceeding the referenced image limit",
+        "MarkdownComposerField must block old and newly uploaded images from exceeding the referenced image limit while ignoring deleted temp uploads",
       );
     }
 
     if (
-      !composer.content.includes("canInsertAttachment={canInsertAttachmentReference}")
+      !composer.content.includes("getReferencedUploadedAttachments(value).length < imageUpload.maxCount")
     ) {
       problems.push(
-        "MarkdownComposerField must pass insert limit state to inline image controls",
-      );
-    }
-  }
-
-  if (!mediaAttachments) {
-    problems.push("src/features/media/media-attachments.tsx is missing");
-  } else {
-    if (
-      !mediaAttachments.content.includes("canInsertAttachment?:") ||
-      !mediaAttachments.content.includes("已达上限") ||
-      !mediaAttachments.content.includes("移动到光标处") ||
-      !mediaAttachments.content.includes("disabled={disabled || !canInsert}")
-    ) {
-      problems.push(
-        "inline image controls must allow inserted images to move while disabling actions when the composer reference limit is reached",
+        "MarkdownComposerField must keep the add-image button tied to images still referenced by the editor body",
       );
     }
   }
