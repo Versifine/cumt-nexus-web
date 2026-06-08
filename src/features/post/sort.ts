@@ -12,6 +12,10 @@ export function formatPostSortLabel(sort: PostSort) {
   return postSortItems.find((item) => item.value === sort)?.label ?? "推荐";
 }
 
+export function isPostSort(value: string): value is PostSort {
+  return postSortItems.some((item) => item.value === value);
+}
+
 export function formatPostSortFallbackNotice(
   requestedSort?: PostSort,
   effectiveSort?: PostSort,

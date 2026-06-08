@@ -18,25 +18,47 @@ const frontendUrl = normalizeUrl(
     "http://localhost:3000",
 );
 
-const appShellHrefMarkers = ["/", "/communities"];
+const appShellHrefMarkers = ["/", "/all", "/following", "/communities"];
 
 const routes = [
   {
     absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
-    markers: ["CUMT Nexus", "推荐讨论", "公开信息流", "浏览社区"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "推荐讨论", "按推荐源展示公开讨论", "浏览社区"],
     path: "/",
   },
   {
     absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
     hrefMarkers: [...appShellHrefMarkers],
-    markers: ["CUMT Nexus", "最新讨论", "公开信息流", "最新"],
+    markers: ["CUMT Nexus", "按推荐源展示公开讨论", "最新"],
     path: "/new",
   },
   {
     absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
     hrefMarkers: [...appShellHrefMarkers],
-    markers: ["CUMT Nexus", "最新讨论", "公开信息流", "热门"],
+    markers: ["CUMT Nexus", "按推荐源展示公开讨论", "热门"],
     path: "/hot",
+  },
+  {
+    absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "按全站源展示公开讨论", "推荐"],
+    path: "/all",
+  },
+  {
+    absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "按全站源展示公开讨论", "热门"],
+    path: "/all/hot",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Ffollowing",
+      "/register?next=%2Ffollowing",
+    ],
+    markers: ["CUMT Nexus", "登录后查看关注信息流", "关注流只展示", "去登录"],
+    path: "/following",
   },
   {
     markers: ["CUMT Nexus", "登录", "账号验证", "创建账号"],

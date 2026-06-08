@@ -19,7 +19,7 @@
 - App Shell、基础路由、顶部搜索、顶部通知入口、头像菜单、最近访问社区、个人主页基础壳已经落地。
 - 未登录公开读取在前端意图上已经打开，但仍依赖后端 optional Bearer / 公开读取合同保持一致。
 - 帖子和评论 Markdown / 图片一体化已补齐统一入口；发帖、评论、回复、帖子编辑、评论编辑都复用同一 Tiptap 实时渲染写作器。发帖、评论发布和帖子 / 评论编辑都会提交正文引用到的 `attachment_ids`，正文内容仍以 Markdown 提交给后端。
-- Feed 规划明显没有完整落地：当前只有 `new | hot`，没有 `best | top | rising`，也没有推荐 / 全站 / 关注 feed source 的独立前端架构。
+- Feed 规划仍未完整落地：前端已有 `best | hot | new | top | rising` 和推荐 / 全站 / 关注 source 的 URL / UI 基础，但本地运行时排序与 source 合同仍未完全证明。
 - 通知中心前端已改为回复、@、赞、系统的分类视图，同时保留未读 / 全部 / 已读状态筛选；分类准确度仍依赖后端稳定事件类型继续增强。
 - 链接预览、评论投票、积分特效和个性化推荐都没有落地；Bilibili / 抖音 / 网易云 / QQ 音乐 canonical 裸链接白名单 embed 已在前端阅读态和写作器编辑态落地，但后端结构化 resolve、短链和 `embed_ids` 持久化仍未接入。
 
@@ -37,7 +37,7 @@
 | 个人主页 | `/users/[username]`、`/posts`、`/comments` 已存在；展示头像、昵称、简介、徽章、统计和公开内容入口。 | 基础落地。 | 仍不是完整个人中心；资料编辑、关注、漂亮展示信息需要后端和后续任务。 |
 | 首页 / 社区 feed item | 列表项展示社区、作者、标题、摘要、分数、评论数、图片预览。 | 部分落地。 | 链接预览未落地；推荐 / 关注 feed 未落地。 |
 | Feed sort | `PostSort = "best" | "hot" | "new" | "top" | "rising"`；路由已有 `/`、`/best`、`/hot`、`/new`、`/top`、`/rising`。2026-06-08 复核本地后端 API，`sort=best`、`sort=top`、`sort=rising` 仍返回 `400 invalid_argument`；前端现在先请求目标排序，失败时明确提示并降级展示 `new` 公开帖子。 | 前端 URL / UI 基础落地，后端排序合同仍未完全对齐本地运行时。 | 需要后端补 `best | top | rising`，`top` 还需要时间范围；前端不伪造排序结果。 |
-| Feed source | 当前没有 `src/features/feed`；首页仍复用 `features/post` 的最新帖子接口。 | 明显未完成。 | 需要推荐 feed、全站 feed、关注 feed、社区 feed 的前后端合同。 |
+| Feed source | `src/features/feed/source.ts` 已集中定义推荐 / 全站 / 关注信息源标签和 URL；左侧导航已有首页、全站、关注、社区；首页信息流可在 `/`、`/all`、`/following` 及各自排序子路径之间切换。`/following` 未登录时显示登录门禁，不展示假关注内容。 | 前端 URL / UI 基础落地。 | 仍需后端证明 `source=recommended|all|following` 会返回对应真实数据；关注流还需要关注关系合同。 |
 | 评论 sort | 帖子详情评论请求固定 `sort="new"`，没有评论 sort UI。 | 未完成。 | 若按 Reddit，需要评论区 `best | new | top` 等 query 合同和 UI。 |
 | Markdown 阅读态 | `ContentBody` 使用 `react-markdown` + `remark-gfm`，`skipHtml`，安全 URL，帖子和评论复用；本轮已验证帖子详情移动端长代码块不撑破页面，代码块内部横向滚动。 | 基础落地。 | 仍需 Reddit parity 用例审计，例如边界语法、移动端表格和评论深层场景。 |
 | Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，改为 Tiptap 单一实时渲染编辑面；工具栏对当前选区或当前块执行格式命令，覆盖行内代码和代码块。Markdown 源码不作为默认编辑 UI 暴露，`editor.getMarkdown()` 负责提交格式。 | 基础落地。 | 仍需继续做 Reddit parity 用例审计、移动端完整 QA，以及真实编辑弹窗新增 / 删除图片的手动复验。 |
@@ -62,15 +62,16 @@
 - 发帖页剪贴板图片：登录测试账号后在 `/communities/public/new` 用系统剪贴板粘贴 PNG，写作器上传图片并在当前位置渲染图片节点；提交时仍序列化为 `nexus-attachment` Markdown marker 和 `attachment_ids`。
 - 评论区剪贴板图片：评论写作器同样支持粘贴 PNG，上传后在当前位置渲染图片节点；提交时仍序列化为 `nexus-attachment` Markdown marker 和 `attachment_ids`。
 - 本地运行时注意：后端源码和远端 `main` 已放行 CORS `PATCH`，但旧 Docker 容器曾返回 `GET, POST, PUT, DELETE, OPTIONS`，导致浏览器保存失败。重建 `cumt-nexus-api:local` 并按现有数据卷账号恢复 prod compose 后，`OPTIONS` 返回 `GET, POST, PUT, PATCH, DELETE, OPTIONS`，编辑保存通过。
+- 2026-06-08 Feed source UI 重测：桌面 `/`、`/all/hot`、`/following` 均显示首页 / 全站 / 关注 / 社区左侧导航和源 / 排序双 tabs；`/` 与 `/all/hot` 有帖子或公开空态，`/following` 在当前登录态浏览器按关注源请求。移动端 390px 检查 `/all/hot` 和 `/following` 无横向溢出，控制台 error 数为 0。无 token 的 `/following` 门禁由 `check:routes` 的服务端请求覆盖。
 
 ## 后端需要补或确认
 
 以下不要直接改后端；需要进入后端文档或后端任务：
 
-- Feed source 合同：推荐、全站、关注、社区、用户、搜索结果之间的统一接口或明确拆分接口。
+- Feed source 合同：推荐、全站、关注、社区、用户、搜索结果之间的统一接口或明确拆分接口。前端已发送 `source=recommended|all|following` 并提供 URL / UI，但不能证明后端当前运行时已经真实区分这些数据源。
 - Feed sort 合同：`best | hot | new | top | rising`，其中 `top` 需要时间范围。当前本地运行时只接受 `new | hot`，`best/top/rising` 返回 `400 invalid_argument`；前端已保留目标 URL / UI，并在排序不可用时提示后降级展示真实 `new` 公开帖子。
 - 评论 sort 合同：评论区是否支持 `best | new | top`，以及 URL query 是否持久化。
-- 个性化推荐和关注 feed：关注关系、推荐排序、登录 / 未登录降级策略。
+- 个性化推荐和关注 feed：关注关系、推荐排序、登录 / 未登录降级策略。前端当前只做 URL / UI 和未登录门禁，不伪造关注结果。
 - 通知事件类型：回复、@、赞、系统、审核、社区申请必须有稳定 type 和 target。
 - 链接预览：普通网页解析、缓存、失败降级、图片安全策略。
 - 白名单 embed 后端合同：Bilibili、抖音、网易云、QQ 音乐 provider resolve、短链展开、元数据、审核状态和 `embed_ids` 持久化；前端 canonical 裸链接播放器已先落地。
@@ -82,7 +83,7 @@
 不要再按“规划是否完成”讨论。后续按体验任务推进：
 
 1. 用浏览器继续完成帖子编辑和评论编辑的新增 / 删除图片保存复验，覆盖真实上传、保存、重新打开详情和阅读态渲染。
-2. 做 Feed source + 五种 sort 任务：先核对后端，再扩路由和 UI。
+2. 继续核对后端 Feed source + 五种 sort 的真实合同：前端 URL / UI 已有，仍需要证明运行时真正区分推荐、全站、关注，并补齐 `best/top/rising`。
 3. 通知分类页前端壳已落地；继续对接后端稳定事件类型、target 和未读计数。
 4. 做链接预览和 embed 后端合同接入：链接预览仍未实现；embed 前端 canonical 裸链接已可显示，下一步是接后端结构化 resolve 和短链。
 5. 按 `docs/internal/engineering/browser-qa.md` 跑完整桌面 / 移动端人工 QA，把“反人类”的页面按 P0 / P1 任务修。

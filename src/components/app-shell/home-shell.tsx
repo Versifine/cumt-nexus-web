@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
+import {
+  feedSourceItems,
+  formatFeedSourceDescription,
+  formatFeedSourceLabel,
+  getFeedHref,
+  getFeedReturnLabel,
+} from "@/features/feed/source";
 import { useLatestPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
 import {
@@ -35,14 +42,6 @@ const guideItems = [
   "社区申请通过前不会创建公开社区。",
 ];
 
-const feedSortHrefs: Record<PostSort, string> = {
-  best: "/",
-  hot: "/hot",
-  new: "/new",
-  top: "/top",
-  rising: "/rising",
-};
-
 type HomeShellProps = {
   initialPostsData?: ListPostsResponse;
   initialSort?: PostSort;
@@ -56,12 +55,13 @@ export function HomeShell({
   initialSort = "new",
   source = "recommended",
 }: HomeShellProps) {
-  const { isReady } = useAuthSession();
+  const { isReady, token } = useAuthSession();
   const router = useRouter();
   const pathname = usePathname();
   const sort = initialSort;
-  const postSource = getHomePostSource(pathname, sort);
-  const canReadLatestPosts = isReady;
+  const requiresAuth = source === "following";
+  const postSource = getHomePostSource(pathname, source, sort);
+  const canReadLatestPosts = isReady && (!requiresAuth || Boolean(token));
   const latestPostsQuery = useLatestPostsQuery(
     20,
     0,
@@ -83,10 +83,11 @@ export function HomeShell({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="px-3 py-3 sm:px-4">
               <h1 className="text-base font-semibold text-foreground">
-                {formatPostSortLabel(sort)}讨论
+                {formatFeedSourceLabel(source)}讨论
               </h1>
               <p className="mt-1 text-xs text-muted-foreground">
-                公开信息流
+                {formatFeedSourceDescription(source)}当前按
+                {formatPostSortLabel(sort)}排序。
               </p>
               {sortFallbackNotice ? (
                 <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
@@ -94,12 +95,21 @@ export function HomeShell({
                 </p>
               ) : null}
             </div>
-            <div className="px-3 pb-3 sm:px-4 sm:pb-0">
+            <div className="flex max-w-full flex-col gap-2 px-3 pb-3 sm:px-4 sm:pb-0">
+              <FeedSourceTabs
+                disabled={!isReady}
+                onSourceChange={(nextSource) => {
+                  if (nextSource !== source) {
+                    router.push(getFeedHref(nextSource, sort));
+                  }
+                }}
+                source={source}
+              />
               <FeedSortTabs
                 disabled={!canReadLatestPosts || latestPostsQuery.isFetching}
                 onSortChange={(nextSort) => {
                   if (nextSort !== sort) {
-                    router.push(getHomeFeedHref(nextSort));
+                    router.push(getFeedHref(source, nextSort));
                   }
                 }}
                 sort={sort}
@@ -145,6 +155,30 @@ export function HomeShell({
             </div>
           ) : null}
 
+          {isReady && requiresAuth && !token ? (
+            <div className="py-5">
+              <EmptyState
+                title="登录后查看关注信息流"
+                description="关注流只展示与你关注社区有关的内容。登录后可以回到这里继续浏览。"
+                action={
+                  <div className="flex flex-col items-stretch justify-center gap-2 sm:flex-row">
+                    <TextAction
+                      href={`/login?next=${encodeURIComponent(pathname)}`}
+                      tone="primary"
+                    >
+                      去登录
+                    </TextAction>
+                    <TextAction
+                      href={`/register?next=${encodeURIComponent(pathname)}`}
+                    >
+                      创建账号
+                    </TextAction>
+                  </div>
+                }
+              />
+            </div>
+          ) : null}
+
           {canReadLatestPosts &&
           latestPostsQuery.isSuccess &&
           posts.length === 0 ? (
@@ -175,10 +209,10 @@ export function HomeShell({
 
       <RightRail
         canReadLatestPosts={canReadLatestPosts}
+        feedSource={source}
         posts={posts}
+        postSource={postSource}
         sortFallbackNotice={sortFallbackNotice}
-        source={postSource}
-        sort={sort}
       />
     </div>
   );
@@ -218,57 +252,59 @@ function FeedSortTabs({
   );
 }
 
-function getHomeFeedHref(sort: PostSort) {
-  return feedSortHrefs[sort] ?? "/";
+function FeedSourceTabs({
+  disabled,
+  onSourceChange,
+  source,
+}: {
+  disabled: boolean;
+  onSourceChange: (source: FeedSource) => void;
+  source: FeedSource;
+}) {
+  return (
+    <Tabs
+      value={source}
+      onValueChange={(value) => onSourceChange(value as FeedSource)}
+    >
+      <TabsList className="max-w-full justify-start overflow-x-auto rounded-none border-border bg-background p-0">
+        {feedSourceItems.map((item) => (
+          <TabsTrigger
+            key={item.value}
+            value={item.value}
+            disabled={disabled}
+            className="rounded-none border-r border-border last:border-r-0 data-[state=active]:bg-foreground data-[state=active]:text-background"
+          >
+            {item.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
+  );
 }
 
-function getHomePostSource(pathname: string, sort: PostSort): PostSourceContext {
-  if (pathname === "/hot" || sort === "hot") {
-    return {
-      href: "/hot",
-      label: "返回热门",
-    };
-  }
-
-  if (pathname === "/new") {
-    return {
-      href: "/new",
-      label: "返回最新",
-    };
-  }
-
-  if (pathname === "/top" || sort === "top") {
-    return {
-      href: "/top",
-      label: "返回最高",
-    };
-  }
-
-  if (pathname === "/rising" || sort === "rising") {
-    return {
-      href: "/rising",
-      label: "返回上升",
-    };
-  }
-
+function getHomePostSource(
+  pathname: string,
+  source: FeedSource,
+  sort: PostSort,
+): PostSourceContext {
   return {
-    href: "/",
-    label: "返回首页",
+    href: getFeedHref(source, sort) || pathname,
+    label: getFeedReturnLabel(source),
   };
 }
 
 function RightRail({
   canReadLatestPosts,
+  feedSource,
   posts,
+  postSource,
   sortFallbackNotice,
-  source,
-  sort,
 }: {
   canReadLatestPosts: boolean;
+  feedSource: FeedSource;
   posts: Post[];
+  postSource: PostSourceContext;
   sortFallbackNotice: string | null;
-  source: PostSourceContext;
-  sort: PostSort;
 }) {
   const topPosts = posts.slice(0, 3);
 
@@ -280,7 +316,7 @@ function RightRail({
             右侧上下文
           </div>
           <h2 className="mt-3 text-lg font-semibold leading-7">
-            今天从{formatPostSortLabel(sort)}讨论开始。
+            今天从{formatFeedSourceLabel(feedSource)}信息流开始。
           </h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             {sortFallbackNotice ??
@@ -311,8 +347,8 @@ function RightRail({
                   href={`/posts/${post.id}`}
                   onClick={() =>
                     rememberPostNavigationSource({
-                      href: source.href,
-                      label: source.label,
+                      href: postSource.href,
+                      label: postSource.label,
                       postId: post.id,
                     })
                   }

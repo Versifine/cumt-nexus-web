@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   ClipboardCheck,
+  Globe2,
   Hash,
   Home,
   LogOut,
@@ -15,6 +16,7 @@ import {
   Send,
   ShieldAlert,
   User,
+  Users,
   X,
 } from "lucide-react";
 
@@ -45,6 +47,8 @@ type AppShellProps = {
 
 const primaryNavItems = [
   { href: "/", icon: Home, label: "首页" },
+  { href: "/all", icon: Globe2, label: "全站" },
+  { href: "/following", icon: Users, label: "关注" },
   { href: "/communities", icon: Hash, label: "社区" },
 ];
 
@@ -421,6 +425,10 @@ function isActivePath(pathname: string, href: string) {
       pathname === "/top" ||
       pathname === "/rising"
     );
+  }
+
+  if (href === "/all" || href === "/following") {
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);
