@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function CommunitiesPage() {
   return (
-    <AppShell contextLabel="02 / 社区">
+    <AppShell contextLabel="社区">
       <CommunityList />
     </AppShell>
   );
