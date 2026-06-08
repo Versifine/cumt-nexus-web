@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function SearchRoute() {
   return (
-    <AppShell contextLabel="03 / 搜索">
+    <AppShell contextLabel="搜索">
       <SearchPage />
     </AppShell>
   );

@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default async function HotFeed() {
-  return <HomeFeedPage contextLabel="01 / 热门" sort="hot" />;
+  return <HomeFeedPage contextLabel="热门" sort="hot" />;
 }

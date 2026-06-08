@@ -49,7 +49,7 @@ export function StatusPage({
             <div className="inline-flex border-y border-primary/40 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">
               {eyebrow}
             </div>
-            <h1 className="mt-6 max-w-3xl text-4xl font-black leading-tight tracking-normal sm:text-5xl">
+            <h1 className="mt-6 max-w-3xl text-2xl font-semibold leading-8 tracking-normal sm:text-3xl">
               {title}
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">
@@ -88,7 +88,7 @@ export function StatusPage({
                     返回最新讨论
                   </TextAction>
                   <TextAction href="/communities" variant="bar">
-                    浏览社区索引
+                    浏览社区
                   </TextAction>
                 </div>
               )}
@@ -115,7 +115,7 @@ export function RetryAction({ onRetry }: { onRetry: () => void }) {
         返回最新讨论
       </TextAction>
       <TextAction href="/communities" variant="bar">
-        浏览社区索引
+        浏览社区
       </TextAction>
     </div>
   );

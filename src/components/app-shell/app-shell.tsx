@@ -100,7 +100,7 @@ export function AppShell({ children, className, contextLabel }: AppShellProps) {
               </button>
 
               <div className="hidden min-w-0 lg:block">
-                <div className="font-mono text-xs uppercase text-muted-foreground">
+                <div className="truncate text-xs font-medium text-muted-foreground">
                   {contextLabel}
                 </div>
               </div>
@@ -134,11 +134,11 @@ export function AppShell({ children, className, contextLabel }: AppShellProps) {
 function ShellBrand() {
   return (
     <Link href="/" className="block border-b border-border pb-5">
-      <div className="inline-flex items-center border border-foreground bg-foreground px-2 py-1 text-xl font-black leading-none tracking-normal text-background">
+      <div className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card text-sm font-semibold text-primary transition-colors hover:border-primary/50">
         CN
       </div>
       <div className="mt-4 text-sm font-semibold">CUMT Nexus</div>
-      <div className="mt-1 text-xs text-muted-foreground">校园社区索引</div>
+      <div className="mt-1 text-xs text-muted-foreground">校园社区</div>
     </Link>
   );
 }
@@ -413,7 +413,14 @@ function HeaderUserMenu() {
 
 function isActivePath(pathname: string, href: string) {
   if (href === "/") {
-    return pathname === "/" || pathname === "/new" || pathname === "/hot";
+    return (
+      pathname === "/" ||
+      pathname === "/best" ||
+      pathname === "/hot" ||
+      pathname === "/new" ||
+      pathname === "/top" ||
+      pathname === "/rising"
+    );
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);

@@ -16,6 +16,7 @@ import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useCommunityPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
+import { formatPostSortLabel, postSortItems } from "@/features/post/sort";
 import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 
@@ -101,7 +102,7 @@ export function CommunityDetail({
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold">社区帖子</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  当前按{formatSortLabel(sort)}排序
+                  当前按{formatPostSortLabel(sort)}排序
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -280,21 +281,17 @@ function CommunityPostSortTabs({
 }) {
   return (
     <Tabs value={sort} onValueChange={(value) => onSortChange(value as PostSort)}>
-      <TabsList className="h-9 rounded-none border border-border bg-background p-0">
-        <TabsTrigger
-          value="new"
-          disabled={disabled}
-          className="h-9 rounded-none border-r border-border px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-        >
-          最新
-        </TabsTrigger>
-        <TabsTrigger
-          value="hot"
-          disabled={disabled}
-          className="h-9 rounded-none px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-        >
-          热门
-        </TabsTrigger>
+      <TabsList className="h-9 max-w-full justify-start overflow-x-auto rounded-none border border-border bg-background p-0">
+        {postSortItems.map((item) => (
+          <TabsTrigger
+            key={item.value}
+            value={item.value}
+            disabled={disabled}
+            className="h-9 rounded-none border-r border-border px-3 text-xs last:border-r-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            {item.label}
+          </TabsTrigger>
+        ))}
       </TabsList>
     </Tabs>
   );
@@ -398,10 +395,6 @@ function CommunityRail({
       </div>
     </aside>
   );
-}
-
-function formatSortLabel(sort: PostSort) {
-  return sort === "hot" ? "热门" : "最新";
 }
 
 function formatDate(value: string) {

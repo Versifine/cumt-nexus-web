@@ -1,6 +1,6 @@
 import type { MediaAttachment } from "@/features/media/types";
 
-export type PostSort = "new" | "hot";
+export type PostSort = "best" | "hot" | "new" | "top" | "rising";
 
 export type PostViewerPermissions = {
   can_comment?: boolean;

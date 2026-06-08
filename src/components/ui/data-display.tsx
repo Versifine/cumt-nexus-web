@@ -49,7 +49,7 @@ export function MetricBlock({
       <div
         className={cn(
           variant === "default" &&
-            "mt-2 text-2xl font-black leading-none text-foreground",
+            "mt-2 text-xl font-semibold leading-none text-foreground",
           variant === "compact" &&
             "mt-2 text-sm font-semibold text-foreground",
           valueClassName,

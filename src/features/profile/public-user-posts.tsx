@@ -17,6 +17,7 @@ import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useUserPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
+import { formatPostSortLabel, postSortItems } from "@/features/post/sort";
 import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 
@@ -100,7 +101,7 @@ export function PublicUserPosts({
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold">公开帖子</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  当前按{formatSortLabel(sort)}排序
+                  当前按{formatPostSortLabel(sort)}排序
                 </p>
               </div>
               <UserPostSortTabs
@@ -237,21 +238,17 @@ function UserPostSortTabs({
 }) {
   return (
     <Tabs value={sort} onValueChange={(value) => onSortChange(value as PostSort)}>
-      <TabsList className="h-9 rounded-none border border-border bg-background p-0">
-        <TabsTrigger
-          value="new"
-          disabled={disabled}
-          className="h-9 rounded-none border-r border-border px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-        >
-          最新
-        </TabsTrigger>
-        <TabsTrigger
-          value="hot"
-          disabled={disabled}
-          className="h-9 rounded-none px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-        >
-          热门
-        </TabsTrigger>
+      <TabsList className="h-9 max-w-full justify-start overflow-x-auto rounded-none border border-border bg-background p-0">
+        {postSortItems.map((item) => (
+          <TabsTrigger
+            key={item.value}
+            value={item.value}
+            disabled={disabled}
+            className="h-9 rounded-none border-r border-border px-3 text-xs last:border-r-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            {item.label}
+          </TabsTrigger>
+        ))}
       </TabsList>
     </Tabs>
   );
@@ -276,7 +273,7 @@ function UserPostsRail({
           <div className="mt-3 divide-y divide-border border-y border-border">
             <InfoRow label="昵称" value={getDisplayName(user)} />
             <InfoRow label="用户名" value={`@${user.username}`} />
-            <InfoRow label="排序" value={formatSortLabel(sort)} />
+            <InfoRow label="排序" value={formatPostSortLabel(sort)} />
             <InfoRow label="公开帖子" value={String(user.stats.post_count)} />
             <InfoRow label="加入" value={formatDate(user.created_at)} />
           </div>
@@ -358,7 +355,7 @@ function ProfileAvatar({ user }: { user: PublicUser }) {
 
   return (
     <div
-      className="flex size-12 shrink-0 items-center justify-center rounded-full border border-border bg-secondary font-black text-primary"
+      className="flex size-12 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-primary"
       aria-label={`${getDisplayName(user)} 的头像占位`}
     >
       <User className="size-5" aria-hidden="true" />
@@ -368,10 +365,6 @@ function ProfileAvatar({ user }: { user: PublicUser }) {
 
 function getDisplayName(user: PublicUser) {
   return user.display_name || user.username;
-}
-
-function formatSortLabel(sort: PostSort) {
-  return sort === "hot" ? "热门" : "最新";
 }
 
 function formatDate(value: string) {

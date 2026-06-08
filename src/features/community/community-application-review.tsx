@@ -372,7 +372,7 @@ function ReviewHeader({
           /community-applications/review
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <StatusToken tone="primary">staff-only</StatusToken>
+          <StatusToken tone="primary">平台权限</StatusToken>
           <StatusToken>{formatApplicationStatus(status)}</StatusToken>
         </div>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">

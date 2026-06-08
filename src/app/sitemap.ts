@@ -4,6 +4,11 @@ import { getSiteUrl } from "@/lib/site-url";
 
 const routes = [
   { path: "/", priority: 1 },
+  { path: "/best", priority: 0.9 },
+  { path: "/hot", priority: 0.9 },
+  { path: "/new", priority: 0.9 },
+  { path: "/top", priority: 0.8 },
+  { path: "/rising", priority: 0.8 },
   { path: "/communities", priority: 0.9 },
   { path: "/search", priority: 0.8 },
   { path: "/notifications", priority: 0.8 },

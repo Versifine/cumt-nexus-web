@@ -16,6 +16,7 @@ import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useLatestPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
+import { formatPostSortLabel, postSortItems } from "@/features/post/sort";
 import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 
@@ -24,6 +25,14 @@ const guideItems = [
   "投票会改变帖子分数，取消投票会恢复状态。",
   "社区申请通过前不会创建公开社区。",
 ];
+
+const feedSortHrefs: Record<PostSort, string> = {
+  best: "/",
+  hot: "/hot",
+  new: "/new",
+  top: "/top",
+  rising: "/rising",
+};
 
 type HomeShellProps = {
   initialPostsData?: ListPostsResponse;
@@ -47,7 +56,7 @@ export function HomeShell({
     0,
     canReadLatestPosts,
     sort,
-    sort === "new" ? initialPostsData : undefined,
+    initialPostsData,
   );
   const posts = canReadLatestPosts ? (latestPostsQuery.data?.posts ?? []) : [];
 
@@ -58,7 +67,7 @@ export function HomeShell({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="px-3 py-3 sm:px-4">
               <h1 className="text-base font-semibold text-foreground">
-                {formatSortLabel(sort)}讨论
+                {formatPostSortLabel(sort)}讨论
               </h1>
               <p className="mt-1 text-xs text-muted-foreground">
                 公开信息流
@@ -164,28 +173,31 @@ function FeedSortTabs({
 }) {
   return (
     <Tabs value={sort} onValueChange={(value) => onSortChange(value as PostSort)}>
-      <TabsList className="rounded-none border-border bg-background p-0">
+      <TabsList className="max-w-full justify-start overflow-x-auto rounded-none border-border bg-background p-0">
         <TabsTrigger
-          value="new"
+          value="best"
           disabled={disabled}
           className="rounded-none border-r border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
         >
-          最新
+          推荐
         </TabsTrigger>
-        <TabsTrigger
-          value="hot"
-          disabled={disabled}
-          className="rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-        >
-          热门
-        </TabsTrigger>
+        {postSortItems.slice(1).map((item) => (
+          <TabsTrigger
+            key={item.value}
+            value={item.value}
+            disabled={disabled}
+            className="rounded-none border-r border-border last:border-r-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            {item.label}
+          </TabsTrigger>
+        ))}
       </TabsList>
     </Tabs>
   );
 }
 
 function getHomeFeedHref(sort: PostSort) {
-  return sort === "hot" ? "/hot" : "/new";
+  return feedSortHrefs[sort] ?? "/";
 }
 
 function getHomePostSource(pathname: string, sort: PostSort): PostSourceContext {
@@ -200,6 +212,20 @@ function getHomePostSource(pathname: string, sort: PostSort): PostSourceContext 
     return {
       href: "/new",
       label: "返回最新",
+    };
+  }
+
+  if (pathname === "/top" || sort === "top") {
+    return {
+      href: "/top",
+      label: "返回最高",
+    };
+  }
+
+  if (pathname === "/rising" || sort === "rising") {
+    return {
+      href: "/rising",
+      label: "返回上升",
     };
   }
 
@@ -229,8 +255,8 @@ function RightRail({
           <div className="font-mono text-xs uppercase text-muted-foreground">
             右侧上下文
           </div>
-          <h2 className="mt-3 text-2xl font-black leading-tight">
-            今天从{formatSortLabel(sort)}讨论开始。
+          <h2 className="mt-3 text-lg font-semibold leading-7">
+            今天从{formatPostSortLabel(sort)}讨论开始。
           </h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             排序由后端返回结果决定，右侧只保留和当前信息流有关的上下文。
@@ -301,10 +327,6 @@ function RightRail({
       </div>
     </aside>
   );
-}
-
-function formatSortLabel(sort: PostSort) {
-  return sort === "hot" ? "热门" : "最新";
 }
 
 function isUnauthenticated(error: Error | null) {

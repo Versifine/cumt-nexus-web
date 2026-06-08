@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default async function NewFeed() {
-  return <HomeFeedPage contextLabel="01 / 最新" sort="new" />;
+  return <HomeFeedPage contextLabel="最新" sort="new" />;
 }

@@ -408,7 +408,7 @@ function ProfileAvatar({ user }: { user: PublicUser }) {
 
   return (
     <div
-      className="flex size-12 shrink-0 items-center justify-center rounded-full border border-border bg-secondary font-black text-primary"
+      className="flex size-12 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-primary"
       aria-label={`${getDisplayName(user)} 的头像占位`}
     >
       <User className="size-5" aria-hidden="true" />
