@@ -6,13 +6,14 @@
 
 ## 当前结论
 
-- 媒体能力必须以后端为权威：上传、校验、对象存储、审核状态、链接解析和 embed provider 识别都在后端完成。
+- 媒体能力必须以后端为最终权威：上传、校验、对象存储、审核状态、链接解析、短链展开、元数据抓取和 embed provider 持久化都在后端完成。
 - V2 前端已接入 `POST /api/v1/uploads/images`，并在发帖和评论写作器中形成可用上传体验。
 - 前端只提交后端返回的结构化 `attachment_id`、`embed_id` 或预览对象，不直接保存第三方 URL 作为附件。
 - 前端正文内图片使用 Markdown 引用 `![说明](nexus-attachment:<attachment_id>)`。该 marker 只负责在正文中表达位置；真正图片 URL、状态、尺寸和说明仍以后端返回的 `attachments` 为准。
 - 旧内容或用户未插入正文的已绑定附件不再由 `ContentBody` 追加成正文外图集；发布态只渲染正文内 `nexus-attachment` marker 引用到的附件。
 - 帖子和评论图片均已接入；评论图片数量继续比帖子更克制。
-- 链接预览和播放器是两种能力：普通网页只做链接预览，Bilibili / 网易云音乐等只通过 provider 白名单 embed。
+- 链接预览和播放器是两种能力：普通网页只做链接预览，Bilibili / 抖音 / 网易云音乐 / QQ 音乐只通过 provider 白名单 embed。
+- V2 前端已支持明确 canonical 裸链接的本地白名单识别和受控播放器渲染；这不保存 `embed_ids`，也不解析短链、标题、封面或审核状态。
 - 任意 iframe、用户 HTML、`data:` 图片和浏览器端抓第三方网页元数据都禁止。
 
 ## 当前已核对的图片合同
@@ -341,16 +342,36 @@ POST /api/v1/embeds/resolve
 
 ```text
 bilibili_video
+douyin_video
 netease_music_song
 netease_music_playlist
+netease_music_album
+qq_music_song
 ```
 
 规则：
 
 - 后端只保存 provider、资源 ID 和原始 URL，不保存用户提交的 iframe HTML。
 - 不支持的 URL 返回 `unsupported`，不要抛成通用 500。
-- 前端只根据 provider 渲染受控组件。
+- 前端只根据 provider 渲染受控组件；当前 `ContentBody` 已有一套无后端持久化的 canonical URL 本地识别，后端 resolve 完成后应切到结构化 `embed` / `embed_ids` 合同。
 - iframe 权限、sandbox、referrer policy 由前端 provider wrapper 固定，不允许用户配置。
+
+当前前端本地识别范围：
+
+```text
+Bilibili: bilibili.com/video/BV..., bilibili.com/video/av..., player.bilibili.com/player.html
+抖音: douyin.com/video/<id>, iesdouyin.com/share/video/<id>, open.douyin.com/player/video?vid=...
+网易云音乐: music.163.com/#/song?id=..., playlist, album, outchain/player
+QQ 音乐: i.y.qq.com/v8/playsong.html?songid=..., y.qq.com/n/ryqq/songDetail/<songmid>, i.y.qq.com/n2/m/outchain/player/index.html
+```
+
+仍需后端处理：
+
+- `b23.tv`、`v.douyin.com` 等短链展开。
+- 标题、封面、作者等元数据。
+- provider 审核状态和屏蔽状态。
+- `embed_ids` 写入帖子 / 评论发布和编辑请求。
+- 已保存内容读取时返回结构化 `embeds`。
 
 ## 数据模型建议
 
@@ -410,7 +431,8 @@ link_previews
 3. 已完成：评论图片上传，复用上传入口，按后端合同限制为最多 1 张。
 4. 待后端补齐：编辑态图片新增 / 删除 / 重绑，前端再开放编辑弹窗上传入口并提交 `attachment_ids`。
 5. 链接预览：粘贴 URL 后解析，普通网页展示预览卡。
-6. 白名单 embed：按 provider 渲染受控播放器 wrapper。
+6. 已完成前端 canonical URL 白名单 embed：按 provider 渲染受控播放器 wrapper。
+7. 待后端补齐：白名单 embed resolve、短链解析、元数据、审核状态和 `embed_ids` 持久化。
 
 ## 验收要求
 
@@ -424,7 +446,7 @@ link_previews
 - 评论可以绑定已上传附件。
 - 链接预览不会请求内网地址。
 - 不支持的 embed URL 返回 `unsupported`。
-- Bilibili / 网易云白名单 URL 能返回结构化 provider 对象。
+- Bilibili / 抖音 / 网易云 / QQ 音乐白名单 URL 能返回结构化 provider 对象。
 - 前端无需任何对象存储密钥即可展示后端返回的公开 URL 或签名 URL。
 
 ## 暂不做

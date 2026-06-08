@@ -173,7 +173,7 @@ Reddit-style campus community content system
 - 更接近 Reddit 的完整 Markdown 细节兼容性审查。
 - Markdown 工具动作补齐列表、标题、删除线、代码块和表格快捷插入。
 - 图片数量、类型、大小提示和失败重试已完成前端产品化；图片缩略图 URL、未绑定对象物理删除 / TTL 和失败对象回收仍需以后端后续合同为准继续细化。
-- 白名单外链 embed 展示。
+- 白名单外链 embed 展示：前端 canonical 裸链接播放器已落地，后端结构化 resolve 和持久化仍需继续。
 - 普通网页链接预览。
 
 内容能力目标可以对齐 Reddit，但实现必须继续遵守本项目安全边界：不存用户 HTML、不开放任意 iframe、不绕过 `ContentBody`。
@@ -185,7 +185,7 @@ V2 详细路线见 `docs/internal/product/v2-roadmap.md`。优先级固定为：
 1. 新后端缺口继续同步到 `backend-api-needs.md`。
 2. 统一 App Shell：首页、社区、搜索、通知、审核等主工作区必须共享左侧栏目、顶部 bar、移动端收起导航和当前路由高亮，避免页面之间像不同产品。
 3. 图片限制、缩略图、失败重试和对象清理提示继续产品化。
-4. 白名单 embed、链接预览、评论投票和通知事件源增强继续拆分。
+4. 白名单 embed 后端 resolve / 持久化、链接预览、评论投票和通知事件源增强继续拆分。
 5. 浏览器 QA 和生产 deferred 项继续拆分到后续上线切片。
 
 ### P2：产品扩展能力
@@ -233,7 +233,7 @@ V2 本地初版已完成收口，后续前端优先顺序是：
 
 1. 保持 `check:static`、`check:docs`、`check:routes`、`check:readiness`、`check:main-path` 和 `check:v2-path` 通过。
 2. 把新增后端缺口同步给 `cumt-nexus-api`。
-3. 先拆统一 App Shell 和主导航一致性，再继续拆分白名单 embed、链接预览、评论投票、通知事件源增强，以及图片缩略图 / 对象物理清理等后端合同项。
+3. 先拆统一 App Shell 和主导航一致性，再继续拆分白名单 embed 后端 resolve / 持久化、链接预览、评论投票、通知事件源增强，以及图片缩略图 / 对象物理清理等后端合同项。
 
 如果目标是首版上线，优先顺序是：
 

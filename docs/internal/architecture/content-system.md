@@ -109,8 +109,9 @@ Reddit-style campus community content system
 - Reddit-style 上标会经过预处理后渲染为上标。
 - 未闭合的 `>!` 会按普通文本显示。
 - 不提供编辑 / 预览双模式，阅读态负责最终渲染。
+- 裸贴的 Bilibili、抖音、网易云音乐和 QQ 音乐 canonical URL 会由统一正文渲染入口自动渲染为受控播放器；用户提交的 iframe HTML 仍然完全禁止。
 - 前端不存用户 HTML，不使用 `dangerouslySetInnerHTML`，不启用 `rehype-raw`。
-- `npm run check:content-boundary` 已经作为静态守护，防止帖子详情正文和评论树正文绕过 `ContentBody`，并阻止原始 HTML、`rehype-raw` 和未批准 iframe/srcDoc 进入源码。
+- `npm run check:content-boundary` 已经作为静态守护，防止帖子详情正文和评论树正文绕过 `ContentBody`，并阻止原始 HTML、`rehype-raw` 和白名单播放器组件之外的 iframe/srcDoc 进入源码。
 - `npm run check:content-segments` 已经作为行为守护，验证普通文本、多段涂黑、未闭合涂黑、空涂黑和多行涂黑的解析结果。
 
 ## 写作器形态
@@ -135,7 +136,7 @@ Reddit-style campus community content system
 
 ## 媒体模型
 
-图片、链接预览和白名单 embed 的后端契约缺口见 `docs/internal/architecture/content-media-api-gaps.md`。在这些接口完成前，前端只记录 gap，不伪造上传、对象存储或播放器能力。
+图片、链接预览和白名单 embed 的后端契约缺口见 `docs/internal/architecture/content-media-api-gaps.md`。图片上传和 canonical 白名单播放器已在前端落地；短链解析、元数据、审核状态、链接预览和 `embed_ids` 持久化仍以后端合同为准。
 
 ### 图片
 
@@ -186,23 +187,25 @@ media_attachment
 
 ### 外链播放器
 
-Bilibili 和网易云音乐属于白名单 embed，不等于开放任意 iframe。
+Bilibili、抖音、网易云音乐和 QQ 音乐属于白名单 embed，不等于开放任意 iframe。
 
 规则：
 
 - 用户粘贴 URL。
-- 后端识别 provider。
-- 后端提取稳定 ID。
-- 后端保存结构化 embed。
-- 前端只根据白名单 provider 渲染受控 iframe 或播放器 wrapper。
+- 前端可以先识别明确 canonical URL 并渲染受控 iframe wrapper。
+- 后端仍应识别 provider、提取稳定 ID、展开短链、保存结构化 embed 并返回审核状态。
+- 前端最终只根据白名单 provider 或本地白名单解析结果渲染受控 iframe 或播放器 wrapper。
 - 不能保存用户提交的 iframe HTML。
 
 建议 provider：
 
 ```text
 bilibili_video
+douyin_video
 netease_music_song
 netease_music_playlist
+netease_music_album
+qq_music_song
 ```
 
 建议数据对象：

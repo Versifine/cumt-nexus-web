@@ -71,9 +71,15 @@ const blockedPatterns = [
       /(?:from\s+["']rehype-raw["']|require\s*\(\s*["']rehype-raw["']\s*\)|import\s*\(\s*["']rehype-raw["']\s*\)|\brehypeRaw\b)/,
   },
   {
-    detail: "embed support must be a future whitelist provider slice, not arbitrary iframe HTML",
+    allowPaths: new Set(["src/features/content/media-embed-player.tsx"]),
+    detail: "iframe rendering must stay inside the controlled whitelist media player",
     name: "arbitrary iframe",
-    pattern: /<iframe\b|srcDoc\s*=/i,
+    pattern: /<iframe\b/i,
+  },
+  {
+    detail: "iframe srcDoc would re-enable user-controlled HTML and is banned",
+    name: "iframe srcDoc",
+    pattern: /srcDoc\s*=/i,
   },
 ];
 
@@ -85,6 +91,7 @@ checkBlockedSourcePatterns();
 checkBlockedDirectDependencies();
 checkContentEntryPoint();
 checkRedditAutolinkBoundary();
+checkWhitelistedMediaEmbedBoundary();
 checkMarkdownComposerEntryPoint();
 checkMarkdownToolbarTools();
 checkLifecycleComposerDefaultMode();
@@ -126,6 +133,10 @@ function checkBlockedSourcePatterns() {
     const offenders = [];
 
     for (const file of sourceFiles) {
+      if (blocked.allowPaths?.has(file.path)) {
+        continue;
+      }
+
       if (blocked.pattern.test(file.content)) {
         offenders.push(file.path);
       }
@@ -138,6 +149,83 @@ function checkBlockedSourcePatterns() {
 
     addPass(blocked.name, blocked.detail);
   }
+}
+
+function checkWhitelistedMediaEmbedBoundary() {
+  const parser = sourceFiles.find(
+    (file) => file.path === "src/features/content/media-embed.ts",
+  );
+  const player = sourceFiles.find(
+    (file) => file.path === "src/features/content/media-embed-player.tsx",
+  );
+  const contentBody = sourceFiles.find(
+    (file) => file.path === "src/features/content/content-body.tsx",
+  );
+  const problems = [];
+
+  if (!parser) {
+    problems.push("src/features/content/media-embed.ts is missing");
+  } else {
+    for (const token of [
+      "resolveWhitelistedMediaEmbed",
+      "isWhitelistedMediaAutolink",
+      "\"bilibili\"",
+      "\"douyin\"",
+      "\"netease\"",
+      "\"qq-music\"",
+      "https://player.bilibili.com/player.html",
+      "https://open.douyin.com/player/video",
+      "https://music.163.com/outchain/player",
+      "https://i.y.qq.com/n2/m/outchain/player/index.html",
+    ]) {
+      if (!parser.content.includes(token)) {
+        problems.push(`media embed parser missing ${token}`);
+      }
+    }
+  }
+
+  if (!player) {
+    problems.push("src/features/content/media-embed-player.tsx is missing");
+  } else {
+    for (const token of [
+      "<iframe",
+      "sandbox={playerSandbox}",
+      "allowFullScreen",
+      'referrerPolicy="strict-origin-when-cross-origin"',
+      "打开原链接",
+      "data-media-provider",
+    ]) {
+      if (!player.content.includes(token)) {
+        problems.push(`media embed player missing ${token}`);
+      }
+    }
+  }
+
+  if (!contentBody) {
+    problems.push("src/features/content/content-body.tsx is missing");
+  } else {
+    for (const token of [
+      "@/features/content/media-embed",
+      "@/features/content/media-embed-player",
+      "isWhitelistedMediaAutolink",
+      "resolveWhitelistedMediaEmbed",
+      "<MediaEmbedPlayer embed={embed} />",
+    ]) {
+      if (!contentBody.content.includes(token)) {
+        problems.push(`ContentBody missing whitelist embed integration ${token}`);
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    addFail("whitelist media embed boundary", problems.join("; "));
+    return;
+  }
+
+  addPass(
+    "whitelist media embed boundary",
+    "ContentBody auto-embeds only supported provider URLs through one controlled iframe wrapper",
+  );
 }
 
 function checkBlockedDirectDependencies() {

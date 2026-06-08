@@ -19,7 +19,7 @@
 现在先讨论内容系统 V2 的媒体能力，不要立刻写代码。
 
 目标：
-- 为帖子图片、评论图片、链接预览、Bilibili / 网易云白名单 embed 建立后端契约。
+- 为帖子图片、评论图片、链接预览、Bilibili / 抖音 / 网易云 / QQ 音乐白名单 embed 建立后端契约。
 - 加入对象存储支持，至少覆盖本地开发和生产配置边界。
 - 保持前端只通过 HTTP API 协作，不共享代码、不直接访问数据库、不持有对象存储密钥。
 - 内容正文能力以 Reddit-style Markdown 为目标；不存用户 HTML，不开放任意 iframe，不把编辑 / 预览双模式作为强制产品形态。
@@ -79,7 +79,7 @@
 
 7. 白名单 embed
 - POST /api/v1/embeds/resolve
-- 首批 provider：bilibili_video、netease_music_song、netease_music_playlist。
+- 首批 provider：bilibili_video、douyin_video、netease_music_song、netease_music_playlist、netease_music_album、qq_music_song。
 - 保存 provider、original_url、provider_resource_id、title、thumbnail_url、status。
 - 不保存用户 iframe HTML。
 - unsupported URL 返回明确业务错误或 status，不要当成 500。
@@ -105,4 +105,4 @@
 
 - 这个模板给后端仓库使用，不用于直接修改前端。
 - 如果后端当前目标模式规则与模板冲突，以后端 `AGENTS.md` 和后端本地文档为准。
-- 前端在这些能力完成前只记录 API gap，不伪造媒体能力。
+- 前端已经支持明确 canonical 裸链接的受控白名单播放器；后端仍要负责短链展开、元数据、审核状态和 `embed_ids` 持久化，前端不能伪造这些结构化能力。

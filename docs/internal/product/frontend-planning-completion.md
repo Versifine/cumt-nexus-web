@@ -165,7 +165,7 @@ Feed item 必须展示：
 - Reddit-style Markdown 正文。
 - 图片附件。
 - 普通外链。
-- 后续白名单 embed。
+- 白名单 embed：前端先支持 canonical 裸链接受控播放器，后端继续负责短链、元数据、审核和 `embed_ids` 持久化。
 - 统一写作器。
 - 阅读态直接渲染最终内容。
 
@@ -175,7 +175,7 @@ Feed item 必须展示：
 - 任意 iframe。
 - 任意远程图片 URL 当附件。
 - 强制编辑 / 预览双模式。
-- 前端伪造后端未提供的链接预览或播放器解析。
+- 前端伪造后端未提供的链接预览、短链解析、元数据、审核状态或 `embed_ids` 持久化。canonical 白名单裸链接可由前端受控解析并渲染播放器。
 
 当前 video 不做原生上传或原生播放器，只规划白名单外链播放器。
 
@@ -264,7 +264,7 @@ Feed item 必须展示：
 - 保存、关注和个性化推荐需要后端合同。
 - 图片缩略图、对象物理删除、TTL 和失败对象回收需要后端合同确认。
 - 普通网页链接预览需要后端解析和缓存。
-- Bilibili、抖音、网易云音乐和 QQ 音乐 embed 需要后端 provider 白名单和安全解析。
+- Bilibili、抖音、网易云音乐和 QQ 音乐 embed 的短链、元数据、审核状态和 `embed_ids` 持久化需要后端 provider 白名单和安全解析；前端 canonical 裸链接播放器已先落地。
 - 社区 staff、moderator、成员加入退出、私密社区和邀请制需要后端合同。
 
 后续新增后端需求时，继续同步到 `docs/internal/product/product-targets.md` 或对应架构文档；如果需要交给后端仓库实施，再复制到后端任务文档。
@@ -307,4 +307,3 @@ AI 每次实现前必须：
 - 映射到 `frontend-information-architecture.md` 和 `frontend-experience-rebuild.md`。
 - 说明文件范围、完成边界和本次不做什么。
 - 按小切片实现和验证。
-

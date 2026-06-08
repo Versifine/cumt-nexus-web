@@ -32,6 +32,7 @@ Reddit-style Markdown parity
 - 支持显式引用式链接 / 图片 `[文本][ref]`、`![图][ref]` + `[ref]: URL`，会在统一渲染入口内转换为安全普通链接 / 图片语法，并隐藏定义行。
 - 支持 `r/community` 和 `u/user` 自动链接到本项目社区与用户路由。
 - 链接只允许站内路径、锚点、`http`、`https` 和 `mailto`。
+- 裸贴的 Bilibili、抖音、网易云音乐和 QQ 音乐白名单 URL 会在 `ContentBody` 内自动渲染为受控播放器；带自定义文字的 Markdown 链接仍按普通链接显示。
 - 写作器链接工具会识别选中的安全链接：选中 URL 时放入 href 并选中“链接文字”，选中普通文字时保留为链接文字并选中 URL 占位。
 - 评论树在移动端使用窄缩进，避免深层回复挤压 Markdown 正文、图片、表格和代码块。
 - 写作器始终以 `ContentBody` 渲染发布效果，源码编辑只在用户开始写作或主动打开“编辑正文”时出现。
@@ -42,13 +43,13 @@ Reddit-style Markdown parity
 - 不使用 `dangerouslySetInnerHTML`。
 - 不存用户 HTML。
 - 不使用 `rehype-raw`。
-- `npm run check:content-boundary` 已经固化当前安全边界：帖子详情和评论树必须复用 `ContentBody`，写作器发布效果必须复用 `ContentBody`，工具栏必须保留当前核心动作，源码中不得出现 `dangerouslySetInnerHTML`、原始 HTML 写入、`rehype-raw` 或未批准 iframe/srcDoc。
+- `npm run check:content-boundary` 已经固化当前安全边界：帖子详情和评论树必须复用 `ContentBody`，写作器发布效果必须复用 `ContentBody`，工具栏必须保留当前核心动作，源码中不得出现 `dangerouslySetInnerHTML`、原始 HTML 写入、`rehype-raw` 或白名单播放器组件之外的 iframe/srcDoc。
 - `npm run check:content-segments` 已经固化当前 spoiler / 涂黑解析边界：普通文本、多段涂黑、未闭合涂黑、空涂黑和多行涂黑必须保持稳定。
 
 未实现：
 
 - 与 Reddit 细节完全一致的 Markdown 兼容性审查。
-- 白名单 embed。
+- 后端结构化 embed resolve 合同尚未接入前端发布 payload；短链解析、标题缩略图、审核状态和 `embed_ids` 持久化仍需要后端合同。
 
 ## Reddit Markdown 能力范围
 
@@ -93,6 +94,12 @@ remark-gfm
 - 这组依赖不引入第二套 UI 库，不改变 shadcn/ui 的主组件系统边界。
 - 当前通过 `skipHtml`、自定义组件和链接白名单保持安全边界，不启用 `rehype-raw`。
 - 图片不再由帖子或评论组件挂在正文外层；上传成功后写作器插入 `![说明](nexus-attachment:<attachment_id>)`，阅读态由 `ContentBody` 按后端返回的结构化 `attachments` 渲染对应图片。
+- 白名单媒体裸链接不接受用户 iframe HTML，而是由 `src/features/content/media-embed.ts` 识别 canonical URL，再由 `src/features/content/media-embed-player.tsx` 用固定 iframe wrapper 渲染。当前支持：
+  - Bilibili：`bilibili.com/video/BV...`、`av...` 和 `player.bilibili.com/player.html?...`。
+  - 抖音：`douyin.com/video/<id>`、`iesdouyin.com/share/video/<id>` 和 `open.douyin.com/player/video?vid=...`。
+  - 网易云音乐：`music.163.com/#/song?id=...`、`playlist`、`album` 和 `outchain/player?...`。
+  - QQ 音乐：`i.y.qq.com/v8/playsong.html?songid=...`、`y.qq.com/n/ryqq/songDetail/<songmid>` 和 `i.y.qq.com/n2/m/outchain/player/index.html?...`。
+- 当前前端只做明确白名单 canonical URL 的本地识别；`v.douyin.com`、`b23.tv`、分享短链、标题、封面、审核状态和持久化 `embed_ids` 仍应由后端 `/api/v1/embeds/resolve` 处理。
 - 支持在源码编辑区或发布效果区直接粘贴图片，也支持把图片文件拖到写作器区域；源码编辑区粘贴或拖到 textarea 时按当前光标位置插入，发布效果区粘贴、拖拽或选择图片会追加到正文末尾但不强制展开源码。除浏览器直接提供的图片文件外，写作器也会识别剪贴板 HTML、纯文本或 Markdown 图片语法里的 `data:image/...;base64,...` 图片并转入同一上传流程；粘贴的纯文本片段如果同时包含文字和内联图片，会保留周边文字，只把图片源码替换成 `nexus-attachment` 正文图片引用。
 - 已插入正文的图片可以再次点击“移动到光标处”，写作器会移除旧 Markdown marker 并把同一张图片放到当前光标位置，避免用户手工剪切源码。
 - 普通 `https://...` Markdown 图片不会直接渲染为远程图片，也不会作为正文图片保存；写作器会在编辑态提示用户必须走图片上传和后端 attachment 合同。本阶段不从远程 URL 抓图，只处理真实图片文件或剪贴板内联 `data:image`。
@@ -118,13 +125,13 @@ remark-gfm
 - 禁止启用 `rehype-raw`。
 - 禁止使用 `dangerouslySetInnerHTML` 渲染用户正文。
 - 禁止保存用户提交的 HTML。
-- 禁止任意 iframe。
+- 禁止任意 iframe；源码里只允许 `media-embed-player.tsx` 这一处受控白名单播放器 iframe。
 - 禁止绕过 `ContentBody` 直接在帖子详情或评论树中实现另一套用户内容渲染。
 - 禁止 `javascript:`、`data:` 等危险链接协议。
 - 禁止 `//example.com` 这类协议相对 URL；站内链接必须使用单斜杠路径，例如 `/communities/public`。
 - 外链必须加 `rel="nofollow ugc noopener noreferrer"`。
 - 外链是否新窗口打开由统一组件决定，不在页面里临时变化。
-- 图片和 embed 必须由后端返回结构化附件或白名单 provider，不能只靠 Markdown URL 放行。
+- 图片必须由后端返回结构化附件；白名单 embed 当前可由前端识别明确 canonical URL 并渲染受控播放器，但短链解析、元数据、审核状态和持久化仍以后端 provider 合同为准。
 
 允许协议首版建议：
 

@@ -32,6 +32,10 @@ const {
   normalizeMarkdownHref,
 } = await importTypescriptModule("src/features/content/markdown-url.ts");
 const {
+  isWhitelistedMediaAutolink,
+  resolveWhitelistedMediaEmbed,
+} = await importTypescriptModule("src/features/content/media-embed.ts");
+const {
   remarkRedditAutolink,
 } = await importTypescriptModule("src/features/content/reddit-autolink.ts");
 const {
@@ -126,6 +130,7 @@ for (const testCase of spoilerCases) {
 
 checkAttachmentMarkdown();
 checkMarkdownUrl();
+checkMediaEmbed();
 checkRedditAutolink();
 checkRedditMarkdownTransform();
 checkMarkdownSummary();
@@ -429,6 +434,134 @@ function checkMarkdownUrl() {
   expectEqual(
     "site-relative markdown links are not marked external",
     isExternalMarkdownHref("/communities/public"),
+    false,
+  );
+}
+
+function checkMediaEmbed() {
+  expectEqual(
+    "bilibili video URL resolves to a controlled player",
+    summarizeMediaEmbed(
+      resolveWhitelistedMediaEmbed(
+        "https://www.bilibili.com/video/BV1B7411m7LV?p=2&t=30",
+      ),
+    ),
+    {
+      embedUrl:
+        "https://player.bilibili.com/player.html?bvid=BV1B7411m7LV&p=2&t=30&autoplay=0&danmaku=0",
+      layout: "wide-video",
+      provider: "bilibili",
+      resourceId: "BV1B7411m7LV",
+      resourceType: "video-bvid",
+    },
+  );
+
+  expectEqual(
+    "douyin video URL resolves to official open player",
+    summarizeMediaEmbed(
+      resolveWhitelistedMediaEmbed(
+        "https://www.douyin.com/video/7146408143612123456",
+      ),
+    ),
+    {
+      embedUrl:
+        "https://open.douyin.com/player/video?vid=7146408143612123456&autoplay=0",
+      layout: "portrait-video",
+      provider: "douyin",
+      resourceId: "7146408143612123456",
+      resourceType: "video",
+    },
+  );
+
+  expectEqual(
+    "netease song URL resolves to outchain player",
+    summarizeMediaEmbed(
+      resolveWhitelistedMediaEmbed(
+        "https://music.163.com/#/song?id=1294066180",
+      ),
+    ),
+    {
+      embedUrl:
+        "https://music.163.com/outchain/player?type=2&id=1294066180&auto=0&height=66",
+      layout: "music-compact",
+      provider: "netease",
+      resourceId: "1294066180",
+      resourceType: "song",
+    },
+  );
+
+  expectEqual(
+    "netease playlist URL resolves to tall outchain player",
+    summarizeMediaEmbed(
+      resolveWhitelistedMediaEmbed(
+        "https://music.163.com/#/playlist?id=3778678",
+      ),
+    ),
+    {
+      embedUrl:
+        "https://music.163.com/outchain/player?type=0&id=3778678&auto=0&height=430",
+      layout: "music-tall",
+      provider: "netease",
+      resourceId: "3778678",
+      resourceType: "playlist",
+    },
+  );
+
+  expectEqual(
+    "qq music song id URL resolves to outchain player",
+    summarizeMediaEmbed(
+      resolveWhitelistedMediaEmbed(
+        "https://i.y.qq.com/v8/playsong.html?songid=127570280&songtype=0",
+      ),
+    ),
+    {
+      embedUrl:
+        "https://i.y.qq.com/n2/m/outchain/player/index.html?songid=127570280&songtype=0",
+      layout: "music-compact",
+      provider: "qq-music",
+      resourceId: "127570280",
+      resourceType: "song-id",
+    },
+  );
+
+  expectEqual(
+    "qq music song mid URL resolves without accepting arbitrary hosts",
+    summarizeMediaEmbed(
+      resolveWhitelistedMediaEmbed(
+        "https://y.qq.com/n/ryqq/songDetail/002rhFKO3EjKAg",
+      ),
+    ),
+    {
+      embedUrl:
+        "https://i.y.qq.com/n2/m/outchain/player/index.html?songmid=002rhFKO3EjKAg&songtype=0",
+      layout: "music-compact",
+      provider: "qq-music",
+      resourceId: "002rhFKO3EjKAg",
+      resourceType: "song-mid",
+    },
+  );
+
+  expectEqual(
+    "unsupported media URL does not become an embed",
+    resolveWhitelistedMediaEmbed("https://example.com/video/BV1B7411m7LV"),
+    null,
+  );
+
+  expectEqual(
+    "bare provider link is treated as auto-embeddable",
+    isWhitelistedMediaAutolink(
+      "https://www.bilibili.com/video/BV1B7411m7LV",
+      "https://www.bilibili.com/video/BV1B7411m7LV",
+    ),
+    true,
+  );
+
+  expectEqual(
+    "custom labelled provider link stays a normal markdown link",
+    isWhitelistedMediaAutolink(
+      "https://www.bilibili.com/video/BV1B7411m7LV",
+      "视频链接",
+    ),
     false,
   );
 }
@@ -885,6 +1018,20 @@ function summarizeMarkdownNode(node) {
   }
 
   return summarizeMarkdownNodeText(node);
+}
+
+function summarizeMediaEmbed(embed) {
+  if (!embed) {
+    return null;
+  }
+
+  return {
+    embedUrl: embed.embedUrl,
+    layout: embed.layout,
+    provider: embed.provider,
+    resourceId: embed.resourceId,
+    resourceType: embed.resourceType,
+  };
 }
 
 function summarizeMarkdownNodeText(node) {
