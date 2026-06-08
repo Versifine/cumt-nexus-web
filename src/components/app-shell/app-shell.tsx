@@ -77,12 +77,12 @@ export function AppShell({ children, className, contextLabel }: AppShellProps) {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto grid min-h-screen w-full max-w-[1440px] grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-border bg-background px-5 py-5 lg:sticky lg:top-0 lg:block lg:h-screen lg:self-start lg:overflow-y-auto">
+        <aside className="hidden border-r border-border bg-background px-5 py-5 lg:fixed lg:left-[max(0px,calc((100vw-1440px)/2))] lg:top-0 lg:z-30 lg:block lg:h-dvh lg:w-[248px] lg:overflow-y-auto">
           <ShellBrand />
           <ShellNav pathname={pathname} recentCommunities={recentCommunities} />
         </aside>
 
-        <section className="flex min-w-0 flex-col">
+        <section className="flex min-w-0 flex-col lg:col-start-2">
           <header className="sticky top-0 z-20 border-b border-border bg-background/95 px-3 py-3 backdrop-blur md:px-4 lg:px-6">
             <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 lg:grid-cols-[minmax(120px,180px)_minmax(260px,1fr)_auto] lg:gap-4">
               <button
