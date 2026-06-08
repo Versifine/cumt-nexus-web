@@ -29,8 +29,7 @@
 - `POST /api/v1/posts/:id/comments` 已支持 `attachment_ids`，评论 flat list 和 `view=tree` 均返回 `attachments`。
 - 前端已按上述合同提示并拦截明显不合规输入，上传失败保留文件用于重试，删除正文图片时提示未绑定对象由后端清理策略回收。
 - 前端当前不直接删除对象、不生成缩略图、不伪造 `thumbnail_url`。
-- 当前剩余合同缺口集中在编辑态新增或重绑图片：`PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 仍未接收 `attachment_ids`。
-- 前端编辑弹窗已按当前合同收紧：编辑保存只提交标题 / 正文，不开放新图片上传；作者仍可把已绑定图片重新放回正文位置。
+- 编辑态附件重绑已接入：`PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 已接收可选 `attachment_ids`，前端编辑弹窗可以新增图片、重新放置已有图片，并在保存时只提交正文实际引用到的图片 ID。
 
 ## 后端 / API 剩余缺口
 
@@ -182,7 +181,7 @@ POST /api/v1/posts/:id/comments
 - 子评论和根评论使用同一绑定规则。
 - 外链预览和白名单 embed 不复用 `attachment_ids`；如需 `embed_ids`，必须另起合同。
 
-### 编辑态附件重绑
+### 编辑态附件重绑已接入
 
 当前编辑接口：
 
@@ -193,22 +192,18 @@ PATCH /api/v1/comments/:id
 
 当前后端源码和合同显示：
 
-- `PATCH /api/v1/posts/:id` 请求体为 `title`、`body`。
-- `PATCH /api/v1/comments/:id` 请求体为 `body`。
-- 成功响应会继续返回最新 `attachments`，但编辑请求不会根据新的 `attachment_ids` 新增、删除或重绑图片。
+- `PATCH /api/v1/posts/:id` 请求体为 `title`、`body` 和可选 `attachment_ids`。
+- `PATCH /api/v1/comments/:id` 请求体为 `body` 和可选 `attachment_ids`。
+- 不带 `attachment_ids` 时继续只更新正文；带 `attachment_ids` 时后端按作者和目标内容校验所有权，并替换当前内容绑定的图片集合。
+- 成功响应会继续返回最新 `attachments`。
 
 因此前端编辑弹窗当前只能：
 
 - 默认渲染发布态预览，不直接露出 Markdown 源码。
 - 打开“编辑正文”后修改正文和标题 / 评论内容。
+- 上传、粘贴或拖拽新增图片并插入正文位置。
 - 把已经绑定的正文图片重新插回正文位置，或删除正文中的图片 marker 让阅读态不展示。
-- 保存时只发送当前后端接收的 `title` / `body` 字段。
-
-前端当前不能开放：
-
-- 编辑时上传新图片。
-- 编辑保存时提交新的 `attachment_ids`。
-- 把未绑定的新对象伪装成已保存图片。
+- 保存时按正文实际引用顺序提交 `attachment_ids`，未引用图片不随内容绑定。
 
 需要后端补齐的帖子编辑请求体：
 
@@ -233,7 +228,7 @@ PATCH /api/v1/comments/:id
 
 - 不带 `attachment_ids` 的老请求继续只更新正文。
 - 带 `attachment_ids` 时按当前作者和目标内容校验所有权。
-- 删除正文 marker 后是否解除绑定、未引用附件如何 TTL 清理，需要后端合同明确。
+- 删除正文 marker 后应解除当前内容绑定；未引用附件如何 TTL 清理，仍需要对象清理合同继续跟进。
 
 ### 读取帖子和评论媒体
 
@@ -429,7 +424,7 @@ link_previews
 1. 已完成：帖子图片上传，发帖表单选择图片、上传 loading/error、失败重试、提交 `attachment_ids`。
 2. 已完成：帖子详情图片展示，固定比例、alt 文案和附件元信息。
 3. 已完成：评论图片上传，复用上传入口，按后端合同限制为最多 1 张。
-4. 待后端补齐：编辑态图片新增 / 删除 / 重绑，前端再开放编辑弹窗上传入口并提交 `attachment_ids`。
+4. 已完成：编辑态图片新增 / 删除 / 重绑，前端编辑弹窗上传入口提交正文实际引用的 `attachment_ids`。
 5. 链接预览：粘贴 URL 后解析，普通网页展示预览卡。
 6. 已完成前端 canonical URL 白名单 embed：按 provider 渲染受控播放器 wrapper。
 7. 待后端补齐：白名单 embed resolve、短链解析、元数据、审核状态和 `embed_ids` 持久化。

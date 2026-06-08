@@ -99,6 +99,7 @@ export type PublishPostResponse = {
 export type UpdatePostInput = {
   title: string;
   body: string;
+  attachment_ids?: string[];
 };
 
 export type UpdatePostResponse = {

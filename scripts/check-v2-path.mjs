@@ -136,7 +136,15 @@ async function checkUploadPostAndComments() {
   const postAttachment = await uploadImage(reporter.token, "v2 post image");
   const rootAttachment = await uploadImage(reporter.token, "v2 root comment image");
   const childAttachment = await uploadImage(reporter.token, "v2 child comment image");
-  if (!postAttachment.id || !rootAttachment.id || !childAttachment.id) {
+  const postEditAttachment = await uploadImage(reporter.token, "v2 edited post image");
+  const rootEditAttachment = await uploadImage(reporter.token, "v2 edited root comment image");
+  if (
+    !postAttachment.id ||
+    !rootAttachment.id ||
+    !childAttachment.id ||
+    !postEditAttachment.id ||
+    !rootEditAttachment.id
+  ) {
     return;
   }
 
@@ -151,6 +159,14 @@ async function checkUploadPostAndComments() {
   const childAttachmentMarkdown = createSmokeAttachmentMarkdown(
     childAttachment.id,
     "v2 child comment image",
+  );
+  const postEditAttachmentMarkdown = createSmokeAttachmentMarkdown(
+    postEditAttachment.id,
+    "v2 edited post image",
+  );
+  const rootEditAttachmentMarkdown = createSmokeAttachmentMarkdown(
+    rootEditAttachment.id,
+    "v2 edited root comment image",
   );
 
   const postResponse = await request("/api/v1/communities/public/posts", {
@@ -210,6 +226,57 @@ async function checkUploadPostAndComments() {
     return;
   }
 
+  const postEditResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}`, {
+    body: {
+      attachment_ids: [postEditAttachment.id],
+      body: [
+        `# ${marker} edited`,
+        "",
+        "帖子编辑态图片替换。",
+        "",
+        postEditAttachmentMarkdown,
+      ].join("\n"),
+      title: `${marker} post edited`,
+    },
+    method: "PATCH",
+    token: reporter.token,
+  });
+
+  if (!expectOk(postEditResponse, "edit post replaces image attachments")) {
+    return;
+  }
+
+  const editedPost = postEditResponse.json?.post;
+  if (
+    !editedPost?.body?.includes(postEditAttachmentMarkdown) ||
+    editedPost.body.includes(postAttachmentMarkdown) ||
+    !editedPost.attachments?.some((attachment) => attachment?.id === postEditAttachment.id) ||
+    editedPost.attachments?.some((attachment) => attachment?.id === postAttachment.id)
+  ) {
+    addFail("edit post replaces image attachments", `unexpected response payload: ${preview(postEditResponse.bodyText)}`);
+    return;
+  }
+
+  const editedPostDetailResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}`, {
+    token: reporter.token,
+  });
+  if (!expectOk(editedPostDetailResponse, "post detail preserves edited inline image marker")) {
+    return;
+  }
+  if (
+    !editedPostDetailResponse.json?.post?.body?.includes(postEditAttachmentMarkdown) ||
+    editedPostDetailResponse.json?.post?.body?.includes(postAttachmentMarkdown) ||
+    !editedPostDetailResponse.json?.post?.attachments?.some(
+      (attachment) => attachment?.id === postEditAttachment.id,
+    ) ||
+    editedPostDetailResponse.json?.post?.attachments?.some(
+      (attachment) => attachment?.id === postAttachment.id,
+    )
+  ) {
+    addFail("post detail preserves edited inline image marker", `unexpected response payload: ${preview(editedPostDetailResponse.bodyText)}`);
+    return;
+  }
+
   const rootResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}/comments`, {
     body: {
       attachment_ids: [rootAttachment.id],
@@ -235,6 +302,30 @@ async function checkUploadPostAndComments() {
   }
 
   rootCommentId = rootComment.id;
+
+  const rootEditResponse = await request(`/api/v1/comments/${encodeURIComponent(rootCommentId)}`, {
+    body: {
+      attachment_ids: [rootEditAttachment.id],
+      body: `${marker} root comment edited\n\n${rootEditAttachmentMarkdown}`,
+    },
+    method: "PATCH",
+    token: reporter.token,
+  });
+
+  if (!expectOk(rootEditResponse, "edit root comment replaces image attachments")) {
+    return;
+  }
+
+  const editedRootComment = rootEditResponse.json?.comment;
+  if (
+    !editedRootComment?.body?.includes(rootEditAttachmentMarkdown) ||
+    editedRootComment.body.includes(rootAttachmentMarkdown) ||
+    !editedRootComment.attachments?.some((attachment) => attachment?.id === rootEditAttachment.id) ||
+    editedRootComment.attachments?.some((attachment) => attachment?.id === rootAttachment.id)
+  ) {
+    addFail("edit root comment replaces image attachments", `unexpected response payload: ${preview(rootEditResponse.bodyText)}`);
+    return;
+  }
 
   const childResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}/comments`, {
     body: {
@@ -281,16 +372,18 @@ async function checkUploadPostAndComments() {
     : null;
 
   if (
-    !rootFromTree?.body?.includes(rootAttachmentMarkdown) ||
+    !rootFromTree?.body?.includes(rootEditAttachmentMarkdown) ||
     !childFromTree?.body?.includes(childAttachmentMarkdown) ||
     !rootFromTree?.attachments?.length ||
-    !childFromTree?.attachments?.length
+    !childFromTree?.attachments?.length ||
+    !rootFromTree.attachments.some((attachment) => attachment?.id === rootEditAttachment.id) ||
+    rootFromTree.attachments.some((attachment) => attachment?.id === rootAttachment.id)
   ) {
     addFail("comment tree with attachments", `attachments missing from tree: ${preview(treeResponse.bodyText)}`);
     return;
   }
 
-  addPass("content media path", `created post ${postId}, root comment ${rootCommentId} and child comment ${childCommentId} with inline image markers`);
+  addPass("content media path", `created and edited post ${postId}, root comment ${rootCommentId} and child comment ${childCommentId} with inline image markers`);
 }
 
 async function checkBrowserEditCors() {

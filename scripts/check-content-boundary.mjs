@@ -620,8 +620,19 @@ function checkMediaContractDocs() {
       offenders.push("publish/comment attachment_ids docs still describe completed contracts as future");
     }
 
-    if (!mediaGaps.includes("编辑态附件重绑")) {
-      offenders.push("content media API gaps doc must name the remaining edit attachment contract");
+    if (
+      mediaGaps.includes("当前剩余合同缺口集中在编辑态新增或重绑图片") ||
+      mediaGaps.includes("当前编辑接口暂不支持新增图片") ||
+      mediaGaps.includes("仍未接收 `attachment_ids`") ||
+      mediaGaps.includes("但编辑请求不会根据新的 `attachment_ids`") ||
+      mediaGaps.includes("编辑保存只提交标题 / 正文") ||
+      mediaGaps.includes("前端当前不能开放")
+    ) {
+      offenders.push("content media API gaps doc still describes edit attachment binding as unsupported");
+    }
+
+    if (!mediaGaps.includes("编辑态附件重绑已接入")) {
+      offenders.push("content media API gaps doc must record completed edit attachment binding");
     }
   }
 
@@ -639,10 +650,14 @@ function checkMediaContractDocs() {
 
   if (!audit) {
     offenders.push("frontend implementation audit doc is missing");
-  } else if (
-    !audit.includes("编辑态新增图片仍需要后端更新接口接收 `attachment_ids`")
-  ) {
-    offenders.push("frontend audit must keep the edit image binding gap explicit");
+  } else {
+    if (audit.includes("编辑态新增图片仍需要后端更新接口接收 `attachment_ids`")) {
+      offenders.push("frontend audit still describes edit image binding as a backend gap");
+    }
+
+    if (!audit.includes("编辑态新增图片绑定已接入")) {
+      offenders.push("frontend audit must record completed edit image binding");
+    }
   }
 
   for (const file of docsFiles) {
@@ -666,7 +681,7 @@ function checkMediaContractDocs() {
 
   addPass(
     "media contract docs",
-    "docs distinguish completed publish/comment image binding from the remaining edit binding contract",
+    "docs distinguish completed publish/comment/edit image binding from remaining media gaps",
   );
 }
 
@@ -832,51 +847,65 @@ function checkComposerImageCopy() {
     "publish forms submit only image attachment ids referenced by Markdown",
   );
 
-  const editContractOffenders = [];
+  const editBindingOffenders = [];
   for (const formPath of lifecycleForms) {
     const form = sourceFiles.find((file) => file.path === formPath);
 
     if (!form) {
-      editContractOffenders.push(`${formPath} is missing`);
+      editBindingOffenders.push(`${formPath} is missing`);
       continue;
     }
 
-    if (form.content.includes("imageUpload={{")) {
-      editContractOffenders.push(
-        `${formPath} must not expose edit-time image upload until PATCH attachment_ids is supported`,
+    if (
+      !form.content.includes("@/features/content/attachment-markdown") ||
+      !form.content.includes("getReferencedAttachmentIdsForSubmit") ||
+      !form.content.includes("attachment_ids: getReferencedAttachmentIdsForSubmit(")
+    ) {
+      editBindingOffenders.push(
+        `${formPath} must submit only Markdown-referenced image attachment ids on edit`,
       );
     }
 
-    if (form.content.includes("attachment_ids:")) {
-      editContractOffenders.push(
-        `${formPath} must not send attachment_ids to current edit PATCH endpoints`,
+    if (
+      !form.content.includes("editAttachments") ||
+      !form.content.includes("setEditAttachments") ||
+      !form.content.includes("isUploadingImage") ||
+      !form.content.includes("setIsUploadingImage") ||
+      !form.content.includes("imageUpload={{")
+    ) {
+      editBindingOffenders.push(
+        `${formPath} must expose edit-time image upload and upload state`,
       );
     }
 
     if (!form.content.includes("boundAttachments=")) {
-      editContractOffenders.push(
+      editBindingOffenders.push(
         `${formPath} must still let authors place already-bound images back into the Markdown body`,
       );
     }
 
-    if (!form.content.includes("当前编辑接口暂不支持新增图片")) {
-      editContractOffenders.push(
-        `${formPath} must tell authors edit-time new image upload is not supported by the current PATCH contract`,
+    if (!form.content.includes("mergeMediaAttachments(")) {
+      editBindingOffenders.push(
+        `${formPath} must combine existing and newly uploaded images before deriving attachment_ids`,
       );
+    }
+
+    if (form.content.includes("当前编辑接口暂不支持新增图片")) {
+      editBindingOffenders.push(`${formPath} still shows stale unsupported edit-image copy`);
     }
   }
 
-  if (editContractOffenders.length > 0) {
+  if (editBindingOffenders.length > 0) {
     addFail(
-      "composer edit attachment contract",
-      editContractOffenders.join("; "),
+      "composer edit attachment binding",
+      editBindingOffenders.join("; "),
     );
     return;
   }
 
   addPass(
-    "composer edit attachment contract",
-    "post and comment edit dialogs do not expose unsupported new image binding but keep already-bound image placement available",
+    "composer edit attachment binding",
+    "post and comment edit dialogs upload new images and submit only referenced attachment ids",
   );
 
   if (composer.content.includes('imageUpload && mode === "edit"')) {

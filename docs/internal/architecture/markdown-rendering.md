@@ -39,7 +39,7 @@ Reddit-style Markdown parity
 - 写作器会识别外部 Markdown 图片语法，并提示作者这类图片不会作为正文图片保存；正文图片必须走上传、粘贴图片文件或拖拽图片文件入口。
 - UI smoke 已验证发帖、根评论、子评论回复、帖子编辑保存和评论编辑保存可以提交并在阅读态渲染 Markdown。
 - 编辑弹窗已接入同一写作器，默认显示复用 `ContentBody` 的发布效果；textarea 源码编辑只在打开“编辑正文”后显示，正文图片入口和已有图片放回正文控件保持可见。
-- 当前后端 `PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 不接收 `attachment_ids`；编辑弹窗明确提示暂不支持新增图片，只允许重新放置已经绑定到该内容的图片。
+- 当前后端 `PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 已接收可选 `attachment_ids`；编辑弹窗支持新增图片、粘贴图片、拖拽图片和重新放置已绑定图片，保存时只提交正文实际引用到的图片 ID。
 - 不使用 `dangerouslySetInnerHTML`。
 - 不存用户 HTML。
 - 不使用 `rehype-raw`。

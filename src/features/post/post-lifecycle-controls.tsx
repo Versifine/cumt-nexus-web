@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -19,8 +19,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { getReferencedAttachmentIdsForSubmit } from "@/features/content/attachment-markdown";
 import { MarkdownComposerField } from "@/features/content/markdown-composer-field";
-import { IMAGE_UPLOAD_LIMITS } from "@/features/media/types";
+import {
+  IMAGE_UPLOAD_LIMITS,
+  type MediaAttachment,
+} from "@/features/media/types";
 import { ApiError } from "@/lib/api/client";
 
 import { useDeletePostMutation, useUpdatePostMutation } from "./queries";
@@ -45,6 +49,8 @@ export function PostLifecycleControls({
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editAttachments, setEditAttachments] = useState<MediaAttachment[]>([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const updateMutation = useUpdatePostMutation(post.id);
   const deleteMutation = useDeletePostMutation(post.id);
@@ -61,7 +67,6 @@ export function PostLifecycleControls({
   const { ref: bodyFieldRef, ...bodyFieldProps } = bodyField;
   const updateError = getSubmitError(updateMutation.error);
   const deleteError = getSubmitError(deleteMutation.error);
-  const hasBoundImages = Boolean(post.attachments?.length);
 
   function setBodyValue(nextValue: string) {
     form.setValue("body", nextValue, {
@@ -71,22 +76,23 @@ export function PostLifecycleControls({
     });
   }
 
+  function resetEditDraft() {
+    form.reset({
+      title: post.title,
+      body: post.body,
+    });
+    setEditAttachments([]);
+    setIsUploadingImage(false);
+  }
+
   function handleEditOpenChange(open: boolean) {
-    if (isUpdating) {
+    if (isUpdating || isUploadingImage) {
       return;
     }
 
+    resetEditDraft();
     setEditOpen(open);
   }
-
-  useEffect(() => {
-    if (!editOpen) {
-      form.reset({
-        title: post.title,
-        body: post.body,
-      });
-    }
-  }, [editOpen, form, post.body, post.title]);
 
   if (!canManage) {
     return null;
@@ -97,6 +103,10 @@ export function PostLifecycleControls({
 
   async function handleUpdate(values: PostLifecycleFormValues) {
     const result = await updateMutation.mutateAsync({
+      attachment_ids: getReferencedAttachmentIdsForSubmit(
+        values.body,
+        mergeMediaAttachments(post.attachments, editAttachments),
+      ),
       body: values.body,
       title: values.title,
     });
@@ -105,6 +115,7 @@ export function PostLifecycleControls({
       title: result.post.title,
       body: result.post.body,
     });
+    setEditAttachments([]);
     setSuccessMessage("帖子已更新。");
     setEditOpen(false);
   }
@@ -199,6 +210,12 @@ export function PostLifecycleControls({
                     textareaRef={bodyFieldRef}
                     value={bodyValue}
                     boundAttachments={post.attachments}
+                    imageUpload={{
+                      attachments: editAttachments,
+                      maxCount: IMAGE_UPLOAD_LIMITS.maxCountPerPost,
+                      onChange: setEditAttachments,
+                      onUploadingChange: setIsUploadingImage,
+                    }}
                   />
                   {form.formState.errors.body ? (
                     <p className="text-sm text-destructive">
@@ -207,9 +224,7 @@ export function PostLifecycleControls({
                   ) : (
                     <p className="text-sm text-muted-foreground">
                       默认显示发布后的正文样式；需要改内容时打开“编辑正文”。
-                      {hasBoundImages
-                        ? "当前编辑接口暂不支持新增图片；可把已有图片重新放入正文。"
-                        : "当前编辑接口暂不支持新增图片。"}
+                      可以上传、粘贴或拖拽图片；保存时只绑定正文中实际引用的图片。
                     </p>
                   )}
                 </div>
@@ -219,12 +234,16 @@ export function PostLifecycleControls({
                     type="button"
                     variant="outline"
                     disabled={isUpdating}
-                    onClick={() => setEditOpen(false)}
+                    onClick={() => handleEditOpenChange(false)}
                   >
                     取消
                   </Button>
-                  <Button type="submit" disabled={isUpdating}>
-                    {isUpdating ? "正在保存..." : "保存修改"}
+                  <Button type="submit" disabled={isUpdating || isUploadingImage}>
+                    {isUploadingImage
+                      ? "图片上传中..."
+                      : isUpdating
+                        ? "正在保存..."
+                        : "保存修改"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -300,6 +319,19 @@ export function PostLifecycleControls({
       ) : null}
     </section>
   );
+}
+
+function mergeMediaAttachments(
+  boundAttachments: MediaAttachment[] | undefined,
+  newAttachments: MediaAttachment[],
+) {
+  const attachmentById = new Map<string, MediaAttachment>();
+
+  for (const attachment of [...(boundAttachments ?? []), ...newAttachments]) {
+    attachmentById.set(attachment.id, attachment);
+  }
+
+  return [...attachmentById.values()];
 }
 
 function FieldMeta({

@@ -2,7 +2,6 @@
 
 import {
   forwardRef,
-  useEffect,
   useState,
   type ComponentProps,
   type ReactNode,
@@ -23,9 +22,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { getReferencedAttachmentIdsForSubmit } from "@/features/content/attachment-markdown";
 import { MarkdownComposerField } from "@/features/content/markdown-composer-field";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
-import { IMAGE_UPLOAD_LIMITS } from "@/features/media/types";
+import {
+  IMAGE_UPLOAD_LIMITS,
+  type MediaAttachment,
+} from "@/features/media/types";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +57,8 @@ export function CommentLifecycleControls({
 }: CommentLifecycleControlsProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editAttachments, setEditAttachments] = useState<MediaAttachment[]>([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const updateMutation = useUpdateCommentMutation(comment.id, postId);
   const deleteMutation = useDeleteCommentMutation(comment.id, postId);
@@ -68,7 +73,6 @@ export function CommentLifecycleControls({
   const { ref: bodyFieldRef, ...bodyFieldProps } = bodyField;
   const updateError = getSubmitError(updateMutation.error);
   const deleteError = getSubmitError(deleteMutation.error);
-  const hasBoundImages = Boolean(comment.attachments?.length);
 
   function setBodyValue(nextValue: string) {
     form.setValue("body", nextValue, {
@@ -78,21 +82,22 @@ export function CommentLifecycleControls({
     });
   }
 
+  function resetEditDraft() {
+    form.reset({
+      body: comment.body,
+    });
+    setEditAttachments([]);
+    setIsUploadingImage(false);
+  }
+
   function handleEditOpenChange(open: boolean) {
-    if (isUpdating) {
+    if (isUpdating || isUploadingImage) {
       return;
     }
 
+    resetEditDraft();
     setEditOpen(open);
   }
-
-  useEffect(() => {
-    if (!editOpen) {
-      form.reset({
-        body: comment.body,
-      });
-    }
-  }, [comment.body, editOpen, form]);
 
   if (!canManage) {
     return null;
@@ -103,9 +108,17 @@ export function CommentLifecycleControls({
   const deletePreview = getMarkdownPlainTextSummary(comment.body, "暂无内容。");
 
   async function handleUpdate(values: CommentLifecycleFormValues) {
-    await updateMutation.mutateAsync({
+    const result = await updateMutation.mutateAsync({
+      attachment_ids: getReferencedAttachmentIdsForSubmit(
+        values.body,
+        mergeMediaAttachments(comment.attachments, editAttachments),
+      ),
       body: values.body,
     });
+    form.reset({
+      body: result.comment.body,
+    });
+    setEditAttachments([]);
     setSuccessMessage("评论已更新。");
     setEditOpen(false);
   }
@@ -169,6 +182,12 @@ export function CommentLifecycleControls({
                   textareaRef={bodyFieldRef}
                   value={bodyValue}
                   boundAttachments={comment.attachments}
+                  imageUpload={{
+                    attachments: editAttachments,
+                    maxCount: IMAGE_UPLOAD_LIMITS.maxCountPerComment,
+                    onChange: setEditAttachments,
+                    onUploadingChange: setIsUploadingImage,
+                  }}
                 />
                 {form.formState.errors.body ? (
                   <p className="text-sm text-destructive">
@@ -177,9 +196,7 @@ export function CommentLifecycleControls({
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     默认显示发布后的评论样式；需要改内容时打开“编辑正文”。
-                    {hasBoundImages
-                      ? "当前编辑接口暂不支持新增图片；可把已有图片重新放入正文。"
-                      : "当前编辑接口暂不支持新增图片。"}
+                    可以上传、粘贴或拖拽图片；保存时只绑定正文中实际引用的图片。
                   </p>
                 )}
               </div>
@@ -189,12 +206,16 @@ export function CommentLifecycleControls({
                   type="button"
                   variant="outline"
                   disabled={isUpdating}
-                  onClick={() => setEditOpen(false)}
+                  onClick={() => handleEditOpenChange(false)}
                 >
                   取消
                 </Button>
-                <Button type="submit" disabled={isUpdating}>
-                  {isUpdating ? "正在保存..." : "保存修改"}
+                <Button type="submit" disabled={isUpdating || isUploadingImage}>
+                  {isUploadingImage
+                    ? "图片上传中..."
+                    : isUpdating
+                      ? "正在保存..."
+                      : "保存修改"}
                 </Button>
               </DialogFooter>
             </form>
@@ -269,6 +290,19 @@ export function CommentLifecycleControls({
       ) : null}
     </div>
   );
+}
+
+function mergeMediaAttachments(
+  boundAttachments: MediaAttachment[] | undefined,
+  newAttachments: MediaAttachment[],
+) {
+  const attachmentById = new Map<string, MediaAttachment>();
+
+  for (const attachment of [...(boundAttachments ?? []), ...newAttachments]) {
+    attachmentById.set(attachment.id, attachment);
+  }
+
+  return [...attachmentById.values()];
 }
 
 type TextCommandProps = {
