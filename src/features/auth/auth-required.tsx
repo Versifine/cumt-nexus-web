@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { InfoRow, StatusToken } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useCurrentUserQuery } from "@/features/auth/queries";
@@ -112,40 +113,53 @@ function AuthPanel({
   title: string;
 }) {
   return (
-    <section className={cn("border-y border-border py-5", className)}>
-      <div className="border-b border-border pb-5">
-        <div className="font-mono text-xs text-primary">{eyebrow}</div>
-        <h2 className="mt-3 text-2xl font-black leading-tight tracking-normal">
-          {title}
-        </h2>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-          {description}
-        </p>
+    <section className={cn("border-y border-border py-4", className)}>
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_240px]">
+        <div className="min-w-0">
+          <StatusToken tone={getAuthPanelTone(eyebrow)}>{eyebrow}</StatusToken>
+          <h2 className="mt-3 break-words text-base font-semibold leading-6 tracking-normal">
+            {title}
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            {description}
+          </p>
+        </div>
+        <div className="divide-y divide-border border-y border-border">
+          {rows.map(([label, value]) => (
+            <InfoRow
+              key={label}
+              className="px-0"
+              label={label}
+              value={value}
+            />
+          ))}
+        </div>
       </div>
-      <div className="grid border-b border-border sm:grid-cols-2">
-        {rows.map(([label, value]) => (
-          <div
-            key={label}
-            className="border-b border-border px-4 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0"
-          >
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="mt-2 text-sm font-semibold text-foreground">
-              {value}
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="pt-5">{actions}</div>
+      <div className="mt-4">{actions}</div>
     </section>
   );
 }
 
 function AuthSkeleton() {
   return (
-    <div className="space-y-3 border-y border-border py-4" aria-label="正在加载账号">
+    <div
+      className="space-y-3 border-y border-border py-4"
+      aria-label="正在加载账号"
+    >
       <div className="h-4 w-40 animate-pulse bg-muted" />
       <div className="h-4 w-64 max-w-full animate-pulse bg-muted" />
       <div className="h-10 w-28 animate-pulse bg-muted" />
     </div>
   );
+}
+
+function getAuthPanelTone(eyebrow: string) {
+  switch (eyebrow) {
+    case "验证失败":
+      return "danger";
+    case "正在确认":
+      return "primary";
+    default:
+      return "default";
+  }
 }
