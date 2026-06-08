@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function ModerationRoute() {
   return (
-    <AppShell contextLabel="09 / 举报审核">
+    <AppShell contextLabel="举报审核">
       <ModerationConsole />
     </AppShell>
   );

@@ -28,7 +28,7 @@ export default async function ModerationReportRoute({
   const shortId = id.slice(0, 8).replace(/-+$/, "");
 
   return (
-    <AppShell contextLabel={`10 / 举报 ${shortId}`}>
+    <AppShell contextLabel={`举报 ${shortId}`}>
       <ModerationReportDetail id={id} />
     </AppShell>
   );
