@@ -1,6 +1,7 @@
-import { apiRequest } from "@/lib/api/client";
+import { ApiError, apiRequest } from "@/lib/api/client";
 
 import type {
+  CommentSort,
   ListCommentsResponse,
   PublishCommentInput,
   PublishCommentResponse,
@@ -13,9 +14,11 @@ type ListPostCommentsInput = {
   limit?: number;
   offset?: number;
   view?: "flat" | "tree";
-  sort?: "new" | "old";
+  sort?: CommentSort;
+  fallbackSort?: CommentSort | null;
   maxDepth?: number;
   cache?: RequestCache;
+  timeoutMs?: number;
   token?: string | null;
 };
 
@@ -24,10 +27,12 @@ type ListUserCommentsInput = {
   limit?: number;
   offset?: number;
   cache?: RequestCache;
+  timeoutMs?: number;
   token?: string | null;
 };
 
 export function listPostComments({
+  fallbackSort = "new",
   postId,
   limit = 20,
   offset = 0,
@@ -35,8 +40,47 @@ export function listPostComments({
   sort = "new",
   maxDepth = 6,
   cache,
+  timeoutMs,
   token,
 }: ListPostCommentsInput) {
+  return listCommentsWithSortFallback({
+    fallbackSort,
+    request: (effectiveSort) => {
+      const params = createListCommentsParams({
+        limit,
+        maxDepth,
+        offset,
+        sort: effectiveSort,
+        view,
+      });
+
+      return apiRequest<ListCommentsResponse>(
+        `/api/v1/posts/${encodeURIComponent(postId)}/comments?${params.toString()}`,
+        {
+          cache,
+          timeoutMs,
+          token,
+        },
+      );
+    },
+    sort,
+    view,
+  });
+}
+
+function createListCommentsParams({
+  limit,
+  maxDepth,
+  offset,
+  sort,
+  view,
+}: {
+  limit: number;
+  maxDepth: number;
+  offset: number;
+  sort: CommentSort;
+  view: "flat" | "tree";
+}) {
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
@@ -45,12 +89,76 @@ export function listPostComments({
     max_depth: String(maxDepth),
   });
 
-  return apiRequest<ListCommentsResponse>(
-    `/api/v1/posts/${encodeURIComponent(postId)}/comments?${params.toString()}`,
-    {
-      cache,
-      token,
-    },
+  return params;
+}
+
+async function listCommentsWithSortFallback({
+  fallbackSort,
+  request,
+  sort,
+  view,
+}: {
+  fallbackSort: CommentSort | null;
+  request: (sort: CommentSort) => Promise<ListCommentsResponse>;
+  sort: CommentSort;
+  view: "flat" | "tree";
+}) {
+  try {
+    const result = await request(sort);
+
+    return withCommentSortMeta(result, {
+      effectiveSort: sort,
+      requestedSort: sort,
+      view,
+    });
+  } catch (error) {
+    if (!shouldFallbackSort(error, sort, fallbackSort)) {
+      throw error;
+    }
+
+    const fallbackResult = await request(fallbackSort);
+
+    return withCommentSortMeta(fallbackResult, {
+      effectiveSort: fallbackSort,
+      requestedSort: sort,
+      view,
+    });
+  }
+}
+
+function withCommentSortMeta(
+  result: ListCommentsResponse,
+  {
+    effectiveSort,
+    requestedSort,
+    view,
+  }: {
+    effectiveSort: CommentSort;
+    requestedSort: CommentSort;
+    view: "flat" | "tree";
+  },
+) {
+  return {
+    ...result,
+    effective_sort: effectiveSort,
+    is_sort_fallback: requestedSort !== effectiveSort,
+    requested_sort: requestedSort,
+    sort: effectiveSort,
+    view,
+  };
+}
+
+function shouldFallbackSort(
+  error: unknown,
+  sort: CommentSort,
+  fallbackSort: CommentSort | null,
+): fallbackSort is CommentSort {
+  return (
+    Boolean(fallbackSort) &&
+    sort !== fallbackSort &&
+    error instanceof ApiError &&
+    error.status === 400 &&
+    error.code === "invalid_argument"
   );
 }
 
@@ -59,6 +167,7 @@ export function listUserComments({
   limit = 20,
   offset = 0,
   cache,
+  timeoutMs,
   token,
 }: ListUserCommentsInput) {
   const params = new URLSearchParams({
@@ -70,6 +179,7 @@ export function listUserComments({
     `/api/v1/users/${encodeURIComponent(username)}/comments?${params.toString()}`,
     {
       cache,
+      timeoutMs,
       token,
     },
   );

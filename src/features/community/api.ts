@@ -15,6 +15,7 @@ import type {
 
 type GetCommunityOptions = {
   cache?: RequestCache;
+  timeoutMs?: number;
   token?: string | null;
 };
 
@@ -27,6 +28,7 @@ export function getCommunity(slug: string, options: GetCommunityOptions = {}) {
     `/api/v1/communities/${encodeURIComponent(slug)}`,
     {
       cache: options.cache,
+      timeoutMs: options.timeoutMs,
       token: options.token,
     },
   );

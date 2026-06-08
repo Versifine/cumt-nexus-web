@@ -6,6 +6,7 @@ import { PublicUserPosts } from "@/features/profile/public-user-posts";
 import type { GetPublicUserResponse } from "@/features/profile/types";
 import { listUserPosts } from "@/features/post/api";
 import type { ListPostsResponse } from "@/features/post/types";
+import { SERVER_PREFETCH_API_TIMEOUT_MS } from "@/lib/api/client";
 
 type UserPostsPageProps = {
   params: Promise<{
@@ -48,6 +49,7 @@ async function getInitialPublicUser(
   try {
     return await getPublicUser(username, {
       cache: "no-store",
+      timeoutMs: SERVER_PREFETCH_API_TIMEOUT_MS,
       token: null,
     });
   } catch {
@@ -65,6 +67,7 @@ async function getInitialUserPosts(
       offset: 0,
       sort: "new",
       cache: "no-store",
+      timeoutMs: SERVER_PREFETCH_API_TIMEOUT_MS,
       token: null,
     });
   } catch {

@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell/app-shell";
 import { getPublicUser } from "@/features/profile/api";
 import { PublicUserProfile } from "@/features/profile/public-user-profile";
 import type { GetPublicUserResponse } from "@/features/profile/types";
+import { SERVER_PREFETCH_API_TIMEOUT_MS } from "@/lib/api/client";
 
 type UserProfilePageProps = {
   params: Promise<{
@@ -39,6 +40,7 @@ async function getInitialPublicUser(
   try {
     return await getPublicUser(username, {
       cache: "no-store",
+      timeoutMs: SERVER_PREFETCH_API_TIMEOUT_MS,
       token: null,
     });
   } catch {

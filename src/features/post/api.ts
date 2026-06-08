@@ -18,6 +18,7 @@ type ListCommunityPostsInput = {
   sort?: PostSort;
   cache?: RequestCache;
   fallbackSort?: PostSort | null;
+  timeoutMs?: number;
   token?: string | null;
 };
 
@@ -28,11 +29,13 @@ type ListUserPostsInput = {
   sort?: PostSort;
   cache?: RequestCache;
   fallbackSort?: PostSort | null;
+  timeoutMs?: number;
   token?: string | null;
 };
 
 type GetPostOptions = {
   cache?: RequestCache;
+  timeoutMs?: number;
   token?: string | null;
 };
 
@@ -40,6 +43,7 @@ type ListLatestPostsOptions = {
   cache?: RequestCache;
   fallbackSort?: PostSort | null;
   source?: FeedSource;
+  timeoutMs?: number;
   token?: string | null;
 };
 
@@ -52,6 +56,7 @@ export function listCommunityPosts({
   limit = 20,
   offset = 0,
   sort = "new",
+  timeoutMs,
   token,
 }: ListCommunityPostsInput) {
   return listPostsWithSortFallback({
@@ -63,6 +68,7 @@ export function listCommunityPosts({
         `/api/v1/communities/${encodeURIComponent(slug)}/posts?${params.toString()}`,
         {
           cache,
+          timeoutMs,
           token,
         },
       );
@@ -88,6 +94,7 @@ export function listLatestPosts(
 
       return apiRequest<ListPostsResponse>(`/api/v1/posts?${params.toString()}`, {
         cache: options.cache,
+        timeoutMs: options.timeoutMs,
         token: options.token,
       });
     },
@@ -103,6 +110,7 @@ export function listUserPosts({
   limit = 20,
   offset = 0,
   sort = "new",
+  timeoutMs,
   token,
 }: ListUserPostsInput) {
   return listPostsWithSortFallback({
@@ -114,6 +122,7 @@ export function listUserPosts({
         `/api/v1/users/${encodeURIComponent(username)}/posts?${params.toString()}`,
         {
           cache,
+          timeoutMs,
           token,
         },
       );
@@ -215,6 +224,7 @@ export function getPost(id: string, options: GetPostOptions = {}) {
     `/api/v1/posts/${encodeURIComponent(id)}`,
     {
       cache: options.cache,
+      timeoutMs: options.timeoutMs,
       token: options.token,
     },
   );

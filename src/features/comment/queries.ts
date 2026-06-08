@@ -6,7 +6,11 @@ import {
   listUserComments,
   updateComment,
 } from "./api";
-import type { ListCommentsResponse, UpdateCommentInput } from "./types";
+import type {
+  CommentSort,
+  ListCommentsResponse,
+  UpdateCommentInput,
+} from "./types";
 
 export const commentQueryKeys = {
   postCommentsPrefix: (postId: string) => ["post-comments", postId] as const,
@@ -15,7 +19,7 @@ export const commentQueryKeys = {
     limit: number,
     offset: number,
     view: "flat" | "tree",
-    sort: "new" | "old",
+    sort: CommentSort,
     maxDepth: number,
   ) => ["post-comments", postId, { limit, offset, maxDepth, sort, view }] as const,
   userCommentsAll: () => ["user-comments"] as const,
@@ -29,7 +33,7 @@ export function usePostCommentsQuery(
   limit = 20,
   offset = 0,
   view: "flat" | "tree" = "tree",
-  sort: "new" | "old" = "new",
+  sort: CommentSort = "new",
   maxDepth = 6,
   enabled = true,
   initialData?: ListCommentsResponse,

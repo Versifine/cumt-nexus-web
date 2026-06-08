@@ -449,11 +449,11 @@ dark editorial product / magazine-grade campus community interface
 
 ```text
 /posts/:id
-/posts/:id?comment_sort=best
-/posts/:id?comment_sort=top
-/posts/:id?comment_sort=new
-/posts/:id?comment_sort=old
-/posts/:id?comment_sort=controversial
+/posts/:id?sort=best
+/posts/:id?sort=top
+/posts/:id?sort=new
+/posts/:id?sort=old
+/posts/:id?sort=controversial
 ```
 
 规则：
@@ -833,11 +833,11 @@ https://www.bilibili.com/video/BV...
 评论排序：
 
 ```text
-comment_sort=best
-comment_sort=top
-comment_sort=new
-comment_sort=old
-comment_sort=controversial
+sort=best
+sort=top
+sort=new
+sort=old
+sort=controversial
 ```
 
 未来扩展：

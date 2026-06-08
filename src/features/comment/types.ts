@@ -1,5 +1,7 @@
 import type { MediaAttachment } from "@/features/media/types";
 
+export type CommentSort = "best" | "top" | "new" | "old" | "controversial";
+
 export type Comment = {
   id: string;
   post_id: string;
@@ -44,8 +46,11 @@ export type CommentViewerPermissions = {
 
 export type ListCommentsResponse = {
   comments: Comment[];
+  effective_sort?: CommentSort;
+  is_sort_fallback?: boolean;
   view?: "flat" | "tree" | string;
-  sort?: "new" | string;
+  requested_sort?: CommentSort;
+  sort?: CommentSort | string;
   limit: number;
   offset: number;
   max_depth?: number;

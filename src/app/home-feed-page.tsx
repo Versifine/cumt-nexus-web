@@ -7,6 +7,7 @@ import type {
   ListPostsResponse,
   PostSort,
 } from "@/features/post/types";
+import { SERVER_PREFETCH_API_TIMEOUT_MS } from "@/lib/api/client";
 
 type HomeFeedPageProps = {
   contextLabel: string;
@@ -44,6 +45,7 @@ async function getInitialLatestPosts(
     return await listLatestPosts(20, 0, sort, {
       cache: "no-store",
       source,
+      timeoutMs: SERVER_PREFETCH_API_TIMEOUT_MS,
       token: null,
     });
   } catch {

@@ -6,6 +6,7 @@ import { CommunityDetail } from "@/features/community/community-detail";
 import type { GetCommunityResponse } from "@/features/community/types";
 import { listCommunityPosts } from "@/features/post/api";
 import type { ListPostsResponse } from "@/features/post/types";
+import { SERVER_PREFETCH_API_TIMEOUT_MS } from "@/lib/api/client";
 
 type CommunityDetailPageProps = {
   params: Promise<{
@@ -50,6 +51,7 @@ async function getInitialCommunity(
   try {
     return await getCommunity(slug, {
       cache: "no-store",
+      timeoutMs: SERVER_PREFETCH_API_TIMEOUT_MS,
       token: null,
     });
   } catch {
@@ -67,6 +69,7 @@ async function getInitialCommunityPosts(
       offset: 0,
       sort: "new",
       cache: "no-store",
+      timeoutMs: SERVER_PREFETCH_API_TIMEOUT_MS,
       token: null,
     });
   } catch {

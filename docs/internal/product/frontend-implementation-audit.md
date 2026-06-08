@@ -38,7 +38,7 @@
 | 首页 / 社区 feed item | 列表项展示社区、作者、标题、摘要、分数、评论数、图片预览。 | 部分落地。 | 链接预览未落地；推荐 / 关注 feed 未落地。 |
 | Feed sort | `PostSort = "best" | "hot" | "new" | "top" | "rising"`；路由已有 `/`、`/best`、`/hot`、`/new`、`/top`、`/rising`。2026-06-08 复核本地后端 API，`sort=best`、`sort=top`、`sort=rising` 仍返回 `400 invalid_argument`；前端现在先请求目标排序，失败时明确提示并降级展示 `new` 公开帖子。 | 前端 URL / UI 基础落地，后端排序合同仍未完全对齐本地运行时。 | 需要后端补 `best | top | rising`，`top` 还需要时间范围；前端不伪造排序结果。 |
 | Feed source | `src/features/feed/source.ts` 已集中定义推荐 / 全站 / 关注信息源标签和 URL；左侧导航已有首页、全站、关注、社区；首页信息流可在 `/`、`/all`、`/following` 及各自排序子路径之间切换。`/following` 未登录时显示登录门禁，不展示假关注内容。 | 前端 URL / UI 基础落地。 | 仍需后端证明 `source=recommended|all|following` 会返回对应真实数据；关注流还需要关注关系合同。 |
-| 评论 sort | 帖子详情评论请求固定 `sort="new"`，没有评论 sort UI。 | 未完成。 | 若按 Reddit，需要评论区 `best | new | top` 等 query 合同和 UI。 |
+| 评论 sort | 帖子详情已支持 Reddit 式 `?sort=best|top|new|old|controversial`，评论区有排序 tabs，树状评论层级保持不变；前端会先请求目标排序，本地后端返回 `400 invalid_argument` 时明确提示并降级到 `new`。同时兼容旧规划中的 `comment_sort` query。 | 前端 URL / UI 基础落地，后端排序合同仍未完全对齐本地运行时。 | 需要后端补 `best | top | old | controversial` 或明确只支持 `new`；前端不伪造评论排序结果。 |
 | Markdown 阅读态 | `ContentBody` 使用 `react-markdown` + `remark-gfm`，`skipHtml`，安全 URL，帖子和评论复用；本轮已验证帖子详情移动端长代码块不撑破页面，代码块内部横向滚动。 | 基础落地。 | 仍需 Reddit parity 用例审计，例如边界语法、移动端表格和评论深层场景。 |
 | Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，改为 Tiptap 单一实时渲染编辑面；工具栏对当前选区或当前块执行格式命令，覆盖行内代码和代码块。Markdown 源码不作为默认编辑 UI 暴露，`editor.getMarkdown()` 负责提交格式。 | 基础落地。 | 仍需继续做 Reddit parity 用例审计、移动端完整 QA，以及真实编辑弹窗新增 / 删除图片的手动复验。 |
 | 图片与正文一体化 | 图片上传后进入 Tiptap image 节点并序列化为 `![说明](nexus-attachment:<id>)`；发布帖子、评论和编辑保存都会按正文出现顺序提交实际引用的 `attachment_ids`；阅读态只渲染正文内 marker 引用到的 attachments，不再把未引用附件追加成底部外置图集；外置图片管理组件已移除；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留，`check:content-segments` 覆盖批量图片插入顺序和发布绑定过滤，`check:content-boundary` 固化 Tiptap 写作入口、剪贴板图片入口、编辑态新增图片绑定已接入和内联图片约束。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；新增图片只通过编辑器正文位置进入内容，删除正文里的图片后不会随内容提交。 |
@@ -63,6 +63,8 @@
 - 评论区剪贴板图片：评论写作器同样支持粘贴 PNG，上传后在当前位置渲染图片节点；提交时仍序列化为 `nexus-attachment` Markdown marker 和 `attachment_ids`。
 - 本地运行时注意：后端源码和远端 `main` 已放行 CORS `PATCH`，但旧 Docker 容器曾返回 `GET, POST, PUT, DELETE, OPTIONS`，导致浏览器保存失败。重建 `cumt-nexus-api:local` 并按现有数据卷账号恢复 prod compose 后，`OPTIONS` 返回 `GET, POST, PUT, PATCH, DELETE, OPTIONS`，编辑保存通过。
 - 2026-06-08 Feed source UI 重测：桌面 `/`、`/all/hot`、`/following` 均显示首页 / 全站 / 关注 / 社区左侧导航和源 / 排序双 tabs；`/` 与 `/all/hot` 有帖子或公开空态，`/following` 在当前登录态浏览器按关注源请求。移动端 390px 检查 `/all/hot` 和 `/following` 无横向溢出，控制台 error 数为 0。无 token 的 `/following` 门禁由 `check:routes` 的服务端请求覆盖。
+- 2026-06-08 公开路由 SSR 预取重测：`/new`、`/hot`、`/all`、`/all/hot` 不再被后端慢响应拖到路由 smoke 超时；服务端首屏预取使用短超时，失败后先返回页面壳和公开导航，客户端保留正常查询 / 重试路径。
+- 2026-06-08 评论排序浏览器 smoke：打开 `/posts/500b91a2-73b2-4f36-8c25-cb9a3d97b473?sort=top` 后，评论排序 tabs 显示“最高”激活；本地后端未支持该排序时，页面提示“后端暂未提供最高评论排序，当前展示最新评论”，评论树继续展示真实 `new` 数据。
 
 ## 后端需要补或确认
 
@@ -70,7 +72,7 @@
 
 - Feed source 合同：推荐、全站、关注、社区、用户、搜索结果之间的统一接口或明确拆分接口。前端已发送 `source=recommended|all|following` 并提供 URL / UI，但不能证明后端当前运行时已经真实区分这些数据源。
 - Feed sort 合同：`best | hot | new | top | rising`，其中 `top` 需要时间范围。当前本地运行时只接受 `new | hot`，`best/top/rising` 返回 `400 invalid_argument`；前端已保留目标 URL / UI，并在排序不可用时提示后降级展示真实 `new` 公开帖子。
-- 评论 sort 合同：评论区是否支持 `best | new | top`，以及 URL query 是否持久化。
+- 评论 sort 合同：评论区目标是 `best | top | new | old | controversial`，URL 使用 Reddit 式 `?sort=`。当前本地运行时只有 `new` 成功，其它值返回 `400 invalid_argument`；前端已保留目标 URL / UI，并在排序不可用时提示后降级展示真实 `new` 评论。
 - 个性化推荐和关注 feed：关注关系、推荐排序、登录 / 未登录降级策略。前端当前只做 URL / UI 和未登录门禁，不伪造关注结果。
 - 通知事件类型：回复、@、赞、系统、审核、社区申请必须有稳定 type 和 target。
 - 链接预览：普通网页解析、缓存、失败降级、图片安全策略。

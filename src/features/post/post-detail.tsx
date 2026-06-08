@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { MessageSquare, Share2, User } from "lucide-react";
 
 import {
@@ -14,12 +15,19 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { CommentForm } from "@/features/comment/comment-form";
 import { CommentTree } from "@/features/comment/comment-tree";
 import { usePostCommentsQuery } from "@/features/comment/queries";
-import type { ListCommentsResponse } from "@/features/comment/types";
+import {
+  commentSortItems,
+  DEFAULT_COMMENT_SORT,
+  formatCommentSortDescription,
+  formatCommentSortFallbackNotice,
+} from "@/features/comment/sort";
+import type { CommentSort, ListCommentsResponse } from "@/features/comment/types";
 import { ContentBody } from "@/features/content/content-body";
 import { ModerationRemoveDialog } from "@/features/moderation/moderation-remove-dialog";
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
@@ -32,16 +40,21 @@ import type { GetPostResponse, Post } from "./types";
 
 type PostDetailProps = {
   id: string;
+  initialCommentSort?: CommentSort;
   initialCommentsData?: ListCommentsResponse;
   initialPostData?: GetPostResponse;
 };
 
 export function PostDetail({
   id,
+  initialCommentSort = DEFAULT_COMMENT_SORT,
   initialCommentsData,
   initialPostData,
 }: PostDetailProps) {
   const { isReady, token } = useAuthSession();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [navigationSource] = useState<PostNavigationSource | null>(() =>
     readPostNavigationSource(id),
   );
@@ -54,10 +67,14 @@ export function PostDetail({
     20,
     0,
     "tree",
-    "new",
+    initialCommentSort,
     6,
     canRequestComments,
     initialCommentsData,
+  );
+  const commentSortFallbackNotice = formatCommentSortFallbackNotice(
+    commentsQuery.data?.requested_sort,
+    commentsQuery.data?.effective_sort,
   );
   const post = postQuery.data?.post;
   const comments = canRequestComments ? (commentsQuery.data?.comments ?? []) : [];
@@ -120,12 +137,31 @@ export function PostDetail({
                     评论
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    按最新回复展示，回复会保留树状层级。
+                    {formatCommentSortDescription(initialCommentSort)}
+                    回复会保留树状层级。
                   </p>
+                  {commentSortFallbackNotice ? (
+                    <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
+                      {commentSortFallbackNotice}
+                    </p>
+                  ) : null}
                 </div>
-                <span className="font-mono text-xs text-muted-foreground">
-                  {commentCount} 条评论
-                </span>
+                <div className="flex flex-col gap-2 sm:items-end">
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {commentCount} 条评论
+                  </span>
+                  <CommentSortTabs
+                    disabled={!canRequestComments || commentsQuery.isFetching}
+                    onSortChange={(nextSort) => {
+                      if (nextSort !== initialCommentSort) {
+                        router.push(
+                          getCommentSortHref(pathname, searchParams, nextSort),
+                        );
+                      }
+                    }}
+                    sort={initialCommentSort}
+                  />
+                </div>
               </div>
             </div>
 
@@ -191,6 +227,52 @@ export function PostDetail({
       {post ? <PostRail post={post} commentCount={commentCount} /> : null}
     </div>
   );
+}
+
+function CommentSortTabs({
+  disabled,
+  onSortChange,
+  sort,
+}: {
+  disabled: boolean;
+  onSortChange: (sort: CommentSort) => void;
+  sort: CommentSort;
+}) {
+  return (
+    <Tabs value={sort} onValueChange={(value) => onSortChange(value as CommentSort)}>
+      <TabsList className="max-w-full justify-start overflow-x-auto rounded-none border-border bg-background p-0">
+        {commentSortItems.map((item) => (
+          <TabsTrigger
+            key={item.value}
+            value={item.value}
+            disabled={disabled}
+            className="rounded-none border-r border-border last:border-r-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            {item.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
+  );
+}
+
+function getCommentSortHref(
+  pathname: string,
+  searchParams: { toString(): string },
+  sort: CommentSort,
+) {
+  const params = new URLSearchParams(searchParams.toString());
+  params.delete("comment_sort");
+
+  if (sort === DEFAULT_COMMENT_SORT) {
+    params.delete("sort");
+  } else {
+    params.set("sort", sort);
+  }
+
+  const query = params.toString();
+
+  return query ? `${pathname}?${query}` : pathname;
 }
 
 function PostBackLink({

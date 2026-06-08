@@ -6,6 +6,7 @@ import type { ListCommentsResponse } from "@/features/comment/types";
 import { getPublicUser } from "@/features/profile/api";
 import { PublicUserComments } from "@/features/profile/public-user-comments";
 import type { GetPublicUserResponse } from "@/features/profile/types";
+import { SERVER_PREFETCH_API_TIMEOUT_MS } from "@/lib/api/client";
 
 type UserCommentsPageProps = {
   params: Promise<{
@@ -50,6 +51,7 @@ async function getInitialPublicUser(
   try {
     return await getPublicUser(username, {
       cache: "no-store",
+      timeoutMs: SERVER_PREFETCH_API_TIMEOUT_MS,
       token: null,
     });
   } catch {
@@ -66,6 +68,7 @@ async function getInitialUserComments(
       limit: 20,
       offset: 0,
       cache: "no-store",
+      timeoutMs: SERVER_PREFETCH_API_TIMEOUT_MS,
       token: null,
     });
   } catch {
