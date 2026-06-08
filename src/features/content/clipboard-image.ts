@@ -4,12 +4,15 @@ export type ClipboardDataImageSource = {
   mimeType: string;
 };
 
+export type ClipboardDataImageTextPaste = {
+  sources: ClipboardDataImageSource[];
+  text: string;
+};
+
 const imageSrcPattern =
   /<img\b[^>]*?\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
-const markdownDataImagePattern =
-  /!\[[^\]\r\n]*\]\(\s*(data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+)\s*(?:"[^"]*"|'[^']*')?\s*\)/gi;
-const textDataImagePattern =
-  /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/gi;
+const textDataImagePastePattern =
+  /!?\[((?:\\.|[^\]\\])*)\]\(\s*(data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+)\s*(?:"[^"]*"|'[^']*')?\s*\)|(data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+)/gi;
 const base64DataImagePattern =
   /^data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/=\s]+)$/i;
 
@@ -35,18 +38,50 @@ export function extractDataImageSourcesFromClipboardHtml(html: string) {
 }
 
 export function extractDataImageSourcesFromClipboardText(text: string) {
+  return extractDataImageTextPaste(text).sources;
+}
+
+export function extractDataImageTextPaste(
+  text: string,
+): ClipboardDataImageTextPaste {
   const sources: ClipboardDataImageSource[] = [];
-  const seen = new Set<string>();
+  const sourceIndexByDataUrl = new Map<string, number>();
+  let nextText = "";
+  let offset = 0;
 
-  for (const match of text.matchAll(markdownDataImagePattern)) {
-    addDataImageSource(sources, seen, match[1] ?? "");
+  for (const match of text.matchAll(textDataImagePastePattern)) {
+    const source = parseBase64DataImage(match[2] ?? match[3] ?? "");
+
+    if (!source) {
+      continue;
+    }
+
+    const matchIndex = match.index ?? 0;
+    let sourceIndex = sourceIndexByDataUrl.get(source.dataUrl);
+
+    if (sourceIndex === undefined) {
+      sourceIndex = sources.length;
+      sourceIndexByDataUrl.set(source.dataUrl, sourceIndex);
+      sources.push(source);
+    }
+
+    nextText += text.slice(offset, matchIndex);
+    nextText += getClipboardDataImagePlaceholder(sourceIndex);
+    offset = matchIndex + match[0].length;
   }
 
-  for (const match of text.matchAll(textDataImagePattern)) {
-    addDataImageSource(sources, seen, match[0] ?? "");
+  if (sources.length === 0) {
+    return { sources, text };
   }
 
-  return sources;
+  return {
+    sources,
+    text: nextText + text.slice(offset),
+  };
+}
+
+export function getClipboardDataImagePlaceholder(index: number) {
+  return `[[nexus-clipboard-image:${index}]]`;
 }
 
 export function getClipboardImageFileName(
@@ -75,21 +110,6 @@ function parseBase64DataImage(value: string) {
     extension: getImageExtension(mimeType),
     mimeType,
   };
-}
-
-function addDataImageSource(
-  sources: ClipboardDataImageSource[],
-  seen: Set<string>,
-  rawSource: string,
-) {
-  const source = parseBase64DataImage(rawSource);
-
-  if (!source || seen.has(source.dataUrl)) {
-    return;
-  }
-
-  seen.add(source.dataUrl);
-  sources.push(source);
 }
 
 function normalizeHtmlAttributeValue(value: string) {

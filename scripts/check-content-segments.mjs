@@ -12,6 +12,8 @@ const { parseSpoilerSegments } = await importTypescriptModule(
 const {
   extractDataImageSourcesFromClipboardHtml,
   extractDataImageSourcesFromClipboardText,
+  extractDataImageTextPaste,
+  getClipboardDataImagePlaceholder,
   getClipboardImageFileName,
 } = await importTypescriptModule("src/features/content/clipboard-image.ts");
 const {
@@ -842,6 +844,38 @@ function checkClipboardImageExtraction() {
         mimeType: "image/png",
       },
     ],
+  );
+
+  expectEqual(
+    "clipboard text data image paste keeps surrounding markdown text",
+    extractDataImageTextPaste(
+      [
+        "前文 **重点**",
+        "![inline](data:image/webp;base64,UklGRg==)",
+        "后文 [plain](data:image/png;base64,iVBORw0KGgo=)",
+        "再次使用 ![duplicate](data:image/webp;base64,UklGRg==)",
+      ].join("\n"),
+    ),
+    {
+      sources: [
+        {
+          dataUrl: "data:image/webp;base64,UklGRg==",
+          extension: "webp",
+          mimeType: "image/webp",
+        },
+        {
+          dataUrl: "data:image/png;base64,iVBORw0KGgo=",
+          extension: "png",
+          mimeType: "image/png",
+        },
+      ],
+      text: [
+        "前文 **重点**",
+        getClipboardDataImagePlaceholder(0),
+        `后文 ${getClipboardDataImagePlaceholder(1)}`,
+        `再次使用 ${getClipboardDataImagePlaceholder(0)}`,
+      ].join("\n"),
+    },
   );
 }
 

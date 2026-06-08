@@ -10,8 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   type ClipboardDataImageSource,
+  type ClipboardDataImageTextPaste,
   extractDataImageSourcesFromClipboardHtml,
   extractDataImageSourcesFromClipboardText,
+  extractDataImageTextPaste,
+  getClipboardDataImagePlaceholder,
   getClipboardImageFileName,
 } from "@/features/content/clipboard-image";
 import {
@@ -282,6 +285,25 @@ export function MarkdownComposerField({
       return;
     }
 
+    const dataImageTextPaste = getDataImageTextPasteFromTransferText(
+      event.clipboardData,
+    );
+
+    if (dataImageTextPaste) {
+      event.preventDefault();
+
+      if (disabled || textareaProps.disabled) {
+        return;
+      }
+
+      if (insertion === "end") {
+        setMode("edit");
+      }
+
+      await uploadInlineDataImageTextPaste(dataImageTextPaste, { insertion });
+      return;
+    }
+
     const imageFiles = getImageFilesFromDataTransfer(event.clipboardData);
 
     if (imageFiles.length === 0) {
@@ -344,6 +366,116 @@ export function MarkdownComposerField({
     }
 
     await uploadInlineImageFiles([file]);
+  }
+
+  async function uploadInlineDataImageTextPaste(
+    paste: ClipboardDataImageTextPaste,
+    options: { insertion?: InlineImageInsertion } = {},
+  ) {
+    if (!imageUpload) {
+      return;
+    }
+
+    const currentValue = bodyTextareaRef.current?.value ?? value;
+    const insertionStart =
+      options.insertion === "end"
+        ? currentValue.length
+        : bodyTextareaRef.current?.selectionStart ?? currentValue.length;
+    const insertionEnd =
+      options.insertion === "end"
+        ? insertionStart
+        : bodyTextareaRef.current?.selectionEnd ?? insertionStart;
+    const remainingUploadSlots =
+      imageUpload.maxCount - imageUpload.attachments.length;
+    const remainingReferenceSlots = getRemainingReferenceSlots(currentValue);
+
+    if (remainingUploadSlots <= 0) {
+      setImageUploadError(
+        `当前最多上传 ${imageUpload.maxCount} 张图片，先移除一张再继续。`,
+      );
+      return;
+    }
+
+    if (remainingReferenceSlots <= 0) {
+      setImageUploadError(getReferenceLimitMessage());
+      return;
+    }
+
+    const remainingSlots = Math.min(remainingUploadSlots, remainingReferenceSlots);
+
+    if (paste.sources.length > remainingSlots) {
+      setImageUploadError(
+        `当前还能放入 ${remainingSlots} 张图片，请减少数量后再试。`,
+      );
+      return;
+    }
+
+    const files: File[] = [];
+
+    for (const [index, source] of paste.sources.entries()) {
+      const file = createFileFromDataImageSource(source, index);
+
+      if (!file) {
+        setImageUploadError("剪贴板图片数据无法读取，请重新复制后再试。");
+        return;
+      }
+
+      const validationError = validateImageUploadFile(file, {
+        altText: getPastedImageAltText(file),
+        currentCount: imageUpload.attachments.length + files.length,
+        maxCount: imageUpload.maxCount,
+      });
+
+      if (validationError) {
+        setImageUploadError(validationError);
+        return;
+      }
+
+      files.push(file);
+    }
+
+    setImageUploadError(null);
+    setIsUploadingInlineImage(true);
+    imageUpload.onUploadingChange?.(true);
+
+    try {
+      let nextAttachments = imageUpload.attachments;
+      const markdownByPlaceholder = new Map<string, string>();
+
+      for (const [index, file] of files.entries()) {
+        const altText = getPastedImageAltText(file);
+        const result = await inlineImageUploadMutation.mutateAsync({
+          alt_text: altText,
+          file,
+        });
+
+        nextAttachments = [...nextAttachments, result.attachment];
+        imageUpload.onChange(nextAttachments);
+        markdownByPlaceholder.set(
+          getClipboardDataImagePlaceholder(index),
+          createAttachmentMarkdown(result.attachment),
+        );
+      }
+
+      const pastedMarkdown = replaceClipboardDataImagePlaceholders(
+        paste.text,
+        markdownByPlaceholder,
+      );
+      const result = applyMarkdownInsert({
+        end: insertionEnd,
+        insert: pastedMarkdown,
+        start: insertionStart,
+        value: currentValue,
+      });
+
+      setBodyValue(result.value);
+      focusTextareaSelection(result.selection.start, result.selection.end);
+    } catch (error) {
+      setImageUploadError(getUploadError(error));
+    } finally {
+      setIsUploadingInlineImage(false);
+      imageUpload.onUploadingChange?.(false);
+    }
   }
 
   async function uploadInlineImageFiles(
@@ -713,6 +845,18 @@ function getDataImageFilesFromTransferText(dataTransfer: DataTransfer) {
     .filter(isImageFile);
 }
 
+function getDataImageTextPasteFromTransferText(dataTransfer: DataTransfer) {
+  const text = dataTransfer.getData("text/plain");
+
+  if (!text) {
+    return null;
+  }
+
+  const paste = extractDataImageTextPaste(text);
+
+  return paste.sources.length > 0 ? paste : null;
+}
+
 function hasDataImageInTransferText(dataTransfer: DataTransfer) {
   const text = dataTransfer.getData("text/plain");
 
@@ -744,6 +888,19 @@ function createFileFromDataImageSource(
   return new File([bytes], getClipboardImageFileName(source, index), {
     type: source.mimeType,
   });
+}
+
+function replaceClipboardDataImagePlaceholders(
+  text: string,
+  markdownByPlaceholder: Map<string, string>,
+) {
+  let nextText = text;
+
+  for (const [placeholder, markdown] of markdownByPlaceholder) {
+    nextText = nextText.split(placeholder).join(markdown);
+  }
+
+  return nextText;
 }
 
 function isTextareaElement(value: EventTarget | null) {
