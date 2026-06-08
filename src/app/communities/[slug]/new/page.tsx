@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import { AppShell } from "@/components/app-shell/app-shell";
-import { SourceBackLink } from "@/components/app-shell/source-back-link";
 import {
   IndexedInfoRow,
   InfoRow,
@@ -40,9 +39,12 @@ export default async function NewPostPage({ params }: NewPostPageProps) {
     <AppShell contextLabel={`发布 /${slug}`}>
       <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
         <div className="min-w-0">
-          <SourceBackLink href={`/communities/${encodeURIComponent(slug)}`}>
+          <TextAction
+            direction="back"
+            href={`/communities/${encodeURIComponent(slug)}`}
+          >
             返回 /{slug}
-          </SourceBackLink>
+          </TextAction>
 
           <section className="mt-3 border border-border bg-background">
             <NewPostHeader community={community} slug={slug} />
@@ -192,10 +194,10 @@ function NewPostRail({
               href={`/communities/${encodeURIComponent(slug)}`}
               variant="bar"
             >
-              返回社区
+              返回 /{slug}
             </TextAction>
             <TextAction href="/communities" variant="bar">
-              浏览社区列表
+              浏览社区
             </TextAction>
           </div>
         </section>

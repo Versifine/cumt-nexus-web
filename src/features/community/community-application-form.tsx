@@ -70,7 +70,7 @@ export function CommunityApplicationForm({
         </Alert>
         <div className="mt-5 border-y border-border">
           <TextAction href="/communities" tone="primary" variant="bar">
-            返回社区列表
+            浏览社区
           </TextAction>
         </div>
       </div>

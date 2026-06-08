@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import { AppShell } from "@/components/app-shell/app-shell";
-import { SourceBackLink } from "@/components/app-shell/source-back-link";
 import {
   IndexedInfoRow,
   InfoRow,
@@ -22,7 +21,9 @@ export default function NewCommunityApplicationPage() {
     <AppShell contextLabel="社区申请">
       <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
         <div className="min-w-0">
-          <SourceBackLink href="/communities">返回社区列表</SourceBackLink>
+          <TextAction direction="back" href="/communities">
+            浏览社区
+          </TextAction>
 
           <section className="mt-3 border border-border bg-background">
             <ApplicationHeader />
@@ -132,7 +133,7 @@ function ApplicationRail() {
           <h2 className="text-sm font-semibold">其他入口</h2>
           <div className="mt-3 flex flex-col border-y border-border">
             <TextAction href="/communities" variant="bar">
-              浏览社区列表
+              浏览社区
             </TextAction>
             <TextAction href="/" variant="bar">
               返回信息流

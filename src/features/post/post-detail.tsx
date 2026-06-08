@@ -9,7 +9,6 @@ import {
   resolvePostBackSource,
   type PostNavigationSource,
 } from "@/components/app-shell/post-navigation-source";
-import { SourceBackLink } from "@/components/app-shell/source-back-link";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -208,7 +207,11 @@ function PostBackLink({
     source,
   });
 
-  return <SourceBackLink href={href}>{label}</SourceBackLink>;
+  return (
+    <TextAction direction="back" href={href}>
+      {label}
+    </TextAction>
+  );
 }
 
 function PostArticle({

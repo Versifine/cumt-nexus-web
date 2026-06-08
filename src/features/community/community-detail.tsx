@@ -61,7 +61,7 @@ export function CommunityDetail({
     <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
       <div className="min-w-0">
         <TextAction href="/communities" variant="bar">
-          返回社区列表
+          浏览社区
         </TextAction>
 
         <section className="mt-3 border border-border bg-background">
@@ -371,7 +371,7 @@ function CommunityRail({
           <h2 className="text-sm font-semibold">继续浏览</h2>
           <div className="mt-3 flex flex-col border-y border-border">
             <TextAction href="/communities" variant="bar">
-              返回社区列表
+              浏览社区
             </TextAction>
             {isAuthenticated ? (
               <TextAction

@@ -101,7 +101,7 @@ function getPostBackFallback(communitySlug?: string | null): ResolvedPostBackSou
 
   return {
     href: "/communities",
-    label: "返回社区",
+    label: "浏览社区",
   };
 }
 

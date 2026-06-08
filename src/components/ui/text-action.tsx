@@ -2,13 +2,14 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 type TextActionProps = {
   children: ReactNode;
   className?: string;
+  direction?: "back" | "forward";
   href: string;
   tone?: "default" | "primary";
   variant?: "inline" | "bar";
@@ -17,13 +18,17 @@ type TextActionProps = {
 export function TextAction({
   children,
   className,
+  direction = "forward",
   href,
   tone = "default",
   variant = "inline",
 }: TextActionProps) {
   const isPrimary = tone === "primary";
+  const isBack = direction === "back";
 
   if (variant === "bar") {
+    const Icon = isBack ? ArrowLeft : ArrowRight;
+
     return (
       <Link
         href={href}
@@ -41,23 +46,31 @@ export function TextAction({
         />
         <span
           className={cn(
-            "relative z-10 pl-3 transition-colors",
+            "relative z-10 inline-flex min-w-0 items-center gap-2 pl-3 transition-colors",
             isPrimary
               ? "text-foreground group-hover:text-primary-foreground"
               : "text-foreground group-hover:text-background",
           )}
         >
+          {isBack ? (
+            <Icon
+              className="size-4 shrink-0 transition-transform group-hover:-translate-x-1"
+              aria-hidden="true"
+            />
+          ) : null}
           {children}
         </span>
-        <ArrowRight
-          className={cn(
-            "relative z-10 mr-3 size-4 transition-transform group-hover:translate-x-1",
-            isPrimary
-              ? "text-primary group-hover:text-primary-foreground"
-              : "text-muted-foreground group-hover:text-background",
-          )}
-          aria-hidden="true"
-        />
+        {!isBack ? (
+          <Icon
+            className={cn(
+              "relative z-10 mr-3 size-4 transition-transform group-hover:translate-x-1",
+              isPrimary
+                ? "text-primary group-hover:text-primary-foreground"
+                : "text-muted-foreground group-hover:text-background",
+            )}
+            aria-hidden="true"
+          />
+        ) : null}
       </Link>
     );
   }
@@ -85,18 +98,26 @@ export function TextAction({
             : "text-foreground group-hover:text-background",
         )}
       >
+        {isBack ? (
+          <ArrowLeft
+            className="size-4 shrink-0 transition-transform group-hover:-translate-x-1"
+            aria-hidden="true"
+          />
+        ) : null}
         {children}
       </span>
-      <span
-        className={cn(
-          "relative z-10 font-mono transition-colors",
-          isPrimary
-            ? "text-primary group-hover:text-primary-foreground"
-            : "text-muted-foreground group-hover:text-background",
-        )}
-      >
-        +
-      </span>
+      {!isBack ? (
+        <span
+          className={cn(
+            "relative z-10 font-mono transition-colors",
+            isPrimary
+              ? "text-primary group-hover:text-primary-foreground"
+              : "text-muted-foreground group-hover:text-background",
+          )}
+        >
+          +
+        </span>
+      ) : null}
     </Link>
   );
 }
