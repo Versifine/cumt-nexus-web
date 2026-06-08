@@ -45,9 +45,25 @@ export type PostPreviewImage = {
   size_bytes: number;
 };
 
+export type PostPreviewLink = {
+  description?: string | null;
+  image_url?: string | null;
+  site_name?: string | null;
+  thumbnail_url?: string | null;
+  title?: string | null;
+  url?: string | null;
+};
+
 export type PostPreview = {
   kind: string;
   image?: PostPreviewImage | null;
+  link?: PostPreviewLink | null;
+  description?: string | null;
+  image_url?: string | null;
+  site_name?: string | null;
+  thumbnail_url?: string | null;
+  title?: string | null;
+  url?: string | null;
 };
 
 export type Post = {

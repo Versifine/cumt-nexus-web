@@ -7,12 +7,17 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   Image as ImageIcon,
+  ExternalLink,
   Link as LinkIcon,
   MessageSquare,
   Share2,
 } from "lucide-react";
 
 import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
+import {
+  resolveLinkPreview,
+  type ResolvedLinkPreview,
+} from "@/features/content/link-preview";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { cn } from "@/lib/utils";
@@ -75,6 +80,7 @@ export function RedditPostListItem({
   const authorUsername =
     post.author?.username?.trim() || authorFallback?.username?.trim() || "";
   const previewImage = getPreviewImage(post);
+  const linkPreview = !previewImage ? getPostLinkPreview(post) : null;
   const excerpt = getPostExcerpt(post);
   const postUrl =
     typeof window === "undefined"
@@ -175,6 +181,19 @@ export function RedditPostListItem({
               loading="lazy"
             />
           </Link>
+        ) : linkPreview ? (
+          <div className="mt-3 space-y-2">
+            <PostLinkPreviewCard preview={linkPreview} />
+            {excerpt ? (
+              <Link
+                href={postHref}
+                onClick={rememberSource}
+                className="line-clamp-2 block max-w-3xl text-sm leading-6 text-muted-foreground hover:text-foreground"
+              >
+                {excerpt}
+              </Link>
+            ) : null}
+          </div>
         ) : excerpt ? (
           <Link
             href={postHref}
@@ -213,7 +232,7 @@ export function RedditPostListItem({
               图片
             </span>
           ) : null}
-          {post.preview?.kind === "link" ? (
+          {linkPreview || post.preview?.kind === "link" ? (
             <span className="inline-flex h-8 items-center gap-1.5 px-2">
               <LinkIcon className="size-4" aria-hidden="true" />
               链接
@@ -222,6 +241,41 @@ export function RedditPostListItem({
         </div>
       </div>
     </article>
+  );
+}
+
+function PostLinkPreviewCard({ preview }: { preview: ResolvedLinkPreview }) {
+  return (
+    <a
+      href={preview.url}
+      target="_blank"
+      rel="nofollow ugc noopener noreferrer"
+      className="grid max-w-[640px] grid-cols-[minmax(0,1fr)_auto] border border-border bg-background-soft transition-colors hover:border-primary/50 hover:bg-surface-hover"
+    >
+      <span className="min-w-0 px-3 py-2.5">
+        <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+          <LinkIcon className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="truncate font-mono">{preview.host}</span>
+          {preview.source === "backend" ? (
+            <span className="shrink-0 border-l border-border pl-2">预览</span>
+          ) : null}
+        </span>
+        <span className="mt-1 block truncate text-sm font-semibold text-foreground">
+          {preview.title}
+        </span>
+        {preview.description ? (
+          <span className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+            {preview.description}
+          </span>
+        ) : null}
+      </span>
+      <span
+        className="flex h-full w-12 items-center justify-center border-l border-border text-muted-foreground"
+        aria-hidden="true"
+      >
+        <ExternalLink className="size-4" />
+      </span>
+    </a>
   );
 }
 
@@ -259,6 +313,13 @@ function getPreviewImage(post: Post) {
       (item) => item.kind === "image" && item.status === "ready" && item.url,
     ) ?? null
   );
+}
+
+function getPostLinkPreview(post: Post) {
+  return resolveLinkPreview({
+    backendPreview: post.preview?.link ?? post.preview ?? null,
+    markdown: post.body,
+  });
 }
 
 function formatDate(value: string) {

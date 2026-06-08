@@ -32,6 +32,10 @@ const {
   normalizeMarkdownHref,
 } = await importTypescriptModule("src/features/content/markdown-url.ts");
 const {
+  resolveLinkPreview,
+  resolveMarkdownLinkPreview,
+} = await importTypescriptModule("src/features/content/link-preview.ts");
+const {
   isWhitelistedMediaAutolink,
   resolveWhitelistedMediaEmbed,
 } = await importTypescriptModule("src/features/content/media-embed.ts");
@@ -121,6 +125,7 @@ for (const testCase of spoilerCases) {
 
 checkAttachmentMarkdown();
 checkMarkdownUrl();
+checkLinkPreview();
 checkMediaEmbed();
 checkRedditAutolink();
 checkRedditMarkdownTransform();
@@ -424,6 +429,74 @@ function checkMarkdownUrl() {
     "site-relative markdown links are not marked external",
     isExternalMarkdownHref("/communities/public"),
     false,
+  );
+}
+
+function checkLinkPreview() {
+  expectEqual(
+    "link preview uses backend metadata when safe",
+    resolveLinkPreview({
+      backendPreview: {
+        description: "  页面摘要  ",
+        thumbnail_url: "https://cdn.example.com/cover.png",
+        title: "  后端标题  ",
+        url: "https://www.example.com/path",
+      },
+      markdown: "[正文链接](https://fallback.example.com)",
+    }),
+    {
+      description: "页面摘要",
+      host: "example.com",
+      imageUrl: "https://cdn.example.com/cover.png",
+      source: "backend",
+      title: "后端标题",
+      url: "https://www.example.com/path",
+    },
+  );
+
+  expectEqual(
+    "link preview extracts markdown link outside images and code",
+    resolveMarkdownLinkPreview(
+      [
+        "![外部图](https://image.example.com/a.png)",
+        "`[代码](https://code.example.com)`",
+        "```",
+        "[代码块](https://fenced.example.com)",
+        "```",
+        "[可见链接](https://www.example.com/page)",
+      ].join("\n"),
+    ),
+    {
+      host: "example.com",
+      source: "markdown",
+      title: "可见链接",
+      url: "https://www.example.com/page",
+    },
+  );
+
+  expectEqual(
+    "link preview extracts bare URL and strips trailing punctuation",
+    resolveMarkdownLinkPreview("参考 https://www.example.com/path?q=1。"),
+    {
+      host: "example.com",
+      source: "markdown",
+      title: "example.com",
+      url: "https://www.example.com/path?q=1",
+    },
+  );
+
+  expectEqual(
+    "link preview blocks unsafe and internal links",
+    resolveMarkdownLinkPreview(
+      "[站内](/communities/public) [危险](javascript:alert(1))",
+    ),
+    null,
+  );
+
+  expectEqual(
+    "link preview ignores external markdown image URLs",
+    resolveMarkdownLinkPreview("![外部图](https://image.example.com/a.png)"),
+    null,
   );
 }
 

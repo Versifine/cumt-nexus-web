@@ -22,7 +22,7 @@
 - Feed 规划仍未完整落地：前端已有 `best | hot | new | top | rising` 和推荐 / 全站 / 关注 source 的 URL / UI 基础，但本地运行时排序与 source 合同仍未完全证明。
 - 保存收藏链路已接入当前后端合同；帖子列表和详情可以收藏 / 取消收藏，用户菜单进入 `/saved` 查看真实账号收藏列表。
 - 通知中心前端已改为回复、@、赞、系统的分类视图，同时保留未读 / 全部 / 已读状态筛选；分类准确度仍依赖后端稳定事件类型继续增强。
-- 链接预览、积分特效和个性化推荐都没有落地；评论投票已复用统一 Reddit 投票控件接入当前后端合同；Bilibili / 抖音 / 网易云 / QQ 音乐 canonical 裸链接白名单 embed 已在前端阅读态和写作器编辑态落地，但后端结构化 resolve、短链和 `embed_ids` 持久化仍未接入。
+- 积分特效和个性化推荐没有落地；链接预览已有前端保守链接卡，后端网页元数据解析缓存仍未接入；评论投票已复用统一 Reddit 投票控件接入当前后端合同；Bilibili / 抖音 / 网易云 / QQ 音乐 canonical 裸链接白名单 embed 已在前端阅读态和写作器编辑态落地，但后端结构化 resolve、短链和 `embed_ids` 持久化仍未接入。
 
 ## 落地矩阵
 
@@ -36,7 +36,7 @@
 | 审核入口 | staff 头像菜单进入举报审核和社区审批；不在左侧主导航。 | 基础落地。 | 需要继续做权限态、空错态和移动端 QA。 |
 | 帖子详情返回 | 列表进入帖子时写入 sessionStorage 来源；无来源时 fallback 到所属社区，否则社区索引。 | 已落地。 | 需要浏览器历史、刷新、直接打开三类场景继续 QA。 |
 | 个人主页 | `/users/[username]`、`/posts`、`/comments` 已存在；展示头像、昵称、简介、徽章、统计和公开内容入口。 | 基础落地。 | 仍不是完整个人中心；资料编辑、关注、漂亮展示信息需要后端和后续任务。 |
-| 首页 / 社区 feed item | 列表项展示社区、作者、标题、摘要、分数、评论数、图片预览。 | 部分落地。 | 链接预览未落地；推荐 / 关注 feed 未落地。 |
+| 首页 / 社区 feed item | 列表项展示社区、作者、标题、摘要、分数、评论数、图片预览；没有图片时会从后端 `preview.link` 或正文首个安全 http/https 外链生成保守链接卡，显示域名、链接文字或后端标题，不抓取远端、不伪造元数据。 | 基础落地。 | 推荐 / 关注 feed 未证明；完整网页标题、描述、缩略图仍需要后端解析缓存。 |
 | 保存收藏 | `POST /api/v1/posts/:id/save`、`DELETE /api/v1/posts/:id/save` 和 `GET /api/v1/me/saved-posts` 已接入；列表项和详情 footer 显示收藏动作及公开计数；`/saved` 登录后读取真实收藏列表，未登录显示登录门禁；从收藏列表进入帖子详情会记录“返回收藏”。 | 基础落地。 | 仍需后端补更完整的个性化收藏排序、分页加载和收藏夹能力；当前不伪造这些扩展。 |
 | Feed sort | `PostSort = "best" | "hot" | "new" | "top" | "rising"`；路由已有 `/`、`/best`、`/hot`、`/new`、`/top`、`/rising`。2026-06-08 复核本地后端 API，`sort=best`、`sort=top`、`sort=rising` 仍返回 `400 invalid_argument`；前端现在先请求目标排序，失败时明确提示并降级展示 `new` 公开帖子。 | 前端 URL / UI 基础落地，后端排序合同仍未完全对齐本地运行时。 | 需要后端补 `best | top | rising`，`top` 还需要时间范围；前端不伪造排序结果。 |
 | Feed source | `src/features/feed/source.ts` 已集中定义推荐 / 全站 / 关注信息源标签和 URL；左侧导航已有首页、全站、关注、社区；首页信息流可在 `/`、`/all`、`/following` 及各自排序子路径之间切换。`/following` 未登录时显示登录门禁，不展示假关注内容。 | 前端 URL / UI 基础落地。 | 仍需后端证明 `source=recommended|all|following` 会返回对应真实数据；关注流还需要关注关系合同。 |
@@ -45,7 +45,7 @@
 | Markdown 阅读态 | `ContentBody` 使用 `react-markdown` + `remark-gfm`，`skipHtml`，安全 URL，帖子和评论复用；本轮已验证帖子详情移动端长代码块不撑破页面，代码块内部横向滚动。 | 基础落地。 | 仍需 Reddit parity 用例审计，例如边界语法、移动端表格和评论深层场景。 |
 | Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，改为 Tiptap 单一实时渲染编辑面；工具栏对当前选区或当前块执行格式命令，覆盖行内代码和代码块。Markdown 源码不作为默认编辑 UI 暴露，`editor.getMarkdown()` 负责提交格式。 | 基础落地。 | 仍需继续做 Reddit parity 用例审计、移动端完整 QA，以及真实编辑弹窗新增 / 删除图片的手动复验。 |
 | 图片与正文一体化 | 图片上传后进入 Tiptap image 节点并序列化为 `![说明](nexus-attachment:<id>)`；发布帖子、评论和编辑保存都会按正文出现顺序提交实际引用的 `attachment_ids`；阅读态只渲染正文内 marker 引用到的 attachments，不再把未引用附件追加成底部外置图集；外置图片管理组件已移除；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留，`check:content-segments` 覆盖批量图片插入顺序和发布绑定过滤，`check:content-boundary` 固化 Tiptap 写作入口、剪贴板图片入口、编辑态新增图片绑定已接入和内联图片约束。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；新增图片只通过编辑器正文位置进入内容，删除正文里的图片后不会随内容提交。 |
-| 普通外链 | Markdown 链接可渲染安全链接。 | 基础落地。 | 普通网页链接预览未实现，需要后端解析缓存。 |
+| 普通外链 | Markdown 链接可渲染安全链接；信息流已有保守链接卡，优先消费后端 `preview.link`，否则只显示正文里首个安全外链的域名和链接文字。 | 基础落地。 | 完整网页标题、描述、缩略图和失败降级仍需要后端解析缓存；前端不抓取任意远端网页。 |
 | 白名单 embed | `ContentBody` 和 Tiptap 写作器会把裸贴的 Bilibili、抖音、网易云、QQ 音乐 canonical URL 渲染为受控播放器；自定义文字 Markdown 链接仍保持普通链接；源码中只允许白名单播放器组件使用 iframe。 | 前端基础落地。 | 后端仍需 provider resolve、短链展开、元数据、审核状态和 `embed_ids` 持久化。 |
 | 评论树 | 评论树、回复、折叠、最大深度和评论投票已有基础实现。 | 基础落地。 | 积分特效、贴图和完整排序合同未实现。 |
 
@@ -71,6 +71,7 @@
 - 2026-06-08 评论排序浏览器 smoke：打开 `/posts/500b91a2-73b2-4f36-8c25-cb9a3d97b473?sort=top` 后，评论排序 tabs 显示“最高”激活；本地后端未支持该排序时，页面提示“后端暂未提供最高评论排序，当前展示最新评论”，评论树继续展示真实 `new` 数据。
 - 2026-06-08 收藏链路 smoke：`check:routes` 覆盖未登录 `/saved` 登录门禁和 App Shell 导航；`check:main-path` 覆盖保存新建帖子、`/api/v1/me/saved-posts` 出现该帖子、取消保存后列表移除；列表项和详情页复用同一个收藏按钮。浏览器使用临时账号 `saved_ui_mq5e0pm9` 验证：登录后 `/saved` 初始空态，打开帖子 `b61fe613-d7ca-454a-b583-3ce6f2471ce3` 点击收藏后详情显示“取消收藏”，`/saved` 展示该帖子，取消收藏后回到空态，控制台 error 数为 0。
 - 2026-06-09 收藏和返回入口浏览器回归：登录态桌面打开 `/saved`，显示“我的收藏”和“收藏上下文”，无横向溢出，控制台 error 数为 0；`/new` 信息流每条帖子动作区显示同一套“分享 / 收藏”动作，未出现 `Auth` / `OK` 调试文案；从 `/new` 点击帖子进入详情后，返回入口为 `返回最新` 且 href 为 `/new`，详情页 footer 复用收藏按钮；390px 移动端检查 `/saved` 和 `/new` 均无横向溢出，移动导航按钮和收藏动作可见。
+- 2026-06-09 信息流链接预览浏览器 QA：通过后端创建帖子 `Link preview UI smoke mq5fk5ge_nuyrj`，正文包含 `[OpenAI research](https://openai.com/research/)`；桌面 `/new` 信息流显示链接卡域名 `openai.com` 和链接文字 `OpenAI research`，外链带 `target="_blank"` 和 `rel="nofollow ugc noopener noreferrer"`，正文摘要仍在链接卡下方，无横向溢出，控制台 error 数为 0；390px 移动端同帖链接卡、摘要和移动导航按钮可见，无横向溢出。
 
 ## 后端需要补或确认
 
