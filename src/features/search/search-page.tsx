@@ -226,7 +226,7 @@ export function SearchPage() {
                       {query}
                     </h2>
                     <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                      范围：{formatScope(scope)}。结果由后端搜索接口返回，前端不伪造高亮和排序。
+                      范围：{formatScope(scope)}。可以继续调整关键词或切换搜索范围。
                     </p>
                   </section>
                   <section>

@@ -54,7 +54,6 @@ export default async function NewPostPage({ params }: NewPostPageProps) {
         <section className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
             <AuthRequired
-              authenticatedLabel="可以发布帖子"
               title="登录后发起讨论"
               description={`帖子会发布到 /${slug}，并绑定到当前账号。登录后会回到本页继续编辑。`}
             >

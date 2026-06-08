@@ -53,11 +53,11 @@ V2 后端能力全量前端接入
 - 桌面和移动端浏览器已检查帖子详情、Reddit Markdown、涂黑、评论 Markdown、`/search`、`/notifications`、`/moderation`、`/community-applications/review` 和 `/communities/public/new`，未发现横向溢出或控制台 error。
 - V2.1 已把社区申请审核台从手动输入 ID 升级为列表、详情、approve / reject 和 staff 入口显隐。
 
-V2 的完成边界以当前后端能力为准：
+V2 的验收范围以当前后端能力为准：
 
 - 已接入能力不能退化。
 - 未接入但后端已有接口的能力必须进入 V2。
-- 后端接口存在但字段未在前端确认时，先做合同核对切片，不凭记忆写字段。
+- 后端接口存在但字段未在前端确认时，先做合同核对任务，不凭记忆写字段。
 - 任何前端页面都必须包含 loading、empty、error、success/submitted、disabled 和移动端状态。
 
 ## V2 设计原则
@@ -253,7 +253,7 @@ POST /api/v1/uploads/images
 - 发帖和评论提交 `attachment_ids`，详情页按正文内 `nexus-attachment` marker 和后端返回的 `attachments` 结构渲染图片。
 - 前端不持有 R2 密钥，不浏览器直传对象存储。
 
-## V2 完成边界
+## V2 验收范围
 
 V2 完成必须覆盖以下前端能力：
 
@@ -512,13 +512,13 @@ V2 不要求完成：
 
 交付：
 
-- README、`tasks.md`、内部文档和 `.ai/slices/stage-02-v2-productization/` 对齐。
+- README、`tasks.md` 和内部文档对齐；旧阶段目录只作为历史资料，不再作为前端执行边界。
 - `check:main-path` 如不能覆盖新增接口，需要新增或扩展脚本。
 - 浏览器 QA 覆盖桌面和移动端。
 
 完成标准：
 
-- V2 完成边界 14 项全部有证据。
+- V2 验收范围 14 项全部有证据。
 - 没有被文档称为已实现但页面不可用的能力。
 - deferred 项清晰记录。
 - 当前状态：已完成本地初版收口；生产域名、生产 API origin、生产 CORS allowlist、发布后验证和回滚演练继续 deferred。
@@ -542,17 +542,17 @@ V2 初版按以下顺序推进：
 13. F3 内容 moderation remove。
 14. G V2 收口。
 
-V2 本地初版已经完成 G 收口，V2.1 已补齐社区申请审核台和 staff 入口显隐。Post-V2 正文图片产品化已完成前端限制提示、失败重试和正文图片移除提示。后续继续推进时，不再从 A 重新开始；只做内容系统产品化、生产 deferred 项和新的小切片。
+V2 本地初版已经完成 G 收口，V2.1 已补齐社区申请审核台和 staff 入口显隐。Post-V2 正文图片产品化已完成前端限制提示、失败重试和正文图片移除提示。后续继续推进时，不再从 A 重新开始；只做内容系统产品化、生产 deferred 项和新的完整任务。
 
 ## V2 验收
 
-文档切片至少运行：
+文档任务至少运行：
 
 ```powershell
 npm run check:docs
 ```
 
-实现切片至少运行：
+实现任务至少运行：
 
 ```powershell
 npm run lint
@@ -601,11 +601,11 @@ npm run check:v2-path
 - 正文渲染需要放宽 HTML、iframe 或 `dangerouslySetInnerHTML` 禁区。
 - 媒体能力需要前端持有对象存储密钥。
 - 页面实现需要引入第二套 UI 库。
-- 一个切片开始扩散成多个页面加大范围重构。
+- 一个任务开始扩散成多个页面加大范围重构。
 
 ## Post-V2 下一步
 
-V2 本地初版已经收口。后续不再把“G 收口”作为当前推进位，改为按小切片处理：
+V2 本地初版已经收口。后续不再把“G 收口”作为当前推进位，改为按完整任务处理：
 
 1. 图片数量 / 类型 / 大小提示、失败重试和正文图片移除提示已完成前端产品化；缩略图 URL、未绑定对象物理删除 / TTL、失败对象回收和编辑态图片重绑继续以后端合同拆分。
 2. 白名单 embed 的前端 canonical 裸链接播放器已落地；继续设计后端 resolve / 短链 / 元数据 / `embed_ids` 合同，以及普通网页链接预览、评论投票和通知事件源增强。

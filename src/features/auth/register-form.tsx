@@ -118,7 +118,7 @@ export function RegisterForm({ className }: RegisterFormProps) {
           <FieldMeta
             detail={`已输入 ${passwordValue.length} 位`}
             error={form.formState.errors.password?.message}
-            hint="当前页面不伪造后端尚未提供的复杂强度规则。"
+            hint="建议使用至少 8 位，并混合数字和字母。"
           />
         </div>
       </div>

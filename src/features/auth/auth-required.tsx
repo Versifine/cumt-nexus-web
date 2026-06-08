@@ -10,7 +10,6 @@ import { useCurrentUserQuery } from "@/features/auth/queries";
 import { cn } from "@/lib/utils";
 
 type AuthRequiredProps = {
-  authenticatedLabel?: string;
   children: ReactNode;
   className?: string;
   description: string;
@@ -18,7 +17,6 @@ type AuthRequiredProps = {
 };
 
 export function AuthRequired({
-  authenticatedLabel = "身份已确认",
   children,
   className,
   description,
@@ -95,26 +93,7 @@ export function AuthRequired({
     );
   }
 
-  return (
-    <div className={className}>
-      <div className="mb-5 grid gap-3 border-y border-border bg-background-soft/45 py-4 sm:grid-cols-[160px_minmax(0,1fr)]">
-        <div className="px-4 sm:px-0">
-          <div className="font-mono text-xs text-primary">AUTH / OK</div>
-          <div className="mt-2 text-sm font-semibold text-foreground">
-            {authenticatedLabel}
-          </div>
-        </div>
-        <div className="min-w-0 px-4 text-sm leading-6 text-muted-foreground sm:px-0">
-          当前账号{" "}
-          <span className="font-semibold text-foreground">
-            {currentUserQuery.data.username}
-          </span>
-          ，可以继续提交这个操作。
-        </div>
-      </div>
-      {children}
-    </div>
-  );
+  return <div className={className}>{children}</div>;
 }
 
 function AuthPanel({

@@ -52,7 +52,7 @@ export function NotificationCenter() {
                 通知中心
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
-                查看回复、系统和审核相关通知。当前版本使用轮询查询，不伪造实时推送。
+                查看回复、系统和审核相关通知。
               </p>
             </div>
 

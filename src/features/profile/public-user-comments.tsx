@@ -489,7 +489,7 @@ function getErrorTitle(error: Error | null, fallback: string) {
 
 function getErrorDescription(error: Error | null) {
   if (isUnauthenticated(error)) {
-    return "前端已按游客身份请求公开用户评论；如果仍返回认证错误，需要后端保持 optional Bearer 公开读取合同。";
+    return "这个用户的公开评论暂时无法读取。可以先登录，或稍后再试。";
   }
 
   if (error instanceof ApiError) {

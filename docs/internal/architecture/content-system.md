@@ -2,7 +2,7 @@
 
 本文记录 CUMT Nexus 后续内容系统方向：帖子和评论正文能力对齐 Reddit Markdown，评论从单层列表升级为 Reddit-style 评论树，并逐步支持图片、链接预览和白名单外链播放器。
 
-本文是讨论稿和后续切片边界，不是已经实现的功能说明。任何实现前都要再次核对后端当前能力，并按 `AGENTS.md` 的小纵向切片推进。
+本文是讨论稿和后续任务边界，不是已经实现的功能说明。任何实现前都要再次核对后端当前能力，并按 `AGENTS.md` 的完整功能任务推进。
 
 ## 产品方向
 
@@ -401,9 +401,9 @@ POST /api/v1/embeds/resolve
 
 ## 实施顺序
 
-建议按小切片推进：
+建议按完整任务推进：
 
-### Slice 1：Reddit Markdown renderer 方案确认
+### Task 1：Reddit Markdown renderer 方案确认
 
 交付：
 
@@ -415,9 +415,9 @@ POST /api/v1/embeds/resolve
 完成标准：
 
 - 依赖影响、替代方案和安全边界写清楚。
-- 获得新增依赖批准后才进入实现切片。
+- 获得新增依赖批准后才进入实现任务。
 
-### Slice 2：帖子正文 Reddit Markdown 渲染
+### Task 2：帖子正文 Reddit Markdown 渲染
 
 交付：
 
@@ -432,7 +432,7 @@ POST /api/v1/embeds/resolve
 - 不绕过 `ContentBody`。
 - 移动端长文本、表格和代码块不横向撑破页面。
 
-### Slice 3：评论正文 Reddit Markdown 渲染
+### Task 3：评论正文 Reddit Markdown 渲染
 
 交付：
 
@@ -446,7 +446,7 @@ POST /api/v1/embeds/resolve
 - 折叠分支不影响已展开 spoiler 状态的安全边界。
 - 移动端深层评论仍可读。
 
-### Slice 4：写作器工具动作
+### Task 4：写作器工具动作
 
 交付：
 
@@ -460,7 +460,7 @@ POST /api/v1/embeds/resolve
 - 移动端输入稳定。
 - disabled、loading、error 状态不退化。
 
-### Slice 5：评论树后端契约
+### Task 5：评论树后端契约
 
 交付：
 
@@ -474,7 +474,7 @@ POST /api/v1/embeds/resolve
 - 新评论可以回复评论。
 - 主链路脚本覆盖根评论和子评论。
 
-### Slice 6：评论树 UI
+### Task 6：评论树 UI
 
 交付：
 
@@ -488,7 +488,7 @@ POST /api/v1/embeds/resolve
 - 深层回复不挤压正文。
 - 用户可以从任意深度回到帖子上下文。
 
-### Slice 7：帖子图片
+### Task 7：帖子图片
 
 交付：
 
@@ -502,7 +502,7 @@ POST /api/v1/embeds/resolve
 - 上传 loading / error 状态完整。
 - 图片失败可降级显示。
 
-### Slice 8：评论图片
+### Task 8：评论图片
 
 交付：
 
@@ -514,7 +514,7 @@ POST /api/v1/embeds/resolve
 - 不破坏评论树移动端布局。
 - 图片数量和尺寸更克制。
 
-### Slice 9：白名单外链 embed
+### Task 9：白名单外链 embed
 
 交付：
 
@@ -548,9 +548,9 @@ POST /api/v1/embeds/resolve
 - 正文能力目标是 Reddit Markdown parity。
 - 写作体验不做强制编辑 / 预览双模式，常用格式通过工具动作承接，高级用户可以直接写 Markdown。
 - 当前已先落地 spoiler / 涂黑的最小安全渲染，但这不是完整 Reddit Markdown。
-- `docs/internal/architecture/markdown-rendering.md` 是下一步 renderer 选型、安全边界和实施切片入口。
-- 当前已新增用户内容渲染边界自检；后续 Reddit Markdown、图片和 embed 切片必须同步更新该检查，而不是绕过它。
-- 当前已新增 spoiler / 涂黑解析行为自检；后续 renderer 接入时必须继续通过该检查，除非在独立切片中明确更新语法规则。
+- `docs/internal/architecture/markdown-rendering.md` 是下一步 renderer 选型、安全边界和实施任务入口。
+- 当前已新增用户内容渲染边界自检；后续 Reddit Markdown、图片和 embed 任务必须同步更新该检查，而不是绕过它。
+- 当前已新增 spoiler / 涂黑解析行为自检；后续 renderer 接入时必须继续通过该检查，除非在独立任务中明确更新语法规则。
 - 媒体能力的后端 API gap 已拆到 `docs/internal/architecture/content-media-api-gaps.md`；后续对象存储、图片和 embed 应先在后端仓库按该文档推进。
 - 图片和 embed 晚于 Reddit Markdown renderer 与写作器，避免一次性扩大后端、存储、安全和前端渲染范围。
 - 外链播放器必须走 provider 白名单，不开放任意 iframe。

@@ -40,7 +40,6 @@ export default function NewCommunityApplicationPage() {
         <section className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
             <AuthRequired
-              authenticatedLabel="可以提交社区申请"
               title="登录后申请新社区"
               description="社区申请会绑定到当前账号，用于审核、后续维护和负责人设置。登录后会回到本页继续填写申请。"
             >

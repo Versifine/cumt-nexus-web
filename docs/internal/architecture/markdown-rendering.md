@@ -160,7 +160,7 @@ blob:
 建议：
 
 1. 先保留当前 spoiler 分段策略：按 `>! ... !<` 切分正文，非 spoiler 段交给 renderer，spoiler 段作为纯文本放进现有涂黑组件。
-2. 如果后续需要 spoiler 内部也支持 Markdown，再单独实现 remark/micromark 扩展，不在首版渲染切片里硬做。
+2. 如果后续需要 spoiler 内部也支持 Markdown，再单独实现 remark/micromark 扩展，不在首版渲染任务里硬做。
 
 这样做的边界更清楚：
 
@@ -208,9 +208,9 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 - 链接优先用文字颜色和下划线表达，不做 outline button。
 - spoiler 默认视觉隐藏，展开/收起动效克制。
 
-## 实施切片
+## 实施任务
 
-### Slice A：依赖批准与边界同步
+### Task A：依赖批准与边界同步
 
 交付：
 
@@ -226,7 +226,7 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 - `npm run lint`
 - `npm run typecheck`
 
-### Slice B：帖子正文 Reddit Markdown 渲染
+### Task B：帖子正文 Reddit Markdown 渲染
 
 交付：
 
@@ -241,7 +241,7 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 - 链接协议和 rel 符合安全规则。
 - 移动端代码块和表格不横向撑破页面。
 
-### Slice C：评论正文 Reddit Markdown 渲染
+### Task C：评论正文 Reddit Markdown 渲染
 
 交付：
 
@@ -255,7 +255,7 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 - 折叠分支不影响已展开 spoiler 状态的安全边界。
 - 移动端深层评论仍可读。
 
-### Slice D：写作器工具动作
+### Task D：写作器工具动作
 
 交付：
 
@@ -272,13 +272,13 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 
 ## 验收命令
 
-文档切片至少运行：
+文档任务至少运行：
 
 ```bash
 npm run check:docs
 ```
 
-实现切片至少运行：
+实现任务至少运行：
 
 ```bash
 npm run lint

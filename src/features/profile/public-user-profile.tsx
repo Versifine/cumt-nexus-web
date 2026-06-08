@@ -344,7 +344,7 @@ function getErrorTitle(error: Error | null) {
 
 function getErrorDescription(error: Error | null) {
   if (isUnauthenticated(error)) {
-    return "前端已按公开读取请求用户主页；如果仍返回认证错误，需要后端保持 optional Bearer 公开读取合同。";
+    return "这个用户主页暂时无法公开读取。可以先登录，或稍后再试。";
   }
 
   if (error instanceof ApiError) {

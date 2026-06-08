@@ -503,7 +503,7 @@ function getErrorTitle(error: Error | null) {
 
 function getErrorDescription(error: Error | null) {
   if (isUnauthenticated(error)) {
-    return "前端已按游客身份请求公开帖子流；如果仍返回认证错误，需要后端保持 optional Bearer 公开读取合同。";
+    return "公开信息流暂时无法读取。可以先浏览社区，或登录后再试。";
   }
 
   if (error instanceof ApiError) {

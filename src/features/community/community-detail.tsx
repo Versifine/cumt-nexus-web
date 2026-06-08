@@ -525,7 +525,7 @@ function getErrorTitle(error: Error | null, fallback: string) {
 
 function getErrorDescription(error: Error | null) {
   if (isUnauthenticated(error)) {
-    return "前端已按游客身份请求公开社区内容；如果仍返回认证错误，需要后端保持 optional Bearer 公开读取合同。";
+    return "这个社区暂时无法公开读取。可以先浏览其他社区，或登录后再试。";
   }
 
   if (error instanceof ApiError) {

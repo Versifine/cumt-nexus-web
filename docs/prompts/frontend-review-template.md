@@ -1,6 +1,6 @@
 # Frontend Review Template
 
-复制下面模板给 Codex，用于审查已有页面、组件或切片。
+复制下面模板给 Codex，用于审查已有页面、组件或任务。
 
 ```text
 请先阅读：
@@ -9,7 +9,7 @@
 - docs/design/page-patterns.md
 - docs/design/component-rules.md
 
-现在审查：[页面/组件/切片名称]
+现在审查：[页面/组件/任务名称]
 
 审查范围：
 - [列出要审查的文件或目录]

@@ -4,6 +4,11 @@ export type PostNavigationSource = {
   postId: string;
 };
 
+export type ResolvedPostBackSource = {
+  href: string;
+  label: string;
+};
+
 const POST_SOURCE_PREFIX = "cumt-nexus:post-source:";
 
 export function readPostNavigationSource(postId: string) {
@@ -51,8 +56,59 @@ export function rememberPostNavigationSource(source: PostNavigationSource) {
   );
 }
 
+export function resolvePostBackSource({
+  communitySlug,
+  postId,
+  source,
+}: {
+  communitySlug?: string | null;
+  postId: string;
+  source: PostNavigationSource | null;
+}): ResolvedPostBackSource {
+  const fallback = getPostBackFallback(communitySlug);
+
+  if (!source || source.postId !== postId) {
+    return fallback;
+  }
+
+  if (isCurrentPostHref(source.href, postId)) {
+    return fallback;
+  }
+
+  if (source.href === "/communities" && fallback.href !== "/communities") {
+    return fallback;
+  }
+
+  return {
+    href: source.href,
+    label: source.label,
+  };
+}
+
 function getPostSourceKey(postId: string) {
   return `${POST_SOURCE_PREFIX}${postId}`;
+}
+
+function getPostBackFallback(communitySlug?: string | null): ResolvedPostBackSource {
+  const slug = communitySlug?.trim();
+
+  if (slug) {
+    return {
+      href: `/communities/${encodeURIComponent(slug)}`,
+      label: `返回 /${slug}`,
+    };
+  }
+
+  return {
+    href: "/communities",
+    label: "返回社区",
+  };
+}
+
+function isCurrentPostHref(href: string, postId: string) {
+  const encodedPostId = encodeURIComponent(postId);
+
+  return href === `/posts/${encodedPostId}` || href.startsWith(`/posts/${encodedPostId}?`);
 }
 
 function normalizeSourceHref(href: string) {

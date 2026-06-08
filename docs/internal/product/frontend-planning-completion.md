@@ -10,7 +10,7 @@
 4. `docs/internal/architecture/content-system.md`
 5. `docs/internal/architecture/content-media-api-gaps.md`
 
-后续实现不能重新设计一套拓扑、视觉方向或权限模型；只能在这些文档范围内按小切片落地。
+后续实现不能重新设计一套拓扑、视觉方向或权限模型；只能在这些文档范围内按完整任务落地。
 
 ## 收口结论
 
@@ -295,7 +295,7 @@ Feed item 必须展示：
 
 ```text
 按 docs/internal/product/frontend-information-architecture.md 和 docs/internal/product/frontend-planning-completion.md 修 [页面/流程]。
-本轮只做一个切片。
+本轮围绕这个目标完整处理。
 不要改后端；需要后端补什么写进文档。
 ```
 
@@ -305,5 +305,5 @@ AI 每次实现前必须：
 - 读取 `docs/design/*`。
 - 读取本规划收口证明。
 - 映射到 `frontend-information-architecture.md` 和 `frontend-experience-rebuild.md`。
-- 说明文件范围、完成边界和本次不做什么。
-- 按小切片实现和验证。
+- 高风险时说明文件范围、验收范围和风险。
+- 按完整任务实现和验证。

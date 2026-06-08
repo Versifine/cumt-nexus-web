@@ -6,6 +6,7 @@ import { ArrowDown, ArrowUp, MessageSquare, User } from "lucide-react";
 
 import {
   readPostNavigationSource,
+  resolvePostBackSource,
   type PostNavigationSource,
 } from "@/components/app-shell/post-navigation-source";
 import { SourceBackLink } from "@/components/app-shell/source-back-link";
@@ -201,10 +202,11 @@ function PostBackLink({
   source: PostNavigationSource | null;
 }) {
   const fallbackSlug = post?.community_slug?.trim() || post?.community?.slug?.trim();
-  const href =
-    source?.href ?? (fallbackSlug ? `/communities/${fallbackSlug}` : "/communities");
-  const label =
-    source?.label ?? (fallbackSlug ? `返回 /${fallbackSlug}` : "返回社区");
+  const { href, label } = resolvePostBackSource({
+    communitySlug: fallbackSlug,
+    postId: post?.id ?? "",
+    source,
+  });
 
   return (
     <SourceBackLink href={href}>{label}</SourceBackLink>
@@ -586,7 +588,7 @@ function getErrorTitle(error: Error | null, fallback: string) {
 
 function getErrorDescription(error: Error | null) {
   if (isUnauthenticated(error)) {
-    return "前端已按游客身份请求公开帖子内容；如果仍返回认证错误，需要后端保持 optional Bearer 公开读取合同。";
+    return "这个帖子暂时无法公开读取。可以先浏览社区，或登录后再试。";
   }
 
   if (error instanceof ApiError) {

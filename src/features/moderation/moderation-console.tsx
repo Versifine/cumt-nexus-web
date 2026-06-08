@@ -86,7 +86,7 @@ export function ModerationConsole() {
                 举报审核台
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
-                查看举报列表、目标预览和处理状态。平台权限由后端校验，前端不伪造 staff 身份。
+                查看举报列表、目标预览和处理状态。
               </p>
             </div>
 
