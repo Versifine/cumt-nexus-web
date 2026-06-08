@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function CommunityApplicationReviewRoute() {
   return (
-    <AppShell contextLabel="11 / 社区审批">
+    <AppShell contextLabel="社区审批">
       <CommunityApplicationReview />
     </AppShell>
   );
