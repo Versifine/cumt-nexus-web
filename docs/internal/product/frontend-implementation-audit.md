@@ -63,6 +63,7 @@
 - 评论区剪贴板图片：评论写作器同样支持粘贴 PNG，上传后在当前位置渲染图片节点；提交时仍序列化为 `nexus-attachment` Markdown marker 和 `attachment_ids`。
 - 本地运行时注意：后端源码和远端 `main` 已放行 CORS `PATCH`，但旧 Docker 容器曾返回 `GET, POST, PUT, DELETE, OPTIONS`，导致浏览器保存失败。重建 `cumt-nexus-api:local` 并按现有数据卷账号恢复 prod compose 后，`OPTIONS` 返回 `GET, POST, PUT, PATCH, DELETE, OPTIONS`，编辑保存通过。
 - 2026-06-08 Feed source UI 重测：桌面 `/`、`/all/hot`、`/following` 均显示首页 / 全站 / 关注 / 社区左侧导航和源 / 排序双 tabs；`/` 与 `/all/hot` 有帖子或公开空态，`/following` 在当前登录态浏览器按关注源请求。移动端 390px 检查 `/all/hot` 和 `/following` 无横向溢出，控制台 error 数为 0。无 token 的 `/following` 门禁由 `check:routes` 的服务端请求覆盖。
+- 2026-06-08 评论排序 UI 重测：本地 API 探测 `GET /api/v1/posts/:id/comments?sort=best|top|old|controversial` 均返回 `400 invalid_argument`，`sort=new` 成功；桌面打开 `/posts/ec895728-1533-4886-a9cb-f84cac830cf3?sort=top`，评论区显示最佳 / 最高 / 最新 / 最早 / 争议 tabs，最高 tab 选中，显示“后端暂未提供最高评论排序，当前展示最新评论。”，无横向溢出且控制台 error 数为 0；点击“最早”后 URL 变为 `?sort=old`，最早 tab 选中并显示对应降级提示。移动端 390px 同一路径无横向溢出。
 - 2026-06-08 公开路由 SSR 预取重测：`/new`、`/hot`、`/all`、`/all/hot` 不再被后端慢响应拖到路由 smoke 超时；服务端首屏预取使用短超时，失败后先返回页面壳和公开导航，客户端保留正常查询 / 重试路径。
 - 2026-06-08 评论排序浏览器 smoke：打开 `/posts/500b91a2-73b2-4f36-8c25-cb9a3d97b473?sort=top` 后，评论排序 tabs 显示“最高”激活；本地后端未支持该排序时，页面提示“后端暂未提供最高评论排序，当前展示最新评论”，评论树继续展示真实 `new` 数据。
 
