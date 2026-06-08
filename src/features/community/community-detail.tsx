@@ -16,7 +16,11 @@ import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useCommunityPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
-import { formatPostSortLabel, postSortItems } from "@/features/post/sort";
+import {
+  formatPostSortFallbackNotice,
+  formatPostSortLabel,
+  postSortItems,
+} from "@/features/post/sort";
 import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 
@@ -50,6 +54,10 @@ export function CommunityDetail({
     sort === "new" ? initialPostsData : undefined,
   );
   const posts = canShowCommunityContent ? (postsQuery.data?.posts ?? []) : [];
+  const sortFallbackNotice = formatPostSortFallbackNotice(
+    postsQuery.data?.requested_sort,
+    postsQuery.data?.effective_sort,
+  );
 
   useEffect(() => {
     if (community) {
@@ -104,6 +112,11 @@ export function CommunityDetail({
                 <p className="mt-1 text-xs text-muted-foreground">
                   当前按{formatPostSortLabel(sort)}排序
                 </p>
+                {sortFallbackNotice ? (
+                  <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
+                    {sortFallbackNotice}
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <CommunityPostSortTabs

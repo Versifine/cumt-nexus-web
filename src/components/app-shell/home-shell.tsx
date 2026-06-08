@@ -16,8 +16,17 @@ import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useLatestPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
-import { formatPostSortLabel, postSortItems } from "@/features/post/sort";
-import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
+import {
+  formatPostSortFallbackNotice,
+  formatPostSortLabel,
+  postSortItems,
+} from "@/features/post/sort";
+import type {
+  FeedSource,
+  ListPostsResponse,
+  Post,
+  PostSort,
+} from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 
 const guideItems = [
@@ -37,6 +46,7 @@ const feedSortHrefs: Record<PostSort, string> = {
 type HomeShellProps = {
   initialPostsData?: ListPostsResponse;
   initialSort?: PostSort;
+  source?: FeedSource;
 };
 
 type PostSourceContext = Omit<PostNavigationSource, "postId">;
@@ -44,6 +54,7 @@ type PostSourceContext = Omit<PostNavigationSource, "postId">;
 export function HomeShell({
   initialPostsData,
   initialSort = "new",
+  source = "recommended",
 }: HomeShellProps) {
   const { isReady } = useAuthSession();
   const router = useRouter();
@@ -56,9 +67,14 @@ export function HomeShell({
     0,
     canReadLatestPosts,
     sort,
+    source,
     initialPostsData,
   );
   const posts = canReadLatestPosts ? (latestPostsQuery.data?.posts ?? []) : [];
+  const sortFallbackNotice = formatPostSortFallbackNotice(
+    latestPostsQuery.data?.requested_sort,
+    latestPostsQuery.data?.effective_sort,
+  );
 
   return (
     <div className="grid grid-cols-1 gap-0 xl:grid-cols-[minmax(0,1fr)_312px]">
@@ -72,6 +88,11 @@ export function HomeShell({
               <p className="mt-1 text-xs text-muted-foreground">
                 公开信息流
               </p>
+              {sortFallbackNotice ? (
+                <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
+                  {sortFallbackNotice}
+                </p>
+              ) : null}
             </div>
             <div className="px-3 pb-3 sm:px-4 sm:pb-0">
               <FeedSortTabs
@@ -155,6 +176,7 @@ export function HomeShell({
       <RightRail
         canReadLatestPosts={canReadLatestPosts}
         posts={posts}
+        sortFallbackNotice={sortFallbackNotice}
         source={postSource}
         sort={sort}
       />
@@ -238,11 +260,13 @@ function getHomePostSource(pathname: string, sort: PostSort): PostSourceContext 
 function RightRail({
   canReadLatestPosts,
   posts,
+  sortFallbackNotice,
   source,
   sort,
 }: {
   canReadLatestPosts: boolean;
   posts: Post[];
+  sortFallbackNotice: string | null;
   source: PostSourceContext;
   sort: PostSort;
 }) {
@@ -259,7 +283,8 @@ function RightRail({
             今天从{formatPostSortLabel(sort)}讨论开始。
           </h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            排序由后端返回结果决定，右侧只保留和当前信息流有关的上下文。
+            {sortFallbackNotice ??
+              "排序由后端返回结果决定，右侧只保留和当前信息流有关的上下文。"}
           </p>
           <div className="mt-4 flex flex-col border-y border-border">
             <TextAction href="/communities" tone="primary" variant="bar">

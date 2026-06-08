@@ -9,6 +9,7 @@ import {
   updatePost,
 } from "./api";
 import type {
+  FeedSource,
   GetPostResponse,
   ListPostsResponse,
   PostSort,
@@ -17,8 +18,8 @@ import type {
 
 export const postQueryKeys = {
   latestPrefix: () => ["latest-posts"] as const,
-  latest: (limit: number, offset: number, sort: PostSort) =>
-    ["latest-posts", { limit, offset, sort }] as const,
+  latest: (limit: number, offset: number, sort: PostSort, source: FeedSource) =>
+    ["latest-posts", { limit, offset, sort, source }] as const,
   detail: (id: string) => ["post", id] as const,
   communityPostsAll: () => ["community-posts"] as const,
   communityPostsPrefix: (slug: string) => ["community-posts", slug] as const,
@@ -48,11 +49,12 @@ export function useLatestPostsQuery(
   offset = 0,
   enabled = true,
   sort: PostSort = "new",
+  source: FeedSource = "recommended",
   initialData?: ListPostsResponse,
 ) {
   return useQuery({
-    queryKey: postQueryKeys.latest(limit, offset, sort),
-    queryFn: () => listLatestPosts(limit, offset, sort),
+    queryKey: postQueryKeys.latest(limit, offset, sort, source),
+    queryFn: () => listLatestPosts(limit, offset, sort, { source }),
     enabled,
     initialData,
   });

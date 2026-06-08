@@ -1,6 +1,7 @@
-import { apiRequest } from "@/lib/api/client";
+import { ApiError, apiRequest } from "@/lib/api/client";
 
 import type {
+  FeedSource,
   GetPostResponse,
   ListPostsResponse,
   PostSort,
@@ -16,6 +17,7 @@ type ListCommunityPostsInput = {
   offset?: number;
   sort?: PostSort;
   cache?: RequestCache;
+  fallbackSort?: PostSort | null;
   token?: string | null;
 };
 
@@ -25,6 +27,7 @@ type ListUserPostsInput = {
   offset?: number;
   sort?: PostSort;
   cache?: RequestCache;
+  fallbackSort?: PostSort | null;
   token?: string | null;
 };
 
@@ -35,30 +38,38 @@ type GetPostOptions = {
 
 type ListLatestPostsOptions = {
   cache?: RequestCache;
+  fallbackSort?: PostSort | null;
+  source?: FeedSource;
   token?: string | null;
 };
 
+const DEFAULT_SORT_FALLBACK: PostSort = "new";
+
 export function listCommunityPosts({
+  cache,
+  fallbackSort = DEFAULT_SORT_FALLBACK,
   slug,
   limit = 20,
   offset = 0,
   sort = "new",
-  cache,
   token,
 }: ListCommunityPostsInput) {
-  const params = new URLSearchParams({
-    limit: String(limit),
-    offset: String(offset),
-    sort,
-  });
+  return listPostsWithSortFallback({
+    fallbackSort,
+    request: (effectiveSort) => {
+      const params = createListPostsParams(limit, offset, effectiveSort);
 
-  return apiRequest<ListPostsResponse>(
-    `/api/v1/communities/${encodeURIComponent(slug)}/posts?${params.toString()}`,
-    {
-      cache,
-      token,
+      return apiRequest<ListPostsResponse>(
+        `/api/v1/communities/${encodeURIComponent(slug)}/posts?${params.toString()}`,
+        {
+          cache,
+          token,
+        },
+      );
     },
-  );
+    sort,
+    source: "all",
+  });
 }
 
 export function listLatestPosts(
@@ -67,38 +78,125 @@ export function listLatestPosts(
   sort: PostSort = "new",
   options: ListLatestPostsOptions = {},
 ) {
-  const params = new URLSearchParams({
-    limit: String(limit),
-    offset: String(offset),
-    sort,
-  });
+  const source = options.source ?? "recommended";
 
-  return apiRequest<ListPostsResponse>(`/api/v1/posts?${params.toString()}`, {
-    cache: options.cache,
-    token: options.token,
+  return listPostsWithSortFallback({
+    fallbackSort: options.fallbackSort ?? DEFAULT_SORT_FALLBACK,
+    request: (effectiveSort) => {
+      const params = createListPostsParams(limit, offset, effectiveSort);
+      params.set("source", source);
+
+      return apiRequest<ListPostsResponse>(`/api/v1/posts?${params.toString()}`, {
+        cache: options.cache,
+        token: options.token,
+      });
+    },
+    sort,
+    source,
   });
 }
 
 export function listUserPosts({
+  cache,
+  fallbackSort = DEFAULT_SORT_FALLBACK,
   username,
   limit = 20,
   offset = 0,
   sort = "new",
-  cache,
   token,
 }: ListUserPostsInput) {
-  const params = new URLSearchParams({
+  return listPostsWithSortFallback({
+    fallbackSort,
+    request: (effectiveSort) => {
+      const params = createListPostsParams(limit, offset, effectiveSort);
+
+      return apiRequest<ListPostsResponse>(
+        `/api/v1/users/${encodeURIComponent(username)}/posts?${params.toString()}`,
+        {
+          cache,
+          token,
+        },
+      );
+    },
+    sort,
+    source: "all",
+  });
+}
+
+async function listPostsWithSortFallback({
+  fallbackSort,
+  request,
+  sort,
+  source,
+}: {
+  fallbackSort: PostSort | null;
+  request: (sort: PostSort) => Promise<ListPostsResponse>;
+  sort: PostSort;
+  source: FeedSource;
+}) {
+  try {
+    const result = await request(sort);
+
+    return withSortMeta(result, {
+      effectiveSort: sort,
+      requestedSort: sort,
+      source,
+    });
+  } catch (error) {
+    if (!shouldFallbackSort(error, sort, fallbackSort)) {
+      throw error;
+    }
+
+    const fallbackResult = await request(fallbackSort);
+
+    return withSortMeta(fallbackResult, {
+      effectiveSort: fallbackSort,
+      requestedSort: sort,
+      source,
+    });
+  }
+}
+
+function createListPostsParams(limit: number, offset: number, sort: PostSort) {
+  return new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
     sort,
   });
+}
 
-  return apiRequest<ListPostsResponse>(
-    `/api/v1/users/${encodeURIComponent(username)}/posts?${params.toString()}`,
-    {
-      cache,
-      token,
-    },
+function withSortMeta(
+  result: ListPostsResponse,
+  {
+    effectiveSort,
+    requestedSort,
+    source,
+  }: {
+    effectiveSort: PostSort;
+    requestedSort: PostSort;
+    source: FeedSource;
+  },
+) {
+  return {
+    ...result,
+    effective_sort: effectiveSort,
+    is_sort_fallback: requestedSort !== effectiveSort,
+    requested_sort: requestedSort,
+    source,
+  };
+}
+
+function shouldFallbackSort(
+  error: unknown,
+  sort: PostSort,
+  fallbackSort: PostSort | null,
+): fallbackSort is PostSort {
+  return (
+    Boolean(fallbackSort) &&
+    sort !== fallbackSort &&
+    error instanceof ApiError &&
+    error.status === 400 &&
+    error.code === "invalid_argument"
   );
 }
 

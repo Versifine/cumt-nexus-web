@@ -36,7 +36,7 @@
 | 帖子详情返回 | 列表进入帖子时写入 sessionStorage 来源；无来源时 fallback 到所属社区，否则社区索引。 | 已落地。 | 需要浏览器历史、刷新、直接打开三类场景继续 QA。 |
 | 个人主页 | `/users/[username]`、`/posts`、`/comments` 已存在；展示头像、昵称、简介、徽章、统计和公开内容入口。 | 基础落地。 | 仍不是完整个人中心；资料编辑、关注、漂亮展示信息需要后端和后续任务。 |
 | 首页 / 社区 feed item | 列表项展示社区、作者、标题、摘要、分数、评论数、图片预览。 | 部分落地。 | 链接预览未落地；推荐 / 关注 feed 未落地。 |
-| Feed sort | `PostSort = "new" | "hot"`；路由只有 `/`、`/new`、`/hot`；2026-06-08 复核本地后端 API，`sort=best`、`sort=top`、`sort=rising` 均返回 `400 invalid_argument`。 | 明显未完成。 | 需要后端补 `best | top | rising`，`top` 还需要时间范围；前端不伪造排序。 |
+| Feed sort | `PostSort = "best" | "hot" | "new" | "top" | "rising"`；路由已有 `/`、`/best`、`/hot`、`/new`、`/top`、`/rising`。2026-06-08 复核本地后端 API，`sort=best`、`sort=top`、`sort=rising` 仍返回 `400 invalid_argument`；前端现在先请求目标排序，失败时明确提示并降级展示 `new` 公开帖子。 | 前端 URL / UI 基础落地，后端排序合同仍未完全对齐本地运行时。 | 需要后端补 `best | top | rising`，`top` 还需要时间范围；前端不伪造排序结果。 |
 | Feed source | 当前没有 `src/features/feed`；首页仍复用 `features/post` 的最新帖子接口。 | 明显未完成。 | 需要推荐 feed、全站 feed、关注 feed、社区 feed 的前后端合同。 |
 | 评论 sort | 帖子详情评论请求固定 `sort="new"`，没有评论 sort UI。 | 未完成。 | 若按 Reddit，需要评论区 `best | new | top` 等 query 合同和 UI。 |
 | Markdown 阅读态 | `ContentBody` 使用 `react-markdown` + `remark-gfm`，`skipHtml`，安全 URL，帖子和评论复用；本轮已验证帖子详情移动端长代码块不撑破页面，代码块内部横向滚动。 | 基础落地。 | 仍需 Reddit parity 用例审计，例如边界语法、移动端表格和评论深层场景。 |
@@ -68,7 +68,7 @@
 以下不要直接改后端；需要进入后端文档或后端任务：
 
 - Feed source 合同：推荐、全站、关注、社区、用户、搜索结果之间的统一接口或明确拆分接口。
-- Feed sort 合同：`best | hot | new | top | rising`，其中 `top` 需要时间范围。当前运行时只接受 `new | hot`，`best/top/rising` 返回 `400 invalid_argument`；前端只能先保留真实可用排序。
+- Feed sort 合同：`best | hot | new | top | rising`，其中 `top` 需要时间范围。当前本地运行时只接受 `new | hot`，`best/top/rising` 返回 `400 invalid_argument`；前端已保留目标 URL / UI，并在排序不可用时提示后降级展示真实 `new` 公开帖子。
 - 评论 sort 合同：评论区是否支持 `best | new | top`，以及 URL query 是否持久化。
 - 个性化推荐和关注 feed：关注关系、推荐排序、登录 / 未登录降级策略。
 - 通知事件类型：回复、@、赞、系统、审核、社区申请必须有稳定 type 和 target。

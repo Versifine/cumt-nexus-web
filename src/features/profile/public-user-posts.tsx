@@ -17,7 +17,11 @@ import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useUserPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
-import { formatPostSortLabel, postSortItems } from "@/features/post/sort";
+import {
+  formatPostSortFallbackNotice,
+  formatPostSortLabel,
+  postSortItems,
+} from "@/features/post/sort";
 import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 
@@ -49,6 +53,10 @@ export function PublicUserPosts({
     sort === "new" ? initialPostsData : undefined,
   );
   const posts = canRequestPosts ? (postsQuery.data?.posts ?? []) : [];
+  const sortFallbackNotice = formatPostSortFallbackNotice(
+    postsQuery.data?.requested_sort,
+    postsQuery.data?.effective_sort,
+  );
 
   return (
     <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
@@ -103,6 +111,11 @@ export function PublicUserPosts({
                 <p className="mt-1 text-xs text-muted-foreground">
                   当前按{formatPostSortLabel(sort)}排序
                 </p>
+                {sortFallbackNotice ? (
+                  <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
+                    {sortFallbackNotice}
+                  </p>
+                ) : null}
               </div>
               <UserPostSortTabs
                 disabled={postsQuery.isFetching}

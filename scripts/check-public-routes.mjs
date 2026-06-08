@@ -23,19 +23,19 @@ const appShellHrefMarkers = ["/", "/communities"];
 const routes = [
   {
     absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
-    markers: ["CUMT Nexus", "最新讨论", "社区信息流", "公开帖子流", "浏览社区"],
+    markers: ["CUMT Nexus", "推荐讨论", "公开信息流", "浏览社区"],
     path: "/",
   },
   {
     absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
     hrefMarkers: [...appShellHrefMarkers],
-    markers: ["CUMT Nexus", "最新讨论", "社区信息流", "公开帖子流", "最新"],
+    markers: ["CUMT Nexus", "最新讨论", "公开信息流", "最新"],
     path: "/new",
   },
   {
     absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
     hrefMarkers: [...appShellHrefMarkers],
-    markers: ["CUMT Nexus", "最新讨论", "社区信息流", "公开帖子流", "热门"],
+    markers: ["CUMT Nexus", "最新讨论", "公开信息流", "热门"],
     path: "/hot",
   },
   {
@@ -57,14 +57,14 @@ const routes = [
     path: "/register?next=%2Fcommunity-applications%2Fnew",
   },
   {
-    hrefMarkers: [...appShellHrefMarkers, "/community-applications/new"],
-    markers: ["社区目录", "校园社区", "申请社区"],
+    hrefMarkers: [...appShellHrefMarkers, "/login?next=%2Fcommunity-applications%2Fnew"],
+    markers: ["社区索引", "校园社区", "登录后申请"],
     path: "/communities",
   },
   {
     absentMarkers: ["登录后使用搜索", "搜索需要身份上下文", "需要登录"],
     hrefMarkers: [...appShellHrefMarkers],
-    markers: ["CUMT Nexus", "搜索社区和帖子", "搜索关键词和范围", "范围"],
+    markers: ["CUMT Nexus", "搜索社区和帖子", "搜索关键词", "范围"],
     path: "/search?q=public&scope=all",
   },
   {
@@ -76,13 +76,13 @@ const routes = [
   {
     absentMarkers: ["需要登录", "登录后查看"],
     hrefMarkers: [...appShellHrefMarkers],
-    markers: ["CUMT Nexus", "用户帖子", "正在加载", "浏览社区"],
+    markers: ["CUMT Nexus", "的帖子", "正在加载", "浏览社区"],
     path: "/users/route-smoke/posts",
   },
   {
     absentMarkers: ["需要登录", "登录后查看"],
     hrefMarkers: [...appShellHrefMarkers],
-    markers: ["CUMT Nexus", "用户评论", "正在加载", "浏览社区"],
+    markers: ["CUMT Nexus", "的评论", "正在加载", "浏览社区"],
     path: "/users/route-smoke/comments",
   },
   {
@@ -106,7 +106,7 @@ const routes = [
     ],
     markers: [
       "CUMT Nexus",
-      "返回社区",
+      "帖子 route-sm",
       "正在加载",
       "浏览社区",
     ],
@@ -128,13 +128,13 @@ const routes = [
       "/login?next=%2Fcommunity-applications%2Fnew",
       "/register?next=%2Fcommunity-applications%2Fnew",
     ],
-    markers: ["CUMT Nexus", "申请新社区", "返回社区索引"],
+    markers: ["CUMT Nexus", "申请新社区", "浏览社区", "需要登录", "登录后申请新社区", "去登录"],
     path: "/community-applications/new",
   },
   {
     expectedStatus: 404,
     hrefMarkers: ["/", "/communities"],
-    markers: ["CUMT Nexus", "这个页面不存在或已经移动", "返回最新讨论", "浏览社区索引"],
+    markers: ["CUMT Nexus", "这个页面不存在或已经移动", "返回最新讨论", "浏览社区"],
     path: "/route-smoke-not-found",
   },
 ];

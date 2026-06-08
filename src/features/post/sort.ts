@@ -11,3 +11,14 @@ export const postSortItems: Array<{ label: string; value: PostSort }> = [
 export function formatPostSortLabel(sort: PostSort) {
   return postSortItems.find((item) => item.value === sort)?.label ?? "推荐";
 }
+
+export function formatPostSortFallbackNotice(
+  requestedSort?: PostSort,
+  effectiveSort?: PostSort,
+) {
+  if (!requestedSort || !effectiveSort || requestedSort === effectiveSort) {
+    return null;
+  }
+
+  return `后端暂未提供${formatPostSortLabel(requestedSort)}排序，当前展示${formatPostSortLabel(effectiveSort)}公开帖子。`;
+}
