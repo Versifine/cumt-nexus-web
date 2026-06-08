@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { motion } from "motion/react";
-import { ArrowDown, ArrowUp, MessageSquare } from "lucide-react";
 
 import {
   rememberPostNavigationSource,
@@ -13,15 +11,13 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { MetricBlock } from "@/components/ui/data-display";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
-import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { useLatestPostsQuery } from "@/features/post/queries";
+import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
 import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
-import { cn } from "@/lib/utils";
 
 const guideItems = [
   "先进入具体社区，再发布帖子。",
@@ -56,62 +52,33 @@ export function HomeShell({
   const posts = canReadLatestPosts ? (latestPostsQuery.data?.posts ?? []) : [];
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <motion.section
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.18, ease: "easeOut" }}
-        className="min-w-0"
-      >
-        <section className="border-b border-border pb-6">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="font-mono text-xs uppercase text-primary">
-                CUMT NEXUS / 最新讨论
-              </div>
-              <h1 className="mt-4 text-5xl font-black leading-[0.95] tracking-normal text-foreground md:text-6xl 2xl:text-7xl">
-                <span className="block whitespace-nowrap">校园里的</span>
-                <span className="block whitespace-nowrap">最新讨论</span>
-              </h1>
-            </div>
-
-            <div className="grid grid-cols-3 border border-border text-center sm:min-w-80">
-              <MetricBlock label="帖子" value={String(posts.length)} />
-              <MetricBlock
-                label="总分"
-                value={String(
-                  posts.reduce((total, post) => total + post.score, 0),
-                )}
-              />
-              <MetricBlock
-                label="状态"
-                value={canReadLatestPosts ? formatSortLabel(sort) : "准备中"}
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="border-b border-border py-4">
+    <div className="grid grid-cols-1 gap-0 xl:grid-cols-[minmax(0,1fr)_312px]">
+      <section className="min-w-0">
+        <section className="border border-border bg-background">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">社区信息流</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                公开帖子流会直接展示给访客；登录后同一接口补充投票状态和个人权限。
+            <div className="px-3 py-3 sm:px-4">
+              <h1 className="text-base font-semibold text-foreground">
+                {formatSortLabel(sort)}讨论
+              </h1>
+              <p className="mt-1 text-xs text-muted-foreground">
+                公开信息流
               </p>
             </div>
-            <FeedSortTabs
-              disabled={!canReadLatestPosts || latestPostsQuery.isFetching}
-              onSortChange={(nextSort) => {
-                if (nextSort !== sort) {
-                  router.push(getHomeFeedHref(nextSort));
-                }
-              }}
-              sort={sort}
-            />
+            <div className="px-3 pb-3 sm:px-4 sm:pb-0">
+              <FeedSortTabs
+                disabled={!canReadLatestPosts || latestPostsQuery.isFetching}
+                onSortChange={(nextSort) => {
+                  if (nextSort !== sort) {
+                    router.push(getHomeFeedHref(nextSort));
+                  }
+                }}
+                sort={sort}
+              />
+            </div>
           </div>
         </section>
 
-        <section>
+        <section className="mt-3 border-x border-border bg-background">
           {!isReady ? (
             <div className="border-b border-border py-5">
               <LoadingState rows={5} />
@@ -163,11 +130,10 @@ export function HomeShell({
           {canReadLatestPosts &&
           latestPostsQuery.isSuccess &&
           posts.length > 0 ? (
-            <div className="divide-y divide-border border-b border-border">
-              {posts.map((post, index) => (
-                <LatestPostRow
+            <div>
+              {posts.map((post) => (
+                <RedditPostListItem
                   key={post.id}
-                  index={index}
                   post={post}
                   source={postSource}
                 />
@@ -175,7 +141,7 @@ export function HomeShell({
             </div>
           ) : null}
         </section>
-      </motion.section>
+      </section>
 
       <RightRail
         canReadLatestPosts={canReadLatestPosts}
@@ -241,108 +207,6 @@ function getHomePostSource(pathname: string, sort: PostSort): PostSourceContext 
     href: "/",
     label: "返回首页",
   };
-}
-
-function LatestPostRow({
-  index,
-  post,
-  source,
-}: {
-  index: number;
-  post: Post;
-  source: PostSourceContext;
-}) {
-  const communityLabel = getCommunityLabel(post);
-  const communityName = getCommunityName(post);
-  const authorName = getAuthorName(post);
-  const authorHandle = getAuthorHandle(post);
-  const authorInitial = getAuthorInitial(authorName);
-  const excerpt = getPostExcerpt(post);
-  const previewImage = getPreviewImage(post);
-  const commentCount = post.comment_count ?? 0;
-
-  return (
-    <Link
-      href={`/posts/${post.id}`}
-      onClick={() =>
-        rememberPostNavigationSource({
-          href: source.href,
-          label: source.label,
-          postId: post.id,
-        })
-      }
-      className="group grid gap-4 py-5 transition-colors hover:bg-background-soft/70 md:grid-cols-[72px_minmax(0,1fr)_104px]"
-    >
-      <div className="flex items-center gap-3 md:block">
-        <div className="font-mono text-xs text-muted-foreground">
-          {String(index + 1).padStart(2, "0")}
-        </div>
-        <div className="mt-0 flex items-center gap-1 text-xs text-muted-foreground md:mt-4">
-          <ArrowUp
-            className={cn("size-3", post.my_vote === 1 ? "text-primary" : null)}
-            aria-hidden="true"
-          />
-          <span className="font-mono">{post.upvote_count}</span>
-          <ArrowDown
-            className={cn("size-3", post.my_vote === -1 ? "text-primary" : null)}
-            aria-hidden="true"
-          />
-        </div>
-      </div>
-
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
-          <span className="border border-border px-2 py-0.5 font-mono text-foreground">
-            {communityLabel}
-          </span>
-          {communityName !== communityLabel ? (
-            <span className="max-w-40 truncate text-foreground">
-              {communityName}
-            </span>
-          ) : null}
-          <span className="inline-flex min-w-0 items-center gap-1.5">
-            <span className="flex size-5 shrink-0 items-center justify-center border border-border bg-background-soft font-mono text-[10px] text-primary">
-              {authorInitial}
-            </span>
-            <span className="min-w-0 truncate">作者 {authorName}</span>
-            {authorHandle ? (
-              <span className="font-mono text-[11px]">{authorHandle}</span>
-            ) : null}
-          </span>
-          <span>发布于 {formatDate(post.created_at)}</span>
-        </div>
-        <h2 className="mt-3 text-xl font-semibold leading-7 tracking-normal text-foreground transition-colors group-hover:text-primary">
-          {post.title}
-        </h2>
-        {previewImage ? (
-          <div className="mt-3 overflow-hidden border border-border bg-background-soft sm:max-w-sm">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewImage.url}
-              alt={previewImage.alt_text || post.title}
-              className="aspect-[16/9] w-full object-cover"
-              loading="lazy"
-            />
-          </div>
-        ) : null}
-        {excerpt ? (
-          <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            {excerpt}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="flex items-center gap-3 text-sm text-muted-foreground md:flex-col md:items-end md:justify-center">
-        <span className="border border-border bg-background px-2.5 py-1 font-mono text-foreground">
-          {post.score}
-        </span>
-        <span className="inline-flex items-center gap-1 text-xs">
-          <MessageSquare className="size-3" aria-hidden="true" />
-          {commentCount} 评论
-        </span>
-      </div>
-    </Link>
-  );
 }
 
 function RightRail({
@@ -439,54 +303,8 @@ function RightRail({
   );
 }
 
-function getCommunityLabel(post: Post) {
-  const slug = post.community?.slug ?? post.community_slug;
-
-  return slug ? `/${slug}` : "社区";
-}
-
-function getCommunityName(post: Post) {
-  return post.community?.name ?? post.community_name ?? getCommunityLabel(post);
-}
-
-function getAuthorName(post: Post) {
-  return post.author?.display_name || post.author?.username || "用户";
-}
-
-function getAuthorHandle(post: Post) {
-  return post.author?.username ? `@${post.author.username}` : "";
-}
-
-function getAuthorInitial(value: string) {
-  return value.trim().slice(0, 1).toUpperCase() || "用";
-}
-
-function getPostExcerpt(post: Post) {
-  return getMarkdownPlainTextSummary(post.body_excerpt || post.body, "");
-}
-
-function getPreviewImage(post: Post) {
-  if (post.preview?.image?.url) {
-    return post.preview.image;
-  }
-
-  const attachment = post.attachments?.find(
-    (item) => item.kind === "image" && item.status === "ready" && item.url,
-  );
-
-  return attachment ?? null;
-}
-
 function formatSortLabel(sort: PostSort) {
   return sort === "hot" ? "热门" : "最新";
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
 }
 
 function isUnauthenticated(error: Error | null) {

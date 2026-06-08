@@ -4,14 +4,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  ArrowDown,
-  ArrowRight,
-  ArrowUp,
-  Image as ImageIcon,
-  MessageSquare,
-  User,
-} from "lucide-react";
+import { User } from "lucide-react";
 
 import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -22,16 +15,10 @@ import { InfoRow, MetricBlock, StatusToken } from "@/components/ui/data-display"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
-import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { useUserPostsQuery } from "@/features/post/queries";
-import type {
-  ListPostsResponse,
-  Post,
-  PostPreviewImage,
-  PostSort,
-} from "@/features/post/types";
+import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
+import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
-import { cn } from "@/lib/utils";
 
 import { usePublicUserQuery } from "./queries";
 import type { GetPublicUserResponse, PublicUser } from "./types";
@@ -165,14 +152,19 @@ export function PublicUserPosts({
               ) : null}
 
               {postsQuery.isSuccess && posts.length > 0 ? (
-                <div className="divide-y divide-border border-b border-border">
-                  {posts.map((post, index) => (
-                    <UserPostRow
+                <div className="border-x border-border bg-background">
+                  {posts.map((post) => (
+                    <RedditPostListItem
                       key={post.id}
-                      index={index}
                       post={post}
-                      sourceUsername={user.username}
-                      user={user}
+                      source={{
+                        href: `/users/${encodeURIComponent(user.username)}/posts`,
+                        label: `返回 @${user.username} 的帖子`,
+                      }}
+                      authorFallback={{
+                        displayName: getDisplayName(user),
+                        username: user.username,
+                      }}
                     />
                   ))}
                 </div>
@@ -263,105 +255,6 @@ function UserPostSortTabs({
         </TabsTrigger>
       </TabsList>
     </Tabs>
-  );
-}
-
-function UserPostRow({
-  index,
-  post,
-  sourceUsername,
-  user,
-}: {
-  index: number;
-  post: Post;
-  sourceUsername: string;
-  user: PublicUser;
-}) {
-  const previewImage = getPreviewImage(post);
-  const communityLabel = getCommunityLabel(post);
-  const authorLabel = getAuthorLabel(post, user);
-  const comments = post.comment_count ?? 0;
-
-  return (
-    <Link
-      href={`/posts/${post.id}`}
-      onClick={() =>
-        rememberPostNavigationSource({
-          href: `/users/${encodeURIComponent(sourceUsername)}/posts`,
-          label: `返回 @${sourceUsername} 的帖子`,
-          postId: post.id,
-        })
-      }
-      className="group grid gap-4 py-5 transition-colors hover:bg-background-soft/70 md:grid-cols-[64px_minmax(0,1fr)_140px]"
-    >
-      <div className="flex items-center gap-3 md:block">
-        <div className="font-mono text-xs text-muted-foreground">
-          {String(index + 1).padStart(2, "0")}
-        </div>
-        <div className="mt-0 flex items-center gap-1 text-xs text-muted-foreground md:mt-4">
-          <ArrowUp
-            className={cn("size-3", post.my_vote === 1 ? "text-primary" : null)}
-            aria-hidden="true"
-          />
-          <span className="font-mono">{post.upvote_count}</span>
-          <ArrowDown
-            className={cn("size-3", post.my_vote === -1 ? "text-primary" : null)}
-            aria-hidden="true"
-          />
-        </div>
-      </div>
-
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="border border-border px-2 py-0.5 font-mono">
-            {communityLabel}
-          </span>
-          <span>{authorLabel}</span>
-          <span>发布于 {formatDate(post.created_at)}</span>
-        </div>
-        <h3 className="mt-3 text-xl font-semibold leading-7 tracking-normal text-foreground transition-colors group-hover:text-primary">
-          {post.title}
-        </h3>
-        <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          {getPostExcerpt(post)}
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <StatusToken>{formatPostStatus(post.status)}</StatusToken>
-          <span className="inline-flex items-center gap-1">
-            <MessageSquare className="size-3" aria-hidden="true" />
-            {comments} 条评论
-          </span>
-          {previewImage ? (
-            <span className="inline-flex items-center gap-1 text-primary">
-              <ImageIcon className="size-3" aria-hidden="true" />
-              图片
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3 text-sm text-muted-foreground md:flex-col md:items-end md:justify-center">
-        {previewImage ? (
-          <div className="relative aspect-[4/3] w-28 overflow-hidden border border-border bg-background-soft">
-            <img
-              src={previewImage.url}
-              alt={previewImage.alt_text || `${post.title} 的图片预览`}
-              className="h-full w-full object-cover"
-            />
-          </div>
-        ) : null}
-        <span className="border border-border bg-background px-2.5 py-1 font-mono text-foreground">
-          {post.score}
-        </span>
-        <span className="inline-flex items-center gap-1 text-xs font-semibold group-hover:text-primary">
-          查看
-          <ArrowRight
-            className="size-4 transition-transform group-hover:translate-x-1"
-            aria-hidden="true"
-          />
-        </span>
-      </div>
-    </Link>
   );
 }
 
@@ -469,76 +362,12 @@ function ProfileAvatar({ user }: { user: PublicUser }) {
   );
 }
 
-function getPreviewImage(post: Post): PostPreviewImage | null {
-  if (post.preview?.image?.url) {
-    return post.preview.image;
-  }
-
-  const attachment = post.attachments?.find(
-    (item) => item.kind === "image" && item.url,
-  );
-
-  if (!attachment) {
-    return null;
-  }
-
-  return {
-    url: attachment.url,
-    width: attachment.width,
-    height: attachment.height,
-    mime_type: attachment.mime_type,
-    alt_text: attachment.alt_text,
-    size_bytes: attachment.size_bytes,
-  };
-}
-
 function getDisplayName(user: PublicUser) {
   return user.display_name || user.username;
 }
 
-function getAuthorLabel(post: Post, user: PublicUser) {
-  const author = post.author;
-
-  if (author?.display_name) {
-    return author.display_name;
-  }
-
-  if (author?.username) {
-    return `@${author.username}`;
-  }
-
-  return `@${user.username}`;
-}
-
-function getCommunityLabel(post: Post) {
-  const slug = post.community?.slug || post.community_slug;
-
-  if (slug) {
-    return `/${slug}`;
-  }
-
-  return "社区";
-}
-
-function getPostExcerpt(post: Post) {
-  return getMarkdownPlainTextSummary(post.body_excerpt || post.body);
-}
-
 function formatSortLabel(sort: PostSort) {
   return sort === "hot" ? "热门" : "最新";
-}
-
-function formatPostStatus(status: string) {
-  switch (status) {
-    case "visible":
-      return "可见";
-    case "deleted":
-      return "已删除";
-    case "removed":
-      return "已移除";
-    default:
-      return status;
-  }
 }
 
 function formatUserStatus(status: string) {

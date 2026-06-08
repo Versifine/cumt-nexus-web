@@ -2,12 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowDown,
-  ArrowRight,
-  ArrowUp,
-  MessageSquare,
-} from "lucide-react";
 
 import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
 import { rememberRecentCommunity } from "@/components/app-shell/recent-communities";
@@ -24,11 +18,10 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
-import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { useCommunityPostsQuery } from "@/features/post/queries";
+import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
 import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
-import { cn } from "@/lib/utils";
 
 import { useCommunityQuery } from "./queries";
 import type { Community, GetCommunityResponse } from "./types";
@@ -176,13 +169,17 @@ export function CommunityDetail({
               ) : null}
 
               {postsQuery.isSuccess && posts.length > 0 && community ? (
-                <div className="divide-y divide-border border-b border-border">
-                  {posts.map((post, index) => (
-                    <PostRow
+                <div className="border-x border-border bg-background">
+                  {posts.map((post) => (
+                    <RedditPostListItem
                       key={post.id}
-                      community={community}
-                      index={index}
                       post={post}
+                      source={{
+                        href: `/communities/${community.slug}`,
+                        label: `返回 /${community.slug}`,
+                      }}
+                      communityFallback={community}
+                      showCommunity={false}
                     />
                   ))}
                 </div>
@@ -283,106 +280,6 @@ function CommunityPostSortTabs({
   );
 }
 
-function PostRow({
-  community,
-  index,
-  post,
-}: {
-  community: Community;
-  index: number;
-  post: Post;
-}) {
-  const authorName = getAuthorName(post);
-  const authorHandle = getAuthorHandle(post);
-  const authorInitial = getAuthorInitial(authorName);
-  const excerpt = getPostExcerpt(post);
-  const previewImage = getPreviewImage(post);
-  const commentCount = post.comment_count ?? 0;
-
-  return (
-    <Link
-      href={`/posts/${post.id}`}
-      onClick={() =>
-        rememberPostNavigationSource({
-          href: `/communities/${community.slug}`,
-          label: `返回 /${community.slug}`,
-          postId: post.id,
-        })
-      }
-      className="group grid gap-4 py-5 transition-colors hover:bg-background-soft/70 md:grid-cols-[72px_minmax(0,1fr)_112px]"
-    >
-      <div className="flex items-center gap-3 md:block">
-        <div className="font-mono text-xs text-muted-foreground">
-          {String(index + 1).padStart(2, "0")}
-        </div>
-        <div className="mt-0 flex items-center gap-1 text-xs text-muted-foreground md:mt-4">
-          <ArrowUp
-            className={cn("size-3", post.my_vote === 1 ? "text-primary" : null)}
-            aria-hidden="true"
-          />
-          <span className="font-mono">{post.upvote_count}</span>
-          <ArrowDown
-            className={cn("size-3", post.my_vote === -1 ? "text-primary" : null)}
-            aria-hidden="true"
-          />
-        </div>
-      </div>
-
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
-          <span className="border border-border px-2 py-0.5 font-mono text-foreground">
-            /{community.slug}
-          </span>
-          <span className="inline-flex min-w-0 items-center gap-1.5">
-            <span className="flex size-5 shrink-0 items-center justify-center border border-border bg-background-soft font-mono text-[10px] text-primary">
-              {authorInitial}
-            </span>
-            <span className="min-w-0 truncate">作者 {authorName}</span>
-            {authorHandle ? (
-              <span className="font-mono text-[11px]">{authorHandle}</span>
-            ) : null}
-          </span>
-          <span>发布于 {formatDate(post.created_at)}</span>
-          <span>{formatPostStatus(post.status)}</span>
-        </div>
-        <h3 className="mt-3 text-xl font-semibold leading-7 tracking-normal text-foreground transition-colors group-hover:text-primary">
-          {post.title}
-        </h3>
-        {previewImage ? (
-          <div className="mt-3 overflow-hidden border border-border bg-background-soft sm:max-w-sm">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewImage.url}
-              alt={previewImage.alt_text || post.title}
-              className="aspect-[16/9] w-full object-cover"
-              loading="lazy"
-            />
-          </div>
-        ) : null}
-        {excerpt ? (
-          <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            {excerpt}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="flex items-center gap-3 text-sm text-muted-foreground md:flex-col md:items-end md:justify-center">
-        <span className="border border-border bg-background px-2.5 py-1 font-mono text-foreground">
-          {post.score}
-        </span>
-        <span className="inline-flex items-center gap-1 text-xs">
-          <MessageSquare className="size-3" aria-hidden="true" />
-          {commentCount} 评论
-        </span>
-        <ArrowRight
-          className="hidden size-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary md:block"
-          aria-hidden="true"
-        />
-      </div>
-    </Link>
-  );
-}
-
 function CommunityRail({
   community,
   posts,
@@ -471,34 +368,6 @@ function CommunityRail({
   );
 }
 
-function getAuthorName(post: Post) {
-  return post.author?.display_name || post.author?.username || "用户";
-}
-
-function getAuthorHandle(post: Post) {
-  return post.author?.username ? `@${post.author.username}` : "";
-}
-
-function getAuthorInitial(value: string) {
-  return value.trim().slice(0, 1).toUpperCase() || "用";
-}
-
-function getPostExcerpt(post: Post) {
-  return getMarkdownPlainTextSummary(post.body_excerpt || post.body, "");
-}
-
-function getPreviewImage(post: Post) {
-  if (post.preview?.image?.url) {
-    return post.preview.image;
-  }
-
-  const attachment = post.attachments?.find(
-    (item) => item.kind === "image" && item.status === "ready" && item.url,
-  );
-
-  return attachment ?? null;
-}
-
 function formatSortLabel(sort: PostSort) {
   return sort === "hot" ? "热门" : "最新";
 }
@@ -585,18 +454,5 @@ function getStatusTone(status: string): StatusTokenTone {
       return "danger";
     default:
       return "default";
-  }
-}
-
-function formatPostStatus(status: string) {
-  switch (status) {
-    case "visible":
-      return "可见";
-    case "archived":
-      return "已归档";
-    case "hidden":
-      return "已隐藏";
-    default:
-      return status;
   }
 }
