@@ -27,7 +27,7 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
   const initialData = await getInitialPublicUser(username);
 
   return (
-    <AppShell contextLabel={`07 / @${username}`}>
+    <AppShell contextLabel={`@${username}`}>
       <PublicUserProfile initialData={initialData} username={username} />
     </AppShell>
   );
