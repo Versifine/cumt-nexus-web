@@ -34,7 +34,7 @@ export default async function CommunityDetailPage({
     : undefined;
 
   return (
-    <AppShell contextLabel={`05 / /${slug}`}>
+    <AppShell contextLabel={`/${slug}`}>
       <CommunityDetail
         initialCommunityData={initialCommunityData}
         initialPostsData={initialPostsData}

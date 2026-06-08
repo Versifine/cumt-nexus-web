@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Hash } from "lucide-react";
 
 import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
 import { rememberRecentCommunity } from "@/components/app-shell/recent-communities";
@@ -9,12 +10,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import {
-  InfoRow,
-  MetricBlock,
-  StatusToken,
-  type StatusTokenTone,
-} from "@/components/ui/data-display";
+import { InfoRow, StatusToken, type StatusTokenTone } from "@/components/ui/data-display";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
@@ -37,18 +33,13 @@ export function CommunityDetail({
   initialPostsData,
   slug,
 }: CommunityDetailProps) {
-  const { isReady } = useAuthSession();
+  const { isReady, token } = useAuthSession();
   const [sort, setSort] = useState<PostSort>("new");
-  const canRequestCommunity = isReady;
-  const communityQuery = useCommunityQuery(
-    slug,
-    canRequestCommunity,
-    initialCommunityData,
-  );
+  const isAuthenticated = Boolean(token);
+  const communityQuery = useCommunityQuery(slug, isReady, initialCommunityData);
+  const community = communityQuery.data?.community;
   const canShowCommunityContent =
-    canRequestCommunity &&
-    communityQuery.isSuccess &&
-    Boolean(communityQuery.data?.community);
+    isReady && communityQuery.isSuccess && Boolean(community);
   const postsQuery = useCommunityPostsQuery(
     slug,
     20,
@@ -57,7 +48,6 @@ export function CommunityDetail({
     sort,
     sort === "new" ? initialPostsData : undefined,
   );
-  const community = communityQuery.data?.community;
   const posts = canShowCommunityContent ? (postsQuery.data?.posts ?? []) : [];
 
   useEffect(() => {
@@ -67,74 +57,78 @@ export function CommunityDetail({
   }, [community]);
 
   return (
-    <>
-      <section className="py-6">
-        {!isReady ? (
-          <LoadingState rows={2} />
-        ) : communityQuery.isPending ? (
-          <LoadingState rows={2} />
-        ) : communityQuery.isError ? (
-          <ErrorState
-            title={getErrorTitle(communityQuery.error, "无法加载社区")}
-            description={getErrorDescription(communityQuery.error)}
-            action={
-              isUnauthenticated(communityQuery.error) ? (
-                <TextAction href="/communities" tone="primary">
-                  浏览社区
-                </TextAction>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => communityQuery.refetch()}
-                >
-                  重试
-                </Button>
-              )
-            }
-          />
-        ) : community ? (
-          <CommunityHero community={community} slug={slug} posts={posts} />
-        ) : null}
-      </section>
+    <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
+      <div className="min-w-0">
+        <TextAction href="/communities" variant="bar">
+          返回社区列表
+        </TextAction>
 
-      {canShowCommunityContent ? (
-        <section className="grid gap-8 border-t border-border pt-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="min-w-0">
-            <div className="border-b border-border pb-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <div className="font-mono text-xs uppercase text-primary">
-                    POSTS / 社区帖子
-                  </div>
-                  <h2 className="mt-2 text-2xl font-black tracking-normal">
-                    {formatSortLabel(sort)}讨论
-                  </h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                    社区帖子流支持最新和热门排序，进入帖子后再参与投票和评论。
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <CommunityPostSortTabs
-                    disabled={postsQuery.isFetching}
-                    onSortChange={setSort}
-                    sort={sort}
-                  />
-                  <TextAction href={`/communities/${slug}/new`} tone="primary">
+        <section className="mt-3 border border-border bg-background">
+          {!isReady || communityQuery.isPending ? (
+            <div className="p-4">
+              <LoadingState rows={3} />
+            </div>
+          ) : communityQuery.isError ? (
+            <div className="p-4">
+              <ErrorState
+                title={getErrorTitle(communityQuery.error, "无法加载社区")}
+                description={getErrorDescription(communityQuery.error)}
+                action={
+                  isUnauthenticated(communityQuery.error) ? (
+                    <TextAction href="/communities" tone="primary">
+                      浏览社区
+                    </TextAction>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => communityQuery.refetch()}
+                    >
+                      重试
+                    </Button>
+                  )
+                }
+              />
+            </div>
+          ) : community ? (
+            <CommunityHeader community={community} posts={posts} />
+          ) : null}
+        </section>
+
+        {community ? (
+          <section className="mt-3 border-x border-border bg-background">
+            <div className="flex min-h-12 flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold">社区帖子</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  当前按{formatSortLabel(sort)}排序
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <CommunityPostSortTabs
+                  disabled={postsQuery.isFetching}
+                  onSortChange={setSort}
+                  sort={sort}
+                />
+                {isAuthenticated ? (
+                  <TextAction
+                    href={`/communities/${encodeURIComponent(community.slug)}/new`}
+                    tone="primary"
+                  >
                     发布帖子
                   </TextAction>
-                </div>
+                ) : null}
               </div>
             </div>
 
-            <div className="py-5">
-              {postsQuery.isPending ? (
-                <div className="border-b border-border pb-5">
-                  <LoadingState rows={5} />
-                </div>
-              ) : null}
+            {postsQuery.isPending ? (
+              <div className="border-b border-border p-4">
+                <LoadingState rows={5} />
+              </div>
+            ) : null}
 
-              {postsQuery.isError ? (
+            {postsQuery.isError ? (
+              <div className="border-b border-border p-4">
                 <ErrorState
                   title={getErrorTitle(postsQuery.error, "无法加载帖子")}
                   description={getErrorDescription(postsQuery.error)}
@@ -154,97 +148,123 @@ export function CommunityDetail({
                     )
                   }
                 />
-              ) : null}
+              </div>
+            ) : null}
 
-              {postsQuery.isSuccess && posts.length === 0 ? (
+            {postsQuery.isSuccess && posts.length === 0 ? (
+              <div className="border-b border-border p-4">
                 <EmptyState
                   title="还没有帖子"
-                  description="发布第一条帖子，让这个社区开始形成讨论。"
+                  description="这个社区还没有形成可公开浏览的讨论。"
                   action={
-                    <TextAction href={`/communities/${slug}/new`} tone="primary">
-                      发布第一条帖子
-                    </TextAction>
+                    isAuthenticated ? (
+                      <TextAction
+                        href={`/communities/${encodeURIComponent(community.slug)}/new`}
+                        tone="primary"
+                      >
+                        发布第一条帖子
+                      </TextAction>
+                    ) : (
+                      <TextAction href="/communities" tone="primary">
+                        浏览其他社区
+                      </TextAction>
+                    )
                   }
                 />
-              ) : null}
+              </div>
+            ) : null}
 
-              {postsQuery.isSuccess && posts.length > 0 && community ? (
-                <div className="border-x border-border bg-background">
-                  {posts.map((post) => (
-                    <RedditPostListItem
-                      key={post.id}
-                      post={post}
-                      source={{
-                        href: `/communities/${community.slug}`,
-                        label: `返回 /${community.slug}`,
-                      }}
-                      communityFallback={community}
-                      showCommunity={false}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </div>
+            {postsQuery.isSuccess && posts.length > 0
+              ? posts.map((post) => (
+                  <RedditPostListItem
+                    key={post.id}
+                    post={post}
+                    source={{
+                      href: `/communities/${community.slug}`,
+                      label: `返回 /${community.slug}`,
+                    }}
+                    communityFallback={community}
+                    showCommunity={false}
+                  />
+                ))
+              : null}
+          </section>
+        ) : null}
+      </div>
 
-          <CommunityRail
-            community={community}
-            posts={posts}
-            isPostsLoading={postsQuery.isPending}
-          />
-        </section>
+      {community ? (
+        <CommunityRail
+          community={community}
+          isAuthenticated={isAuthenticated}
+          isPostsLoading={postsQuery.isPending}
+          posts={posts}
+        />
       ) : null}
-    </>
+    </div>
   );
 }
 
-function CommunityHero({
+function CommunityHeader({
   community,
-  slug,
   posts,
 }: {
   community: Community;
-  slug: string;
   posts: Post[];
 }) {
   const totalScore = posts.reduce((total, post) => total + post.score, 0);
   const authors = new Set(posts.map((post) => post.author_id)).size;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+    <div className="grid gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
       <div className="min-w-0">
-        <div className="font-mono text-xs uppercase text-primary">
-          CUMT NEXUS / 社区现场
+        <div className="flex min-w-0 items-center gap-3">
+          <CommunityIcon community={community} />
+          <div className="min-w-0">
+            <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
+              {community.name}
+            </h1>
+            <p className="mt-1 truncate font-mono text-xs text-primary">
+              /{community.slug}
+            </p>
+          </div>
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <StatusToken tone="primary">/{community.slug}</StatusToken>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <StatusToken>{formatCommunityKind(community.kind)}</StatusToken>
           <StatusToken>{formatCommunityVisibility(community.visibility)}</StatusToken>
           <StatusToken tone={getStatusTone(community.status)}>
             {formatCommunityStatus(community.status)}
           </StatusToken>
         </div>
-        <h1 className="mt-4 break-words text-5xl font-black leading-[0.95] tracking-normal text-foreground md:text-6xl">
-          {community.name}
-        </h1>
-        <p className="mt-5 max-w-3xl text-sm leading-6 text-muted-foreground">
-          {community.description || "暂无描述。"}
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+          {community.description || "这个社区还没有填写描述。"}
         </p>
-        <div className="mt-5 flex flex-col gap-3 border-y border-border py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            当前社区内容会在这里形成线性讨论流，发帖入口保持可见但不压过阅读焦点。
-          </p>
-          <TextAction href={`/communities/${slug}/new`} tone="primary">
-            发布帖子
-          </TextAction>
-        </div>
       </div>
 
       <div className="grid grid-cols-3 border border-border text-center">
-        <MetricBlock label="帖子" value={String(posts.length)} />
-        <MetricBlock label="总分" value={String(totalScore)} />
-        <MetricBlock label="作者" value={String(authors)} />
+        <HeaderMetric label="帖子" value={String(posts.length)} />
+        <HeaderMetric label="总分" value={String(totalScore)} />
+        <HeaderMetric label="作者" value={String(authors)} />
       </div>
+    </div>
+  );
+}
+
+function HeaderMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-r border-border p-2 last:border-r-0">
+      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
+      <div className="mt-1 truncate text-sm font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function CommunityIcon({ community }: { community: Community }) {
+  return (
+    <div
+      className="flex size-12 shrink-0 items-center justify-center border border-border bg-secondary text-primary"
+      aria-label={`/${community.slug} 的社区图标`}
+    >
+      <Hash className="size-5" aria-hidden="true" />
     </div>
   );
 }
@@ -260,18 +280,18 @@ function CommunityPostSortTabs({
 }) {
   return (
     <Tabs value={sort} onValueChange={(value) => onSortChange(value as PostSort)}>
-      <TabsList className="rounded-none border-border bg-background p-0">
+      <TabsList className="h-9 rounded-none border border-border bg-background p-0">
         <TabsTrigger
           value="new"
           disabled={disabled}
-          className="rounded-none border-r border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          className="h-9 rounded-none border-r border-border px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
         >
           最新
         </TabsTrigger>
         <TabsTrigger
           value="hot"
           disabled={disabled}
-          className="rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          className="h-9 rounded-none px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
         >
           热门
         </TabsTrigger>
@@ -282,35 +302,39 @@ function CommunityPostSortTabs({
 
 function CommunityRail({
   community,
-  posts,
+  isAuthenticated,
   isPostsLoading,
+  posts,
 }: {
-  community?: Community;
-  posts: Post[];
+  community: Community;
+  isAuthenticated: boolean;
   isPostsLoading: boolean;
+  posts: Post[];
 }) {
-  const topPosts = posts.slice(0, 3);
+  const topPosts = [...posts].sort((left, right) => right.score - left.score).slice(0, 3);
 
   return (
-    <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-      <div className="sticky top-6 space-y-8">
-        <section className="border-b border-border pb-6">
-          <div className="font-mono text-xs uppercase text-muted-foreground">
-            社区上下文
-          </div>
+    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
+      <div className="sticky top-20 space-y-5">
+        <section className="border-b border-border pb-5">
+          <h2 className="text-sm font-semibold">社区上下文</h2>
           <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow label="状态" value={community ? formatCommunityStatus(community.status) : "--"} />
-            <InfoRow label="可见性" value={community ? formatCommunityVisibility(community.visibility) : "--"} />
-            <InfoRow label="创建" value={community ? formatDate(community.created_at) : "--"} />
-            <InfoRow label="更新" value={community ? formatDate(community.updated_at) : "--"} />
+            <InfoRow label="Slug" value={`/${community.slug}`} />
+            <InfoRow label="状态" value={formatCommunityStatus(community.status)} />
+            <InfoRow
+              label="可见性"
+              value={formatCommunityVisibility(community.visibility)}
+            />
+            <InfoRow label="类型" value={formatCommunityKind(community.kind)} />
+            <InfoRow label="创建" value={formatDate(community.created_at)} />
           </div>
         </section>
 
-        <section className="border-b border-border pb-6">
-          <div className="mb-3 flex items-center justify-between">
+        <section className="border-b border-border pb-5">
+          <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold">高分帖子</h2>
             <span className="font-mono text-xs text-muted-foreground">
-              TOP {topPosts.length}
+              {topPosts.length}
             </span>
           </div>
           {isPostsLoading ? (
@@ -322,18 +346,16 @@ function CommunityRail({
                   key={post.id}
                   href={`/posts/${post.id}`}
                   onClick={() =>
-                    community
-                      ? rememberPostNavigationSource({
-                          href: `/communities/${community.slug}`,
-                          label: `返回 /${community.slug}`,
-                          postId: post.id,
-                        })
-                      : undefined
+                    rememberPostNavigationSource({
+                      href: `/communities/${community.slug}`,
+                      label: `返回 /${community.slug}`,
+                      postId: post.id,
+                    })
                   }
                   className="block py-3 transition-colors hover:text-primary"
                 >
                   <div className="font-mono text-xs text-muted-foreground">
-                    {post.score} 分
+                    {post.score} 分 / {post.comment_count ?? 0} 条评论
                   </div>
                   <div className="mt-1 line-clamp-2 text-sm font-medium">
                     {post.title}
@@ -343,23 +365,33 @@ function CommunityRail({
             </div>
           ) : (
             <p className="text-sm leading-6 text-muted-foreground">
-              还没有可展示的帖子。
+              暂无可展示的公开帖子。
             </p>
           )}
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold">发布前确认</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            {["标题具体，便于被搜索和理解。", "正文写清背景、问题或观点。", "内容应属于当前社区的讨论范围。"].map(
-              (item, index) => (
-                <div key={item} className="flex gap-3 py-3 text-sm leading-6">
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="text-muted-foreground">{item}</span>
-                </div>
-              ),
+          <h2 className="text-sm font-semibold">继续浏览</h2>
+          <div className="mt-3 flex flex-col border-y border-border">
+            <TextAction href="/communities" variant="bar">
+              返回社区列表
+            </TextAction>
+            {isAuthenticated ? (
+              <TextAction
+                href={`/communities/${encodeURIComponent(community.slug)}/new`}
+                variant="bar"
+              >
+                发布帖子
+              </TextAction>
+            ) : (
+              <TextAction
+                href={`/login?next=${encodeURIComponent(
+                  `/communities/${community.slug}/new`,
+                )}`}
+                variant="bar"
+              >
+                登录后参与
+              </TextAction>
             )}
           </div>
         </section>
