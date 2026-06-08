@@ -6,8 +6,6 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
-  ArrowBigDown,
-  ArrowBigUp,
   Image as ImageIcon,
   Link as LinkIcon,
   MessageSquare,
@@ -16,6 +14,7 @@ import {
 
 import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
+import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { cn } from "@/lib/utils";
 
 import type { Post } from "./types";
@@ -107,19 +106,15 @@ export function RedditPostListItem({
         className,
       )}
     >
-      <div className="flex flex-col items-center border-r border-border bg-background-soft/45 py-3 text-muted-foreground">
-        <ArrowBigUp
-          className={cn("size-5", post.my_vote === 1 ? "fill-primary text-primary" : null)}
-          aria-hidden="true"
-        />
-        <div className="my-1 max-w-10 truncate font-mono text-xs font-semibold text-foreground">
-          {formatCompactNumber(post.score)}
-        </div>
-        <ArrowBigDown
-          className={cn("size-5", post.my_vote === -1 ? "fill-primary text-primary" : null)}
-          aria-hidden="true"
-        />
-      </div>
+      <RedditVoteControl
+        className="border-r border-border bg-background-soft/45 py-3"
+        downvoteCount={post.downvote_count}
+        myVote={post.my_vote}
+        score={post.score}
+        targetId={post.id}
+        targetType="post"
+        upvoteCount={post.upvote_count}
+      />
 
       <div className="min-w-0 px-3 py-3 sm:px-4">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
@@ -265,14 +260,6 @@ function formatDate(value: string) {
     month: "short",
     day: "numeric",
   }).format(new Date(value));
-}
-
-function formatCompactNumber(value: number) {
-  if (Math.abs(value) >= 1000) {
-    return `${Math.round(value / 100) / 10}k`;
-  }
-
-  return String(value);
 }
 
 function formatPostStatus(status: string) {

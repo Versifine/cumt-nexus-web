@@ -34,7 +34,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
     : undefined;
 
   return (
-    <AppShell contextLabel={`06 / 帖子 ${shortId}`}>
+    <AppShell contextLabel={`帖子 ${shortId}`}>
       <PostDetail
         id={id}
         initialCommentsData={initialCommentsData}

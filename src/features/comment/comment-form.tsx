@@ -108,19 +108,24 @@ export function CommentForm({
 
   if (!token) {
     return (
-      <section className={compact ? "border-l border-border pl-4" : "border-y border-border py-4"}>
-        <div className="font-mono text-xs text-primary">
-          {parentId ? "REPLY / LOGIN" : "COMMENT / LOGIN"}
-        </div>
-        <h3 className={compact ? "mt-2 text-sm font-semibold" : "mt-3 text-lg font-semibold tracking-normal"}>
+      <section
+        className={
+          compact ? "border-l border-border pl-4" : "border-y border-border py-4"
+        }
+      >
+        <h3
+          className={
+            compact
+              ? "text-sm font-semibold"
+              : "text-base font-semibold tracking-normal"
+          }
+        >
           登录后{parentId ? "回复评论" : "发表评论"}
         </h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {parentId
-            ? "回复会绑定到当前账号。登录或注册后会回到这条帖子继续参与讨论。"
-            : "评论会绑定到当前账号。登录或注册后会回到这条帖子继续参与讨论。"}
+          未登录可以阅读帖子和评论；发表内容、投票和举报需要登录。
         </p>
-        <div className="mt-4 border-y border-border">
+        <div className="mt-3 border-y border-border">
           <TextAction href={loginHref} tone="primary" variant="bar">
             去登录
           </TextAction>
@@ -153,7 +158,8 @@ export function CommentForm({
             "aria-label": "评论内容",
             "aria-invalid": Boolean(form.formState.errors.body),
             className: compact ? "min-h-28" : undefined,
-            placeholder: placeholder ?? (parentId ? "回复这条评论。" : "写下你的评论。"),
+            placeholder:
+              placeholder ?? (parentId ? "回复这条评论" : "写下你的评论"),
           }}
           value={bodyValue}
           imageUpload={{
@@ -176,7 +182,7 @@ export function CommentForm({
             ? "图片上传中..."
             : commentMutation.isPending
               ? "正在发布..."
-              : (submitLabel ?? (parentId ? "发布回复" : "发布评论"))}
+              : (submitLabel ?? (parentId ? "发布回复" : "发表评论"))}
         </Button>
       </div>
     </form>

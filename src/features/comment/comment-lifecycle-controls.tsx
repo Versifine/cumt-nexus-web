@@ -69,8 +69,11 @@ export function CommentLifecycleControls({
     },
   });
   const bodyValue = useWatch({ control: form.control, name: "body" }) ?? "";
+  const isUpdating = updateMutation.isPending;
+  const isDeleting = deleteMutation.isPending;
   const updateError = getSubmitError(updateMutation.error);
   const deleteError = getSubmitError(deleteMutation.error);
+  const deletePreview = getMarkdownPlainTextSummary(comment.body, "暂无内容。");
 
   function setBodyValue(nextValue: string) {
     form.setValue("body", nextValue, {
@@ -101,10 +104,6 @@ export function CommentLifecycleControls({
     return null;
   }
 
-  const isUpdating = updateMutation.isPending;
-  const isDeleting = deleteMutation.isPending;
-  const deletePreview = getMarkdownPlainTextSummary(comment.body, "暂无内容。");
-
   async function handleUpdate(values: CommentLifecycleFormValues) {
     const result = await updateMutation.mutateAsync({
       attachment_ids: getReferencedAttachmentIdsForSubmit(
@@ -117,175 +116,167 @@ export function CommentLifecycleControls({
       body: result.comment.body,
     });
     setEditAttachments([]);
-    setSuccessMessage("评论已更新。");
+    setSuccessMessage("已保存");
     setEditOpen(false);
   }
 
   async function handleDelete() {
     await deleteMutation.mutateAsync();
-    setSuccessMessage("评论已删除，列表正在刷新。");
+    setSuccessMessage("已删除");
     setDeleteOpen(false);
   }
 
   return (
-    <div className="mt-3 border-l border-border pl-3">
-      <div className="flex flex-wrap items-center gap-3 text-xs">
-        <Dialog
-          open={editOpen}
-          onOpenChange={handleEditOpenChange}
-        >
-          <DialogTrigger asChild>
-            <TextCommand>
-              <Pencil className="size-3.5" aria-hidden="true" />
-              编辑
-            </TextCommand>
-          </DialogTrigger>
-          <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-xl">
-            <DialogHeader>
-              <DialogTitle>编辑评论</DialogTitle>
-              <DialogDescription>
-                修改后会刷新当前帖子评论列表，回复关系不会改变。
-              </DialogDescription>
-            </DialogHeader>
+    <>
+      <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
+        <DialogTrigger asChild>
+          <TextCommand>
+            <Pencil className="size-3.5" aria-hidden="true" />
+            编辑
+          </TextCommand>
+        </DialogTrigger>
+        <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>编辑评论</DialogTitle>
+            <DialogDescription>
+              编辑时直接显示渲染后的评论，保存后刷新当前评论树。
+            </DialogDescription>
+          </DialogHeader>
 
-            <form
-              className="space-y-4"
-              onSubmit={form.handleSubmit(handleUpdate)}
-            >
-              {updateError ? (
-                <Alert variant="destructive">
-                  <AlertTitle>评论更新失败</AlertTitle>
-                  <AlertDescription>{updateError}</AlertDescription>
-                </Alert>
-              ) : null}
-
-              <div className="space-y-2">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-sm font-semibold">评论内容</span>
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {bodyValue.trim().length} 字
-                  </span>
-                </div>
-                <MarkdownComposerField
-                  disabled={isUpdating}
-                  key={`${comment.id}:${comment.updated_at}:${
-                    editOpen ? "open" : "closed"
-                  }`}
-                  maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerComment}
-                  onChange={setBodyValue}
-                  fieldProps={{
-                    "aria-label": "评论内容",
-                    "aria-invalid": Boolean(form.formState.errors.body),
-                    className: "min-h-36 border-border bg-background text-sm leading-7",
-                  }}
-                  value={bodyValue}
-                  boundAttachments={comment.attachments}
-                  imageUpload={{
-                    attachments: editAttachments,
-                    maxCount: IMAGE_UPLOAD_LIMITS.maxCountPerComment,
-                    onChange: setEditAttachments,
-                    onUploadingChange: setIsUploadingImage,
-                  }}
-                />
-                {form.formState.errors.body ? (
-                  <p className="text-sm text-destructive">
-                    {form.formState.errors.body.message}
-                  </p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    编辑区会直接显示排版后的评论。可以上传、粘贴或拖拽图片；保存时只绑定正文中实际引用的图片。
-                  </p>
-                )}
-              </div>
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isUpdating}
-                  onClick={() => handleEditOpenChange(false)}
-                >
-                  取消
-                </Button>
-                <Button type="submit" disabled={isUpdating || isUploadingImage}>
-                  {isUploadingImage
-                    ? "图片上传中..."
-                    : isUpdating
-                      ? "正在保存..."
-                      : "保存修改"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog
-          open={deleteOpen}
-          onOpenChange={(open) => {
-            if (!isDeleting) {
-              setDeleteOpen(open);
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <TextCommand tone="danger">
-              <Trash2 className="size-3.5" aria-hidden="true" />
-              删除
-            </TextCommand>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>删除评论</DialogTitle>
-              <DialogDescription>
-                删除后这条评论会从当前讨论中移除。这个操作不能在前端撤销。
-              </DialogDescription>
-            </DialogHeader>
-
-            {deleteError ? (
+          <form className="space-y-4" onSubmit={form.handleSubmit(handleUpdate)}>
+            {updateError ? (
               <Alert variant="destructive">
-                <AlertTitle>评论删除失败</AlertTitle>
-                <AlertDescription>{deleteError}</AlertDescription>
+                <AlertTitle>评论更新失败</AlertTitle>
+                <AlertDescription>{updateError}</AlertDescription>
               </Alert>
             ) : null}
 
-            <div className="border-y border-border py-3">
-              <div className="font-mono text-xs text-muted-foreground">
-                将删除
+            <div className="space-y-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-sm font-semibold">评论内容</span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {bodyValue.trim().length} 字
+                </span>
               </div>
-              <p className="mt-2 line-clamp-3 break-words text-sm leading-6">
-                {deletePreview}
-              </p>
+              <MarkdownComposerField
+                boundAttachments={comment.attachments}
+                disabled={isUpdating}
+                key={`${comment.id}:${comment.updated_at}:${
+                  editOpen ? "open" : "closed"
+                }`}
+                maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerComment}
+                onChange={setBodyValue}
+                fieldProps={{
+                  "aria-label": "评论内容",
+                  "aria-invalid": Boolean(form.formState.errors.body),
+                  className: "min-h-36 border-border bg-background text-sm leading-7",
+                  placeholder: "编辑评论，粘贴或拖拽图片会进入当前位置。",
+                }}
+                value={bodyValue}
+                imageUpload={{
+                  attachments: editAttachments,
+                  maxCount: IMAGE_UPLOAD_LIMITS.maxCountPerComment,
+                  onChange: setEditAttachments,
+                  onUploadingChange: setIsUploadingImage,
+                }}
+              />
+              {form.formState.errors.body ? (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.body.message}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  评论编辑区默认渲染内容；图片会作为评论正文的一部分保存。
+                </p>
+              )}
             </div>
 
             <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
-                disabled={isDeleting}
-                onClick={() => setDeleteOpen(false)}
+                disabled={isUpdating}
+                onClick={() => handleEditOpenChange(false)}
               >
                 取消
               </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={isDeleting}
-                onClick={handleDelete}
-              >
-                {isDeleting ? "正在删除..." : "确认删除"}
+              <Button type="submit" disabled={isUpdating || isUploadingImage}>
+                {isUploadingImage
+                  ? "图片上传中..."
+                  : isUpdating
+                    ? "正在保存..."
+                    : "保存修改"}
               </Button>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!isDeleting) {
+            setDeleteOpen(open);
+          }
+        }}
+      >
+        <DialogTrigger asChild>
+          <TextCommand tone="danger">
+            <Trash2 className="size-3.5" aria-hidden="true" />
+            删除
+          </TextCommand>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除评论</DialogTitle>
+            <DialogDescription>
+              删除后这条评论会从当前讨论中移除。这个操作不能在前端撤销。
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteError ? (
+            <Alert variant="destructive">
+              <AlertTitle>评论删除失败</AlertTitle>
+              <AlertDescription>{deleteError}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <div className="border-y border-border py-3">
+            <div className="font-mono text-xs text-muted-foreground">
+              将删除
+            </div>
+            <p className="mt-2 line-clamp-3 break-words text-sm leading-6">
+              {deletePreview}
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isDeleting}
+              onClick={() => setDeleteOpen(false)}
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isDeleting}
+              onClick={handleDelete}
+            >
+              {isDeleting ? "正在删除..." : "确认删除"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {successMessage ? (
-        <Alert variant="success" className="mt-3">
-          <AlertTitle>已保存</AlertTitle>
-          <AlertDescription>{successMessage}</AlertDescription>
-        </Alert>
+        <span className="inline-flex h-8 items-center px-2 font-semibold text-primary">
+          {successMessage}
+        </span>
       ) : null}
-    </div>
+    </>
   );
 }
 
@@ -320,8 +311,8 @@ const TextCommand = forwardRef<HTMLButtonElement, TextCommandProps>(
         className={cn(
           tone === "danger"
             ? "text-destructive hover:bg-destructive/10 focus-visible:ring-destructive/40"
-            : "text-muted-foreground hover:bg-primary/10 hover:text-primary focus-visible:ring-primary",
-          "-mx-1 inline-flex min-h-10 items-center gap-1.5 px-1 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2",
+            : "text-muted-foreground hover:bg-surface-hover hover:text-foreground focus-visible:ring-ring",
+          "inline-flex h-8 items-center gap-1.5 px-2 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           className,
         )}
       >
