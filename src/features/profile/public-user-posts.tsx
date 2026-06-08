@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { InfoRow, MetricBlock, StatusToken } from "@/components/ui/data-display";
+import { InfoRow } from "@/components/ui/data-display";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
@@ -50,74 +50,74 @@ export function PublicUserPosts({
   const posts = canRequestPosts ? (postsQuery.data?.posts ?? []) : [];
 
   return (
-    <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
       <div className="min-w-0">
         <TextAction href={`/users/${encodeURIComponent(username)}`} variant="bar">
           返回用户主页
         </TextAction>
 
-        <section className="mt-5 border-b border-border pb-6">
+        <section className="mt-3 border border-border bg-background">
           {!isReady || profileQuery.isPending ? (
-            <LoadingState rows={3} />
+            <div className="p-4">
+              <LoadingState rows={3} />
+            </div>
           ) : profileQuery.isError ? (
-            isNotFound(profileQuery.error) ? (
-              <EmptyState
-                title="没有找到这个用户"
-                description="这个用户名不存在，或该账号当前不可公开访问。"
-                action={
-                  <TextAction href="/communities" tone="primary">
-                    浏览社区
-                  </TextAction>
-                }
-              />
-            ) : (
-              <ErrorState
-                title={getErrorTitle(profileQuery.error, "无法加载用户主页")}
-                description={getErrorDescription(profileQuery.error)}
-                action={
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => profileQuery.refetch()}
-                  >
-                    重试
-                  </Button>
-                }
-              />
-            )
+            <div className="p-4">
+              {isNotFound(profileQuery.error) ? (
+                <EmptyState
+                  title="没有找到这个用户"
+                  description="这个用户名不存在，或该账号当前不可公开访问。"
+                  action={
+                    <TextAction href="/communities" tone="primary">
+                      浏览社区
+                    </TextAction>
+                  }
+                />
+              ) : (
+                <ErrorState
+                  title={getErrorTitle(profileQuery.error, "无法加载用户主页")}
+                  description={getErrorDescription(profileQuery.error)}
+                  action={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => profileQuery.refetch()}
+                    >
+                      重试
+                    </Button>
+                  }
+                />
+              )}
+            </div>
           ) : user ? (
-            <UserPostsHero user={user} posts={posts} sort={sort} />
+            <UserPostsHeader posts={posts} user={user} />
           ) : null}
         </section>
 
         {user ? (
-          <section className="pt-6">
-            <div className="border-b border-border pb-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <div className="font-mono text-xs uppercase text-primary">
-                    POSTS / 公开帖子
-                  </div>
-                  <h2 className="mt-2 text-2xl font-black tracking-normal">
-                    {formatSortLabel(sort)}帖子
-                  </h2>
-                </div>
-                <UserPostSortTabs
-                  disabled={postsQuery.isFetching}
-                  onSortChange={setSort}
-                  sort={sort}
-                />
+          <section className="mt-3 border-x border-border bg-background">
+            <div className="flex min-h-12 flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold">公开帖子</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  当前按{formatSortLabel(sort)}排序
+                </p>
               </div>
+              <UserPostSortTabs
+                disabled={postsQuery.isFetching}
+                onSortChange={setSort}
+                sort={sort}
+              />
             </div>
 
-            <div className="py-5">
-              {postsQuery.isPending ? (
-                <div className="border-b border-border pb-5">
-                  <LoadingState rows={5} />
-                </div>
-              ) : null}
+            {postsQuery.isPending ? (
+              <div className="border-b border-border p-4">
+                <LoadingState rows={5} />
+              </div>
+            ) : null}
 
-              {postsQuery.isError ? (
+            {postsQuery.isError ? (
+              <div className="border-b border-border p-4">
                 <ErrorState
                   title={getErrorTitle(postsQuery.error, "无法加载公开帖子")}
                   description={getErrorDescription(postsQuery.error)}
@@ -137,9 +137,11 @@ export function PublicUserPosts({
                     )
                   }
                 />
-              ) : null}
+              </div>
+            ) : null}
 
-              {postsQuery.isSuccess && posts.length === 0 ? (
+            {postsQuery.isSuccess && posts.length === 0 ? (
+              <div className="border-b border-border p-4">
                 <EmptyState
                   title="还没有公开帖子"
                   description="这个用户还没有发布可公开浏览的帖子。"
@@ -149,27 +151,25 @@ export function PublicUserPosts({
                     </TextAction>
                   }
                 />
-              ) : null}
+              </div>
+            ) : null}
 
-              {postsQuery.isSuccess && posts.length > 0 ? (
-                <div className="border-x border-border bg-background">
-                  {posts.map((post) => (
-                    <RedditPostListItem
-                      key={post.id}
-                      post={post}
-                      source={{
-                        href: `/users/${encodeURIComponent(user.username)}/posts`,
-                        label: `返回 @${user.username} 的帖子`,
-                      }}
-                      authorFallback={{
-                        displayName: getDisplayName(user),
-                        username: user.username,
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </div>
+            {postsQuery.isSuccess && posts.length > 0
+              ? posts.map((post) => (
+                  <RedditPostListItem
+                    key={post.id}
+                    post={post}
+                    source={{
+                      href: `/users/${encodeURIComponent(user.username)}/posts`,
+                      label: `返回 @${user.username} 的帖子`,
+                    }}
+                    authorFallback={{
+                      displayName: getDisplayName(user),
+                      username: user.username,
+                    }}
+                  />
+                ))
+              : null}
           </section>
         ) : null}
       </div>
@@ -179,50 +179,49 @@ export function PublicUserPosts({
   );
 }
 
-function UserPostsHero({
-  user,
+function UserPostsHeader({
   posts,
-  sort,
+  user,
 }: {
-  user: PublicUser;
   posts: Post[];
-  sort: PostSort;
+  user: PublicUser;
 }) {
   const displayName = getDisplayName(user);
   const totalScore = posts.reduce((total, post) => total + post.score, 0);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+    <div className="grid gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
       <div className="min-w-0">
-        <div className="font-mono text-xs uppercase text-primary">
-          CUMT NEXUS / 用户帖子
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <StatusToken tone="primary">@{user.username}</StatusToken>
-          <StatusToken>{formatUserStatus(user.status)}</StatusToken>
-          <StatusToken>{formatSortLabel(sort)}</StatusToken>
-        </div>
-        <div className="mt-5 flex items-end gap-4">
+        <div className="flex min-w-0 items-center gap-3">
           <ProfileAvatar user={user} />
           <div className="min-w-0">
-            <h1 className="break-words text-5xl font-black leading-[0.95] tracking-normal text-foreground md:text-6xl">
+            <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
               {displayName} 的帖子
             </h1>
-            <p className="mt-3 break-words font-mono text-sm text-primary">
+            <p className="mt-1 truncate font-mono text-xs text-primary">
               @{user.username}
             </p>
           </div>
         </div>
-        <p className="mt-5 max-w-3xl text-sm leading-6 text-muted-foreground">
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
           {user.headline || "这个用户还没有写个人签名。"}
         </p>
       </div>
 
       <div className="grid grid-cols-3 border border-border text-center">
-        <MetricBlock label="公开帖子" value={String(user.stats.post_count)} />
-        <MetricBlock label="当前页" value={String(posts.length)} />
-        <MetricBlock label="总分" value={String(totalScore)} />
+        <HeaderMetric label="公开帖子" value={String(user.stats.post_count)} />
+        <HeaderMetric label="当前页" value={String(posts.length)} />
+        <HeaderMetric label="总分" value={String(totalScore)} />
       </div>
+    </div>
+  );
+}
+
+function HeaderMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-r border-border p-2 last:border-r-0">
+      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
+      <div className="mt-1 truncate text-sm font-semibold">{value}</div>
     </div>
   );
 }
@@ -238,18 +237,18 @@ function UserPostSortTabs({
 }) {
   return (
     <Tabs value={sort} onValueChange={(value) => onSortChange(value as PostSort)}>
-      <TabsList className="rounded-none border-border bg-background p-0">
+      <TabsList className="h-9 rounded-none border border-border bg-background p-0">
         <TabsTrigger
           value="new"
           disabled={disabled}
-          className="rounded-none border-r border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          className="h-9 rounded-none border-r border-border px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
         >
           最新
         </TabsTrigger>
         <TabsTrigger
           value="hot"
           disabled={disabled}
-          className="rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          className="h-9 rounded-none px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
         >
           热门
         </TabsTrigger>
@@ -270,25 +269,24 @@ function UserPostsRail({
   const topPosts = [...posts].sort((left, right) => right.score - left.score).slice(0, 3);
 
   return (
-    <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-      <div className="sticky top-6 space-y-8">
-        <section className="border-b border-border pb-6">
-          <div className="font-mono text-xs uppercase text-muted-foreground">
-            用户上下文
-          </div>
+    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
+      <div className="sticky top-20 space-y-5">
+        <section className="border-b border-border pb-5">
+          <h2 className="text-sm font-semibold">用户上下文</h2>
           <div className="mt-3 divide-y divide-border border-y border-border">
             <InfoRow label="昵称" value={getDisplayName(user)} />
             <InfoRow label="用户名" value={`@${user.username}`} />
             <InfoRow label="排序" value={formatSortLabel(sort)} />
+            <InfoRow label="公开帖子" value={String(user.stats.post_count)} />
             <InfoRow label="加入" value={formatDate(user.created_at)} />
           </div>
         </section>
 
-        <section className="border-b border-border pb-6">
-          <div className="mb-3 flex items-center justify-between">
+        <section className="border-b border-border pb-5">
+          <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold">高分帖子</h2>
             <span className="font-mono text-xs text-muted-foreground">
-              TOP {topPosts.length}
+              {topPosts.length}
             </span>
           </div>
           {topPosts.length > 0 ? (
@@ -307,7 +305,7 @@ function UserPostsRail({
                   className="block py-3 transition-colors hover:text-primary"
                 >
                   <div className="font-mono text-xs text-muted-foreground">
-                    {post.score} 分
+                    {post.score} 分 / {post.comment_count} 条评论
                   </div>
                   <div className="mt-1 line-clamp-2 text-sm font-medium">
                     {post.title}
@@ -331,6 +329,12 @@ function UserPostsRail({
             >
               返回用户主页
             </TextAction>
+            <TextAction
+              href={`/users/${encodeURIComponent(user.username)}/comments`}
+              variant="bar"
+            >
+              查看公开评论
+            </TextAction>
             <TextAction href="/communities" variant="bar">
               浏览社区
             </TextAction>
@@ -347,17 +351,17 @@ function ProfileAvatar({ user }: { user: PublicUser }) {
       <img
         src={user.avatar_url}
         alt={`${getDisplayName(user)} 的头像`}
-        className="size-20 shrink-0 rounded-full border border-border object-cover"
+        className="size-12 shrink-0 rounded-full border border-border object-cover"
       />
     );
   }
 
   return (
     <div
-      className="flex size-20 shrink-0 items-center justify-center rounded-full border border-border bg-secondary font-black text-primary"
+      className="flex size-12 shrink-0 items-center justify-center rounded-full border border-border bg-secondary font-black text-primary"
       aria-label={`${getDisplayName(user)} 的头像占位`}
     >
-      <User className="size-6" aria-hidden="true" />
+      <User className="size-5" aria-hidden="true" />
     </div>
   );
 }
@@ -368,17 +372,6 @@ function getDisplayName(user: PublicUser) {
 
 function formatSortLabel(sort: PostSort) {
   return sort === "hot" ? "热门" : "最新";
-}
-
-function formatUserStatus(status: string) {
-  switch (status) {
-    case "active":
-      return "正常";
-    case "disabled":
-      return "已停用";
-    default:
-      return status;
-  }
 }
 
 function formatDate(value: string) {

@@ -38,6 +38,7 @@ Reddit-style campus community content system
 - 阅读态必须直接渲染最终内容。
 - 不做任意 HTML 富文本编辑器，不保存用户生成 HTML。
 - 媒体能力以后端为权威，不允许前端伪造上传、对象存储或播放器能力。
+- Reddit 参考的是 UI 结构、信息架构和交互模型：顶部栏、左栏、feed 列表、详情返回、排序入口、评论树和编辑器必须同构；视觉皮肤可以继续保持本项目暗色 editorial 方向。
 - 视觉上保持 `dark editorial product / magazine-grade campus community interface`，不照搬 Reddit 皮肤。
 
 ## 已实现能力

@@ -32,7 +32,7 @@ export default async function UserPostsPage({ params }: UserPostsPageProps) {
     : undefined;
 
   return (
-    <AppShell contextLabel={`08 / 用户帖子 / @${username}`}>
+    <AppShell contextLabel={`@${username} 的帖子`}>
       <PublicUserPosts
         initialPostsData={initialPostsData}
         initialProfileData={initialProfileData}
