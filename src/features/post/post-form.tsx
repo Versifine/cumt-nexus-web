@@ -131,7 +131,8 @@ export function PostForm({ className, slug }: PostFormProps) {
               "aria-invalid": Boolean(form.formState.errors.body),
               className: "min-h-72 border-border bg-background text-base leading-7",
               id: "body",
-              placeholder: "支持加粗、引用、代码、代码块、链接、列表、表格、涂黑和图片插入。",
+              placeholder:
+                "直接写正文；选中文字可设置加粗、引用、代码、列表、表格和涂黑，也可以粘贴图片。",
             }}
             value={bodyValue}
             imageUpload={{
@@ -144,7 +145,7 @@ export function PostForm({ className, slug }: PostFormProps) {
           <FieldMeta
             count={bodyLength}
             error={form.formState.errors.body?.message}
-            hint="正文会按 Reddit Markdown 安全渲染；常用格式可以直接用上方工具插入。"
+            hint="正文会安全渲染发布；选中文字后用工具栏设置格式，图片会留在正文当前位置。"
           />
         </div>
       </div>

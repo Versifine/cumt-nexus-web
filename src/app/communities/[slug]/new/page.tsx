@@ -54,7 +54,7 @@ export default async function NewPostPage({ params }: NewPostPageProps) {
             <div className="border-b border-border px-3 py-3 sm:px-4">
               <h2 className="text-sm font-semibold">帖子内容</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                一个编辑面板内完成标题、正文、图片和 Markdown 格式。
+                一个编辑面板内完成标题、正文、图片和正文格式。
               </p>
             </div>
             <div className="px-3 sm:px-4">
@@ -93,7 +93,7 @@ function NewPostHeader({
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <StatusToken>草稿</StatusToken>
-          <StatusToken tone="primary">Reddit Markdown</StatusToken>
+          <StatusToken tone="primary">富文本正文</StatusToken>
           {community ? (
             <StatusToken tone={getCommunityStatusTone(community.status)}>
               {formatCommunityStatus(community.status)}

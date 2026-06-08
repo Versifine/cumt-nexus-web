@@ -237,7 +237,7 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
         class:
           "my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground",
       },
-      "外部图片不会直接渲染；请使用图片上传后插入正文。",
+      "外部图片不会直接渲染；请上传图片后放入正文。",
     ];
   },
 
@@ -380,7 +380,7 @@ export function MarkdownComposerField({
   const hasUnsupportedMarkdownImages =
     hasUnsupportedMarkdownImageReferences(value);
   const unsupportedMarkdownImageNotice =
-    "外部 Markdown 图片不会作为正文图片保存；请用“添加图片”或粘贴、拖拽图片文件上传后插入正文。";
+    "外部图片不会作为正文图片保存；请用“添加图片”或粘贴、拖拽图片文件上传到正文当前位置。";
   const isEditorDisabled = disabled || Boolean(fieldProps?.disabled);
 
   useEffect(() => {
@@ -951,7 +951,7 @@ export function MarkdownComposerField({
 
       {isUploadingInlineImage ? (
         <div className="border-l border-primary px-3 py-2 text-sm text-muted-foreground">
-          正在上传图片，完成后会插入到正文当前位置。
+          正在上传图片，完成后会放入正文当前位置。
         </div>
       ) : null}
       {hasUnreferencedUploadedImages ? (

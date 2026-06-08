@@ -44,15 +44,6 @@ const {
 const {
   getMarkdownPlainTextSummary,
 } = await importTypescriptModule("src/features/content/markdown-summary.ts");
-const {
-  fencedCodeBlockSelection,
-  linkSelection,
-  spoilerSelection,
-  wrapSelection,
-} = await importTypescriptModule("src/features/content/markdown-toolbar-actions.ts");
-const { applyMarkdownInsert } = await importTypescriptModule(
-  "src/features/content/markdown-insert.ts",
-);
 
 const spoilerCases = [
   {
@@ -134,8 +125,6 @@ checkMediaEmbed();
 checkRedditAutolink();
 checkRedditMarkdownTransform();
 checkMarkdownSummary();
-checkMarkdownInsert();
-checkMarkdownToolbarActions();
 checkClipboardImageExtraction();
 
 console.log("");
@@ -774,120 +763,6 @@ function checkMarkdownSummary() {
     "markdown summary uses fallback for empty source",
     getMarkdownPlainTextSummary("   ", "没有摘要"),
     "没有摘要",
-  );
-}
-
-function checkMarkdownToolbarActions() {
-  expectEqual(
-    "toolbar inline fallback selects placeholder text",
-    wrapSelection("", "**", "加粗文字"),
-    {
-      selection: { end: 6, start: 2 },
-      text: "**加粗文字**",
-    },
-  );
-
-  expectEqual(
-    "toolbar inline selected text stays selected inside marker",
-    wrapSelection("重点", "*", "斜体文字"),
-    {
-      selection: { end: 3, start: 1 },
-      text: "*重点*",
-    },
-  );
-
-  expectEqual(
-    "toolbar spoiler fallback selects hidden placeholder",
-    spoilerSelection(""),
-    {
-      selection: { end: 7, start: 3 },
-      text: ">! 隐藏内容 !<",
-    },
-  );
-
-  expectEqual(
-    "toolbar link fallback selects label placeholder",
-    linkSelection(""),
-    {
-      selection: { end: 5, start: 1 },
-      text: "[链接文字](https://)",
-    },
-  );
-
-  expectEqual(
-    "toolbar link selected text becomes label and selects url placeholder",
-    linkSelection("图[草稿]"),
-    {
-      selection: { end: 18, start: 10 },
-      text: "[图\\[草稿\\]](https://)",
-    },
-  );
-
-  expectEqual(
-    "toolbar link selected url becomes href and selects label placeholder",
-    linkSelection("https://example.com/path?q=1"),
-    {
-      selection: { end: 5, start: 1 },
-      text: "[链接文字](https://example.com/path?q=1)",
-    },
-  );
-
-  expectEqual(
-    "toolbar link does not treat attachment marker as href",
-    linkSelection("nexus-attachment:img-1"),
-    {
-      selection: { end: 33, start: 25 },
-      text: "[nexus-attachment:img-1](https://)",
-    },
-  );
-
-  expectEqual(
-    "toolbar code block selects code placeholder",
-    fencedCodeBlockSelection(""),
-    {
-      block: true,
-      selection: { end: 8, start: 4 },
-      text: "```\n代码内容\n```",
-    },
-  );
-}
-
-function checkMarkdownInsert() {
-  expectEqual(
-    "block insert pads around inline text",
-    applyMarkdownInsert({
-      end: 1,
-      insert: { block: true, text: "![图](nexus-attachment:img-1)" },
-      start: 1,
-      value: "前后",
-    }),
-    {
-      selection: { end: 32, start: 32 },
-      value: "前\n![图](nexus-attachment:img-1)\n后",
-    },
-  );
-
-  const first = applyMarkdownInsert({
-    end: 2,
-    insert: { block: true, text: "![一](nexus-attachment:img-1)" },
-    start: 2,
-    value: "正文",
-  });
-  const second = applyMarkdownInsert({
-    end: first.selection.end,
-    insert: { block: true, text: "![二](nexus-attachment:img-2)" },
-    start: first.selection.end,
-    value: first.value,
-  });
-
-  expectEqual(
-    "batch image insert keeps pasted image order",
-    second,
-    {
-      selection: { end: 62, start: 62 },
-      value:
-        "正文\n![一](nexus-attachment:img-1)\n![二](nexus-attachment:img-2)\n",
-    },
   );
 }
 

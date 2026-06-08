@@ -128,7 +128,7 @@ function createMarkdownComponents(
       if (!attachmentId) {
         return (
           <span className="my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
-            外部图片不会直接渲染；请使用图片上传后插入正文。
+            外部图片不会直接渲染；请上传图片后放入正文。
           </span>
         );
       }

@@ -396,11 +396,11 @@ function checkMarkdownComposerEntryPoint() {
 
   if (
     !composer.content.includes("hasUnsupportedMarkdownImageReferences") ||
-    !composer.content.includes("外部 Markdown 图片不会作为正文图片保存") ||
+    !composer.content.includes("外部图片不会作为正文图片保存") ||
     !composer.content.includes("{unsupportedMarkdownImageNotice}")
   ) {
     composerProblems.push(
-      "MarkdownComposerField must warn authors when external Markdown image syntax will not become uploaded content images",
+      "MarkdownComposerField must warn authors when external image syntax will not become uploaded content images",
     );
   }
 
