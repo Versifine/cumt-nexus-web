@@ -1,12 +1,52 @@
 "use client";
 
-import type { ClipboardEvent, ComponentProps, DragEvent } from "react";
-import { useMemo, useRef, useState } from "react";
-import { Eye, ImagePlus, PencilLine } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+  type ReactNode,
+} from "react";
+import {
+  mergeAttributes,
+  Mark,
+  Node as TiptapNode,
+  type Editor,
+} from "@tiptap/core";
+import Image, { type ImageOptions } from "@tiptap/extension-image";
+import Link from "@tiptap/extension-link";
+import Placeholder from "@tiptap/extension-placeholder";
+import { Table } from "@tiptap/extension-table";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
+import TableRow from "@tiptap/extension-table-row";
+import { Markdown } from "@tiptap/markdown";
+import {
+  EditorContent,
+  useEditor,
+  useEditorState,
+} from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import {
+  Bold,
+  Code,
+  CodeXml,
+  EyeOff,
+  Heading2,
+  ImagePlus,
+  Italic,
+  Link as LinkIcon,
+  List,
+  ListOrdered,
+  Quote,
+  Strikethrough,
+  Table as TableIcon,
+} from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   type ClipboardDataImageSource,
   type ClipboardDataImageTextPaste,
@@ -17,16 +57,16 @@ import {
   getClipboardImageFileName,
 } from "@/features/content/clipboard-image";
 import {
+  ATTACHMENT_MARKDOWN_URL_PREFIX,
   createAttachmentMarkdown,
+  getAttachmentIdFromMarkdownUrl,
   getReferencedAttachmentIds,
   getReferencedAttachmentIdsForSubmit,
   hasUnsupportedMarkdownImageReferences,
-  removeAttachmentMarkdownReferences,
-  removeAttachmentMarkdownReferencesWithSelection,
 } from "@/features/content/attachment-markdown";
-import { ContentBody } from "@/features/content/content-body";
-import { applyMarkdownInsert } from "@/features/content/markdown-insert";
-import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
+import { normalizeMarkdownHref } from "@/features/content/markdown-url";
+import { resolveWhitelistedMediaEmbed } from "@/features/content/media-embed";
+import { createMediaEmbedPlayerElement } from "@/features/content/media-embed-player";
 import {
   InlineImageAttachmentManager,
   InlineImageAttachmentReferences,
@@ -43,8 +83,16 @@ import { cn } from "@/lib/utils";
 type MarkdownComposerFieldProps = {
   boundAttachments?: MediaAttachment[];
   className?: string;
-  defaultMode?: ComposerMode;
   disabled?: boolean;
+  fieldProps?: {
+    "aria-invalid"?: boolean;
+    "aria-label"?: string;
+    className?: string;
+    disabled?: boolean;
+    id?: string;
+    name?: string;
+    placeholder?: string;
+  };
   imageUpload?: {
     attachments: MediaAttachment[];
     maxCount: number;
@@ -53,33 +101,263 @@ type MarkdownComposerFieldProps = {
   };
   maxReferencedAttachments?: number;
   onChange: (value: string) => void;
-  textareaProps: Omit<ComponentProps<typeof Textarea>, "ref" | "value">;
-  textareaRef?: (element: HTMLTextAreaElement | null) => void;
   value: string;
 };
 
-type ComposerMode = "edit" | "preview";
 type InlineImageInsertion = "cursor" | "end";
+type AttachmentImageOptions = ImageOptions & {
+  getAttachmentById: (id: string) => MediaAttachment | null;
+};
+
+declare module "@tiptap/core" {
+  interface Commands<ReturnType> {
+    spoiler: {
+      toggleSpoiler: () => ReturnType;
+    };
+  }
+}
+
+const SpoilerMark = Mark.create({
+  name: "spoiler",
+
+  parseHTML() {
+    return [{ tag: "span[data-spoiler]" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "span",
+      mergeAttributes(HTMLAttributes, {
+        "data-spoiler": "true",
+        class:
+          "rounded-sm bg-zinc-950 px-1 text-zinc-950 outline outline-1 outline-zinc-700 transition-colors hover:text-foreground",
+      }),
+      0,
+    ];
+  },
+
+  renderMarkdown: (node, helpers) =>
+    `>!${helpers.renderChildren(node).trim()}!<`,
+
+  addCommands() {
+    return {
+      toggleSpoiler:
+        () =>
+        ({ commands }) =>
+          commands.toggleMark(this.name),
+    };
+  },
+});
+
+const AttachmentImage = Image.extend<AttachmentImageOptions>({
+  addOptions() {
+    const parentOptions = this.parent?.() ?? {
+      allowBase64: false,
+      HTMLAttributes: {},
+      inline: false,
+      resize: false,
+    };
+
+    return {
+      ...parentOptions,
+      getAttachmentById: () => null,
+      HTMLAttributes: {
+        class:
+          "my-4 block h-auto max-h-[520px] max-w-full border border-border bg-background-soft object-contain",
+      },
+    };
+  },
+
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      attachmentId: {
+        default: null,
+        rendered: false,
+      },
+      displaySrc: {
+        default: null,
+        rendered: false,
+      },
+    };
+  },
+
+  parseMarkdown(token, helpers) {
+    const src = token.href;
+    const attachmentId = getAttachmentIdFromMarkdownUrl(src);
+    const attachment = attachmentId
+      ? this.options.getAttachmentById(attachmentId)
+      : null;
+
+    return helpers.createNode("image", {
+      alt: token.text,
+      attachmentId,
+      displaySrc: attachment?.url ?? null,
+      src,
+      title: token.title,
+    });
+  },
+
+  renderHTML({ HTMLAttributes, node }) {
+    const src = typeof node.attrs.src === "string" ? node.attrs.src : "";
+    const attachmentId =
+      typeof node.attrs.attachmentId === "string"
+        ? node.attrs.attachmentId
+        : getAttachmentIdFromMarkdownUrl(src);
+    const attachment = attachmentId
+      ? this.options.getAttachmentById(attachmentId)
+      : null;
+    const displaySrc =
+      typeof node.attrs.displaySrc === "string" && node.attrs.displaySrc
+        ? node.attrs.displaySrc
+        : attachment?.url;
+
+    if (attachmentId && displaySrc) {
+      return [
+        "img",
+        mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
+          alt: HTMLAttributes.alt || attachment?.alt_text || "内容图片",
+          "data-attachment-id": attachmentId,
+          src: displaySrc,
+        }),
+      ];
+    }
+
+    if (attachmentId) {
+      return [
+        "span",
+        {
+          class:
+            "my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground",
+        },
+        "图片附件不存在或尚未随内容返回。",
+      ];
+    }
+
+    return [
+      "span",
+      {
+        class:
+          "my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground",
+      },
+      "外部图片不会直接渲染；请使用图片上传后插入正文。",
+    ];
+  },
+
+  renderMarkdown(node) {
+    const src = node.attrs?.src ?? "";
+    const alt = node.attrs?.alt ?? "";
+    const title = node.attrs?.title ?? "";
+
+    return title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`;
+  },
+});
+
+const MediaEmbedNode = TiptapNode.create({
+  name: "mediaEmbed",
+
+  atom: true,
+  group: "block",
+  selectable: true,
+
+  addAttributes() {
+    return {
+      originalUrl: {
+        default: "",
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: "a[data-media-embed]",
+      },
+    ];
+  },
+
+  renderHTML({ HTMLAttributes, node }) {
+    const originalUrl =
+      typeof node.attrs.originalUrl === "string" ? node.attrs.originalUrl : "";
+
+    return [
+      "a",
+      mergeAttributes(HTMLAttributes, {
+        "data-media-embed": "true",
+        href: originalUrl,
+        rel: "nofollow ugc noopener noreferrer",
+        target: "_blank",
+      }),
+      originalUrl,
+    ];
+  },
+
+  renderMarkdown(node) {
+    return typeof node.attrs?.originalUrl === "string"
+      ? node.attrs.originalUrl
+      : "";
+  },
+
+  addNodeView() {
+    return ({ node }) => {
+      const originalUrl =
+        typeof node.attrs.originalUrl === "string" ? node.attrs.originalUrl : "";
+      const embed = resolveWhitelistedMediaEmbed(originalUrl);
+      const dom = document.createElement("div");
+
+      dom.className = "my-4 block outline-offset-2";
+      dom.setAttribute("data-media-editor-node", "true");
+
+      if (embed) {
+        dom.append(createMediaEmbedPlayerElement(embed));
+      } else {
+        dom.append(createMediaFallbackLink(originalUrl));
+      }
+
+      return {
+        deselectNode() {
+          dom.classList.remove("outline", "outline-1", "outline-primary");
+        },
+        dom,
+        selectNode() {
+          dom.classList.add("outline", "outline-1", "outline-primary");
+        },
+      };
+    };
+  },
+});
+
+const emptyToolbarState = {
+  blockquote: false,
+  bold: false,
+  bulletList: false,
+  code: false,
+  codeBlock: false,
+  heading: false,
+  italic: false,
+  link: false,
+  orderedList: false,
+  spoiler: false,
+  strike: false,
+};
 
 export function MarkdownComposerField({
   boundAttachments,
   className,
-  defaultMode = "preview",
   disabled = false,
+  fieldProps,
   imageUpload,
   maxReferencedAttachments,
   onChange,
-  textareaProps,
-  textareaRef,
   value,
 }: MarkdownComposerFieldProps) {
-  const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
-  const [mode, setMode] = useState<ComposerMode>(defaultMode);
+  const latestValueRef = useRef(value);
+  const latestAttachmentsRef = useRef<MediaAttachment[]>([]);
+  const mediaEmbedSyncFrameRef = useRef<number | null>(null);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [isUploadingInlineImage, setIsUploadingInlineImage] = useState(false);
   const inlineImageUploadMutation = useUploadImageMutation();
-  const referencedAttachmentIds = getReferencedAttachmentIds(value);
   const previewAttachments = useMemo(
     () =>
       dedupeAttachments([
@@ -88,81 +366,222 @@ export function MarkdownComposerField({
       ]),
     [boundAttachments, imageUpload?.attachments],
   );
+  const referencedAttachmentIds = getReferencedAttachmentIds(value);
   const referencedKnownAttachmentIds = useMemo(
     () => getReferencedAttachmentIdsForSubmit(value, previewAttachments),
     [previewAttachments, value],
   );
   const maxReferencedImageAttachments =
     maxReferencedAttachments ?? imageUpload?.maxCount;
-  const isSourceOpen = mode === "edit";
-  const hasPreviewContent = value.trim().length > 0;
   const hasDetachedPreviewImages = previewAttachments.some(
     (attachment) => !referencedAttachmentIds.has(attachment.id),
   );
   const detachedPreviewImageNotice =
-    "有图片还没有放入正文；打开正文编辑，把图片放到当前位置后才会出现在发布内容里。";
+    "有图片还没有放入正文；选择图片可重新放入正文。";
   const hasUnsupportedMarkdownImages =
     hasUnsupportedMarkdownImageReferences(value);
   const unsupportedMarkdownImageNotice =
     "外部 Markdown 图片不会作为正文图片保存；请用“添加图片”或粘贴、拖拽图片文件上传后插入正文。";
-  const sourceToggleLabel = isSourceOpen
-    ? "收起编辑"
-    : hasPreviewContent
-      ? "编辑正文"
-      : "开始写作";
-  const imageInsertionLabels = isSourceOpen
-    ? {
-        inserted: "移动到光标处",
-        notInserted: "放到光标处",
+  const isEditorDisabled = disabled || Boolean(fieldProps?.disabled);
+
+  useEffect(() => {
+    latestValueRef.current = value;
+  }, [value]);
+
+  useEffect(() => {
+    latestAttachmentsRef.current = previewAttachments;
+  }, [previewAttachments]);
+
+  useEffect(
+    () => () => {
+      if (mediaEmbedSyncFrameRef.current !== null) {
+        window.cancelAnimationFrame(mediaEmbedSyncFrameRef.current);
       }
-    : {
-        inserted: "移到正文末尾",
-        notInserted: "放到正文末尾",
-      };
+    },
+    [],
+  );
+
+  const editorExtensions = useMemo(
+    () => [
+      StarterKit.configure({
+        link: false,
+      }),
+      Link.configure({
+        autolink: true,
+        enableClickSelection: true,
+        linkOnPaste: true,
+        openOnClick: false,
+        HTMLAttributes: {
+          class:
+            "text-primary underline decoration-primary/40 underline-offset-4",
+          rel: "nofollow ugc noopener noreferrer",
+          target: "_blank",
+        },
+        isAllowedUri: (url) => isSafeEditorLink(url),
+        shouldAutoLink: (url) => isSafeEditorLink(url),
+      }),
+      Placeholder.configure({
+        placeholder:
+          fieldProps?.placeholder ||
+          "直接在这里写正文，选中文字后用工具栏设置格式。",
+      }),
+      AttachmentImage.configure({
+        getAttachmentById: (id: string) =>
+          latestAttachmentsRef.current.find((attachment) => attachment.id === id) ??
+          null,
+      }),
+      MediaEmbedNode,
+      Table.configure({
+        resizable: false,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      SpoilerMark,
+      Markdown.configure({
+        markedOptions: {
+          gfm: true,
+        },
+      }),
+    ],
+    [fieldProps?.placeholder],
+  );
+
+  const editor = useEditor(
+    {
+      content: value,
+      contentType: "markdown",
+      editable: !isEditorDisabled,
+      extensions: editorExtensions,
+      editorProps: {
+        attributes: {
+          "aria-label":
+            typeof fieldProps?.["aria-label"] === "string"
+              ? fieldProps["aria-label"]
+              : "正文内容",
+          class: cn(
+            "min-h-40 px-3 py-3 text-sm leading-7 text-foreground outline-none",
+            "prose-headings:tracking-normal",
+            "data-[placeholder]:before:pointer-events-none data-[placeholder]:before:float-left data-[placeholder]:before:h-0 data-[placeholder]:before:text-muted-foreground data-[placeholder]:before:content-[attr(data-placeholder)]",
+            "[&_a]:text-primary [&_a]:underline [&_a]:decoration-primary/40 [&_a]:underline-offset-4",
+            "[&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:border-primary/50 [&_blockquote]:bg-primary/5 [&_blockquote]:px-4 [&_blockquote]:py-2 [&_blockquote]:text-muted-foreground",
+            "[&_code]:border [&_code]:border-border [&_code]:bg-background-soft [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.92em]",
+            "[&_h1]:mb-2 [&_h1]:mt-5 [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:leading-7",
+            "[&_h2]:mb-2 [&_h2]:mt-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:leading-7",
+            "[&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:leading-6",
+            "[&_ol]:my-4 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-6",
+            "[&_p]:my-3 [&_p]:whitespace-pre-wrap [&_p]:leading-7 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
+            "[&_pre]:my-4 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:border [&_pre]:border-border [&_pre]:bg-background-soft [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-sm [&_pre]:leading-6",
+            "[&_pre_code]:border-0 [&_pre_code]:bg-transparent [&_pre_code]:p-0",
+            "[&_table]:my-4 [&_table]:w-full [&_table]:min-w-[560px] [&_table]:border-collapse [&_table]:text-sm",
+            "[&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_td]:align-top",
+            "[&_th]:border [&_th]:border-border [&_th]:bg-background-soft [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:text-xs [&_th]:font-semibold [&_th]:text-muted-foreground",
+            "[&_ul]:my-4 [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-6",
+          ),
+        },
+      },
+      immediatelyRender: false,
+      onCreate: ({ editor: createdEditor }) => {
+        scheduleMediaEmbedSync(createdEditor);
+      },
+      onUpdate: ({ editor: updatedEditor }) => {
+        scheduleMediaEmbedSync(updatedEditor);
+
+        const nextMarkdown = normalizeEditorMarkdown(updatedEditor.getMarkdown());
+
+        if (nextMarkdown !== latestValueRef.current) {
+          latestValueRef.current = nextMarkdown;
+          onChange(nextMarkdown);
+        }
+      },
+    },
+    [editorExtensions],
+  );
+
+  const toolbarState =
+    useEditorState({
+      editor,
+      selector: ({ editor: currentEditor }) => ({
+        blockquote: currentEditor?.isActive("blockquote") ?? false,
+        bold: currentEditor?.isActive("bold") ?? false,
+        bulletList: currentEditor?.isActive("bulletList") ?? false,
+        code: currentEditor?.isActive("code") ?? false,
+        codeBlock: currentEditor?.isActive("codeBlock") ?? false,
+        heading: currentEditor?.isActive("heading", { level: 2 }) ?? false,
+        italic: currentEditor?.isActive("italic") ?? false,
+        link: currentEditor?.isActive("link") ?? false,
+        orderedList: currentEditor?.isActive("orderedList") ?? false,
+        spoiler: currentEditor?.isActive("spoiler") ?? false,
+        strike: currentEditor?.isActive("strike") ?? false,
+      }),
+    }) ?? emptyToolbarState;
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    editor.setEditable(!isEditorDisabled);
+  }, [editor, isEditorDisabled]);
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    const currentMarkdown = normalizeEditorMarkdown(editor.getMarkdown());
+    const nextMarkdown = normalizeEditorMarkdown(value);
+
+    if (currentMarkdown !== nextMarkdown) {
+      latestValueRef.current = nextMarkdown;
+      editor.commands.setContent(nextMarkdown, {
+        contentType: "markdown",
+        emitUpdate: false,
+      });
+      scheduleMediaEmbedSync(editor);
+    }
+  }, [editor, value]);
+
+  function scheduleMediaEmbedSync(targetEditor: Editor) {
+    if (mediaEmbedSyncFrameRef.current !== null) {
+      return;
+    }
+
+    mediaEmbedSyncFrameRef.current = window.requestAnimationFrame(() => {
+      mediaEmbedSyncFrameRef.current = null;
+
+      if (!targetEditor.isDestroyed) {
+        syncWhitelistedMediaEmbeds(targetEditor);
+      }
+    });
+  }
 
   function setBodyValue(nextValue: string) {
+    latestValueRef.current = nextValue;
     onChange(nextValue);
   }
 
   function insertAttachmentMarkdown(attachment: MediaAttachment) {
+    if (!editor) {
+      return;
+    }
+
     if (!canInsertAttachmentReference(attachment)) {
       setImageUploadError(getReferenceLimitMessage());
       return;
     }
 
-    const currentValue = bodyTextareaRef.current?.value ?? value;
-    const currentSelection = {
-      end: bodyTextareaRef.current?.selectionEnd ?? currentValue.length,
-      start: bodyTextareaRef.current?.selectionStart ?? currentValue.length,
-    };
-    const nextBodyState = referencedAttachmentIds.has(attachment.id)
-      ? removeAttachmentMarkdownReferencesWithSelection(
-          currentValue,
-          attachment.id,
-          currentSelection,
-        )
-      : {
-          markdown: currentValue,
-          selection: currentSelection,
-        };
-    const result = applyMarkdownInsert({
-      end: nextBodyState.selection.end,
-      insert: {
-        block: true,
-        text: createAttachmentMarkdown(attachment),
-      },
-      start: nextBodyState.selection.start,
-      value: nextBodyState.markdown,
-    });
-
+    removeAttachmentNodes(editor, attachment.id);
+    insertAttachmentIntoEditor(editor, attachment, "cursor");
     setImageUploadError(null);
-    setBodyValue(result.value);
-    focusTextareaSelection(result.selection.start, result.selection.end);
-    return result;
   }
 
   function removeAttachmentMarkdown(attachment: MediaAttachment) {
-    setBodyValue(removeAttachmentMarkdownReferences(value, attachment.id));
+    if (!editor) {
+      return;
+    }
+
+    removeAttachmentNodes(editor, attachment.id);
   }
 
   function canInsertAttachmentReference(attachment: MediaAttachment) {
@@ -177,10 +596,7 @@ export function MarkdownComposerField({
     return referencedKnownAttachmentIds.length < maxReferencedImageAttachments;
   }
 
-  function getRemainingReferenceSlots(
-    markdown: string,
-    attachments = previewAttachments,
-  ) {
+  function getRemainingReferenceSlots(markdown = getCurrentMarkdown()) {
     if (maxReferencedImageAttachments === undefined) {
       return Number.POSITIVE_INFINITY;
     }
@@ -188,7 +604,7 @@ export function MarkdownComposerField({
     return Math.max(
       0,
       maxReferencedImageAttachments -
-        getReferencedAttachmentIdsForSubmit(markdown, attachments).length,
+        getReferencedAttachmentIdsForSubmit(markdown, previewAttachments).length,
     );
   }
 
@@ -211,44 +627,21 @@ export function MarkdownComposerField({
     removeAttachmentMarkdown(attachment);
   }
 
-  function bindTextareaRef(element: HTMLTextAreaElement | null) {
-    bodyTextareaRef.current = element;
-    textareaRef?.(element);
-  }
-
-  async function handleTextareaPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
-    textareaProps.onPaste?.(event);
-
+  async function handleComposerPaste(event: ClipboardEvent<HTMLDivElement>) {
     await handleInlineImagePaste(event, "cursor");
   }
 
-  async function handleComposerPaste(event: ClipboardEvent<HTMLDivElement>) {
-    if (isTextareaElement(event.target)) {
-      return;
-    }
-
-    await handleInlineImagePaste(event, "end");
-  }
-
   function handleComposerDragOver(event: DragEvent<HTMLDivElement>) {
-    if (isTextareaElement(event.target)) {
-      return;
-    }
-
     if (!hasImageFileData(event.dataTransfer)) {
       return;
     }
 
     event.preventDefault();
     event.dataTransfer.dropEffect =
-      imageUpload && !disabled && !textareaProps.disabled ? "copy" : "none";
+      imageUpload && !isEditorDisabled ? "copy" : "none";
   }
 
   async function handleComposerDrop(event: DragEvent<HTMLDivElement>) {
-    if (isTextareaElement(event.target)) {
-      return;
-    }
-
     const imageFiles = getImageFilesFromDataTransfer(event.dataTransfer);
 
     if (imageFiles.length === 0) {
@@ -257,33 +650,7 @@ export function MarkdownComposerField({
 
     event.preventDefault();
 
-    if (!imageUpload || disabled || textareaProps.disabled) {
-      return;
-    }
-
-    await uploadInlineImageFiles(imageFiles, { insertion: "end" });
-  }
-
-  function handleTextareaDragOver(event: DragEvent<HTMLTextAreaElement>) {
-    if (!hasImageFileData(event.dataTransfer)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.dataTransfer.dropEffect =
-      imageUpload && !disabled && !textareaProps.disabled ? "copy" : "none";
-  }
-
-  async function handleTextareaDrop(event: DragEvent<HTMLTextAreaElement>) {
-    const imageFiles = getImageFilesFromDataTransfer(event.dataTransfer);
-
-    if (imageFiles.length === 0) {
-      return;
-    }
-
-    event.preventDefault();
-
-    if (!imageUpload || disabled || textareaProps.disabled) {
+    if (!imageUpload || isEditorDisabled) {
       return;
     }
 
@@ -305,7 +672,7 @@ export function MarkdownComposerField({
     if (dataImageTextPaste) {
       event.preventDefault();
 
-      if (disabled || textareaProps.disabled) {
+      if (isEditorDisabled) {
         return;
       }
 
@@ -321,15 +688,13 @@ export function MarkdownComposerField({
 
     event.preventDefault();
 
-    if (disabled || textareaProps.disabled) {
+    if (isEditorDisabled) {
       return;
     }
 
     const remainingUploadSlots =
       imageUpload.maxCount - imageUpload.attachments.length;
-    const remainingReferenceSlots = getRemainingReferenceSlots(
-      bodyTextareaRef.current?.value ?? value,
-    );
+    const remainingReferenceSlots = getRemainingReferenceSlots();
 
     if (remainingUploadSlots <= 0) {
       setImageUploadError(
@@ -371,7 +736,7 @@ export function MarkdownComposerField({
     }
 
     await uploadInlineImageFiles([file], {
-      insertion: isSourceOpen ? "cursor" : "end",
+      insertion: "cursor",
     });
   }
 
@@ -383,15 +748,7 @@ export function MarkdownComposerField({
       return;
     }
 
-    const currentValue = bodyTextareaRef.current?.value ?? value;
-    const insertionStart =
-      options.insertion === "end"
-        ? currentValue.length
-        : bodyTextareaRef.current?.selectionStart ?? currentValue.length;
-    const insertionEnd =
-      options.insertion === "end"
-        ? insertionStart
-        : bodyTextareaRef.current?.selectionEnd ?? insertionStart;
+    const currentValue = getCurrentMarkdown();
     const remainingUploadSlots =
       imageUpload.maxCount - imageUpload.attachments.length;
     const remainingReferenceSlots = getRemainingReferenceSlots(currentValue);
@@ -468,15 +825,8 @@ export function MarkdownComposerField({
         paste.text,
         markdownByPlaceholder,
       );
-      const result = applyMarkdownInsert({
-        end: insertionEnd,
-        insert: pastedMarkdown,
-        start: insertionStart,
-        value: currentValue,
-      });
 
-      setBodyValue(result.value);
-      focusTextareaSelection(result.selection.start, result.selection.end);
+      insertMarkdownIntoEditor(pastedMarkdown, options.insertion ?? "cursor");
     } catch (error) {
       setImageUploadError(getUploadError(error));
     } finally {
@@ -495,9 +845,7 @@ export function MarkdownComposerField({
 
     const remainingUploadSlots =
       imageUpload.maxCount - imageUpload.attachments.length;
-    const remainingReferenceSlots = getRemainingReferenceSlots(
-      bodyTextareaRef.current?.value ?? value,
-    );
+    const remainingReferenceSlots = getRemainingReferenceSlots();
 
     if (remainingUploadSlots <= 0) {
       setImageUploadError(
@@ -526,32 +874,9 @@ export function MarkdownComposerField({
 
     try {
       let nextAttachments = imageUpload.attachments;
-      let nextBodyValue = bodyTextareaRef.current?.value ?? value;
-      let insertionStart =
-        options.insertion === "end"
-          ? nextBodyValue.length
-          : bodyTextareaRef.current?.selectionStart ?? nextBodyValue.length;
-      let insertionEnd =
-        options.insertion === "end"
-          ? insertionStart
-          : bodyTextareaRef.current?.selectionEnd ?? insertionStart;
 
       for (const file of imageFiles) {
         const altText = getPastedImageAltText(file);
-        const nextKnownAttachments = dedupeAttachments([
-          ...(boundAttachments ?? []),
-          ...nextAttachments,
-        ]);
-        const remainingReferenceSlots = getRemainingReferenceSlots(
-          nextBodyValue,
-          nextKnownAttachments,
-        );
-
-        if (remainingReferenceSlots <= 0) {
-          setImageUploadError(getReferenceLimitMessage());
-          return;
-        }
-
         const validationError = validateImageUploadFile(file, {
           altText,
           currentCount: nextAttachments.length,
@@ -570,22 +895,12 @@ export function MarkdownComposerField({
 
         nextAttachments = [...nextAttachments, result.attachment];
         imageUpload.onChange(nextAttachments);
-        const bodyInsertion = applyMarkdownInsert({
-          end: insertionEnd,
-          insert: {
-            block: true,
-            text: createAttachmentMarkdown(result.attachment),
-          },
-          start: insertionStart,
-          value: nextBodyValue,
-        });
-        nextBodyValue = bodyInsertion.value;
-        insertionStart = bodyInsertion.selection.end;
-        insertionEnd = bodyInsertion.selection.end;
-        setBodyValue(nextBodyValue);
+        insertAttachmentIntoEditor(
+          editor,
+          result.attachment,
+          options.insertion ?? "cursor",
+        );
       }
-
-      focusTextareaSelection(insertionStart, insertionEnd);
     } catch (error) {
       setImageUploadError(getUploadError(error));
     } finally {
@@ -594,13 +909,23 @@ export function MarkdownComposerField({
     }
   }
 
-  function focusTextareaSelection(start: number, end: number) {
-    window.requestAnimationFrame(() => {
-      const textarea = bodyTextareaRef.current;
+  function getCurrentMarkdown() {
+    return normalizeEditorMarkdown(editor?.getMarkdown() ?? value);
+  }
 
-      textarea?.focus();
-      textarea?.setSelectionRange(start, end);
-    });
+  function insertMarkdownIntoEditor(
+    markdown: string,
+    insertion: InlineImageInsertion,
+  ) {
+    if (!editor) {
+      setBodyValue(`${value}${markdown}`);
+      return;
+    }
+
+    const chain =
+      insertion === "end" ? editor.chain().focus("end") : editor.chain().focus();
+
+    chain.insertContent(markdown, { contentType: "markdown" }).run();
   }
 
   function renderImageTool() {
@@ -609,8 +934,7 @@ export function MarkdownComposerField({
     }
 
     const canAddImage =
-      !disabled &&
-      !textareaProps.disabled &&
+      !isEditorDisabled &&
       !isUploadingInlineImage &&
       imageUpload.attachments.length < imageUpload.maxCount &&
       getRemainingReferenceSlots(value) > 0;
@@ -625,19 +949,13 @@ export function MarkdownComposerField({
           disabled={!canAddImage}
           onChange={(event) => handleImageFileChange(event.target.files)}
         />
-        <Button
-          aria-label="添加图片"
+        <ToolbarButton
+          active={false}
           disabled={!canAddImage}
+          icon={<ImagePlus aria-hidden="true" />}
+          label="添加图片"
           onClick={() => imageFileInputRef.current?.click()}
-          onMouseDown={(event) => event.preventDefault()}
-          size="icon"
-          title="添加图片"
-          type="button"
-          variant="ghost"
-          className="size-9 rounded-md"
-        >
-          <ImagePlus aria-hidden="true" />
-        </Button>
+        />
       </>
     );
   }
@@ -649,128 +967,266 @@ export function MarkdownComposerField({
       onDrop={handleComposerDrop}
       onPaste={handleComposerPaste}
     >
-      <section className="overflow-hidden border border-border bg-background">
-        <div className="flex flex-col gap-3 border-b border-border bg-background-soft px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Eye className="size-4 text-primary" aria-hidden="true" />
-              发布效果
-            </div>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              {isSourceOpen
-                ? "正文效果会在这里实时渲染。"
-                : "默认显示发布后的正文效果；需要改内容时再打开正文编辑。"}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {renderImageTool()}
-            <Button
-              type="button"
-              variant={isSourceOpen ? "secondary" : "outline"}
-              size="sm"
-              className="h-9 rounded-md"
-              disabled={disabled || textareaProps.disabled}
-              onClick={() => setMode(isSourceOpen ? "preview" : "edit")}
-            >
-              <PencilLine className="size-4" aria-hidden="true" />
-              {sourceToggleLabel}
-            </Button>
-          </div>
-        </div>
-
-        <div className="min-h-32 px-3 py-3">
-          {hasPreviewContent ? (
-            <>
-              <ContentBody
-                attachments={previewAttachments}
-                className="text-sm"
-                value={value}
-              />
-              {hasDetachedPreviewImages ? (
-                <p className="mt-3 border-l border-primary px-3 py-2 text-sm text-muted-foreground">
-                  {detachedPreviewImageNotice}
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <p className="text-sm leading-6 text-muted-foreground">
-              {hasDetachedPreviewImages
-                ? detachedPreviewImageNotice
-                : "正文效果会显示在这里。"}
-            </p>
-          )}
+      <section
+        className={cn(
+          "overflow-hidden border border-border bg-background",
+          isEditorDisabled && "opacity-70",
+        )}
+      >
+        <RichMarkdownToolbar
+          disabled={isEditorDisabled}
+          editor={editor}
+          renderImageTool={renderImageTool}
+          state={toolbarState}
+        />
+        <div className="max-w-full overflow-x-auto border-t border-border">
+          <EditorContent editor={editor} />
         </div>
       </section>
 
-      {isSourceOpen ? (
-        <section className="space-y-2 border border-border bg-background-soft p-2">
-          <div className="flex items-center justify-between gap-3 px-1 text-xs text-muted-foreground">
-            <span>正文编辑</span>
-            <span>常用格式用工具栏插入；图片会进入正文位置。</span>
-          </div>
-          <MarkdownToolbar
-            disabled={disabled}
-            onChange={setBodyValue}
-            textareaRef={bodyTextareaRef}
-            value={value}
-          />
-          <Textarea
-            {...textareaProps}
-            disabled={disabled || textareaProps.disabled}
-            onDragOver={handleTextareaDragOver}
-            onDrop={handleTextareaDrop}
-            onPaste={handleTextareaPaste}
-            ref={bindTextareaRef}
-            value={value}
-          />
-          {hasUnsupportedMarkdownImages ? (
-            <p className="border-l border-amber-400/50 bg-amber-400/5 px-3 py-2 text-sm text-muted-foreground">
-              {unsupportedMarkdownImageNotice}
-            </p>
-          ) : null}
-        </section>
+      {isUploadingInlineImage ? (
+        <div className="border-l border-primary px-3 py-2 text-sm text-muted-foreground">
+          正在上传图片，完成后会插入到正文当前位置。
+        </div>
       ) : null}
-
+      {hasDetachedPreviewImages ? (
+        <p className="border-l border-primary px-3 py-2 text-sm text-muted-foreground">
+          {detachedPreviewImageNotice}
+        </p>
+      ) : null}
+      {hasUnsupportedMarkdownImages ? (
+        <p className="border-l border-amber-400/50 bg-amber-400/5 px-3 py-2 text-sm text-muted-foreground">
+          {unsupportedMarkdownImageNotice}
+        </p>
+      ) : null}
+      {imageUploadError ? (
+        <Alert variant="destructive">
+          <AlertTitle>添加图片失败</AlertTitle>
+          <AlertDescription>{imageUploadError}</AlertDescription>
+        </Alert>
+      ) : null}
       {imageUpload ? (
-        <>
-          {isUploadingInlineImage ? (
-            <div className="border-l border-primary px-3 py-2 text-sm text-muted-foreground">
-              正在上传图片，完成后会插入到正文{isSourceOpen ? "当前位置" : "末尾"}。
-            </div>
-          ) : null}
-          {imageUploadError ? (
-            <Alert variant="destructive">
-              <AlertTitle>添加图片失败</AlertTitle>
-              <AlertDescription>{imageUploadError}</AlertDescription>
-            </Alert>
-          ) : null}
-          <InlineImageAttachmentManager
-            attachments={imageUpload.attachments}
-            canInsertAttachment={canInsertAttachmentReference}
-            disabled={disabled || isUploadingInlineImage}
-            isAttachmentInserted={(attachment) =>
-              referencedAttachmentIds.has(attachment.id)
-            }
-            insertActionLabels={imageInsertionLabels}
-            maxCount={imageUpload.maxCount}
-            onInsertAttachment={insertAttachmentMarkdown}
-            onRemoveAttachment={removeInlineImageAttachment}
-          />
-        </>
+        <InlineImageAttachmentManager
+          attachments={imageUpload.attachments}
+          canInsertAttachment={canInsertAttachmentReference}
+          disabled={isEditorDisabled || isUploadingInlineImage}
+          isAttachmentInserted={(attachment) =>
+            referencedAttachmentIds.has(attachment.id)
+          }
+          insertActionLabels={{
+            inserted: "移动到当前位置",
+            notInserted: "放到当前位置",
+          }}
+          maxCount={imageUpload.maxCount}
+          onInsertAttachment={insertAttachmentMarkdown}
+          onRemoveAttachment={removeInlineImageAttachment}
+        />
       ) : null}
       {boundAttachments ? (
         <InlineImageAttachmentReferences
           attachments={boundAttachments}
           canInsertAttachment={canInsertAttachmentReference}
-          disabled={disabled}
+          disabled={isEditorDisabled}
           isAttachmentInserted={(attachment) =>
             referencedAttachmentIds.has(attachment.id)
           }
-          insertActionLabels={imageInsertionLabels}
+          insertActionLabels={{
+            inserted: "移动到当前位置",
+            notInserted: "放到当前位置",
+          }}
           onInsertAttachment={insertAttachmentMarkdown}
         />
       ) : null}
     </div>
+  );
+}
+
+function RichMarkdownToolbar({
+  disabled,
+  editor,
+  renderImageTool,
+  state,
+}: {
+  disabled: boolean;
+  editor: Editor | null;
+  renderImageTool: () => ReactNode;
+  state: typeof emptyToolbarState;
+}) {
+  function run(command: (editor: Editor) => void) {
+    if (!editor || disabled) {
+      return;
+    }
+
+    command(editor);
+  }
+
+  function setLink() {
+    if (!editor || disabled) {
+      return;
+    }
+
+    const currentHref = editor.getAttributes("link").href;
+    const nextHref = window.prompt("输入链接地址", currentHref || "https://");
+
+    if (nextHref === null) {
+      return;
+    }
+
+    const normalizedHref = normalizeMarkdownHref(nextHref);
+
+    if (!normalizedHref) {
+      return;
+    }
+
+    editor
+      .chain()
+      .focus()
+      .extendMarkRange("link")
+      .setLink({ href: normalizedHref })
+      .run();
+  }
+
+  const tools = [
+    {
+      active: state.bold,
+      icon: <Bold aria-hidden="true" />,
+      label: "加粗",
+      onClick: () => run((currentEditor) => currentEditor.chain().focus().toggleBold().run()),
+    },
+    {
+      active: state.italic,
+      icon: <Italic aria-hidden="true" />,
+      label: "斜体",
+      onClick: () => run((currentEditor) => currentEditor.chain().focus().toggleItalic().run()),
+    },
+    {
+      active: state.heading,
+      icon: <Heading2 aria-hidden="true" />,
+      label: "标题",
+      onClick: () =>
+        run((currentEditor) =>
+          currentEditor.chain().focus().toggleHeading({ level: 2 }).run(),
+        ),
+    },
+    {
+      active: state.strike,
+      icon: <Strikethrough aria-hidden="true" />,
+      label: "删除线",
+      onClick: () => run((currentEditor) => currentEditor.chain().focus().toggleStrike().run()),
+    },
+    {
+      active: state.blockquote,
+      icon: <Quote aria-hidden="true" />,
+      label: "引用",
+      onClick: () =>
+        run((currentEditor) => currentEditor.chain().focus().toggleBlockquote().run()),
+    },
+    {
+      active: state.bulletList,
+      icon: <List aria-hidden="true" />,
+      label: "无序列表",
+      onClick: () =>
+        run((currentEditor) => currentEditor.chain().focus().toggleBulletList().run()),
+    },
+    {
+      active: state.orderedList,
+      icon: <ListOrdered aria-hidden="true" />,
+      label: "有序列表",
+      onClick: () =>
+        run((currentEditor) => currentEditor.chain().focus().toggleOrderedList().run()),
+    },
+    {
+      active: state.code,
+      icon: <Code aria-hidden="true" />,
+      label: "代码",
+      onClick: () => run((currentEditor) => currentEditor.chain().focus().toggleCode().run()),
+    },
+    {
+      active: state.codeBlock,
+      icon: <CodeXml aria-hidden="true" />,
+      label: "代码块",
+      onClick: () =>
+        run((currentEditor) => currentEditor.chain().focus().toggleCodeBlock().run()),
+    },
+    {
+      active: state.link,
+      icon: <LinkIcon aria-hidden="true" />,
+      label: "链接",
+      onClick: setLink,
+    },
+    {
+      active: state.spoiler,
+      icon: <EyeOff aria-hidden="true" />,
+      label: "涂黑",
+      onClick: () =>
+        run((currentEditor) => currentEditor.chain().focus().toggleSpoiler().run()),
+    },
+    {
+      active: false,
+      icon: <TableIcon aria-hidden="true" />,
+      label: "表格",
+      onClick: () =>
+        run((currentEditor) =>
+          currentEditor
+            .chain()
+            .focus()
+            .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+            .run(),
+        ),
+    },
+  ];
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-1 bg-background-soft p-1"
+      aria-label="正文格式工具栏"
+    >
+      <span className="px-2 font-mono text-[11px] text-muted-foreground">
+        格式
+      </span>
+      {tools.map((tool) => (
+        <ToolbarButton
+          key={tool.label}
+          active={tool.active}
+          disabled={disabled}
+          icon={tool.icon}
+          label={tool.label}
+          onClick={tool.onClick}
+        />
+      ))}
+      {renderImageTool()}
+    </div>
+  );
+}
+
+function ToolbarButton({
+  active,
+  disabled,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  disabled: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      aria-label={label}
+      aria-pressed={active}
+      disabled={disabled}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+      size="icon"
+      title={label}
+      type="button"
+      variant={active ? "secondary" : "ghost"}
+      className="size-9 rounded-md"
+    >
+      {icon}
+    </Button>
   );
 }
 
@@ -782,6 +1238,136 @@ function dedupeAttachments(attachments: MediaAttachment[]) {
   }
 
   return [...attachmentById.values()];
+}
+
+function createMediaFallbackLink(originalUrl: string) {
+  const link = document.createElement("a");
+
+  link.href = originalUrl;
+  link.rel = "nofollow ugc noopener noreferrer";
+  link.target = "_blank";
+  link.className =
+    "block border border-border bg-background-soft px-3 py-2 text-sm text-primary underline decoration-primary/40 underline-offset-4";
+  link.textContent = originalUrl;
+
+  return link;
+}
+
+function syncWhitelistedMediaEmbeds(editor: Editor) {
+  const mediaEmbedType = editor.state.schema.nodes.mediaEmbed;
+
+  if (!mediaEmbedType) {
+    return false;
+  }
+
+  const replacements: Array<{
+    from: number;
+    originalUrl: string;
+    to: number;
+  }> = [];
+
+  editor.state.doc.descendants((node, position) => {
+    if (node.type.name !== "paragraph") {
+      return;
+    }
+
+    const originalUrl = node.textContent.trim();
+
+    if (
+      !originalUrl ||
+      node.textContent !== originalUrl ||
+      !resolveWhitelistedMediaEmbed(originalUrl)
+    ) {
+      return;
+    }
+
+    replacements.push({
+      from: position,
+      originalUrl,
+      to: position + node.nodeSize,
+    });
+  });
+
+  if (replacements.length === 0) {
+    return false;
+  }
+
+  let transaction = editor.state.tr;
+
+  for (const replacement of [...replacements].reverse()) {
+    transaction = transaction.replaceWith(
+      replacement.from,
+      replacement.to,
+      mediaEmbedType.create({
+        originalUrl: replacement.originalUrl,
+      }),
+    );
+  }
+
+  editor.view.dispatch(transaction);
+  return true;
+}
+
+function insertAttachmentIntoEditor(
+  editor: Editor | null,
+  attachment: MediaAttachment,
+  insertion: InlineImageInsertion,
+) {
+  if (!editor) {
+    return;
+  }
+
+  const imageNode = {
+    attrs: {
+      alt: attachment.alt_text || "内容图片",
+      attachmentId: attachment.id,
+      displaySrc: attachment.url,
+      src: `${ATTACHMENT_MARKDOWN_URL_PREFIX}${encodeAttachmentIdForMarkdown(
+        attachment.id,
+      )}`,
+    },
+    type: "image",
+  };
+  const chain =
+    insertion === "end" ? editor.chain().focus("end") : editor.chain().focus();
+
+  chain.insertContent(imageNode).run();
+}
+
+function removeAttachmentNodes(editor: Editor, id: string) {
+  const ranges: Array<{ from: number; to: number }> = [];
+
+  editor.state.doc.descendants((node, position) => {
+    if (node.type.name !== "image") {
+      return;
+    }
+
+    const attachmentId =
+      typeof node.attrs.attachmentId === "string"
+        ? node.attrs.attachmentId
+        : getAttachmentIdFromMarkdownUrl(
+            typeof node.attrs.src === "string" ? node.attrs.src : null,
+          );
+
+    if (attachmentId === id) {
+      ranges.push({
+        from: position,
+        to: position + node.nodeSize,
+      });
+    }
+  });
+
+  if (ranges.length === 0) {
+    return;
+  }
+
+  let transaction = editor.state.tr;
+
+  for (const range of [...ranges].reverse()) {
+    transaction = transaction.delete(range.from, range.to);
+  }
+
+  editor.view.dispatch(transaction);
 }
 
 function getImageFilesFromDataTransfer(dataTransfer: DataTransfer) {
@@ -920,6 +1506,18 @@ function replaceClipboardDataImagePlaceholders(
   return nextText;
 }
 
-function isTextareaElement(value: EventTarget | null) {
-  return value instanceof HTMLTextAreaElement;
+function normalizeEditorMarkdown(value: string) {
+  return value.replace(/\n{3,}/g, "\n\n").trimEnd();
+}
+
+function isSafeEditorLink(value: string | undefined) {
+  const normalized = normalizeMarkdownHref(value);
+
+  return Boolean(normalized && !normalized.startsWith(ATTACHMENT_MARKDOWN_URL_PREFIX));
+}
+
+function encodeAttachmentIdForMarkdown(value: string) {
+  return encodeURIComponent(value).replace(/[()]/g, (character) =>
+    `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 }

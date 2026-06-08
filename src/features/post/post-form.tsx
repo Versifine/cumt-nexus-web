@@ -69,8 +69,6 @@ export function PostForm({ className, slug }: PostFormProps) {
   const bodyValue = useWatch({ control: form.control, name: "body" }) ?? "";
   const titleLength = titleValue.trim().length;
   const bodyLength = bodyValue.trim().length;
-  const bodyField = form.register("body");
-  const { ref: bodyFieldRef, ...bodyFieldProps } = bodyField;
 
   function setBodyValue(nextValue: string) {
     form.setValue("body", nextValue, {
@@ -126,18 +124,15 @@ export function PostForm({ className, slug }: PostFormProps) {
         />
         <div className="min-w-0 space-y-2">
           <MarkdownComposerField
-            defaultMode="preview"
             disabled={postMutation.isPending}
             maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerPost}
             onChange={setBodyValue}
-            textareaProps={{
-              ...bodyFieldProps,
+            fieldProps={{
               "aria-invalid": Boolean(form.formState.errors.body),
               className: "min-h-72 border-border bg-background text-base leading-7",
               id: "body",
               placeholder: "支持加粗、引用、代码、代码块、链接、列表、表格、涂黑和图片插入。",
             }}
-            textareaRef={bodyFieldRef}
             value={bodyValue}
             imageUpload={{
               attachments,

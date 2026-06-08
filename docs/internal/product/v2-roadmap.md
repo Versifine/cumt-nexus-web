@@ -33,7 +33,7 @@ V2 后端能力全量前端接入
 
 - 合同核对与 API client 补齐：搜索、通知、举报、审核、社区申请 approve / reject、图片上传、feed sort 都已进入统一 API 边界。
 - Reddit Markdown renderer：`ContentBody` 使用 `react-markdown` + `remark-gfm`，开启 `skipHtml`，不使用 `rehype-raw`，链接协议做白名单过滤。
-- 写作器：发帖、评论、回复、帖子编辑和评论编辑都使用单一 `MarkdownComposerField` 和格式工具条；组件默认展示发布效果，正文编辑只在用户点击“开始写作”或打开“编辑正文”后显示。
+- 写作器：发帖、评论、回复、帖子编辑和评论编辑都使用单一 `MarkdownComposerField` 和格式工具条；组件是实时渲染编辑器，工具条作用于当前选区或当前块，提交给后端的格式仍是 Markdown。
 - 图片上传与正文图片展示：发帖和评论写作器接入 `POST /api/v1/uploads/images`，提交 `attachment_ids`，上传后插入 `nexus-attachment` 正文 marker，帖子详情和评论树只渲染正文内 marker 引用到的图片；Post-V2 已补齐 JPEG / PNG / WebP、单图 5MB、发帖最多 9 张、评论最多 1 张的前端提示和拦截，以及上传失败重试、正文图片移除提示。
 - 内容发现：首页和社区帖子流支持 `new | hot`，搜索页支持 `all | communities | posts`。
 - 通知中心：支持列表、未读 / 已读筛选、标记已读和保守跳转。
@@ -67,7 +67,7 @@ V2 的完成边界以当前后端能力为准：
 - 后端能力全量接入。用户列出的接口都必须在 V2 中有前端入口、状态和验证路径。
 - 内容系统优先。Reddit Markdown、图片上传、帖子详情和评论树是产品质感核心。
 - 能力对齐 Reddit Markdown。帖子和评论正文目标是 Reddit-style Markdown parity。
-- 体验不要变成文档编辑器。不强制编辑 / 预览双模式；常用格式通过工具动作承接，高级用户可以直接写 Markdown。
+- 体验不要变成复杂文档编辑器。不强制编辑 / 预览双模式；常用格式通过工具动作承接，高级用户可以粘贴或输入 Markdown，由写作器解析成可见排版。
 - 管理能力要有边界。社区申请审批、举报审核和内容移除必须只给有权限用户入口。
 - 后端合同优先。实现前重新核对后端响应结构，不在前端伪造字段或业务状态。
 

@@ -388,13 +388,13 @@ E. 全局收口与上线验收
 
 - `src/app/communities/[slug]/new/page.tsx`
 - `src/features/post/post-form.tsx`
-- `src/features/content/markdown-toolbar.tsx`
+- `src/features/content/markdown-composer-field.tsx`
 - `src/features/media/media-attachments.tsx`
 
 体验目标：
 
 - 标题、正文和图片附件的关系清楚。
-- Markdown 工具动作不喧宾夺主。
+- Markdown 工具动作作用于当前选区或当前块，不暴露源码编辑面。
 - 图片上传中、失败、重试、移除和数量限制明确。
 - 提交中禁用重复提交。
 - 成功后跳到帖子详情或明确下一步。

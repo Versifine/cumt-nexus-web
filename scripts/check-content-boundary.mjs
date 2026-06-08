@@ -350,23 +350,38 @@ function checkMarkdownComposerEntryPoint() {
 
   const composerProblems = [];
 
-  if (!composer.content.includes("@/features/content/content-body")) {
-    composerProblems.push("MarkdownComposerField preview does not import ContentBody");
+  for (const token of [
+    "@tiptap/react",
+    "@tiptap/markdown",
+    "@tiptap/starter-kit",
+    "@tiptap/extension-image",
+    "@tiptap/extension-link",
+    "EditorContent",
+    "useEditor",
+    'contentType: "markdown"',
+    "getMarkdown()",
+    "RichMarkdownToolbar",
+    "MediaEmbedNode",
+    "createMediaEmbedPlayerElement",
+    "resolveWhitelistedMediaEmbed",
+    "syncWhitelistedMediaEmbeds",
+    "data-media-editor-node",
+  ]) {
+    if (!composer.content.includes(token)) {
+      composerProblems.push(`MarkdownComposerField rich editor missing ${token}`);
+    }
   }
 
-  if (!/<ContentBody[\s\S]*?\battachments=/.test(composer.content)) {
-    composerProblems.push("MarkdownComposerField preview renders without shared attachment-aware ContentBody");
+  if (composer.content.includes("@/features/content/content-body")) {
+    composerProblems.push("MarkdownComposerField must not use a separate ContentBody preview");
   }
 
-  if (
-    !composer.content.includes("const hasPreviewContent = value.trim().length > 0") ||
-    /const\s+hasPreviewContent\s*=[^;]*(?:previewAttachments|imageUpload|boundAttachments)/.test(
-      composer.content,
-    )
-  ) {
-    composerProblems.push(
-      "MarkdownComposerField preview empty state must be based on Markdown body text, not detached uploaded attachments",
-    );
+  if (/<textarea\b/i.test(composer.content) || composer.content.includes("<Textarea")) {
+    composerProblems.push("MarkdownComposerField must render one rich editing surface, not a textarea");
+  }
+
+  if (composer.content.includes("@/features/content/markdown-toolbar")) {
+    composerProblems.push("MarkdownComposerField must use selection-aware Tiptap commands instead of the legacy insertion toolbar");
   }
 
   if (
@@ -390,13 +405,13 @@ function checkMarkdownComposerEntryPoint() {
   }
 
   if (composerProblems.length > 0) {
-    addFail("MarkdownComposerField preview boundary", composerProblems.join("; "));
+    addFail("MarkdownComposerField rich editor boundary", composerProblems.join("; "));
     return;
   }
 
   addPass(
-    "MarkdownComposerField preview boundary",
-    "composer preview uses the same attachment-aware ContentBody renderer as published content and keeps detached uploads out of preview content state",
+    "MarkdownComposerField rich editor boundary",
+    "composer uses one rendered Tiptap editing surface while keeping Markdown as the submit format",
   );
 
   const missingConsumers = [];
@@ -426,49 +441,79 @@ function checkMarkdownComposerEntryPoint() {
 }
 
 function checkMarkdownToolbarTools() {
-  const toolbar = sourceFiles.find(
-    (file) => file.path === "src/features/content/markdown-toolbar.tsx",
-  );
-
-  if (!toolbar) {
-    addFail("MarkdownToolbar entry", "src/features/content/markdown-toolbar.tsx is missing");
-    return;
-  }
-
-  const missingLabels = requiredToolbarLabels.filter(
-    (label) => !toolbar.content.includes(`label: "${label}"`),
-  );
-
-  if (missingLabels.length > 0) {
-    addFail("MarkdownToolbar tools", `missing tool label(s): ${missingLabels.join(", ")}`);
-    return;
-  }
-
-  addPass(
-    "MarkdownToolbar tools",
-    `${requiredToolbarLabels.length} Markdown tool action(s) are declared`,
-  );
-}
-
-function checkLifecycleComposerDefaultMode() {
-  const missingPreviewDefault = [];
   const composer = sourceFiles.find(
     (file) => file.path === "src/features/content/markdown-composer-field.tsx",
   );
 
   if (!composer) {
-    missingPreviewDefault.push("src/features/content/markdown-composer-field.tsx is missing");
+    addFail("rich Markdown toolbar entry", "src/features/content/markdown-composer-field.tsx is missing");
+    return;
+  }
+
+  const missingLabels = requiredToolbarLabels.filter(
+    (label) => !composer.content.includes(`label: "${label}"`),
+  );
+
+  if (missingLabels.length > 0) {
+    addFail("rich Markdown toolbar tools", `missing tool label(s): ${missingLabels.join(", ")}`);
+    return;
+  }
+
+  const missingCommands = [
+    "toggleBold()",
+    "toggleItalic()",
+    "toggleHeading({ level: 2 })",
+    "toggleStrike()",
+    "toggleBlockquote()",
+    "toggleBulletList()",
+    "toggleOrderedList()",
+    "toggleCode()",
+    "toggleCodeBlock()",
+    "setLink({ href: normalizedHref })",
+    "toggleSpoiler()",
+    "insertTable({ rows: 3, cols: 3, withHeaderRow: true })",
+  ].filter((token) => !composer.content.includes(token));
+
+  if (missingCommands.length > 0) {
+    addFail(
+      "rich Markdown toolbar commands",
+      `missing selection-aware command(s): ${missingCommands.join(", ")}`,
+    );
+    return;
+  }
+
+  addPass(
+    "rich Markdown toolbar tools",
+    `${requiredToolbarLabels.length} selection-aware Markdown tool action(s) are declared`,
+  );
+}
+
+function checkLifecycleComposerDefaultMode() {
+  const richEditorProblems = [];
+  const composer = sourceFiles.find(
+    (file) => file.path === "src/features/content/markdown-composer-field.tsx",
+  );
+
+  if (!composer) {
+    richEditorProblems.push("src/features/content/markdown-composer-field.tsx is missing");
   } else {
-    if (!composer.content.includes('defaultMode = "preview"')) {
-      missingPreviewDefault.push("MarkdownComposerField must default to preview mode");
+    if (!composer.content.includes("EditorContent")) {
+      richEditorProblems.push("MarkdownComposerField must render EditorContent");
     }
 
     if (
       composer.content.includes("源码编辑") ||
       composer.content.includes("收起源码") ||
-      composer.content.includes("打开源码编辑")
+      composer.content.includes("打开源码编辑") ||
+      composer.content.includes("开始写作") ||
+      composer.content.includes("编辑正文") ||
+      composer.content.includes("发布效果")
     ) {
-      missingPreviewDefault.push("MarkdownComposerField still exposes source-oriented UI copy");
+      richEditorProblems.push("MarkdownComposerField still exposes source/preview-oriented UI copy");
+    }
+
+    if (/\bmode\b/.test(composer.content) || /setMode/.test(composer.content)) {
+      richEditorProblems.push("MarkdownComposerField must not keep edit/preview mode state");
     }
   }
 
@@ -476,12 +521,19 @@ function checkLifecycleComposerDefaultMode() {
     const consumer = sourceFiles.find((file) => file.path === consumerPath);
 
     if (!consumer) {
-      missingPreviewDefault.push(`${consumerPath} is missing`);
+      richEditorProblems.push(`${consumerPath} is missing`);
       continue;
     }
 
-    if (!/<MarkdownComposerField[\s\S]*?\bdefaultMode="preview"/.test(consumer.content)) {
-      missingPreviewDefault.push(`${consumerPath} does not default writing surface to preview`);
+    if (/<MarkdownComposerField[\s\S]*?\bdefaultMode=/.test(consumer.content)) {
+      richEditorProblems.push(`${consumerPath} still passes legacy defaultMode`);
+    }
+
+    if (
+      consumer.content.includes("默认显示发布后的") ||
+      consumer.content.includes("打开“编辑正文”")
+    ) {
+      richEditorProblems.push(`${consumerPath} still describes a preview-before-edit flow`);
     }
   }
 
@@ -492,23 +544,23 @@ function checkLifecycleComposerDefaultMode() {
     const consumer = sourceFiles.find((file) => file.path === consumerPath);
 
     if (consumer && !/<MarkdownComposerField[\s\S]*?\bkey=\{/.test(consumer.content)) {
-      missingPreviewDefault.push(
+      richEditorProblems.push(
         `${consumerPath} must remount edit dialog composer on open/close`,
       );
     }
   }
 
-  if (missingPreviewDefault.length > 0) {
+  if (richEditorProblems.length > 0) {
     addFail(
-      "Markdown composer preview default",
-      missingPreviewDefault.join("; "),
+      "Markdown composer single surface",
+      richEditorProblems.join("; "),
     );
     return;
   }
 
   addPass(
-    "Markdown composer preview default",
-    "all post and comment writing surfaces render published preview before exposing Markdown editing",
+    "Markdown composer single surface",
+    "all post and comment writing surfaces use one rendered editor without source/preview mode UI",
   );
 }
 
@@ -761,10 +813,6 @@ function checkComposerImageCopy() {
       detail: "legacy detached alt-text field",
       pattern: "图片说明",
     },
-    {
-      detail: "legacy detached file field",
-      pattern: "选择图片",
-    },
   ];
   const detachedUploadOffenders = [];
 
@@ -786,28 +834,25 @@ function checkComposerImageCopy() {
 
   if (
     !composer.content.includes("{renderImageTool()}") ||
-    !composer.content.includes("发布效果") ||
-    !composer.content.includes('aria-label="添加图片"') ||
+    !composer.content.includes('label="添加图片"') ||
+    !composer.content.includes('type="file"') ||
+    !composer.content.includes("IMAGE_UPLOAD_ACCEPT") ||
     !composer.content.includes("onMouseDown={(event) => event.preventDefault()}")
   ) {
     addFail(
       "composer image tool",
-      "MarkdownComposerField must expose image selection in the output-first composer while preserving textarea selection",
+      "MarkdownComposerField must expose image selection in the rich composer toolbar while preserving editor selection",
     );
     return;
   }
 
   if (
-    !composer.content.includes("onPaste={handleTextareaPaste}") ||
     !composer.content.includes("onPaste={handleComposerPaste}") ||
     !composer.content.includes("onDrop={handleComposerDrop}") ||
     !composer.content.includes("onDragOver={handleComposerDragOver}") ||
-    !composer.content.includes("onDrop={handleTextareaDrop}") ||
-    !composer.content.includes("onDragOver={handleTextareaDragOver}") ||
     !composer.content.includes("getImageFilesFromDataTransfer") ||
     !composer.content.includes("hasImageFileData") ||
     !composer.content.includes('await uploadInlineImageFiles(imageFiles, { insertion: "cursor" })') ||
-    !composer.content.includes('await uploadInlineImageFiles(imageFiles, { insertion: "end" })') ||
     !composer.content.includes("event.clipboardData") ||
     !composer.content.includes("event.dataTransfer") ||
     !composer.content.includes("extractDataImageSourcesFromClipboardHtml") ||
@@ -820,13 +865,26 @@ function checkComposerImageCopy() {
     !composer.content.includes("createFileFromDataImageSource") ||
     !composer.content.includes("uploadInlineDataImageTextPaste") ||
     !composer.content.includes("replaceClipboardDataImagePlaceholders") ||
-    !composer.content.includes("applyMarkdownInsert") ||
-    !composer.content.includes('setMode(isSourceOpen ? "preview" : "edit")') ||
+    !composer.content.includes("insertMarkdownIntoEditor") ||
+    !composer.content.includes('chain.insertContent(markdown, { contentType: "markdown" }).run()') ||
     !composer.content.includes('await uploadInlineImageFiles(imageFiles, { insertion })')
   ) {
     addFail(
       "composer pasted image insertion",
-      "MarkdownComposerField must upload pasted or dropped image files, including clipboard HTML/text data images, preserve surrounding pasted text, and insert them into the Markdown body",
+      "MarkdownComposerField must upload pasted or dropped image files, including clipboard HTML/text data images, preserve surrounding pasted text, and insert them through the rich editor",
+    );
+    return;
+  }
+
+  if (
+    composer.content.includes("handleTextareaPaste") ||
+    composer.content.includes("handleTextareaDrop") ||
+    composer.content.includes("applyMarkdownInsert") ||
+    composer.content.includes("setMode(")
+  ) {
+    addFail(
+      "composer pasted image insertion",
+      "MarkdownComposerField must not keep textarea/source-mode image insertion code paths",
     );
     return;
   }

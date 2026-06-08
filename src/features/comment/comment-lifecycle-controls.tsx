@@ -69,8 +69,6 @@ export function CommentLifecycleControls({
     },
   });
   const bodyValue = useWatch({ control: form.control, name: "body" }) ?? "";
-  const bodyField = form.register("body");
-  const { ref: bodyFieldRef, ...bodyFieldProps } = bodyField;
   const updateError = getSubmitError(updateMutation.error);
   const deleteError = getSubmitError(deleteMutation.error);
 
@@ -169,20 +167,17 @@ export function CommentLifecycleControls({
                   </span>
                 </div>
                 <MarkdownComposerField
-                  defaultMode="preview"
                   disabled={isUpdating}
                   key={`${comment.id}:${comment.updated_at}:${
                     editOpen ? "open" : "closed"
                   }`}
                   maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerComment}
                   onChange={setBodyValue}
-                  textareaProps={{
-                    ...bodyFieldProps,
+                  fieldProps={{
                     "aria-label": "评论内容",
                     "aria-invalid": Boolean(form.formState.errors.body),
                     className: "min-h-36 border-border bg-background text-sm leading-7",
                   }}
-                  textareaRef={bodyFieldRef}
                   value={bodyValue}
                   boundAttachments={comment.attachments}
                   imageUpload={{
@@ -198,8 +193,7 @@ export function CommentLifecycleControls({
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    默认显示发布后的评论样式；需要改内容时打开“编辑正文”。
-                    可以上传、粘贴或拖拽图片；保存时只绑定正文中实际引用的图片。
+                    编辑区会直接显示排版后的评论。可以上传、粘贴或拖拽图片；保存时只绑定正文中实际引用的图片。
                   </p>
                 )}
               </div>

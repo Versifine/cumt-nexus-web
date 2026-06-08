@@ -63,8 +63,6 @@ export function PostLifecycleControls({
   });
   const titleValue = useWatch({ control: form.control, name: "title" }) ?? "";
   const bodyValue = useWatch({ control: form.control, name: "body" }) ?? "";
-  const bodyField = form.register("body");
-  const { ref: bodyFieldRef, ...bodyFieldProps } = bodyField;
   const updateError = getSubmitError(updateMutation.error);
   const deleteError = getSubmitError(deleteMutation.error);
 
@@ -197,20 +195,17 @@ export function PostLifecycleControls({
                     </span>
                   </div>
                   <MarkdownComposerField
-                    defaultMode="preview"
                     disabled={isUpdating}
                     key={`${post.id}:${post.updated_at}:${
                       editOpen ? "open" : "closed"
                     }`}
                     maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerPost}
                     onChange={setBodyValue}
-                    textareaProps={{
-                      ...bodyFieldProps,
+                    fieldProps={{
                       "aria-label": "帖子正文",
                       "aria-invalid": Boolean(form.formState.errors.body),
                       className: "min-h-56 border-border bg-background text-sm leading-7",
                     }}
-                    textareaRef={bodyFieldRef}
                     value={bodyValue}
                     boundAttachments={post.attachments}
                     imageUpload={{
@@ -226,8 +221,7 @@ export function PostLifecycleControls({
                     </p>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      默认显示发布后的正文样式；需要改内容时打开“编辑正文”。
-                      可以上传、粘贴或拖拽图片；保存时只绑定正文中实际引用的图片。
+                      编辑区会直接显示排版后的正文。可以上传、粘贴或拖拽图片；保存时只绑定正文中实际引用的图片。
                     </p>
                   )}
                 </div>

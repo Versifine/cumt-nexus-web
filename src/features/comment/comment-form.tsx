@@ -82,8 +82,6 @@ export function CommentForm({
   const loginHref = `/login?next=${encodeURIComponent(next)}`;
   const registerHref = `/register?next=${encodeURIComponent(next)}`;
   const bodyValue = useWatch({ control: form.control, name: "body" }) ?? "";
-  const bodyField = form.register("body");
-  const { ref: bodyFieldRef, ...bodyFieldProps } = bodyField;
 
   function setBodyValue(nextValue: string) {
     form.setValue("body", nextValue, {
@@ -148,18 +146,15 @@ export function CommentForm({
 
       <div className="space-y-2">
         <MarkdownComposerField
-          defaultMode="preview"
           disabled={commentMutation.isPending}
           maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerComment}
           onChange={setBodyValue}
-          textareaProps={{
-            ...bodyFieldProps,
+          fieldProps={{
             "aria-label": "评论内容",
             "aria-invalid": Boolean(form.formState.errors.body),
             className: compact ? "min-h-28" : undefined,
             placeholder: placeholder ?? (parentId ? "回复这条评论。" : "写下你的评论。"),
           }}
-          textareaRef={bodyFieldRef}
           value={bodyValue}
           imageUpload={{
             attachments,
