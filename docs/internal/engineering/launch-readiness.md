@@ -221,7 +221,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 2026-06-07 首页排序路径复验记录：
 
 - 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:api-boundary`、`npm run check:docs`、`npm run check:copy`、`npm run check:routes` 和 `npm run check:static` 均通过。
-- 匿名 API 复验：真实后端 `GET /api/v1/posts?limit=1&offset=0&sort=new` 和 `sort=hot` 返回 `200`；`sort=best`、`sort=top`、`sort=rising` 返回 `400 invalid_argument`，完整五种排序已记录为后端缺口，前端不伪造结果。
+- 匿名 API 复验更新：2026-06-09 重建本地后端后，真实后端 `GET /api/v1/posts?limit=1&offset=0&sort=best|hot|new|top|rising` 均返回 `200`；前端 `check:main-path` 已把五种帖子排序纳入严格验收。
 - 浏览器复验 `/new` 桌面：默认选中“最新”；点击“热门”后 URL 进入 `/hot`，并选中“热门”；左侧“首页”保持高亮。
 - 浏览器复验 `/hot` 桌面和 `390px` 移动端：页面展示公开帖子流，未出现旧登录墙，`scrollWidth` 等于 `clientWidth`，无横向溢出，控制台无 error。
 
