@@ -199,6 +199,9 @@ export function PostLifecycleControls({
                   <MarkdownComposerField
                     defaultMode="preview"
                     disabled={isUpdating}
+                    key={`${post.id}:${post.updated_at}:${
+                      editOpen ? "open" : "closed"
+                    }`}
                     maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerPost}
                     onChange={setBodyValue}
                     textareaProps={{

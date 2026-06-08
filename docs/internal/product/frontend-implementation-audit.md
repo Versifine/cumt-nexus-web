@@ -18,7 +18,7 @@
 
 - App Shell、基础路由、顶部搜索、顶部通知入口、头像菜单、最近访问社区、个人主页基础壳已经落地。
 - 未登录公开读取在前端意图上已经打开，但仍依赖后端 optional Bearer / 公开读取合同保持一致。
-- 帖子和评论 Markdown / 图片一体化已补齐统一入口；发帖、评论、回复、帖子编辑、评论编辑的真实浏览器 smoke 已通过。发帖、评论发布和帖子 / 评论编辑都会提交正文引用到的 `attachment_ids`。
+- 帖子和评论 Markdown / 图片一体化已补齐统一入口；发帖、评论、回复、帖子编辑、评论编辑都复用同一写作器，并默认先显示发布效果。发帖、评论发布和帖子 / 评论编辑都会提交正文引用到的 `attachment_ids`。
 - Feed 规划明显没有完整落地：当前只有 `new | hot`，没有 `best | top | rising`，也没有推荐 / 全站 / 关注 feed source 的独立前端架构。
 - 通知中心只是最低可用列表，不是规划里的 Bilibili 式分类通知中心。
 - 链接预览、评论投票、积分特效和个性化推荐都没有落地；Bilibili / 抖音 / 网易云 / QQ 音乐 canonical 裸链接白名单 embed 已在前端阅读态 / 发布效果中落地，但后端结构化 resolve、短链和 `embed_ids` 持久化仍未接入。
@@ -40,7 +40,7 @@
 | Feed source | 当前没有 `src/features/feed`；首页仍复用 `features/post` 的最新帖子接口。 | 明显未完成。 | 需要推荐 feed、全站 feed、关注 feed、社区 feed 的前后端合同。 |
 | 评论 sort | 帖子详情评论请求固定 `sort="new"`，没有评论 sort UI。 | 未完成。 | 若按 Reddit，需要评论区 `best | new | top` 等 query 合同和 UI。 |
 | Markdown 阅读态 | `ContentBody` 使用 `react-markdown` + `remark-gfm`，`skipHtml`，安全 URL，帖子和评论复用；本轮已验证帖子详情移动端长代码块不撑破页面，代码块内部横向滚动。 | 基础落地。 | 仍需 Reddit parity 用例审计，例如边界语法、移动端表格和评论深层场景。 |
-| Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，工具栏插入常用语法，覆盖行内代码和代码块，并始终用 `ContentBody` 展示发布效果。源码编辑只在用户开始写作或打开“编辑正文”后显示。浏览器已验证 UI 发帖、根评论、子评论提交、帖子编辑保存、评论编辑保存和阅读态渲染。 | 基础落地。 | 编辑弹窗当前只按后端 `PATCH` 合同保存标题 / 正文，并允许把已绑定图片重新放回正文；新增图片绑定需要后端先接收 `attachment_ids`。 |
+| Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，工具栏插入常用语法，覆盖行内代码和代码块，并始终用 `ContentBody` 展示发布效果。正文编辑区只在用户点击“开始写作”或“编辑正文”后显示；编辑弹窗每次打开都会重置回发布效果。浏览器已验证 UI 发帖、根评论、子评论提交、帖子编辑保存、评论编辑保存和阅读态渲染。 | 基础落地。 | 仍需继续做 Reddit parity 用例审计、移动端完整 QA，以及真实编辑弹窗新增 / 删除图片的手动复验。 |
 | 图片与正文一体化 | 图片上传后插入 `![说明](nexus-attachment:<id>)`；发布帖子、评论和编辑保存都会按正文出现顺序提交实际引用的 `attachment_ids`；阅读态和写作器发布效果只渲染正文内 marker 引用的 attachments，不再把未引用附件追加成底部外置图集；发布效果区会提示未放入正文的图片不会发布；未使用的外置图集组件已移除；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留，`check:content-segments` 覆盖批量图片插入顺序和发布绑定过滤，`check:content-boundary` 固化剪贴板图片入口、编辑态新增图片绑定已接入和未插入图片提示。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；作者可在编辑器中放回已有图片，也可在编辑态新增正文图片。 |
 | 普通外链 | Markdown 链接可渲染安全链接。 | 基础落地。 | 普通网页链接预览未实现，需要后端解析缓存。 |
 | 白名单 embed | `ContentBody` 会把裸贴的 Bilibili、抖音、网易云、QQ 音乐 canonical URL 渲染为受控播放器；自定义文字 Markdown 链接仍保持普通链接；源码中只允许白名单播放器组件使用 iframe。 | 前端基础落地。 | 后端仍需 provider resolve、短链展开、元数据、审核状态和 `embed_ids` 持久化。 |
@@ -48,12 +48,12 @@
 
 ## 本次浏览器 QA 证据
 
-- 登录态发帖页 `/communities/public/new`：统一工具栏、正文 textarea、图片入口均可见；发布后说明已改为“作者可以在详情页继续编辑标题和正文”。
+- 登录态发帖页 `/communities/public/new`：统一写作器、发布效果和图片入口可见；正文编辑区只在点击“开始写作”后展开。
 - UI 发布 smoke 帖子 `3777ac41-d402-4c57-986e-877d45dbdfe3`：提交后进入详情页，正文 Markdown 渲染出 heading、strong、emphasis、list、table、link 和 spoiler，不显示原始表格或 spoiler 语法。
 - 根评论提交：评论树从空态变成 `TREE / 1 条评论`，评论中的 strong、table 和 spoiler 正常渲染，提交后 textarea 清空。
 - 子评论回复：回复后评论树变成 `TREE / 2 条评论`，子评论深度为 1，spoiler 不露原始语法。
-- 帖子编辑弹窗：默认显示发布效果，textarea 源码编辑不显示；可见正文不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。登录测试账号后直接保存当前标题和正文，弹窗关闭并显示“帖子已更新。”，帖子更新时间刷新到 2026年6月8日。
-- 评论编辑弹窗：默认显示发布效果，textarea 源码编辑不显示；可见正文不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。登录测试账号后直接保存当前正文，弹窗关闭并显示“评论已更新。”。
+- 帖子编辑弹窗：默认显示发布效果，正文编辑区不显示；可见正文不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。登录测试账号后直接保存当前标题和正文，弹窗关闭并显示“帖子已更新。”，帖子更新时间刷新到 2026年6月8日。
+- 评论编辑弹窗：默认显示发布效果，正文编辑区不显示；可见正文不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。登录测试账号后直接保存当前正文，弹窗关闭并显示“评论已更新。”。
 - 发帖页剪贴板图片：登录测试账号后在 `/communities/public/new` 用系统剪贴板粘贴 PNG，正文 textarea 自动插入 `![clipboard](nexus-attachment:d62aa1b6-3976-45b6-9bdb-89d878d66324)`；正文图片列表显示 `1/9`、`已上传`、`已在正文`；切到预览后可见快照不包含 `nexus-attachment:`，并渲染 `img "clipboard"`，图片 URL 来自 `http://localhost:8080/uploads/images/...`。
 - 评论区剪贴板图片：登录测试账号后在 `/posts/f397e709-f8cc-4a38-8e75-f987062958d0` 用 Chrome DevTools 控制的浏览器和系统剪贴板粘贴 PNG；评论 textarea 自动插入 `![image](nexus-attachment:0e11fef3-3518-4fed-9647-2863883c73ee)`；正文图片列表显示 `1/1`、`已上传`、`已在正文`；切到预览后渲染 `img "image"`，图片 URL 来自 `http://localhost:8080/uploads/images/...`；未点击“发布评论”，控制台无 error。
 - 本地运行时注意：后端源码和远端 `main` 已放行 CORS `PATCH`，但旧 Docker 容器曾返回 `GET, POST, PUT, DELETE, OPTIONS`，导致浏览器保存失败。重建 `cumt-nexus-api:local` 并按现有数据卷账号恢复 prod compose 后，`OPTIONS` 返回 `GET, POST, PUT, PATCH, DELETE, OPTIONS`，编辑保存通过。

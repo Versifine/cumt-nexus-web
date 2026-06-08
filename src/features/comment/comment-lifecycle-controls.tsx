@@ -171,6 +171,9 @@ export function CommentLifecycleControls({
                 <MarkdownComposerField
                   defaultMode="preview"
                   disabled={isUpdating}
+                  key={`${comment.id}:${comment.updated_at}:${
+                    editOpen ? "open" : "closed"
+                  }`}
                   maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerComment}
                   onChange={setBodyValue}
                   textareaProps={{

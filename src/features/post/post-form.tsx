@@ -126,6 +126,7 @@ export function PostForm({ className, slug }: PostFormProps) {
         />
         <div className="min-w-0 space-y-2">
           <MarkdownComposerField
+            defaultMode="preview"
             disabled={postMutation.isPending}
             maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerPost}
             onChange={setBodyValue}

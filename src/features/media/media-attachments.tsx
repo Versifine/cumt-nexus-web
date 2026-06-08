@@ -17,6 +17,7 @@ export function InlineImageAttachmentManager({
   canInsertAttachment,
   className,
   disabled = false,
+  insertActionLabels = defaultInsertActionLabels,
   isAttachmentInserted,
   maxCount,
   onInsertAttachment,
@@ -26,6 +27,7 @@ export function InlineImageAttachmentManager({
   canInsertAttachment?: (attachment: MediaAttachment) => boolean;
   className?: string;
   disabled?: boolean;
+  insertActionLabels?: ImageInsertActionLabels;
   isAttachmentInserted: (attachment: MediaAttachment) => boolean;
   maxCount: number;
   onInsertAttachment: (attachment: MediaAttachment) => void;
@@ -106,7 +108,9 @@ export function InlineImageAttachmentManager({
                 title={!inserted && !canInsert ? "正文图片数量已达到上限" : undefined}
               >
                 <CornerDownLeft className="size-3.5" aria-hidden="true" />
-                {inserted ? "移动到光标处" : "放到光标处"}
+                {inserted
+                  ? insertActionLabels.inserted
+                  : insertActionLabels.notInserted}
               </button>
               <button
                 type="button"
@@ -130,6 +134,7 @@ export function InlineImageAttachmentReferences({
   canInsertAttachment,
   className,
   disabled = false,
+  insertActionLabels = defaultInsertActionLabels,
   isAttachmentInserted,
   onInsertAttachment,
 }: {
@@ -137,6 +142,7 @@ export function InlineImageAttachmentReferences({
   canInsertAttachment?: (attachment: MediaAttachment) => boolean;
   className?: string;
   disabled?: boolean;
+  insertActionLabels?: ImageInsertActionLabels;
   isAttachmentInserted: (attachment: MediaAttachment) => boolean;
   onInsertAttachment: (attachment: MediaAttachment) => void;
 }) {
@@ -150,7 +156,7 @@ export function InlineImageAttachmentReferences({
     <div className={cn("divide-y divide-border border-y border-border", className)}>
       <div className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs text-muted-foreground">
         <span>正文图片</span>
-        <span>选择已有图片可放到当前光标位置。</span>
+        <span>选择已有图片可重新放入正文。</span>
       </div>
       {visibleAttachments.map((attachment) => {
         const inserted = isAttachmentInserted(attachment);
@@ -192,7 +198,9 @@ export function InlineImageAttachmentReferences({
               title={!inserted && !canInsert ? "正文图片数量已达到上限" : undefined}
             >
               <CornerDownLeft className="size-3.5" aria-hidden="true" />
-              {inserted ? "移动到光标处" : "放到光标处"}
+              {inserted
+                ? insertActionLabels.inserted
+                : insertActionLabels.notInserted}
             </button>
           </div>
         );
@@ -200,6 +208,16 @@ export function InlineImageAttachmentReferences({
     </div>
   );
 }
+
+type ImageInsertActionLabels = {
+  inserted: string;
+  notInserted: string;
+};
+
+const defaultInsertActionLabels: ImageInsertActionLabels = {
+  inserted: "移动到光标处",
+  notInserted: "放到光标处",
+};
 
 function isVisibleImageAttachment(attachment: MediaAttachment) {
   return (

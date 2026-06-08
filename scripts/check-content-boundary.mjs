@@ -451,13 +451,28 @@ function checkMarkdownToolbarTools() {
 }
 
 function checkLifecycleComposerDefaultMode() {
-  const lifecycleConsumers = [
-    "src/features/post/post-lifecycle-controls.tsx",
-    "src/features/comment/comment-lifecycle-controls.tsx",
-  ];
   const missingPreviewDefault = [];
+  const composer = sourceFiles.find(
+    (file) => file.path === "src/features/content/markdown-composer-field.tsx",
+  );
 
-  for (const consumerPath of lifecycleConsumers) {
+  if (!composer) {
+    missingPreviewDefault.push("src/features/content/markdown-composer-field.tsx is missing");
+  } else {
+    if (!composer.content.includes('defaultMode = "preview"')) {
+      missingPreviewDefault.push("MarkdownComposerField must default to preview mode");
+    }
+
+    if (
+      composer.content.includes("源码编辑") ||
+      composer.content.includes("收起源码") ||
+      composer.content.includes("打开源码编辑")
+    ) {
+      missingPreviewDefault.push("MarkdownComposerField still exposes source-oriented UI copy");
+    }
+  }
+
+  for (const consumerPath of requiredComposerConsumers) {
     const consumer = sourceFiles.find((file) => file.path === consumerPath);
 
     if (!consumer) {
@@ -466,21 +481,34 @@ function checkLifecycleComposerDefaultMode() {
     }
 
     if (!/<MarkdownComposerField[\s\S]*?\bdefaultMode="preview"/.test(consumer.content)) {
-      missingPreviewDefault.push(`${consumerPath} does not default edit dialog to preview`);
+      missingPreviewDefault.push(`${consumerPath} does not default writing surface to preview`);
+    }
+  }
+
+  for (const consumerPath of [
+    "src/features/post/post-lifecycle-controls.tsx",
+    "src/features/comment/comment-lifecycle-controls.tsx",
+  ]) {
+    const consumer = sourceFiles.find((file) => file.path === consumerPath);
+
+    if (consumer && !/<MarkdownComposerField[\s\S]*?\bkey=\{/.test(consumer.content)) {
+      missingPreviewDefault.push(
+        `${consumerPath} must remount edit dialog composer on open/close`,
+      );
     }
   }
 
   if (missingPreviewDefault.length > 0) {
     addFail(
-      "Markdown lifecycle preview default",
+      "Markdown composer preview default",
       missingPreviewDefault.join("; "),
     );
     return;
   }
 
   addPass(
-    "Markdown lifecycle preview default",
-    "post and comment edit dialogs render preview before exposing Markdown source",
+    "Markdown composer preview default",
+    "all post and comment writing surfaces render published preview before exposing Markdown editing",
   );
 }
 

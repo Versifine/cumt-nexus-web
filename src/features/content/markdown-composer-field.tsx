@@ -64,7 +64,7 @@ type InlineImageInsertion = "cursor" | "end";
 export function MarkdownComposerField({
   boundAttachments,
   className,
-  defaultMode = "edit",
+  defaultMode = "preview",
   disabled = false,
   imageUpload,
   maxReferencedAttachments,
@@ -100,16 +100,25 @@ export function MarkdownComposerField({
     (attachment) => !referencedAttachmentIds.has(attachment.id),
   );
   const detachedPreviewImageNotice =
-    "有图片还没有放入正文；打开源码编辑，把图片放到光标处后才会出现在发布内容里。";
+    "有图片还没有放入正文；打开正文编辑，把图片放到当前位置后才会出现在发布内容里。";
   const hasUnsupportedMarkdownImages =
     hasUnsupportedMarkdownImageReferences(value);
   const unsupportedMarkdownImageNotice =
     "外部 Markdown 图片不会作为正文图片保存；请用“添加图片”或粘贴、拖拽图片文件上传后插入正文。";
   const sourceToggleLabel = isSourceOpen
-    ? "收起源码"
+    ? "收起编辑"
     : hasPreviewContent
       ? "编辑正文"
       : "开始写作";
+  const imageInsertionLabels = isSourceOpen
+    ? {
+        inserted: "移动到光标处",
+        notInserted: "放到光标处",
+      }
+    : {
+        inserted: "移到正文末尾",
+        notInserted: "放到正文末尾",
+      };
 
   function setBodyValue(nextValue: string) {
     onChange(nextValue);
@@ -649,8 +658,8 @@ export function MarkdownComposerField({
             </div>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
               {isSourceOpen
-                ? "源码只用于写作，正文效果会在这里实时渲染。"
-                : "默认显示发布后的正文效果；需要改内容时再打开源码编辑。"}
+                ? "正文效果会在这里实时渲染。"
+                : "默认显示发布后的正文效果；需要改内容时再打开正文编辑。"}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -696,7 +705,7 @@ export function MarkdownComposerField({
       {isSourceOpen ? (
         <section className="space-y-2 border border-border bg-background-soft p-2">
           <div className="flex items-center justify-between gap-3 px-1 text-xs text-muted-foreground">
-            <span>源码编辑</span>
+            <span>正文编辑</span>
             <span>常用格式用工具栏插入；图片会进入正文位置。</span>
           </div>
           <MarkdownToolbar
@@ -742,6 +751,7 @@ export function MarkdownComposerField({
             isAttachmentInserted={(attachment) =>
               referencedAttachmentIds.has(attachment.id)
             }
+            insertActionLabels={imageInsertionLabels}
             maxCount={imageUpload.maxCount}
             onInsertAttachment={insertAttachmentMarkdown}
             onRemoveAttachment={removeInlineImageAttachment}
@@ -756,6 +766,7 @@ export function MarkdownComposerField({
           isAttachmentInserted={(attachment) =>
             referencedAttachmentIds.has(attachment.id)
           }
+          insertActionLabels={imageInsertionLabels}
           onInsertAttachment={insertAttachmentMarkdown}
         />
       ) : null}
