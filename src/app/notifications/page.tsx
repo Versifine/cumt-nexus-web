@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function NotificationsRoute() {
   return (
-    <AppShell contextLabel="04 / 通知">
+    <AppShell contextLabel="通知">
       <NotificationCenter />
     </AppShell>
   );

@@ -117,6 +117,7 @@ Reddit-style campus community content system
 - 用户公开评论列表支持未登录读取、empty、error、返回用户主页和跳转原帖。
 - 通知中心 `/notifications`。
 - 通知全部 / 未读 / 已读视图。
+- 通知回复、@、赞、系统分类视图。
 - 通知标记已读。
 - 通知来源的保守跳转。
 
@@ -207,7 +208,7 @@ V2 详细路线见 `docs/internal/product/v2-roadmap.md`。优先级固定为：
 - 公开搜索仍有后端缺口：当前后端 `GET /api/v1/search` 注册在 `RequireAuth` 保护分组，合同 Auth 列仍是 Bearer，handler 还强制要求 `CurrentUserID`。产品目标要求未登录用户能搜索公开社区和公开帖子；后端需要把该读取接口改为可选 Bearer：无 token 时搜索 active public 社区和 visible public 帖子，有有效 token 时返回当前用户视角，无效 token 仍返回 `unauthenticated`。前端不能伪造搜索结果。
 - 推荐、全站、关注和社区 feed 的完整排序仍有后端缺口：当前 `GET /api/v1/posts` 只接受 `sort=new|hot`，真实探测显示 `sort=best`、`sort=top` 和 `sort=rising` 返回 `400 invalid_argument`。产品目标要求 `best | hot | new | top | rising`，其中 `top` 还需要 `t=day|week|month|year|all` 时间范围；后端需要补齐排序合同和推荐 / 全站 / 关注 feed source，前端不能自己发明排序算法。
 - 图片缩略图、对象清理、对象物理删除、失败对象回收和编辑态图片重绑是否已完成，仍需以后端最终合同复核；前端当前只展示正文图片移除后的清理提示，不直接删除对象。
-- 通知事件源是否覆盖回复、审核、内容生命周期等业务事件，仍需以后端最终合同复核。
+- 通知事件源是否覆盖回复、@、赞、审核、社区申请和内容生命周期等业务事件，仍需以后端最终合同复核；前端当前会按现有 `type`、`source_type` 和标题保守归类。
 - 社区 staff / moderator 管理、成员加入退出、私密社区和邀请制仍不是当前前端可接能力。
 - 评论投票尚未形成后端产品合同。
 - 用户公开评论列表当前后端只返回 `post_id`，未返回帖子标题、社区 slug 或评论所在上下文；前端先显示稳定的“关联原帖 / 查看原帖”入口，不把 `post_id` 短 ID 当作用户可读信息。后续如果要做漂亮上下文，需要后端在 `GET /api/v1/users/:username/comments` 返回帖子摘要和社区摘要。
