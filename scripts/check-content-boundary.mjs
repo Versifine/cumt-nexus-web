@@ -654,13 +654,14 @@ function checkComposerImageCopy() {
   }
 
   if (
-    !composer.content.includes("trailingTools={renderImageTool()}") ||
+    !composer.content.includes("{renderImageTool()}") ||
+    !composer.content.includes("发布效果") ||
     !composer.content.includes('aria-label="添加图片"') ||
     !composer.content.includes("onMouseDown={(event) => event.preventDefault()}")
   ) {
     addFail(
       "composer image tool",
-      "MarkdownComposerField must expose image selection as a toolbar tool that preserves textarea selection",
+      "MarkdownComposerField must expose image selection in the output-first composer while preserving textarea selection",
     );
     return;
   }
@@ -689,7 +690,7 @@ function checkComposerImageCopy() {
     !composer.content.includes("uploadInlineDataImageTextPaste") ||
     !composer.content.includes("replaceClipboardDataImagePlaceholders") ||
     !composer.content.includes("applyMarkdownInsert") ||
-    !composer.content.includes('setMode("edit")') ||
+    !composer.content.includes('setMode(isSourceOpen ? "preview" : "edit")') ||
     !composer.content.includes('await uploadInlineImageFiles(imageFiles, { insertion })')
   ) {
     addFail(
@@ -790,13 +791,18 @@ function checkComposerImageCopy() {
     "post and comment edit dialogs do not expose unsupported new image binding but keep already-bound image placement available",
   );
 
-  if (
-    !composer.content.includes('imageUpload && mode === "edit"') ||
-    !composer.content.includes('boundAttachments && mode === "edit"')
-  ) {
+  if (composer.content.includes('imageUpload && mode === "edit"')) {
     addFail(
       "composer preview editing controls",
-      "image insertion and attachment management controls must stay hidden until the editor tab is active",
+      "uploaded image management must remain visible in the output-first composer instead of being hidden behind source editing",
+    );
+    return;
+  }
+
+  if (composer.content.includes('boundAttachments && mode === "edit"')) {
+    addFail(
+      "composer preview editing controls",
+      "already-bound image placement controls must remain visible in the output-first composer instead of being hidden behind source editing",
     );
     return;
   }

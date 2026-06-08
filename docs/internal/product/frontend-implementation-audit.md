@@ -40,8 +40,8 @@
 | Feed source | 当前没有 `src/features/feed`；首页仍复用 `features/post` 的最新帖子接口。 | 明显未完成。 | 需要推荐 feed、全站 feed、关注 feed、社区 feed 的前后端合同。 |
 | 评论 sort | 帖子详情评论请求固定 `sort="new"`，没有评论 sort UI。 | 未完成。 | 若按 Reddit，需要评论区 `best | new | top` 等 query 合同和 UI。 |
 | Markdown 阅读态 | `ContentBody` 使用 `react-markdown` + `remark-gfm`，`skipHtml`，安全 URL，帖子和评论复用；本轮已验证帖子详情移动端长代码块不撑破页面，代码块内部横向滚动。 | 基础落地。 | 仍需 Reddit parity 用例审计，例如边界语法、移动端表格和评论深层场景。 |
-| Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，工具栏插入常用语法，覆盖行内代码和代码块，并提供复用 `ContentBody` 的轻量预览。编辑弹窗默认显示渲染后的发布态预览，点“编辑”才显示源码。浏览器已验证 UI 发帖、根评论、子评论提交、帖子编辑保存、评论编辑保存和阅读态渲染。 | 基础落地。 | 编辑弹窗当前只按后端 `PATCH` 合同保存标题 / 正文，并允许把已绑定图片重新放回正文；新增图片绑定需要后端先接收 `attachment_ids`。 |
-| 图片与正文一体化 | 图片上传后插入 `![说明](nexus-attachment:<id>)`；发布帖子和评论会按正文出现顺序提交实际引用的 `attachment_ids`；阅读态和预览态只渲染正文内 marker 引用的 attachments，不再把未引用附件追加成底部外置图集；预览态会提示未放入正文的图片不会发布；未使用的外置图集组件已移除；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留，`check:content-segments` 覆盖批量图片插入顺序和发布绑定过滤，`check:content-boundary` 固化剪贴板图片入口、编辑态不伪造新增图片绑定和未插入图片预览提示。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；作者可在编辑器的已有图片列表中放回正文。编辑态新增图片仍需要后端更新接口接收 `attachment_ids`。 |
+| Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，工具栏插入常用语法，覆盖行内代码和代码块，并始终用 `ContentBody` 展示发布效果。源码编辑只在用户开始写作或打开“编辑正文”后显示。浏览器已验证 UI 发帖、根评论、子评论提交、帖子编辑保存、评论编辑保存和阅读态渲染。 | 基础落地。 | 编辑弹窗当前只按后端 `PATCH` 合同保存标题 / 正文，并允许把已绑定图片重新放回正文；新增图片绑定需要后端先接收 `attachment_ids`。 |
+| 图片与正文一体化 | 图片上传后插入 `![说明](nexus-attachment:<id>)`；发布帖子和评论会按正文出现顺序提交实际引用的 `attachment_ids`；阅读态和写作器发布效果只渲染正文内 marker 引用的 attachments，不再把未引用附件追加成底部外置图集；发布效果区会提示未放入正文的图片不会发布；未使用的外置图集组件已移除；`check:v2-path` 已覆盖正文内图片 marker 提交和读取保留，`check:content-segments` 覆盖批量图片插入顺序和发布绑定过滤，`check:content-boundary` 固化剪贴板图片入口、编辑态不伪造新增图片绑定和未插入图片提示。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；作者可在编辑器的已有图片列表中放回正文。编辑态新增图片仍需要后端更新接口接收 `attachment_ids`。 |
 | 普通外链 | Markdown 链接可渲染安全链接。 | 基础落地。 | 普通网页链接预览未实现，需要后端解析缓存。 |
 | 白名单 embed | Bilibili、抖音、网易云、QQ 音乐均未实现播放器嵌入。 | 未完成。 | 必须先做后端 provider 白名单和安全解析，前端不能伪造 iframe。 |
 | 评论树 | 评论树、回复、折叠和最大深度已有基础实现。 | 基础落地。 | 评论投票、特效、贴图和排序未实现。 |
@@ -52,8 +52,8 @@
 - UI 发布 smoke 帖子 `3777ac41-d402-4c57-986e-877d45dbdfe3`：提交后进入详情页，正文 Markdown 渲染出 heading、strong、emphasis、list、table、link 和 spoiler，不显示原始表格或 spoiler 语法。
 - 根评论提交：评论树从空态变成 `TREE / 1 条评论`，评论中的 strong、table 和 spoiler 正常渲染，提交后 textarea 清空。
 - 子评论回复：回复后评论树变成 `TREE / 2 条评论`，子评论深度为 1，spoiler 不露原始语法。
-- 帖子编辑弹窗：默认进入预览态，textarea 和图片插入控件不显示；可见文本不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。登录测试账号后直接保存当前标题和正文，弹窗关闭并显示“帖子已更新。”，帖子更新时间刷新到 2026年6月8日。
-- 评论编辑弹窗：默认进入预览态，textarea 和图片插入控件不显示；可见文本不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。登录测试账号后直接保存当前正文，弹窗关闭并显示“评论已更新。”。
+- 帖子编辑弹窗：默认显示发布效果，textarea 源码编辑不显示；可见正文不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。登录测试账号后直接保存当前标题和正文，弹窗关闭并显示“帖子已更新。”，帖子更新时间刷新到 2026年6月8日。
+- 评论编辑弹窗：默认显示发布效果，textarea 源码编辑不显示；可见正文不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。登录测试账号后直接保存当前正文，弹窗关闭并显示“评论已更新。”。
 - 发帖页剪贴板图片：登录测试账号后在 `/communities/public/new` 用系统剪贴板粘贴 PNG，正文 textarea 自动插入 `![clipboard](nexus-attachment:d62aa1b6-3976-45b6-9bdb-89d878d66324)`；正文图片列表显示 `1/9`、`已上传`、`已在正文`；切到预览后可见快照不包含 `nexus-attachment:`，并渲染 `img "clipboard"`，图片 URL 来自 `http://localhost:8080/uploads/images/...`。
 - 评论区剪贴板图片：登录测试账号后在 `/posts/f397e709-f8cc-4a38-8e75-f987062958d0` 用 Chrome DevTools 控制的浏览器和系统剪贴板粘贴 PNG；评论 textarea 自动插入 `![image](nexus-attachment:0e11fef3-3518-4fed-9647-2863883c73ee)`；正文图片列表显示 `1/1`、`已上传`、`已在正文`；切到预览后渲染 `img "image"`，图片 URL 来自 `http://localhost:8080/uploads/images/...`；未点击“发布评论”，控制台无 error。
 - 本地运行时注意：后端源码和远端 `main` 已放行 CORS `PATCH`，但旧 Docker 容器曾返回 `GET, POST, PUT, DELETE, OPTIONS`，导致浏览器保存失败。重建 `cumt-nexus-api:local` 并按现有数据卷账号恢复 prod compose 后，`OPTIONS` 返回 `GET, POST, PUT, PATCH, DELETE, OPTIONS`，编辑保存通过。

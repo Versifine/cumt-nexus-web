@@ -2,11 +2,10 @@
 
 import type { ClipboardEvent, ComponentProps, DragEvent } from "react";
 import { useMemo, useRef, useState } from "react";
-import { ImagePlus } from "lucide-react";
+import { Eye, ImagePlus, PencilLine } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   type ClipboardDataImageSource,
@@ -95,16 +94,22 @@ export function MarkdownComposerField({
   );
   const maxReferencedImageAttachments =
     maxReferencedAttachments ?? imageUpload?.maxCount;
+  const isSourceOpen = mode === "edit";
   const hasPreviewContent = value.trim().length > 0;
   const hasDetachedPreviewImages = previewAttachments.some(
     (attachment) => !referencedAttachmentIds.has(attachment.id),
   );
   const detachedPreviewImageNotice =
-    "有图片还没有放入正文；切回编辑，把图片放到光标处后才会出现在预览和发布内容里。";
+    "有图片还没有放入正文；打开源码编辑，把图片放到光标处后才会出现在发布内容里。";
   const hasUnsupportedMarkdownImages =
     hasUnsupportedMarkdownImageReferences(value);
   const unsupportedMarkdownImageNotice =
     "外部 Markdown 图片不会作为正文图片保存；请用“添加图片”或粘贴、拖拽图片文件上传后插入正文。";
+  const sourceToggleLabel = isSourceOpen
+    ? "收起源码"
+    : hasPreviewContent
+      ? "编辑正文"
+      : "开始写作";
 
   function setBodyValue(nextValue: string) {
     onChange(nextValue);
@@ -247,7 +252,6 @@ export function MarkdownComposerField({
       return;
     }
 
-    setMode("edit");
     await uploadInlineImageFiles(imageFiles, { insertion: "end" });
   }
 
@@ -296,10 +300,6 @@ export function MarkdownComposerField({
         return;
       }
 
-      if (insertion === "end") {
-        setMode("edit");
-      }
-
       await uploadInlineDataImageTextPaste(dataImageTextPaste, { insertion });
       return;
     }
@@ -314,10 +314,6 @@ export function MarkdownComposerField({
 
     if (disabled || textareaProps.disabled) {
       return;
-    }
-
-    if (insertion === "end") {
-      setMode("edit");
     }
 
     const remainingUploadSlots =
@@ -365,7 +361,9 @@ export function MarkdownComposerField({
       return;
     }
 
-    await uploadInlineImageFiles([file]);
+    await uploadInlineImageFiles([file], {
+      insertion: isSourceOpen ? "cursor" : "end",
+    });
   }
 
   async function uploadInlineDataImageTextPaste(
@@ -642,34 +640,69 @@ export function MarkdownComposerField({
       onDrop={handleComposerDrop}
       onPaste={handleComposerPaste}
     >
-      <Tabs
-        className="gap-2"
-        value={mode}
-        onValueChange={(nextMode) => setMode(nextMode as ComposerMode)}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <TabsList className="h-8 rounded-none bg-background-soft p-0">
-            <TabsTrigger className="h-7 rounded-none px-3 text-xs" value="edit">
-              编辑
-            </TabsTrigger>
-            <TabsTrigger className="h-7 rounded-none px-3 text-xs" value="preview">
-              预览
-            </TabsTrigger>
-          </TabsList>
-          <span className="text-xs text-muted-foreground">
-            预览按发布后的正文样式渲染。
-          </span>
+      <section className="overflow-hidden border border-border bg-background">
+        <div className="flex flex-col gap-3 border-b border-border bg-background-soft px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Eye className="size-4 text-primary" aria-hidden="true" />
+              发布效果
+            </div>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              {isSourceOpen
+                ? "源码只用于写作，正文效果会在这里实时渲染。"
+                : "默认显示发布后的正文效果；需要改内容时再打开源码编辑。"}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {renderImageTool()}
+            <Button
+              type="button"
+              variant={isSourceOpen ? "secondary" : "outline"}
+              size="sm"
+              className="h-9 rounded-md"
+              disabled={disabled || textareaProps.disabled}
+              onClick={() => setMode(isSourceOpen ? "preview" : "edit")}
+            >
+              <PencilLine className="size-4" aria-hidden="true" />
+              {sourceToggleLabel}
+            </Button>
+          </div>
         </div>
-        <TabsContent
-          className={cn("mt-0 space-y-2", mode !== "edit" && "hidden")}
-          forceMount
-          value="edit"
-        >
+
+        <div className="min-h-32 px-3 py-3">
+          {hasPreviewContent ? (
+            <>
+              <ContentBody
+                attachments={previewAttachments}
+                className="text-sm"
+                value={value}
+              />
+              {hasDetachedPreviewImages ? (
+                <p className="mt-3 border-l border-primary px-3 py-2 text-sm text-muted-foreground">
+                  {detachedPreviewImageNotice}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-sm leading-6 text-muted-foreground">
+              {hasDetachedPreviewImages
+                ? detachedPreviewImageNotice
+                : "正文效果会显示在这里。"}
+            </p>
+          )}
+        </div>
+      </section>
+
+      {isSourceOpen ? (
+        <section className="space-y-2 border border-border bg-background-soft p-2">
+          <div className="flex items-center justify-between gap-3 px-1 text-xs text-muted-foreground">
+            <span>源码编辑</span>
+            <span>常用格式用工具栏插入；图片会进入正文位置。</span>
+          </div>
           <MarkdownToolbar
             disabled={disabled}
             onChange={setBodyValue}
             textareaRef={bodyTextareaRef}
-            trailingTools={renderImageTool()}
             value={value}
           />
           <Textarea
@@ -686,41 +719,14 @@ export function MarkdownComposerField({
               {unsupportedMarkdownImageNotice}
             </p>
           ) : null}
-        </TabsContent>
-        <TabsContent
-          className={cn("mt-0", mode !== "preview" && "hidden")}
-          forceMount
-          value="preview"
-        >
-          <div className="min-h-32 border border-border bg-background px-3 py-3">
-            {hasPreviewContent ? (
-              <>
-                <ContentBody
-                  attachments={previewAttachments}
-                  className="text-sm"
-                  value={value}
-                />
-                {hasDetachedPreviewImages ? (
-                  <p className="mt-3 border-l border-primary px-3 py-2 text-sm text-muted-foreground">
-                    {detachedPreviewImageNotice}
-                  </p>
-                ) : null}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {hasDetachedPreviewImages
-                  ? detachedPreviewImageNotice
-                  : "正文预览会显示在这里。"}
-              </p>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
-      {imageUpload && mode === "edit" ? (
+        </section>
+      ) : null}
+
+      {imageUpload ? (
         <>
           {isUploadingInlineImage ? (
             <div className="border-l border-primary px-3 py-2 text-sm text-muted-foreground">
-              正在上传图片，完成后会插入到正文当前位置。
+              正在上传图片，完成后会插入到正文{isSourceOpen ? "当前位置" : "末尾"}。
             </div>
           ) : null}
           {imageUploadError ? (
@@ -742,7 +748,7 @@ export function MarkdownComposerField({
           />
         </>
       ) : null}
-      {boundAttachments && mode === "edit" ? (
+      {boundAttachments ? (
         <InlineImageAttachmentReferences
           attachments={boundAttachments}
           canInsertAttachment={canInsertAttachmentReference}

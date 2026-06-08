@@ -13,7 +13,7 @@ Reddit-style Markdown parity
 - 帖子和评论正文能力对齐 Reddit Markdown。
 - 常用格式通过写作器工具动作承接。
 - 高级用户可以直接输入 Markdown。
-- 提供轻量编辑 / 预览切换，但不强制用户使用预览。
+- 写作器默认显示发布效果，源码编辑只作为按需展开的写作面板。
 - 阅读态直接渲染最终内容。
 - 不存用户 HTML，不开放任意 iframe。
 
@@ -34,15 +34,15 @@ Reddit-style Markdown parity
 - 链接只允许站内路径、锚点、`http`、`https` 和 `mailto`。
 - 写作器链接工具会识别选中的安全链接：选中 URL 时放入 href 并选中“链接文字”，选中普通文字时保留为链接文字并选中 URL 占位。
 - 评论树在移动端使用窄缩进，避免深层回复挤压 Markdown 正文、图片、表格和代码块。
-- 写作器提供轻量预览，预览复用 `ContentBody`，阅读态仍负责最终渲染。
+- 写作器始终以 `ContentBody` 渲染发布效果，源码编辑只在用户开始写作或主动打开“编辑正文”时出现。
 - 写作器会识别外部 Markdown 图片语法，并提示作者这类图片不会作为正文图片保存；正文图片必须走上传、粘贴图片文件或拖拽图片文件入口。
 - UI smoke 已验证发帖、根评论、子评论回复、帖子编辑保存和评论编辑保存可以提交并在阅读态渲染 Markdown。
-- 编辑弹窗已接入同一写作器，默认显示复用 `ContentBody` 的预览态；textarea、正文图片插入和已有图片放回正文控件只在切到“编辑”后显示。
+- 编辑弹窗已接入同一写作器，默认显示复用 `ContentBody` 的发布效果；textarea 源码编辑只在打开“编辑正文”后显示，正文图片入口和已有图片放回正文控件保持可见。
 - 当前后端 `PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 不接收 `attachment_ids`；编辑弹窗明确提示暂不支持新增图片，只允许重新放置已经绑定到该内容的图片。
 - 不使用 `dangerouslySetInnerHTML`。
 - 不存用户 HTML。
 - 不使用 `rehype-raw`。
-- `npm run check:content-boundary` 已经固化当前安全边界：帖子详情和评论树必须复用 `ContentBody`，写作器预览必须复用 `ContentBody`，工具栏必须保留当前核心动作，源码中不得出现 `dangerouslySetInnerHTML`、原始 HTML 写入、`rehype-raw` 或未批准 iframe/srcDoc。
+- `npm run check:content-boundary` 已经固化当前安全边界：帖子详情和评论树必须复用 `ContentBody`，写作器发布效果必须复用 `ContentBody`，工具栏必须保留当前核心动作，源码中不得出现 `dangerouslySetInnerHTML`、原始 HTML 写入、`rehype-raw` 或未批准 iframe/srcDoc。
 - `npm run check:content-segments` 已经固化当前 spoiler / 涂黑解析边界：普通文本、多段涂黑、未闭合涂黑、空涂黑和多行涂黑必须保持稳定。
 
 未实现：
@@ -93,7 +93,7 @@ remark-gfm
 - 这组依赖不引入第二套 UI 库，不改变 shadcn/ui 的主组件系统边界。
 - 当前通过 `skipHtml`、自定义组件和链接白名单保持安全边界，不启用 `rehype-raw`。
 - 图片不再由帖子或评论组件挂在正文外层；上传成功后写作器插入 `![说明](nexus-attachment:<attachment_id>)`，阅读态由 `ContentBody` 按后端返回的结构化 `attachments` 渲染对应图片。
-- 支持在写作器编辑区或预览区直接粘贴图片，也支持把图片文件拖到写作器区域；编辑区粘贴或拖到 textarea 时按当前光标位置插入，预览区粘贴或拖到写作器外层会切回编辑态并追加到正文末尾。除浏览器直接提供的图片文件外，写作器也会识别剪贴板 HTML、纯文本或 Markdown 图片语法里的 `data:image/...;base64,...` 图片并转入同一上传流程；粘贴的纯文本片段如果同时包含文字和内联图片，会保留周边文字，只把图片源码替换成 `nexus-attachment` 正文图片引用。
+- 支持在源码编辑区或发布效果区直接粘贴图片，也支持把图片文件拖到写作器区域；源码编辑区粘贴或拖到 textarea 时按当前光标位置插入，发布效果区粘贴、拖拽或选择图片会追加到正文末尾但不强制展开源码。除浏览器直接提供的图片文件外，写作器也会识别剪贴板 HTML、纯文本或 Markdown 图片语法里的 `data:image/...;base64,...` 图片并转入同一上传流程；粘贴的纯文本片段如果同时包含文字和内联图片，会保留周边文字，只把图片源码替换成 `nexus-attachment` 正文图片引用。
 - 已插入正文的图片可以再次点击“移动到光标处”，写作器会移除旧 Markdown marker 并把同一张图片放到当前光标位置，避免用户手工剪切源码。
 - 普通 `https://...` Markdown 图片不会直接渲染为远程图片，也不会作为正文图片保存；写作器会在编辑态提示用户必须走图片上传和后端 attachment 合同。本阶段不从远程 URL 抓图，只处理真实图片文件或剪贴板内联 `data:image`。
 

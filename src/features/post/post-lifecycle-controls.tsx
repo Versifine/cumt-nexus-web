@@ -206,7 +206,7 @@ export function PostLifecycleControls({
                     </p>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      默认显示发布后的正文样式；需要改内容时点“编辑”。
+                      默认显示发布后的正文样式；需要改内容时打开“编辑正文”。
                       {hasBoundImages
                         ? "当前编辑接口暂不支持新增图片；可把已有图片重新放入正文。"
                         : "当前编辑接口暂不支持新增图片。"}
