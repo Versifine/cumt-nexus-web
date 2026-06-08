@@ -47,6 +47,14 @@ type ListLatestPostsOptions = {
   token?: string | null;
 };
 
+type ListSavedPostsInput = {
+  cache?: RequestCache;
+  limit?: number;
+  offset?: number;
+  timeoutMs?: number;
+  token?: string | null;
+};
+
 const DEFAULT_SORT_FALLBACK: PostSort = "new";
 
 export function listCommunityPosts({
@@ -130,6 +138,28 @@ export function listUserPosts({
     sort,
     source: "all",
   });
+}
+
+export function listSavedPosts({
+  cache,
+  limit = 20,
+  offset = 0,
+  timeoutMs,
+  token,
+}: ListSavedPostsInput = {}) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+
+  return apiRequest<ListPostsResponse>(
+    `/api/v1/me/saved-posts?${params.toString()}`,
+    {
+      cache,
+      timeoutMs,
+      token,
+    },
+  );
 }
 
 async function listPostsWithSortFallback({
@@ -239,6 +269,18 @@ export function updatePost(id: string, input: UpdatePostInput) {
 
 export function deletePost(id: string) {
   return apiRequest<void>(`/api/v1/posts/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export function savePost(id: string) {
+  return apiRequest<void>(`/api/v1/posts/${encodeURIComponent(id)}/save`, {
+    method: "POST",
+  });
+}
+
+export function deletePostSave(id: string) {
+  return apiRequest<void>(`/api/v1/posts/${encodeURIComponent(id)}/save`, {
     method: "DELETE",
   });
 }

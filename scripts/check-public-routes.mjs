@@ -74,6 +74,15 @@ const routes = [
     path: "/register",
   },
   {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fsaved",
+      "/register?next=%2Fsaved",
+    ],
+    markers: ["CUMT Nexus", "我的收藏", "登录后查看收藏", "去登录"],
+    path: "/saved",
+  },
+  {
     hrefMarkers: ["/", "/login?next=%2Fcommunity-applications%2Fnew"],
     markers: ["CUMT Nexus", "注册账号", "账号创建", "去登录"],
     path: "/register?next=%2Fcommunity-applications%2Fnew",

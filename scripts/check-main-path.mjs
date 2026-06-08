@@ -52,6 +52,10 @@ if (backendReachable) {
   await checkPublishPost();
   await checkLatestPosts();
   await checkPostDetail();
+  await checkSavePost();
+  await checkSavedPosts("saved posts after save", true);
+  await checkDeletePostSave();
+  await checkSavedPosts("saved posts after unsave", false);
   await checkListComments("initial comments");
   await checkPublishComment();
   await checkPublishChildComment();
@@ -309,6 +313,64 @@ async function checkPostDetail() {
   }
 
   addPass("post detail", "created post detail is readable");
+}
+
+async function checkSavePost() {
+  const response = await request(`/api/v1/posts/${encodeURIComponent(postId)}/save`, {
+    allowEmptyBody: true,
+    method: "POST",
+  });
+
+  if (!expectOk(response, "save post")) {
+    return;
+  }
+
+  addPass("save post", "created post can be saved");
+}
+
+async function checkSavedPosts(name, shouldContainPost) {
+  const response = await request("/api/v1/me/saved-posts?limit=20&offset=0");
+
+  if (!expectOk(response, name)) {
+    return;
+  }
+
+  const posts = response.json?.posts;
+  if (!Array.isArray(posts)) {
+    addFail(name, `unexpected response payload: ${preview(response.bodyText)}`);
+    return;
+  }
+
+  const containsPost = posts.some((post) => post?.id === postId);
+  if (containsPost !== shouldContainPost) {
+    addFail(
+      name,
+      shouldContainPost
+        ? `created post ${postId} is missing from saved posts`
+        : `created post ${postId} is still present after unsave`,
+    );
+    return;
+  }
+
+  addPass(
+    name,
+    shouldContainPost
+      ? "saved posts include created post"
+      : "saved posts no longer include created post",
+  );
+}
+
+async function checkDeletePostSave() {
+  const response = await request(`/api/v1/posts/${encodeURIComponent(postId)}/save`, {
+    allowEmptyBody: true,
+    method: "DELETE",
+  });
+
+  if (!expectOk(response, "unsave post")) {
+    return;
+  }
+
+  addPass("unsave post", "created post save can be removed");
 }
 
 async function checkListComments(name) {

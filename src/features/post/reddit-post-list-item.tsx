@@ -17,6 +17,7 @@ import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { cn } from "@/lib/utils";
 
+import { PostSaveButton } from "./post-save-button";
 import type { Post } from "./types";
 
 type PostSourceContext = {
@@ -201,6 +202,11 @@ export function RedditPostListItem({
                 ? "复制失败"
                 : "分享"}
           </button>
+          <PostSaveButton
+            isSaved={post.is_saved}
+            postId={post.id}
+            saveCount={post.save_count}
+          />
           {previewImage ? (
             <span className="inline-flex h-8 items-center gap-1.5 px-2">
               <ImageIcon className="size-4" aria-hidden="true" />

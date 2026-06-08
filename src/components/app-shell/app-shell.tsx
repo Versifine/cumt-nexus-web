@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
+  Bookmark,
   ClipboardCheck,
   Globe2,
   Hash,
@@ -383,6 +384,12 @@ function HeaderUserMenu() {
           <Link href={`/users/${encodeURIComponent(user.username)}`}>
             <User className="size-4" aria-hidden="true" />
             个人主页
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/saved">
+            <Bookmark className="size-4" aria-hidden="true" />
+            我的收藏
           </Link>
         </DropdownMenuItem>
         {user.is_platform_staff ? (

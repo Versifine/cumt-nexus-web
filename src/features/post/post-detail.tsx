@@ -35,6 +35,7 @@ import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { ApiError } from "@/lib/api/client";
 
 import { PostLifecycleControls } from "./post-lifecycle-controls";
+import { PostSaveButton } from "./post-save-button";
 import { usePostQuery } from "./queries";
 import type { GetPostResponse, Post } from "./types";
 
@@ -404,6 +405,11 @@ function PostArticle({
                 ? "复制失败"
                 : "分享"}
           </button>
+          <PostSaveButton
+            isSaved={post.is_saved}
+            postId={post.id}
+            saveCount={post.save_count}
+          />
           <PostLifecycleControls canManage={canManage} post={post} />
           {isAuthenticated && post.viewer_permissions?.can_report !== false ? (
             <ReportContentDialog

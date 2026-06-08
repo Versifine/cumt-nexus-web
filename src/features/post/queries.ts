@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  deletePostSave,
   deletePost,
   getPost,
   listCommunityPosts,
   listLatestPosts,
+  listSavedPosts,
   listUserPosts,
+  savePost,
   updatePost,
 } from "./api";
 import type {
@@ -29,6 +32,9 @@ export const postQueryKeys = {
   userPostsPrefix: (username: string) => ["user-posts", username] as const,
   userPosts: (username: string, limit: number, offset: number, sort: PostSort) =>
     ["user-posts", username, { limit, offset, sort }] as const,
+  savedPostsAll: () => ["saved-posts"] as const,
+  savedPosts: (limit: number, offset: number) =>
+    ["saved-posts", { limit, offset }] as const,
 };
 
 export function usePostQuery(
@@ -92,6 +98,20 @@ export function useUserPostsQuery(
   });
 }
 
+export function useSavedPostsQuery(
+  limit = 20,
+  offset = 0,
+  enabled = true,
+  initialData?: ListPostsResponse,
+) {
+  return useQuery({
+    queryKey: postQueryKeys.savedPosts(limit, offset),
+    queryFn: () => listSavedPosts({ limit, offset }),
+    enabled,
+    initialData,
+  });
+}
+
 export function useUpdatePostMutation(id: string) {
   const queryClient = useQueryClient();
 
@@ -130,6 +150,46 @@ export function useDeletePostMutation(id: string) {
       void queryClient.invalidateQueries({
         queryKey: postQueryKeys.userPostsAll(),
       });
+    },
+  });
+}
+
+export function useTogglePostSaveMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      isSaved,
+      postId,
+    }: {
+      isSaved: boolean;
+      postId: string;
+    }) => {
+      if (isSaved) {
+        await deletePostSave(postId);
+        return;
+      }
+
+      await savePost(postId);
+    },
+    onSuccess: async (_result, { postId }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: postQueryKeys.detail(postId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: postQueryKeys.latestPrefix(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: postQueryKeys.communityPostsAll(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: postQueryKeys.userPostsAll(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: postQueryKeys.savedPostsAll(),
+        }),
+      ]);
     },
   });
 }
