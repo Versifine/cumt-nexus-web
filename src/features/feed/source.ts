@@ -54,7 +54,18 @@ export function getFeedContextLabel(source: FeedSource, sort: PostSort) {
   return sort === "best" ? sourceLabel : `${sourceLabel} · ${sortLabel}`;
 }
 
-export function getFeedReturnLabel(source: FeedSource) {
+export function getFeedReturnLabel(source: FeedSource, sort: PostSort) {
+  const sourceLabel = formatFeedSourceLabel(source);
+  const sortLabel = formatPostSortLabel(sort);
+
+  if (sort !== "best") {
+    if (source === "recommended") {
+      return `返回${sortLabel}`;
+    }
+
+    return `返回${sourceLabel}${sortLabel}`;
+  }
+
   switch (source) {
     case "all":
       return "返回全站";

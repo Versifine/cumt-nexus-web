@@ -289,7 +289,7 @@ function getHomePostSource(
 ): PostSourceContext {
   return {
     href: getFeedHref(source, sort) || pathname,
-    label: getFeedReturnLabel(source),
+    label: getFeedReturnLabel(source, sort),
   };
 }
 
