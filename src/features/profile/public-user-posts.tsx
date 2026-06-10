@@ -1,10 +1,7 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
 import { useState } from "react";
 import Link from "next/link";
-import { User } from "lucide-react";
 
 import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -25,6 +22,11 @@ import {
 import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 
+import {
+  PublicUserLayout,
+  formatDate,
+  getDisplayName,
+} from "./public-user-layout";
 import { usePublicUserQuery } from "./queries";
 import type { GetPublicUserResponse, PublicUser } from "./types";
 
@@ -58,185 +60,142 @@ export function PublicUserPosts({
     postsQuery.data?.effective_sort,
   );
 
-  return (
-    <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
-      <div className="min-w-0">
-        <TextAction href={`/users/${encodeURIComponent(username)}`} variant="bar">
-          返回用户主页
-        </TextAction>
-
-        <section className="mt-3 border border-border bg-background">
-          {!isReady || profileQuery.isPending ? (
-            <div className="p-4">
-              <LoadingState rows={3} />
-            </div>
-          ) : profileQuery.isError ? (
-            <div className="p-4">
-              {isNotFound(profileQuery.error) ? (
-                <EmptyState
-                  title="没有找到这个用户"
-                  description="这个用户名不存在，或该账号当前不可公开访问。"
-                  action={
-                    <TextAction href="/communities" tone="primary">
-                      浏览社区
-                    </TextAction>
-                  }
-                />
-              ) : (
-                <ErrorState
-                  title={getErrorTitle(profileQuery.error, "无法加载用户主页")}
-                  description={getErrorDescription(profileQuery.error)}
-                  action={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => profileQuery.refetch()}
-                    >
-                      重试
-                    </Button>
-                  }
-                />
-              )}
-            </div>
-          ) : user ? (
-            <UserPostsHeader posts={posts} user={user} />
-          ) : null}
+  if (!isReady || profileQuery.isPending) {
+    return (
+      <div className="py-4">
+        <section className="border border-border bg-background p-4">
+          <LoadingState rows={4} />
         </section>
-
-        {user ? (
-          <section className="mt-3 border-x border-border bg-background">
-            <div className="flex min-h-12 flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold">公开帖子</h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  当前按{formatPostSortLabel(sort)}排序
-                </p>
-                {sortFallbackNotice ? (
-                  <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
-                    {sortFallbackNotice}
-                  </p>
-                ) : null}
-              </div>
-              <UserPostSortTabs
-                disabled={postsQuery.isFetching}
-                onSortChange={setSort}
-                sort={sort}
-              />
-            </div>
-
-            {postsQuery.isPending ? (
-              <div className="border-b border-border p-4">
-                <LoadingState rows={5} />
-              </div>
-            ) : null}
-
-            {postsQuery.isError ? (
-              <div className="border-b border-border p-4">
-                <ErrorState
-                  title={getErrorTitle(postsQuery.error, "无法加载公开帖子")}
-                  description={getErrorDescription(postsQuery.error)}
-                  action={
-                    isUnauthenticated(postsQuery.error) ? (
-                      <TextAction href="/communities" tone="primary">
-                        浏览社区
-                      </TextAction>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => postsQuery.refetch()}
-                      >
-                        重试
-                      </Button>
-                    )
-                  }
-                />
-              </div>
-            ) : null}
-
-            {postsQuery.isSuccess && posts.length === 0 ? (
-              <div className="border-b border-border p-4">
-                <EmptyState
-                  title="还没有公开帖子"
-                  description="这个用户还没有发布可公开浏览的帖子。"
-                  action={
-                    <TextAction href="/communities" tone="primary">
-                      浏览社区
-                    </TextAction>
-                  }
-                />
-              </div>
-            ) : null}
-
-            {postsQuery.isSuccess && posts.length > 0
-              ? posts.map((post) => (
-                  <RedditPostListItem
-                    key={post.id}
-                    post={post}
-                    source={{
-                      href: `/users/${encodeURIComponent(user.username)}/posts`,
-                      label: `返回 @${user.username} 的帖子`,
-                    }}
-                    authorFallback={{
-                      displayName: getDisplayName(user),
-                      username: user.username,
-                    }}
-                  />
-                ))
-              : null}
-          </section>
-        ) : null}
       </div>
+    );
+  }
 
-      {user ? <UserPostsRail user={user} posts={posts} sort={sort} /> : null}
-    </div>
-  );
-}
+  if (profileQuery.isError) {
+    return (
+      <div className="py-4">
+        <section className="border border-border bg-background p-4">
+          {isNotFound(profileQuery.error) ? (
+            <EmptyState
+              title="没有找到这个用户"
+              description="这个用户名不存在，或该账号当前不可公开访问。"
+              action={
+                <TextAction href="/communities" tone="primary">
+                  浏览社区
+                </TextAction>
+              }
+            />
+          ) : (
+            <ErrorState
+              title={getErrorTitle(profileQuery.error, "无法加载用户主页")}
+              description={getErrorDescription(profileQuery.error)}
+              action={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => profileQuery.refetch()}
+                >
+                  重试
+                </Button>
+              }
+            />
+          )}
+        </section>
+      </div>
+    );
+  }
 
-function UserPostsHeader({
-  posts,
-  user,
-}: {
-  posts: Post[];
-  user: PublicUser;
-}) {
-  const displayName = getDisplayName(user);
-  const totalScore = posts.reduce((total, post) => total + post.score, 0);
+  if (!user) {
+    return null;
+  }
 
   return (
-    <div className="grid gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-3">
-          <ProfileAvatar user={user} />
+    <PublicUserLayout
+      activeTab="posts"
+      railContent={<UserPostsRail posts={posts} sort={sort} user={user} />}
+      user={user}
+    >
+      <section className="mt-3 border-x border-border bg-background">
+        <div className="flex min-h-12 flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
           <div className="min-w-0">
-            <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
-              {displayName} 的帖子
-            </h1>
-            <p className="mt-1 truncate font-mono text-xs text-primary">
-              @{user.username}
+            <h2 className="text-sm font-semibold">公开帖子</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              当前按{formatPostSortLabel(sort)}排序，帖子预览复用全站信息流规则。
             </p>
+            {sortFallbackNotice ? (
+              <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
+                {sortFallbackNotice}
+              </p>
+            ) : null}
           </div>
+          <UserPostSortTabs
+            disabled={postsQuery.isFetching}
+            onSortChange={setSort}
+            sort={sort}
+          />
         </div>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          {user.headline || "这个用户还没有写个人签名。"}
-        </p>
-      </div>
 
-      <div className="grid grid-cols-3 border border-border text-center">
-        <HeaderMetric label="公开帖子" value={String(user.stats.post_count)} />
-        <HeaderMetric label="当前页" value={String(posts.length)} />
-        <HeaderMetric label="总分" value={String(totalScore)} />
-      </div>
-    </div>
-  );
-}
+        {postsQuery.isPending ? (
+          <div className="border-b border-border p-4">
+            <LoadingState rows={5} />
+          </div>
+        ) : null}
 
-function HeaderMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-r border-border p-2 last:border-r-0">
-      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate text-sm font-semibold">{value}</div>
-    </div>
+        {postsQuery.isError ? (
+          <div className="border-b border-border p-4">
+            <ErrorState
+              title={getErrorTitle(postsQuery.error, "无法加载公开帖子")}
+              description={getErrorDescription(postsQuery.error)}
+              action={
+                isUnauthenticated(postsQuery.error) ? (
+                  <TextAction href="/communities" tone="primary">
+                    浏览社区
+                  </TextAction>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => postsQuery.refetch()}
+                  >
+                    重试
+                  </Button>
+                )
+              }
+            />
+          </div>
+        ) : null}
+
+        {postsQuery.isSuccess && posts.length === 0 ? (
+          <div className="border-b border-border p-4">
+            <EmptyState
+              title="还没有公开帖子"
+              description="这个用户还没有发布可公开浏览的帖子。"
+              action={
+                <TextAction href="/communities" tone="primary">
+                  浏览社区
+                </TextAction>
+              }
+            />
+          </div>
+        ) : null}
+
+        {postsQuery.isSuccess && posts.length > 0
+          ? posts.map((post) => (
+              <RedditPostListItem
+                key={post.id}
+                post={post}
+                source={{
+                  href: `/users/${encodeURIComponent(user.username)}/posts`,
+                  label: `返回 @${user.username} 的帖子`,
+                }}
+                authorFallback={{
+                  displayName: getDisplayName(user),
+                  username: user.username,
+                }}
+              />
+            ))
+          : null}
+      </section>
+    </PublicUserLayout>
   );
 }
 
@@ -279,113 +238,56 @@ function UserPostsRail({
   const topPosts = [...posts].sort((left, right) => right.score - left.score).slice(0, 3);
 
   return (
-    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
-      <div className="sticky top-20 space-y-5">
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">用户上下文</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow label="昵称" value={getDisplayName(user)} />
-            <InfoRow label="用户名" value={`@${user.username}`} />
-            <InfoRow label="排序" value={formatPostSortLabel(sort)} />
-            <InfoRow label="公开帖子" value={String(user.stats.post_count)} />
-            <InfoRow label="加入" value={formatDate(user.created_at)} />
-          </div>
-        </section>
+    <>
+      <section className="border-b border-border pb-5">
+        <h2 className="text-sm font-semibold">帖子上下文</h2>
+        <div className="mt-3 divide-y divide-border border-y border-border">
+          <InfoRow label="排序" value={formatPostSortLabel(sort)} />
+          <InfoRow label="当前页" value={String(posts.length)} />
+          <InfoRow label="公开帖子" value={String(user.stats.post_count)} />
+          <InfoRow label="加入" value={formatDate(user.created_at)} />
+        </div>
+      </section>
 
-        <section className="border-b border-border pb-5">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">高分帖子</h2>
-            <span className="font-mono text-xs text-muted-foreground">
-              {topPosts.length}
-            </span>
+      <section className="border-b border-border pb-5">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">高分帖子</h2>
+          <span className="font-mono text-xs text-muted-foreground">
+            {topPosts.length}
+          </span>
+        </div>
+        {topPosts.length > 0 ? (
+          <div className="divide-y divide-border">
+            {topPosts.map((post) => (
+              <Link
+                key={post.id}
+                href={`/posts/${post.id}`}
+                onClick={() =>
+                  rememberPostNavigationSource({
+                    href: `/users/${encodeURIComponent(user.username)}/posts`,
+                    label: `返回 @${user.username} 的帖子`,
+                    postId: post.id,
+                  })
+                }
+                className="block py-3 transition-colors hover:text-primary"
+              >
+                <div className="font-mono text-xs text-muted-foreground">
+                  {post.score} 分 / {post.comment_count} 条评论
+                </div>
+                <div className="mt-1 line-clamp-2 text-sm font-medium">
+                  {post.title}
+                </div>
+              </Link>
+            ))}
           </div>
-          {topPosts.length > 0 ? (
-            <div className="divide-y divide-border">
-              {topPosts.map((post) => (
-                <Link
-                  key={post.id}
-                  href={`/posts/${post.id}`}
-                  onClick={() =>
-                    rememberPostNavigationSource({
-                      href: `/users/${encodeURIComponent(user.username)}/posts`,
-                      label: `返回 @${user.username} 的帖子`,
-                      postId: post.id,
-                    })
-                  }
-                  className="block py-3 transition-colors hover:text-primary"
-                >
-                  <div className="font-mono text-xs text-muted-foreground">
-                    {post.score} 分 / {post.comment_count} 条评论
-                  </div>
-                  <div className="mt-1 line-clamp-2 text-sm font-medium">
-                    {post.title}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm leading-6 text-muted-foreground">
-              暂无可展示的公开帖子。
-            </p>
-          )}
-        </section>
-
-        <section>
-          <h2 className="text-sm font-semibold">继续浏览</h2>
-          <div className="mt-3 flex flex-col border-y border-border">
-            <TextAction
-              href={`/users/${encodeURIComponent(user.username)}`}
-              variant="bar"
-            >
-              返回用户主页
-            </TextAction>
-            <TextAction
-              href={`/users/${encodeURIComponent(user.username)}/comments`}
-              variant="bar"
-            >
-              查看公开评论
-            </TextAction>
-            <TextAction href="/communities" variant="bar">
-              浏览社区
-            </TextAction>
-          </div>
-        </section>
-      </div>
-    </aside>
+        ) : (
+          <p className="text-sm leading-6 text-muted-foreground">
+            暂无可展示的公开帖子。
+          </p>
+        )}
+      </section>
+    </>
   );
-}
-
-function ProfileAvatar({ user }: { user: PublicUser }) {
-  if (user.avatar_url) {
-    return (
-      <img
-        src={user.avatar_url}
-        alt={`${getDisplayName(user)} 的头像`}
-        className="size-12 shrink-0 rounded-full border border-border object-cover"
-      />
-    );
-  }
-
-  return (
-    <div
-      className="flex size-12 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-primary"
-      aria-label={`${getDisplayName(user)} 的头像占位`}
-    >
-      <User className="size-5" aria-hidden="true" />
-    </div>
-  );
-}
-
-function getDisplayName(user: PublicUser) {
-  return user.display_name || user.username;
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
 }
 
 function isNotFound(error: Error | null) {

@@ -103,7 +103,7 @@ function checkPostNavigationSourceBoundary() {
     },
     {
       path: "src/features/profile/public-user-comments.tsx",
-      tokens: ["rememberPostNavigationSource", "返回 @${sourceUsername} 的评论"],
+      tokens: ["rememberPostNavigationSource", "返回 @${user.username} 的评论"],
     },
   ];
   const problems = [];

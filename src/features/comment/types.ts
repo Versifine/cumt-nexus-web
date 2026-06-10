@@ -5,6 +5,10 @@ export type CommentSort = "best" | "top" | "new" | "old" | "controversial";
 export type Comment = {
   id: string;
   post_id: string;
+  post_title?: string | null;
+  post?: CommentPostSummary | null;
+  community?: CommentCommunitySummary | null;
+  permalink?: string | null;
   author_id: string;
   parent_id?: string | null;
   body: string;
@@ -24,6 +28,20 @@ export type Comment = {
   created_at: string;
   updated_at: string;
   attachments?: MediaAttachment[];
+};
+
+export type CommentPostSummary = {
+  id?: string;
+  title?: string | null;
+  url?: string | null;
+  community_slug?: string | null;
+  community_name?: string | null;
+};
+
+export type CommentCommunitySummary = {
+  id?: string;
+  slug?: string | null;
+  name?: string | null;
 };
 
 export type CommentAuthorSummary = {
