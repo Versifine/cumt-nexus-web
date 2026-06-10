@@ -43,7 +43,7 @@ export function CommunityDetail({
   const isAuthenticated = Boolean(token);
   const communityQuery = useCommunityQuery(slug, isReady, initialCommunityData);
   const community = communityQuery.data?.community;
-  const canPostInCommunity = community?.viewer_permissions?.can_post === true;
+  const canPostInCommunity = canPostToCommunity(community, isAuthenticated);
   const canShowCommunityContent =
     isReady && communityQuery.isSuccess && Boolean(community);
   const postsQuery = useCommunityPostsQuery(
@@ -327,7 +327,7 @@ function CommunityRail({
   posts: Post[];
 }) {
   const topPosts = [...posts].sort((left, right) => right.score - left.score).slice(0, 3);
-  const canPost = community.viewer_permissions?.can_post === true;
+  const canPost = canPostToCommunity(community, isAuthenticated);
   const canManage =
     community.viewer_permissions?.can_manage === true ||
     community.viewer_permissions?.can_moderate === true;
@@ -460,6 +460,17 @@ function formatDate(value: string) {
 
 function isUnauthenticated(error: Error | null) {
   return error instanceof ApiError && error.code === "unauthenticated";
+}
+
+function canPostToCommunity(
+  community: Community | undefined,
+  isAuthenticated: boolean,
+) {
+  if (!community || !isAuthenticated) {
+    return false;
+  }
+
+  return community.viewer_permissions?.can_post !== false;
 }
 
 function getErrorTitle(error: Error | null, fallback: string) {

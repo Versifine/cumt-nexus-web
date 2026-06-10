@@ -289,10 +289,11 @@ function TopActions() {
     <div className="flex items-center gap-1 sm:gap-2">
       <Link
         href={submitHref}
-        className="inline-flex size-10 items-center justify-center border border-border text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="inline-flex h-10 w-10 items-center justify-center gap-2 border border-border px-0 text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:w-auto sm:px-3"
         aria-label="发帖"
       >
         <Send className="size-4" aria-hidden="true" />
+        <span className="hidden text-sm font-medium sm:inline">发帖</span>
       </Link>
       <Link
         href={notificationHref}

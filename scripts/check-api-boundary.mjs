@@ -651,7 +651,8 @@ function checkCommunityManageBoundary() {
     problems.push("src/features/community/community-detail.tsx is missing");
   } else {
     for (const token of [
-      "community?.viewer_permissions?.can_post === true",
+      "canPostToCommunity(community, isAuthenticated)",
+      "community.viewer_permissions?.can_post !== false",
       "community.viewer_permissions?.can_manage === true",
       "community.viewer_permissions?.can_moderate === true",
       "管理社区",
