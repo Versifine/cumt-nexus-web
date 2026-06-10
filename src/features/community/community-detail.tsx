@@ -41,7 +41,13 @@ export function CommunityDetail({
   const { isReady, token } = useAuthSession();
   const [sort, setSort] = useState<PostSort>("new");
   const isAuthenticated = Boolean(token);
-  const communityQuery = useCommunityQuery(slug, isReady, initialCommunityData);
+  const communityQueryScope = isAuthenticated ? "viewer" : "public";
+  const communityQuery = useCommunityQuery(
+    slug,
+    isReady,
+    isAuthenticated ? undefined : initialCommunityData,
+    communityQueryScope,
+  );
   const community = communityQuery.data?.community;
   const canPostInCommunity = canPostToCommunity(community, isAuthenticated);
   const canShowCommunityContent =

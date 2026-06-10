@@ -34,9 +34,12 @@ import type {
   UpdateCommunityRuleInput,
 } from "./types";
 
+type CommunityQueryScope = "public" | "viewer";
+
 export const communityQueryKeys = {
   all: ["communities"] as const,
-  detail: (slug: string) => ["community", slug] as const,
+  detail: (slug: string, scope: CommunityQueryScope = "viewer") =>
+    ["community", slug, scope] as const,
   manageContext: (slug: string) => ["community", slug, "manage"] as const,
   manageMembers: (input: ListCommunityMembersInput) =>
     [
@@ -100,10 +103,14 @@ export function useCommunityQuery(
   slug: string,
   enabled = true,
   initialData?: GetCommunityResponse,
+  scope: CommunityQueryScope = "viewer",
 ) {
   return useQuery({
-    queryKey: communityQueryKeys.detail(slug),
-    queryFn: () => getCommunity(slug),
+    queryKey: communityQueryKeys.detail(slug, scope),
+    queryFn: () =>
+      getCommunity(slug, {
+        token: scope === "public" ? null : undefined,
+      }),
     enabled,
     initialData,
   });

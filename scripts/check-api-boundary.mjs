@@ -640,6 +640,9 @@ function checkCommunityManageBoundary() {
       "useCreateCommunityRuleMutation",
       "useUpdateCommunityRuleMutation",
       "useDeleteCommunityRuleMutation",
+      'type CommunityQueryScope = "public" | "viewer"',
+      'detail: (slug: string, scope: CommunityQueryScope = "viewer")',
+      'token: scope === "public" ? null : undefined',
     ]) {
       if (!queriesFile.content.includes(token)) {
         problems.push(`community manage query boundary missing ${token}`);
@@ -652,6 +655,8 @@ function checkCommunityManageBoundary() {
   } else {
     for (const token of [
       "canPostToCommunity(community, isAuthenticated)",
+      'const communityQueryScope = isAuthenticated ? "viewer" : "public"',
+      "isAuthenticated ? undefined : initialCommunityData",
       "community.viewer_permissions?.can_post !== false",
       "community.viewer_permissions?.can_manage === true",
       "community.viewer_permissions?.can_moderate === true",
