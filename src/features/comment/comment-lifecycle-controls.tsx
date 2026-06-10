@@ -139,11 +139,11 @@ export function CommentLifecycleControls({
           <DialogHeader>
             <DialogTitle>编辑评论</DialogTitle>
             <DialogDescription>
-              编辑时直接显示渲染后的评论，保存后刷新当前评论树。
+              编辑时直接显示渲染后的评论；保存时只绑定正文中保留的图片。
             </DialogDescription>
           </DialogHeader>
 
-          <form className="space-y-4" onSubmit={form.handleSubmit(handleUpdate)}>
+          <form className="min-w-0 space-y-4" onSubmit={form.handleSubmit(handleUpdate)}>
             {updateError ? (
               <Alert variant="destructive">
                 <AlertTitle>评论更新失败</AlertTitle>
@@ -151,7 +151,7 @@ export function CommentLifecycleControls({
               </Alert>
             ) : null}
 
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-sm font-semibold">评论内容</span>
                 <span className="font-mono text-xs text-muted-foreground">
@@ -186,7 +186,7 @@ export function CommentLifecycleControls({
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  评论编辑区默认渲染内容；图片会作为评论正文的一部分保存。
+                  图片会作为评论正文的一部分保存。删除正文里的图片并保存后，这张图片会从当前评论解绑。
                 </p>
               )}
             </div>

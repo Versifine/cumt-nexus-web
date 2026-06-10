@@ -137,11 +137,11 @@ export function PostLifecycleControls({
           <DialogHeader>
             <DialogTitle>编辑帖子</DialogTitle>
             <DialogDescription>
-              编辑时直接显示渲染后的正文，保存后更新当前帖子。
+              编辑时直接显示渲染后的正文；保存时只绑定正文中保留的图片。
             </DialogDescription>
           </DialogHeader>
 
-          <form className="space-y-4" onSubmit={form.handleSubmit(handleUpdate)}>
+          <form className="min-w-0 space-y-4" onSubmit={form.handleSubmit(handleUpdate)}>
             {updateError ? (
               <Alert variant="destructive">
                 <AlertTitle>帖子更新失败</AlertTitle>
@@ -149,7 +149,7 @@ export function PostLifecycleControls({
               </Alert>
             ) : null}
 
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <label
                 htmlFor="post-lifecycle-title"
                 className="text-sm font-semibold"
@@ -171,7 +171,7 @@ export function PostLifecycleControls({
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-sm font-semibold">正文</span>
                 <span className="font-mono text-xs text-muted-foreground">
@@ -204,7 +204,7 @@ export function PostLifecycleControls({
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  正文编辑区默认渲染内容；选中文字后可以设置格式，图片会作为正文的一部分保存。
+                  选中文字后可以设置格式。删除正文里的图片并保存后，这张图片会从当前帖子解绑。
                 </p>
               )}
             </div>

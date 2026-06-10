@@ -21,6 +21,7 @@ import { ApiError } from "@/lib/api/client";
 
 import { publishComment } from "./api";
 import { commentQueryKeys } from "./queries";
+import { postQueryKeys } from "../post/queries";
 
 const commentSchema = z.object({
   body: z.string().trim().min(1, "请输入评论内容。"),
@@ -70,9 +71,14 @@ export function CommentForm({
     onSuccess: async () => {
       form.reset();
       setAttachments([]);
-      await queryClient.invalidateQueries({
-        queryKey: commentQueryKeys.postCommentsPrefix(postId),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: commentQueryKeys.postCommentsPrefix(postId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: postQueryKeys.detail(postId),
+        }),
+      ]);
       onSubmitted?.();
     },
   });

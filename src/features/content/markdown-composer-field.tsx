@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type ClipboardEvent,
   type DragEvent,
   type ReactNode,
 } from "react";
@@ -37,10 +36,12 @@ import {
   EyeOff,
   Heading2,
   ImagePlus,
+  ImageOff,
   Italic,
   Link as LinkIcon,
   List,
   ListOrdered,
+  Loader2,
   Quote,
   Strikethrough,
   Table as TableIcon,
@@ -101,7 +102,7 @@ type MarkdownComposerFieldProps = {
   value: string;
 };
 
-type InlineImageInsertion = "cursor" | "end";
+type InlineImageInsertion = "cursor" | "end" | number;
 type AttachmentImageOptions = ImageOptions & {
   getAttachmentById: (id: string) => MediaAttachment | null;
 };
@@ -182,14 +183,11 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
   parseMarkdown(token, helpers) {
     const src = token.href;
     const attachmentId = getAttachmentIdFromMarkdownUrl(src);
-    const attachment = attachmentId
-      ? this.options.getAttachmentById(attachmentId)
-      : null;
 
     return helpers.createNode("image", {
       alt: token.text,
       attachmentId,
-      displaySrc: attachment?.url ?? null,
+      displaySrc: null,
       src,
       title: token.title,
     });
@@ -338,6 +336,8 @@ const emptyToolbarState = {
   strike: false,
 };
 
+const minimumInlineImageUploadNoticeMs = 650;
+
 export function MarkdownComposerField({
   boundAttachments,
   className,
@@ -349,6 +349,7 @@ export function MarkdownComposerField({
   value,
 }: MarkdownComposerFieldProps) {
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
+  const editorRef = useRef<Editor | null>(null);
   const latestValueRef = useRef(value);
   const mediaEmbedSyncFrameRef = useRef<number | null>(null);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
@@ -375,8 +376,13 @@ export function MarkdownComposerField({
   const hasUnreferencedUploadedImages = (imageUpload?.attachments ?? []).some(
     (attachment) => !referencedAttachmentIds.has(attachment.id),
   );
+  const hasUnreferencedBoundImages = (boundAttachments ?? []).some(
+    (attachment) => !referencedAttachmentIds.has(attachment.id),
+  );
   const unreferencedUploadedImageNotice =
-    "未留在正文里的上传图片不会随内容发布；需要时请重新添加到正文当前位置。";
+    "未留在正文里的上传图片不会随内容发布或保存；保存后会从当前内容解绑，对象清理以后端合同为准。";
+  const unreferencedBoundImageNotice =
+    "已从正文删除的历史图片不会随本次保存继续绑定；如果只是想调整位置，请重新插入或撤销后再保存。";
   const hasUnsupportedMarkdownImages =
     hasUnsupportedMarkdownImageReferences(value);
   const unsupportedMarkdownImageNotice =
@@ -489,6 +495,11 @@ export function MarkdownComposerField({
             fieldProps?.className,
           ),
         },
+        handlePaste: (view, event) => {
+          const insertionPosition = view.state.selection.from;
+
+          return handleInlineImagePaste(event, insertionPosition);
+        },
       },
       immediatelyRender: false,
       onCreate: ({ editor: createdEditor }) => {
@@ -507,6 +518,10 @@ export function MarkdownComposerField({
     },
     [editorExtensions],
   );
+
+  useEffect(() => {
+    editorRef.current = editor;
+  }, [editor]);
 
   const toolbarState =
     useEditorState({
@@ -535,20 +550,27 @@ export function MarkdownComposerField({
   }, [editor, isEditorDisabled]);
 
   useEffect(() => {
-    if (!editor) {
+    const currentEditor = editor;
+    const nextMarkdown = normalizeEditorMarkdown(value);
+
+    if (
+      !currentEditor ||
+      currentEditor.isDestroyed ||
+      typeof currentEditor.commands?.setContent !== "function"
+    ) {
+      latestValueRef.current = nextMarkdown;
       return;
     }
 
-    const currentMarkdown = normalizeEditorMarkdown(editor.getMarkdown());
-    const nextMarkdown = normalizeEditorMarkdown(value);
+    const currentMarkdown = normalizeEditorMarkdown(currentEditor.getMarkdown());
 
     if (currentMarkdown !== nextMarkdown) {
       latestValueRef.current = nextMarkdown;
-      editor.commands.setContent(nextMarkdown, {
+      currentEditor.commands.setContent(nextMarkdown, {
         contentType: "markdown",
         emitUpdate: false,
       });
-      scheduleMediaEmbedSync(editor);
+      scheduleMediaEmbedSync(currentEditor);
     }
   }, [editor, scheduleMediaEmbedSync, value]);
 
@@ -589,10 +611,6 @@ export function MarkdownComposerField({
     return `正文最多放入 ${maxReferencedImageAttachments} 张图片，先从正文移除一张再继续。`;
   }
 
-  async function handleComposerPaste(event: ClipboardEvent<HTMLDivElement>) {
-    await handleInlineImagePaste(event, "cursor");
-  }
-
   function handleComposerDragOver(event: DragEvent<HTMLDivElement>) {
     if (!hasImageFileData(event.dataTransfer)) {
       return;
@@ -619,39 +637,45 @@ export function MarkdownComposerField({
     await uploadInlineImageFiles(imageFiles, { insertion: "cursor" });
   }
 
-  async function handleInlineImagePaste(
-    event: ClipboardEvent<Element>,
+  function handleInlineImagePaste(
+    event: ClipboardEvent,
     insertion: InlineImageInsertion,
   ) {
     if (event.defaultPrevented || !imageUpload) {
-      return;
+      return false;
+    }
+
+    const clipboardData = event.clipboardData;
+
+    if (!clipboardData) {
+      return false;
     }
 
     const dataImageTextPaste = getDataImageTextPasteFromTransferText(
-      event.clipboardData,
+      clipboardData,
     );
 
     if (dataImageTextPaste) {
       event.preventDefault();
 
       if (isEditorDisabled) {
-        return;
+        return true;
       }
 
-      await uploadInlineDataImageTextPaste(dataImageTextPaste, { insertion });
-      return;
+      void uploadInlineDataImageTextPaste(dataImageTextPaste, { insertion });
+      return true;
     }
 
-    const imageFiles = getImageFilesFromDataTransfer(event.clipboardData);
+    const imageFiles = getImageFilesFromDataTransfer(clipboardData);
 
     if (imageFiles.length === 0) {
-      return;
+      return false;
     }
 
     event.preventDefault();
 
     if (isEditorDisabled) {
-      return;
+      return true;
     }
 
     const remainingUploadSlots =
@@ -662,12 +686,12 @@ export function MarkdownComposerField({
       setImageUploadError(
         `当前最多上传 ${imageUpload.maxCount} 张图片，先移除一张再继续。`,
       );
-      return;
+      return true;
     }
 
     if (remainingReferenceSlots <= 0) {
       setImageUploadError(getReferenceLimitMessage());
-      return;
+      return true;
     }
 
     const remainingSlots = Math.min(remainingUploadSlots, remainingReferenceSlots);
@@ -676,10 +700,11 @@ export function MarkdownComposerField({
       setImageUploadError(
         `当前还能放入 ${remainingSlots} 张图片，请减少数量后再试。`,
       );
-      return;
+      return true;
     }
 
-    await uploadInlineImageFiles(imageFiles, { insertion });
+    void uploadInlineImageFiles(imageFiles, { insertion });
+    return true;
   }
 
   async function handleImageFileChange(files: FileList | null) {
@@ -763,6 +788,7 @@ export function MarkdownComposerField({
     }
 
     setImageUploadError(null);
+    const uploadNoticeSettled = createMinimumInlineImageUploadNoticePromise();
     setIsUploadingInlineImage(true);
     imageUpload.onUploadingChange?.(true);
 
@@ -794,6 +820,7 @@ export function MarkdownComposerField({
     } catch (error) {
       setImageUploadError(getUploadError(error));
     } finally {
+      await uploadNoticeSettled;
       setIsUploadingInlineImage(false);
       imageUpload.onUploadingChange?.(false);
     }
@@ -834,6 +861,7 @@ export function MarkdownComposerField({
     }
 
     setImageUploadError(null);
+    const uploadNoticeSettled = createMinimumInlineImageUploadNoticePromise();
     setIsUploadingInlineImage(true);
     imageUpload.onUploadingChange?.(true);
 
@@ -860,8 +888,9 @@ export function MarkdownComposerField({
 
         nextAttachments = [...nextAttachments, result.attachment];
         imageUpload.onChange(nextAttachments);
+
         insertAttachmentIntoEditor(
-          editor,
+          editorRef.current,
           result.attachment,
           options.insertion ?? "cursor",
         );
@@ -869,28 +898,48 @@ export function MarkdownComposerField({
     } catch (error) {
       setImageUploadError(getUploadError(error));
     } finally {
+      await uploadNoticeSettled;
       setIsUploadingInlineImage(false);
       imageUpload.onUploadingChange?.(false);
     }
   }
 
   function getCurrentMarkdown() {
-    return normalizeEditorMarkdown(editor?.getMarkdown() ?? value);
+    return normalizeEditorMarkdown(editorRef.current?.getMarkdown() ?? value);
   }
 
   function insertMarkdownIntoEditor(
     markdown: string,
     insertion: InlineImageInsertion,
   ) {
-    if (!editor) {
+    const currentEditor = editorRef.current;
+
+    if (!currentEditor) {
       setBodyValue(`${value}${markdown}`);
       return;
     }
 
-    const chain =
-      insertion === "end" ? editor.chain().focus("end") : editor.chain().focus();
+    if (insertion === "end") {
+      currentEditor
+        .chain()
+        .setTextSelection(currentEditor.state.doc.content.size)
+        .insertContent(markdown, { contentType: "markdown" })
+        .run();
+      return;
+    }
 
-    chain.insertContent(markdown, { contentType: "markdown" }).run();
+    if (typeof insertion === "number") {
+      const insertPosition = clampEditorInsertionPosition(currentEditor, insertion);
+
+      currentEditor
+        .chain()
+        .setTextSelection(insertPosition)
+        .insertContent(markdown, { contentType: "markdown" })
+        .run();
+      return;
+    }
+
+    currentEditor.chain().insertContent(markdown, { contentType: "markdown" }).run();
   }
 
   function renderImageTool() {
@@ -927,14 +976,13 @@ export function MarkdownComposerField({
 
   return (
     <div
-      className={cn("space-y-2", className)}
+      className={cn("min-w-0 space-y-2", className)}
       onDragOver={handleComposerDragOver}
       onDrop={handleComposerDrop}
-      onPaste={handleComposerPaste}
     >
       <section
         className={cn(
-          "overflow-hidden border border-border bg-background",
+          "min-w-0 overflow-hidden border border-border bg-background",
           isEditorDisabled && "opacity-70",
         )}
       >
@@ -944,25 +992,39 @@ export function MarkdownComposerField({
           renderImageTool={renderImageTool}
           state={toolbarState}
         />
-        <div className="max-w-full overflow-x-auto border-t border-border">
+        <div className="min-w-0 max-w-full overflow-x-auto border-t border-border">
           <EditorContent editor={editor} />
         </div>
       </section>
 
-      {isUploadingInlineImage ? (
-        <div className="border-l border-primary px-3 py-2 text-sm text-muted-foreground">
-          正在上传图片，完成后会放入正文当前位置。
+      {isUploadingInlineImage ||
+      hasUnreferencedUploadedImages ||
+      hasUnreferencedBoundImages ||
+      hasUnsupportedMarkdownImages ? (
+        <div className="space-y-2" aria-live="polite">
+          {isUploadingInlineImage ? (
+            <ComposerNotice
+              icon={<Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+            >
+              正在上传图片，保存按钮会暂时禁用；完成后会放入正文当前位置。
+            </ComposerNotice>
+          ) : null}
+          {hasUnreferencedUploadedImages ? (
+            <ComposerNotice icon={<ImageOff className="size-4" aria-hidden="true" />}>
+              {unreferencedUploadedImageNotice}
+            </ComposerNotice>
+          ) : null}
+          {hasUnreferencedBoundImages ? (
+            <ComposerNotice tone="warning" icon={<ImageOff className="size-4" aria-hidden="true" />}>
+              {unreferencedBoundImageNotice}
+            </ComposerNotice>
+          ) : null}
+          {hasUnsupportedMarkdownImages ? (
+            <ComposerNotice tone="warning" icon={<ImageOff className="size-4" aria-hidden="true" />}>
+              {unsupportedMarkdownImageNotice}
+            </ComposerNotice>
+          ) : null}
         </div>
-      ) : null}
-      {hasUnreferencedUploadedImages ? (
-        <p className="border-l border-primary px-3 py-2 text-sm text-muted-foreground">
-          {unreferencedUploadedImageNotice}
-        </p>
-      ) : null}
-      {hasUnsupportedMarkdownImages ? (
-        <p className="border-l border-amber-400/50 bg-amber-400/5 px-3 py-2 text-sm text-muted-foreground">
-          {unsupportedMarkdownImageNotice}
-        </p>
       ) : null}
       {imageUploadError ? (
         <Alert variant="destructive">
@@ -1111,25 +1173,65 @@ function RichMarkdownToolbar({
 
   return (
     <div
-      className="flex flex-wrap items-center gap-1 bg-background-soft p-1"
+      role="toolbar"
+      className="min-w-0 max-w-full overflow-x-auto bg-background-soft [scrollbar-width:thin]"
       aria-label="正文格式工具栏"
     >
-      <span className="px-2 font-mono text-[11px] text-muted-foreground">
-        格式
-      </span>
-      {tools.map((tool) => (
-        <ToolbarButton
-          key={tool.label}
-          active={tool.active}
-          disabled={disabled}
-          icon={tool.icon}
-          label={tool.label}
-          onClick={tool.onClick}
-        />
-      ))}
-      {renderImageTool()}
+      <div className="flex min-w-max items-center gap-1 p-1">
+        <span className="shrink-0 px-2 font-mono text-[11px] text-muted-foreground">
+          格式
+        </span>
+        {tools.map((tool) => (
+          <ToolbarButton
+            key={tool.label}
+            active={tool.active}
+            disabled={disabled}
+            icon={tool.icon}
+            label={tool.label}
+            onClick={tool.onClick}
+          />
+        ))}
+        {renderImageTool()}
+      </div>
     </div>
   );
+}
+
+function ComposerNotice({
+  children,
+  icon,
+  tone = "primary",
+}: {
+  children: ReactNode;
+  icon: ReactNode;
+  tone?: "primary" | "warning";
+}) {
+  return (
+    <p
+      className={cn(
+        "flex items-start gap-2 border-l px-3 py-2 text-sm leading-6 text-muted-foreground",
+        tone === "warning"
+          ? "border-amber-400/60 bg-amber-400/5"
+          : "border-primary bg-primary/5",
+      )}
+    >
+      <span
+        className={cn(
+          "mt-1 shrink-0",
+          tone === "warning" ? "text-amber-300" : "text-primary",
+        )}
+      >
+        {icon}
+      </span>
+      <span>{children}</span>
+    </p>
+  );
+}
+
+function createMinimumInlineImageUploadNoticePromise() {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, minimumInlineImageUploadNoticeMs);
+  });
 }
 
 function ToolbarButton({
@@ -1156,7 +1258,7 @@ function ToolbarButton({
       title={label}
       type="button"
       variant={active ? "secondary" : "ghost"}
-      className="size-9 rounded-md"
+      className="size-9 shrink-0 rounded-md"
     >
       {icon}
     </Button>
@@ -1261,10 +1363,22 @@ function insertAttachmentIntoEditor(
     },
     type: "image",
   };
-  const chain =
-    insertion === "end" ? editor.chain().focus("end") : editor.chain().focus();
 
-  chain.insertContent(imageNode).run();
+  const currentSelection = editor.state.selection;
+  const insertPosition =
+    insertion === "end"
+      ? editor.state.doc.content.size
+      : typeof insertion === "number"
+        ? clampEditorInsertionPosition(editor, insertion)
+      : clampEditorInsertionPosition(editor, currentSelection.from);
+
+  editor.commands.insertContentAt(insertPosition, imageNode);
+}
+
+function clampEditorInsertionPosition(editor: Editor, position: number) {
+  const docEnd = editor.state.doc.content.size;
+
+  return Math.min(Math.max(position, 0), docEnd);
 }
 
 function getImageFilesFromDataTransfer(dataTransfer: DataTransfer) {

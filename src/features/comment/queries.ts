@@ -11,6 +11,7 @@ import type {
   ListCommentsResponse,
   UpdateCommentInput,
 } from "./types";
+import { postQueryKeys } from "../post/queries";
 
 export const commentQueryKeys = {
   postCommentsPrefix: (postId: string) => ["post-comments", postId] as const,
@@ -76,6 +77,9 @@ export function useUpdateCommentMutation(commentId: string, postId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: commentQueryKeys.postCommentsPrefix(postId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: postQueryKeys.detail(postId),
       });
       void queryClient.invalidateQueries({
         queryKey: commentQueryKeys.userCommentsAll(),
