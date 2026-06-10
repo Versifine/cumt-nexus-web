@@ -382,6 +382,7 @@ npm run check:readiness
 - `docs/internal/product/product-targets.md`：产品目标总表，记录已实现能力、前端后续增强、后端缺口和派工顺序。
 - `docs/internal/product/v2-roadmap.md`：V2 后端能力全量前端接入路线图。
 - `docs/internal/product/frontend-experience-rebuild.md`：从真实页面体验反馈出发的前端重修拆分方案。
+- `docs/internal/product/post-media-profile-rebuild.md`：帖子媒体流、列表预览、详情页 lightbox 和公开用户主页重构计划。
 - `docs/internal/architecture/frontend-v1.md`：前端 V1 架构、路由和 API 边界。
 - `docs/internal/architecture/content-system.md`：内容系统产品形态、评论树、图片和 embed 边界。
 - `docs/internal/architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端合同核对文档。

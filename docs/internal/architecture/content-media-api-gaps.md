@@ -4,12 +4,17 @@
 
 用户已确认后端具备 `POST /api/v1/uploads/images` 和 Cloudflare R2 存储相关边界。前端实现前仍必须核对当前请求字段、响应字段、附件绑定字段和读取返回结构。前端不得伪造图片上传、直接信任第三方图片 URL、直接抓取网页元数据，或渲染用户提交的 iframe HTML。
 
+帖子媒体流、列表首个媒体块预览、详情页图片播放器、lightbox 和公开用户主页重构的产品规则见 `docs/internal/product/post-media-profile-rebuild.md`。本文只保留媒体和 embed 相关 API、安全和数据模型边界。
+
 ## 当前结论
 
 - 媒体能力必须以后端为最终权威：上传、校验、对象存储、审核状态、链接解析、短链展开、元数据抓取和 embed provider 持久化都在后端完成。
 - V2 前端已接入 `POST /api/v1/uploads/images`，并在发帖和评论写作器中形成可用上传体验。
 - 前端只提交后端返回的结构化 `attachment_id`、`embed_id` 或预览对象，不直接保存第三方 URL 作为附件。
 - 前端正文内图片使用 Markdown 引用 `![说明](nexus-attachment:<attachment_id>)`。该 marker 只负责在正文中表达位置；真正图片 URL、状态、尺寸和说明仍以后端返回的 `attachments` 为准。
+- 后续媒体模型采用“附件是资产，正文决定位置和分组”的原则：单图、图片轮播和白名单播放器都应作为正文流里的媒体块出现，而不是统一追加到正文底部。
+- 单图继续使用 `nexus-attachment` marker；图片轮播建议使用明确的正文 marker，例如 `![图集说明](nexus-gallery:<attachment_id>,<attachment_id>)`。该 marker 表达“这些图片在此处组成一组播放器”，真正 URL、尺寸、缩略图、状态和权限仍以后端返回资产为准。
+- 当前 `content_refs` 是按顺序保存的扁平引用列表，适合表达正文引用了哪些图片、链接预览和 embed；它不能单独表达“图片 1/2/3 是一个轮播组，图片 6/7 是另一个轮播组”。媒体分组必须由正文 marker 表达，或由后端后续新增 block 级结构表达。
 - 旧内容或用户未插入正文的已绑定附件不再由 `ContentBody` 追加成正文外图集；发布态只渲染正文内 `nexus-attachment` marker 引用到的附件。
 - 帖子和评论图片均已接入；评论图片数量继续比帖子更克制。
 - 链接预览和播放器是两种能力：普通网页只做链接预览，Bilibili / 抖音 / 网易云音乐 / QQ 音乐只通过 provider 白名单 embed。
@@ -21,14 +26,14 @@
 截至 2026-06-08，前端按当前后端合同实现图片附件产品化：
 
 - `POST /api/v1/uploads/images` 使用 `multipart/form-data`，字段为 `file` 和可选 `alt_text`。
-- 成功响应字段为 `attachment.id`、`kind`、`url`、`width`、`height`、`size_bytes`、`mime_type`、`alt_text`、`status`、`created_at`；当前响应没有 `thumbnail_url`。
+- 成功响应字段至少包括 `attachment.id`、`kind`、`url`、`width`、`height`、`size_bytes`、`mime_type`、`alt_text`、`status`、`created_at`；如后端当前合同提供 `thumbnail_url`，列表页应优先使用它，前端实现前仍需复核真实响应。
 - 后端默认限制：单图片最大 `5242880` bytes，发帖最多 9 张，评论最多 1 张。
 - 后端只接受 `image/jpeg`、`image/png`、`image/webp`，并按文件头识别 MIME。
 - `alt_text` 最长 200 个字符。
 - `POST /api/v1/communities/:slug/posts` 已支持 `attachment_ids`，帖子详情、社区帖子列表和全站帖子流返回 `attachments`。
 - `POST /api/v1/posts/:id/comments` 已支持 `attachment_ids`，评论 flat list 和 `view=tree` 均返回 `attachments`。
 - 前端已按上述合同提示并拦截明显不合规输入；图片只通过写作器工具栏、粘贴或拖拽进入正文，未留在正文里的上传图片不会随内容提交。
-- 前端当前不直接删除对象、不生成缩略图、不伪造 `thumbnail_url`。
+- 前端当前不直接删除对象、不生成缩略图、不伪造缺失的衍生图字段。
 - 编辑态附件重绑已接入：`PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 已接收可选 `attachment_ids`，前端编辑弹窗可以新增图片，并在保存时只提交正文实际引用到的图片 ID。
 
 ## 后端 / API 剩余缺口
@@ -260,6 +265,66 @@ PATCH /api/v1/comments/:id
 - 列表页可以只返回缩略图和必要元信息。
 - 详情页返回完整展示所需字段。
 - `blocked` 或 `failed` 状态必须可降级显示，不应让整个帖子或评论读取失败。
+- 正文中的单图、轮播和 embed 必须能按正文顺序被前端解析；如果仅返回扁平 `attachments` 和 `content_refs`，前端只能从 Markdown marker 中恢复 block 位置和分组。
+- 如果后端后续要提供更稳定的正文 block 结构，建议在帖子和评论读取响应中增加 `content_blocks`，而不是把分组塞进 `attachments`。
+
+建议 block 结构：
+
+```json
+{
+  "content_blocks": [
+    {
+      "kind": "markdown",
+      "text": "第一段文字"
+    },
+    {
+      "kind": "image_gallery",
+      "ids": ["attachment-1", "attachment-2", "attachment-3"],
+      "caption": "图集说明"
+    },
+    {
+      "kind": "embed",
+      "ref_id": "https://www.bilibili.com/video/BV...",
+      "provider": "bilibili_video"
+    }
+  ]
+}
+```
+
+字段边界：
+
+- `content_blocks` 是可选增强；没有该字段时，前端继续以 Markdown marker 和 `attachments` / `content_refs` 解析。
+- `image_gallery.ids` 必须引用同一内容中已绑定、状态允许展示的图片附件。
+- 后端可以拒绝空图集、重复 ID、超过数量上限的图集或引用未绑定附件的图集。
+- 评论是否支持轮播应单独确认；如果评论仍限制 1 张图，评论正文只需要单图块。
+- 列表页如要避免前端解析整段正文，可以在 `preview` 中返回第一个媒体块的摘要；否则前端会保守解析 `body_excerpt` / `body` 和附件。
+
+建议图片资产字段：
+
+```json
+{
+  "id": "uuid",
+  "kind": "image",
+  "url": "https://cdn.example.com/original-or-display.jpg",
+  "thumbnail_url": "https://cdn.example.com/thumb.jpg",
+  "medium_url": "https://cdn.example.com/medium.jpg",
+  "original_url": "https://cdn.example.com/original.jpg",
+  "width": 1200,
+  "height": 800,
+  "size_bytes": 123456,
+  "mime_type": "image/webp",
+  "alt_text": "图片描述",
+  "status": "ready"
+}
+```
+
+规则：
+
+- `thumbnail_url` 用于列表页。
+- `medium_url` 用于详情页常规展示。
+- `original_url` 只用于 lightbox、打开原图或下载；如果后端不区分原图和展示图，可以暂时等于 `url`。
+- 前端按 `width / height` 做普通图、长图、超宽图和小图分流；后端不必返回分类字段，但必须保证宽高可信。
+- 超大原图、压缩、EXIF 清理、转码和真实文件大小限制由后端或上传服务负责，前端只做选择前提示和明显违规拦截。
 
 ### 链接预览
 
