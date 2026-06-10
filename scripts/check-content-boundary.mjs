@@ -628,51 +628,131 @@ function checkPublishedAttachmentImageSizing() {
   const contentBody = sourceFiles.find(
     (file) => file.path === "src/features/content/content-body.tsx",
   );
+  const imageGallery = sourceFiles.find(
+    (file) => file.path === "src/features/content/content-image-gallery.tsx",
+  );
+  const contentMedia = sourceFiles.find(
+    (file) => file.path === "src/features/content/content-media.ts",
+  );
+  const listItem = sourceFiles.find(
+    (file) => file.path === "src/features/post/reddit-post-list-item.tsx",
+  );
+
+  const problems = [];
 
   if (!contentBody) {
-    addFail("published attachment image sizing", "src/features/content/content-body.tsx is missing");
-    return;
+    problems.push("src/features/content/content-body.tsx is missing");
+  } else {
+    for (const token of [
+      "ContentImageGallery",
+      "resolveImageMediaBlockFromMarkdownUrl",
+      "isAttachmentGalleryMarkdownUrl",
+      'variant="detail"',
+    ]) {
+      if (!contentBody.content.includes(token)) {
+        problems.push(`ContentBody missing gallery integration token ${token}`);
+      }
+    }
+
+    if (contentBody.content.includes("MarkdownAttachmentImage")) {
+      problems.push("ContentBody must not keep the old single-image component");
+    }
   }
 
-  const imageComponentMatch = contentBody.content.match(
-    /function MarkdownAttachmentImage[\s\S]*?function isVisibleImageAttachment/,
-  );
-  const imageComponent = imageComponentMatch?.[0] ?? "";
-  const sizingProblems = [];
-
-  if (!imageComponent.includes("w-fit max-w-full")) {
-    sizingProblems.push("attachment image wrapper must keep natural width while respecting the content column");
+  if (!imageGallery) {
+    problems.push("src/features/content/content-image-gallery.tsx is missing");
+  } else {
+    for (const token of [
+      "max-h-[320px] sm:max-h-[420px]",
+      "aspect-[4/5]",
+      "aspect-video",
+      "max-h-[80vh]",
+      "长图",
+      "展开长图",
+      "createPortal",
+      "touch-none",
+      "onWheel",
+      "onPointerDown",
+      "onPointerMove",
+      "onPointerUp",
+      "打开原图",
+      "ArrowLeft",
+      "ArrowRight",
+      "Esc",
+    ]) {
+      if (!imageGallery.content.includes(token)) {
+        problems.push(`ContentImageGallery missing media behavior token ${token}`);
+      }
+    }
   }
 
-  if (!imageComponent.includes("h-auto max-h-[520px] max-w-full")) {
-    sizingProblems.push("attachment img must not force small images to full column width");
+  if (!contentMedia) {
+    problems.push("src/features/content/content-media.ts is missing");
+  } else {
+    for (const token of [
+      "resolveFirstContentMediaBlock",
+      "resolveImageMediaBlockFromMarkdownUrl",
+      "getAttachmentIdsFromMarkdownUrl",
+      "isAttachmentGalleryMarkdownUrl",
+      "thumbnail_url",
+      "medium_url",
+      "original_url",
+      'ratio < 0.6',
+      'ratio > 2.2',
+      "isEscapedMarkdownToken",
+    ]) {
+      if (!contentMedia.content.includes(token)) {
+        problems.push(`content-media helper missing token ${token}`);
+      }
+    }
+
+    if (
+      !contentMedia.content.includes(
+        "isEscapedMarkdownToken(markdown, match.index ?? 0)",
+      ) ||
+      !contentMedia.content.includes("isEscapedMarkdownToken(markdown, matchIndex)")
+    ) {
+      problems.push(
+        "content-media helper must ignore escaped Markdown image/link tokens when deriving the first media block",
+      );
+    }
   }
 
-  if (hasClassToken(imageComponent, "w-full")) {
-    sizingProblems.push("attachment image renderer must not force images to w-full");
+  if (!listItem) {
+    problems.push("src/features/post/reddit-post-list-item.tsx is missing");
+  } else {
+    for (const token of [
+      "resolveFirstContentMediaBlock",
+      "ContentImageGallery",
+      "MediaEmbedPlayer",
+      'variant="preview"',
+      "mediaBlock ? null : getPostLinkPreview(post)",
+    ]) {
+      if (!listItem.content.includes(token)) {
+        problems.push(`post list item missing first media preview token ${token}`);
+      }
+    }
+
+    if (
+      listItem.content.includes("getPreviewImage(") ||
+      listItem.content.includes("post.preview?.image") ||
+      listItem.content.includes("post.attachments?.find")
+    ) {
+      problems.push(
+        "post list item must not fall back to preview.image or the first orphan attachment",
+      );
+    }
   }
 
-  if (sizingProblems.length > 0) {
-    addFail("published attachment image sizing", sizingProblems.join("; "));
+  if (problems.length > 0) {
+    addFail("published attachment image sizing", problems.join("; "));
     return;
   }
 
   addPass(
     "published attachment image sizing",
-    "inline attachment images keep natural size and stay within the content column",
+    "content media rendering uses scenario-specific preview/detail/lightbox image rules",
   );
-}
-
-function hasClassToken(source, token) {
-  const classNamePattern = /className=["']([^"']*)["']/g;
-
-  for (const match of source.matchAll(classNamePattern)) {
-    if (match[1].split(/\s+/).includes(token)) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 function checkMediaContractDocs() {
@@ -923,6 +1003,24 @@ function checkComposerImageCopy() {
     addFail(
       "composer image removal",
       "composer must derive upload slots from images still referenced by the rendered editor body",
+    );
+    return;
+  }
+
+  if (
+    !composer.content.includes("AttachmentGalleryNode") ||
+    !composer.content.includes('markdownTokenName: "image"') ||
+    !composer.content.includes("ATTACHMENT_GALLERY_MARKDOWN_URL_PREFIX") ||
+    !composer.content.includes("multiple={imageUpload.maxCount > 1}") ||
+    !composer.content.includes("insertUploadedAttachmentsIntoEditor") ||
+    !composer.content.includes("insertAttachmentGalleryIntoEditor") ||
+    !composer.content.includes('type: "attachmentGallery"') ||
+    !composer.content.includes("createGalleryPreviewElement") ||
+    !composer.content.includes("getGalleryAttachmentIdsFromMarkdownUrl")
+  ) {
+    addFail(
+      "composer image gallery insertion",
+      "MarkdownComposerField must let multi-image file selection become one visible nexus-gallery block that roundtrips through Markdown",
     );
     return;
   }

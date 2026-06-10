@@ -2,6 +2,9 @@ export type MediaAttachment = {
   id: string;
   kind: "image" | string;
   url: string;
+  thumbnail_url?: string | null;
+  medium_url?: string | null;
+  original_url?: string | null;
   width?: number | null;
   height?: number | null;
   size_bytes: number;

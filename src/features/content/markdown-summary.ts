@@ -1,5 +1,5 @@
 const attachmentImagePattern =
-  /!\[((?:\\.|[^\]\\])*)\]\(nexus-attachment:[^)]+\)/g;
+  /!\[((?:\\.|[^\]\\])*)\]\(nexus-(?:attachment|gallery):[^)]+\)/g;
 
 export function getMarkdownPlainTextSummary(
   value?: string | null,

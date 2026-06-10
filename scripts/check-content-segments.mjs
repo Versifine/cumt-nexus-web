@@ -17,12 +17,15 @@ const {
   getClipboardImageFileName,
 } = await importTypescriptModule("src/features/content/clipboard-image.ts");
 const {
+  createAttachmentGalleryMarkdown,
   createAttachmentMarkdown,
   getAttachmentIdFromMarkdownUrl,
+  getGalleryAttachmentIdsFromMarkdownUrl,
   getReferencedAttachmentIds,
   getReferencedAttachmentIdsForSubmit,
   getUnsupportedMarkdownImageReferenceCount,
   hasUnsupportedMarkdownImageReferences,
+  isAttachmentGalleryMarkdownUrl,
   isAttachmentMarkdownUrl,
   removeAttachmentMarkdownReferences,
   removeAttachmentMarkdownReferencesWithSelection,
@@ -184,6 +187,29 @@ function checkAttachmentMarkdown() {
     "image id/一)",
   );
 
+  const galleryMarkdown = createAttachmentGalleryMarkdown(
+    [
+      { id: "img-1" },
+      { id: "image id/一)" },
+      { id: "img-3" },
+    ],
+    "轮播[草稿]\n第二行",
+  );
+
+  expectEqual(
+    "attachment gallery markdown escapes caption and encodes ids",
+    galleryMarkdown,
+    "![轮播\\[草稿\\] 第二行](nexus-gallery:img-1,image%20id%2F%E4%B8%80%29,img-3)",
+  );
+
+  expectEqual(
+    "attachment gallery markdown url decodes ids",
+    getGalleryAttachmentIdsFromMarkdownUrl(
+      "nexus-gallery:img-1,image%20id%2F%E4%B8%80%29,img-3",
+    ),
+    ["img-1", "image id/一)", "img-3"],
+  );
+
   expectEqual(
     "invalid attachment markdown url is rejected",
     isAttachmentMarkdownUrl("https://example.com/image.png"),
@@ -191,11 +217,17 @@ function checkAttachmentMarkdown() {
   );
 
   expectEqual(
+    "invalid gallery markdown url is rejected",
+    isAttachmentGalleryMarkdownUrl("https://example.com/image.png"),
+    false,
+  );
+
+  expectEqual(
     "attachment references are extracted as decoded ids",
     [...getReferencedAttachmentIds(
-      "正文\n![内容](nexus-attachment:img-1)\n![复杂](nexus-attachment:image%20id%2F%E4%B8%80%29)\n![外部](https://example.com/a.png)",
+      "正文\n![内容](nexus-attachment:img-1)\n![组图](nexus-gallery:img-2,img-3)\n![复杂](nexus-attachment:image%20id%2F%E4%B8%80%29)\n![外部](https://example.com/a.png)",
     )],
-    ["img-1", "image id/一)"],
+    ["img-1", "img-2", "img-3", "image id/一)"],
   );
 
   expectEqual(
@@ -203,22 +235,28 @@ function checkAttachmentMarkdown() {
     [...getReferencedAttachmentIds(
       [
         "正文 nexus-attachment:raw-id",
+        "正文 nexus-gallery:raw-gallery-id",
         "[普通链接](nexus-attachment:link-id)",
+        "[普通图集链接](nexus-gallery:link-gallery-id)",
         "`![代码图片](nexus-attachment:inline-code-id)`",
+        "`![代码图集](nexus-gallery:inline-code-gallery-id)`",
         "\\![转义图片](nexus-attachment:escaped-id)",
+        "\\![转义图集](nexus-gallery:escaped-gallery-id)",
         "```",
         "![代码块图片](nexus-attachment:fenced-code-id)",
+        "![代码块图集](nexus-gallery:fenced-code-gallery-id)",
         "```",
+        "![正文图集](nexus-gallery:gallery-visible-1,gallery-visible-2)",
         "![正文图片](nexus-attachment:visible-id)",
       ].join("\n"),
     )],
-    ["visible-id"],
+    ["gallery-visible-1", "gallery-visible-2", "visible-id"],
   );
 
   expectEqual(
     "unsupported markdown images detect external image syntax",
     hasUnsupportedMarkdownImageReferences(
-      "正文\n![外部](https://example.com/a.png)\n![附件](nexus-attachment:img-1)",
+      "正文\n![外部](https://example.com/a.png)\n![附件](nexus-attachment:img-1)\n![图集](nexus-gallery:img-2,img-3)",
     ),
     true,
   );
@@ -228,6 +266,7 @@ function checkAttachmentMarkdown() {
     getUnsupportedMarkdownImageReferenceCount(
       [
         "![正文图片](nexus-attachment:img-1)",
+        "![正文图集](nexus-gallery:img-2,img-3)",
         "[普通链接](https://example.com/a.png)",
         "`![代码图片](https://example.com/code.png)`",
         "\\![转义图片](https://example.com/escaped.png)",
@@ -242,10 +281,10 @@ function checkAttachmentMarkdown() {
   expectEqual(
     "submit attachment ids follow markdown order and ignore unuploaded ids",
     getReferencedAttachmentIdsForSubmit(
-      "正文\n![二](nexus-attachment:img-2)\n![外来](nexus-attachment:manual-id)\n![一](nexus-attachment:img-1)",
+      "正文\n![二](nexus-attachment:img-2)\n![组图](nexus-gallery:img-4,img-3)\n![外来](nexus-attachment:manual-id)\n![一](nexus-attachment:img-1)",
       [{ id: "img-1" }, { id: "img-2" }, { id: "img-3" }],
     ),
-    ["img-2", "img-1"],
+    ["img-2", "img-3", "img-1"],
   );
 
   expectEqual(
@@ -264,6 +303,15 @@ function checkAttachmentMarkdown() {
       "img-1",
     ),
     "![十](nexus-attachment:img-10)",
+  );
+
+  expectEqual(
+    "removing a gallery attachment reference removes the gallery marker",
+    removeAttachmentMarkdownReferences(
+      "前文\n![组图](nexus-gallery:img-1,img-2,img-3)\n后文",
+      "img-2",
+    ),
+    "前文\n后文",
   );
 
   expectEqual(
@@ -387,6 +435,12 @@ function checkMarkdownUrl() {
     "attachment markdown links are allowed",
     normalizeMarkdownHref("nexus-attachment:img-1"),
     "nexus-attachment:img-1",
+  );
+
+  expectEqual(
+    "gallery markdown links are allowed",
+    normalizeMarkdownHref("nexus-gallery:img-1,img-2"),
+    "nexus-gallery:img-1,img-2",
   );
 
   expectEqual(
@@ -801,9 +855,9 @@ function checkMarkdownSummary() {
   expectEqual(
     "markdown summary removes source markers and keeps readable text",
     getMarkdownPlainTextSummary(
-      "## 标题\n\n**重点** [链接](https://example.com)\n\n![图\\[草稿\\]](nexus-attachment:img-1)\n>! 隐藏内容 !<",
+      "## 标题\n\n**重点** [链接](https://example.com)\n\n![图\\[草稿\\]](nexus-attachment:img-1)\n![轮播](nexus-gallery:img-2,img-3)\n>! 隐藏内容 !<",
     ),
-    "标题 重点 链接 图片：图[草稿] 隐藏内容",
+    "标题 重点 链接 图片：图[草稿] 图片：轮播 隐藏内容",
   );
 
   expectEqual(

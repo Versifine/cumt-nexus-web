@@ -12,8 +12,11 @@ import remarkGfm from "remark-gfm";
 
 import {
   getAttachmentIdFromMarkdownUrl,
+  isAttachmentGalleryMarkdownUrl,
   isAttachmentMarkdownUrl,
 } from "@/features/content/attachment-markdown";
+import { ContentImageGallery } from "@/features/content/content-image-gallery";
+import { resolveImageMediaBlockFromMarkdownUrl } from "@/features/content/content-media";
 import {
   getRedditToken,
   transformRedditMarkdown,
@@ -92,7 +95,10 @@ function createMarkdownComponents(
       }
 
       const safeHref = normalizeMarkdownHref(href);
-      if (isAttachmentMarkdownUrl(safeHref)) {
+      if (
+        isAttachmentMarkdownUrl(safeHref) ||
+        isAttachmentGalleryMarkdownUrl(safeHref)
+      ) {
         return <span>{children}</span>;
       }
       const isExternal = isExternalMarkdownHref(safeHref);
@@ -121,11 +127,26 @@ function createMarkdownComponents(
       );
     },
     img({ alt, src }) {
-      const attachmentId = getAttachmentIdFromMarkdownUrl(
-        typeof src === "string" ? src : null,
-      );
+      const safeSrc = typeof src === "string" ? src : null;
+      const mediaBlock = resolveImageMediaBlockFromMarkdownUrl({
+        attachmentById,
+        caption: typeof alt === "string" ? alt : undefined,
+        src: safeSrc,
+      });
 
-      if (!attachmentId) {
+      if (mediaBlock) {
+        return (
+          <ContentImageGallery
+            attachments={mediaBlock.attachments}
+            caption={mediaBlock.caption}
+            variant="detail"
+          />
+        );
+      }
+
+      const attachmentId = getAttachmentIdFromMarkdownUrl(safeSrc);
+
+      if (!attachmentId && !isAttachmentGalleryMarkdownUrl(safeSrc)) {
         return (
           <span className="my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
             外部图片不会直接渲染；请上传图片后放入正文。
@@ -133,29 +154,10 @@ function createMarkdownComponents(
         );
       }
 
-      const attachment = attachmentById.get(attachmentId);
-
-      if (!attachment) {
-        return (
-          <span className="my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
-            图片附件不存在或尚未随内容返回。
-          </span>
-        );
-      }
-
-      if (!isVisibleImageAttachment(attachment)) {
-        return (
-          <span className="my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
-            图片当前不可显示。
-          </span>
-        );
-      }
-
       return (
-        <MarkdownAttachmentImage
-          attachment={attachment}
-          caption={typeof alt === "string" ? alt : undefined}
-        />
+        <span className="my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
+          图片附件不存在、尚未随内容返回或当前不可显示。
+        </span>
       );
     },
     blockquote({ children }) {
@@ -322,72 +324,4 @@ function SpoilerText({ text }: { text: string }) {
       {isRevealed ? text : "显示隐藏内容"}
     </button>
   );
-}
-
-function MarkdownAttachmentImage({
-  attachment,
-  caption,
-}: {
-  attachment: MediaAttachment;
-  caption?: string;
-}) {
-  return (
-    <span className="my-4 block w-fit max-w-full border border-border bg-background-soft">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={attachment.url}
-        alt={caption || attachment.alt_text || "内容图片"}
-        loading="lazy"
-        decoding="async"
-        className="block h-auto max-h-[520px] max-w-full object-contain"
-      />
-      <span className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground">
-        <span className="min-w-0 truncate">
-          {caption || getAttachmentCaption(attachment)}
-        </span>
-        <span className="font-mono">{formatFileSize(attachment.size_bytes)}</span>
-      </span>
-    </span>
-  );
-}
-
-function isVisibleImageAttachment(attachment: MediaAttachment) {
-  return (
-    attachment.kind === "image" &&
-    attachment.status !== "blocked" &&
-    Boolean(attachment.url)
-  );
-}
-
-function getAttachmentCaption(attachment: MediaAttachment) {
-  if (attachment.alt_text.trim()) {
-    return attachment.alt_text;
-  }
-
-  switch (attachment.status) {
-    case "ready":
-      return "图片附件";
-    case "pending":
-      return "等待处理";
-    case "processing":
-      return "处理中";
-    case "blocked":
-      return "已拦截";
-    case "failed":
-      return "图片不可用";
-    default:
-      return attachment.status;
-  }
-}
-
-function formatFileSize(sizeBytes: number) {
-  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
-    return "--";
-  }
-
-  if (sizeBytes < 1024 * 1024) {
-    return `${Math.ceil(sizeBytes / 1024)} KB`;
-  }
-
-  return `${(sizeBytes / 1024 / 1024).toFixed(1)} MB`;
 }

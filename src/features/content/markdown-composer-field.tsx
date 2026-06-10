@@ -60,8 +60,10 @@ import {
 } from "@/features/content/clipboard-image";
 import {
   ATTACHMENT_MARKDOWN_URL_PREFIX,
+  ATTACHMENT_GALLERY_MARKDOWN_URL_PREFIX,
   createAttachmentMarkdown,
   getAttachmentIdFromMarkdownUrl,
+  getGalleryAttachmentIdsFromMarkdownUrl,
   getReferencedAttachmentIds,
   getReferencedAttachmentIdsForSubmit,
   hasUnsupportedMarkdownImageReferences,
@@ -104,6 +106,9 @@ type MarkdownComposerFieldProps = {
 
 type InlineImageInsertion = "cursor" | "end" | number;
 type AttachmentImageOptions = ImageOptions & {
+  getAttachmentById: (id: string) => MediaAttachment | null;
+};
+type AttachmentGalleryOptions = {
   getAttachmentById: (id: string) => MediaAttachment | null;
 };
 
@@ -182,6 +187,11 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
 
   parseMarkdown(token, helpers) {
     const src = token.href;
+
+    if (getGalleryAttachmentIdsFromMarkdownUrl(src).length > 0) {
+      return [];
+    }
+
     const attachmentId = getAttachmentIdFromMarkdownUrl(src);
 
     return helpers.createNode("image", {
@@ -245,6 +255,137 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
     const title = node.attrs?.title ?? "";
 
     return title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`;
+  },
+});
+
+const AttachmentGalleryNode = TiptapNode.create<AttachmentGalleryOptions>({
+  name: "attachmentGallery",
+  markdownTokenName: "image",
+
+  atom: true,
+  group: "block",
+  selectable: true,
+
+  addOptions() {
+    return {
+      getAttachmentById: () => null,
+    };
+  },
+
+  addAttributes() {
+    return {
+      attachmentIds: {
+        default: [],
+      },
+      caption: {
+        default: "图片轮播",
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        getAttrs: (element) => {
+          if (!(element instanceof HTMLElement)) {
+            return false;
+          }
+
+          const ids = element.dataset.attachmentIds
+            ?.split(",")
+            .map((id) => id.trim())
+            .filter(Boolean);
+
+          return ids?.length
+            ? {
+                attachmentIds: ids,
+                caption: element.dataset.caption || "图片轮播",
+              }
+            : false;
+        },
+        tag: "div[data-attachment-gallery]",
+      },
+    ];
+  },
+
+  renderHTML({ node }) {
+    const attachmentIds = normalizeAttachmentIds(node.attrs.attachmentIds);
+    const caption =
+      typeof node.attrs.caption === "string" && node.attrs.caption.trim()
+        ? node.attrs.caption.trim()
+        : "图片轮播";
+
+    return [
+      "div",
+      {
+        "data-attachment-gallery": "true",
+        "data-attachment-ids": attachmentIds.join(","),
+        "data-caption": caption,
+      },
+      caption,
+    ];
+  },
+
+  parseMarkdown(token, helpers) {
+    const src = typeof token.href === "string" ? token.href : "";
+    const attachmentIds = getGalleryAttachmentIdsFromMarkdownUrl(src);
+
+    if (attachmentIds.length === 0) {
+      return [];
+    }
+
+    return helpers.createNode("attachmentGallery", {
+      attachmentIds,
+      caption: token.text || "图片轮播",
+    });
+  },
+
+  renderMarkdown(node) {
+    const attachmentIds = normalizeAttachmentIds(node.attrs?.attachmentIds);
+    const caption =
+      typeof node.attrs?.caption === "string" && node.attrs.caption.trim()
+        ? node.attrs.caption.trim()
+        : "图片轮播";
+
+    return `![${escapeMarkdownAltText(caption)}](${ATTACHMENT_GALLERY_MARKDOWN_URL_PREFIX}${attachmentIds
+      .map(encodeAttachmentIdForMarkdown)
+      .join(",")})`;
+  },
+
+  addNodeView() {
+    return ({ node }) => {
+      const attachmentIds = normalizeAttachmentIds(node.attrs.attachmentIds);
+      const caption =
+        typeof node.attrs.caption === "string" && node.attrs.caption.trim()
+          ? node.attrs.caption.trim()
+          : "图片轮播";
+      const attachments = attachmentIds
+        .map((id) => this.options.getAttachmentById(id))
+        .filter(isVisibleImageAttachmentForEditor);
+      const dom = document.createElement("div");
+
+      dom.className =
+        "my-4 block overflow-hidden border border-border bg-background-soft outline-offset-2";
+      dom.setAttribute("data-attachment-gallery", "true");
+      dom.setAttribute("data-attachment-ids", attachmentIds.join(","));
+      dom.setAttribute("data-caption", caption);
+
+      if (attachments.length === 0) {
+        dom.append(createGalleryMissingElement());
+      } else {
+        dom.append(createGalleryPreviewElement(attachments, caption));
+      }
+
+      return {
+        deselectNode() {
+          dom.classList.remove("outline", "outline-1", "outline-primary");
+        },
+        dom,
+        selectNode() {
+          dom.classList.add("outline", "outline-1", "outline-primary");
+        },
+      };
+    };
   },
 });
 
@@ -441,6 +582,9 @@ export function MarkdownComposerField({
           "直接在这里写正文，选中文字后用工具栏设置格式。",
       }),
       AttachmentImage.configure({
+        getAttachmentById: (id: string) => attachmentById.get(id) ?? null,
+      }),
+      AttachmentGalleryNode.configure({
         getAttachmentById: (id: string) => attachmentById.get(id) ?? null,
       }),
       MediaEmbedNode,
@@ -712,17 +856,17 @@ export function MarkdownComposerField({
       return;
     }
 
-    const [file] = Array.from(files);
+    const imageFiles = Array.from(files).filter(isImageFile);
 
     if (imageFileInputRef.current) {
       imageFileInputRef.current.value = "";
     }
 
-    if (!file) {
+    if (imageFiles.length === 0) {
       return;
     }
 
-    await uploadInlineImageFiles([file], {
+    await uploadInlineImageFiles(imageFiles, {
       insertion: "cursor",
     });
   }
@@ -867,6 +1011,7 @@ export function MarkdownComposerField({
 
     try {
       let nextAttachments = referencedUploadAttachments;
+      const uploadedAttachments: MediaAttachment[] = [];
 
       for (const file of imageFiles) {
         const altText = getPastedImageAltText(file);
@@ -887,14 +1032,15 @@ export function MarkdownComposerField({
         });
 
         nextAttachments = [...nextAttachments, result.attachment];
+        uploadedAttachments.push(result.attachment);
         imageUpload.onChange(nextAttachments);
-
-        insertAttachmentIntoEditor(
-          editorRef.current,
-          result.attachment,
-          options.insertion ?? "cursor",
-        );
       }
+
+      insertUploadedAttachmentsIntoEditor(
+        editorRef.current,
+        uploadedAttachments,
+        options.insertion ?? "cursor",
+      );
     } catch (error) {
       setImageUploadError(getUploadError(error));
     } finally {
@@ -959,6 +1105,7 @@ export function MarkdownComposerField({
           ref={imageFileInputRef}
           type="file"
           accept={IMAGE_UPLOAD_ACCEPT}
+          multiple={imageUpload.maxCount > 1}
           className="hidden"
           disabled={!canAddImage}
           onChange={(event) => handleImageFileChange(event.target.files)}
@@ -1288,6 +1435,91 @@ function createMediaFallbackLink(originalUrl: string) {
   return link;
 }
 
+function createGalleryPreviewElement(
+  attachments: MediaAttachment[],
+  caption: string,
+) {
+  const root = document.createElement("div");
+  const header = document.createElement("div");
+  const grid = document.createElement("div");
+  const hiddenCount = Math.max(0, attachments.length - 4);
+
+  root.className = "block";
+  header.className =
+    "flex min-h-10 items-center justify-between gap-3 border-b border-border px-3 py-2 text-xs text-muted-foreground";
+  header.textContent = `${caption} · ${attachments.length} 张图片`;
+  grid.className = "grid grid-cols-2 gap-1 bg-black p-1";
+
+  for (const [index, attachment] of attachments.slice(0, 4).entries()) {
+    const item = document.createElement("span");
+    const image = document.createElement("img");
+
+    item.className =
+      "relative block aspect-[4/3] overflow-hidden border border-border bg-black";
+    image.src = getEditorAttachmentPreviewUrl(attachment);
+    image.alt = attachment.alt_text || "内容图片";
+    image.loading = "lazy";
+    image.decoding = "async";
+    image.className = "block size-full object-cover";
+    item.append(image);
+
+    if (index === 3 && hiddenCount > 0) {
+      const overlay = document.createElement("span");
+
+      overlay.className =
+        "absolute inset-0 flex items-center justify-center bg-black/70 font-mono text-sm font-semibold text-foreground";
+      overlay.textContent = `+${hiddenCount}`;
+      item.append(overlay);
+    }
+
+    grid.append(item);
+  }
+
+  root.append(header, grid);
+  return root;
+}
+
+function createGalleryMissingElement() {
+  const fallback = document.createElement("span");
+
+  fallback.className =
+    "block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground";
+  fallback.textContent = "图片轮播里的附件不存在或尚未随内容返回。";
+
+  return fallback;
+}
+
+function normalizeAttachmentIds(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function isVisibleImageAttachmentForEditor(
+  attachment: MediaAttachment | null,
+): attachment is MediaAttachment {
+  return Boolean(
+    attachment &&
+      attachment.kind === "image" &&
+      attachment.status !== "blocked" &&
+      attachment.status !== "failed" &&
+      attachment.url,
+  );
+}
+
+function getEditorAttachmentPreviewUrl(attachment: MediaAttachment) {
+  return attachment.thumbnail_url || attachment.medium_url || attachment.url;
+}
+
 function syncWhitelistedMediaEmbeds(editor: Editor) {
   const mediaEmbedType = editor.state.schema.nodes.mediaEmbed;
 
@@ -1373,6 +1605,50 @@ function insertAttachmentIntoEditor(
       : clampEditorInsertionPosition(editor, currentSelection.from);
 
   editor.commands.insertContentAt(insertPosition, imageNode);
+}
+
+function insertUploadedAttachmentsIntoEditor(
+  editor: Editor | null,
+  attachments: MediaAttachment[],
+  insertion: InlineImageInsertion,
+) {
+  if (attachments.length === 0) {
+    return;
+  }
+
+  if (attachments.length === 1) {
+    insertAttachmentIntoEditor(editor, attachments[0], insertion);
+    return;
+  }
+
+  insertAttachmentGalleryIntoEditor(editor, attachments, insertion);
+}
+
+function insertAttachmentGalleryIntoEditor(
+  editor: Editor | null,
+  attachments: MediaAttachment[],
+  insertion: InlineImageInsertion,
+) {
+  if (!editor) {
+    return;
+  }
+
+  const galleryNode = {
+    attrs: {
+      attachmentIds: attachments.map((attachment) => attachment.id),
+      caption: "图片轮播",
+    },
+    type: "attachmentGallery",
+  };
+  const currentSelection = editor.state.selection;
+  const insertPosition =
+    insertion === "end"
+      ? editor.state.doc.content.size
+      : typeof insertion === "number"
+        ? clampEditorInsertionPosition(editor, insertion)
+        : clampEditorInsertionPosition(editor, currentSelection.from);
+
+  editor.commands.insertContentAt(insertPosition, galleryNode);
 }
 
 function clampEditorInsertionPosition(editor: Editor, position: number) {
@@ -1524,11 +1800,23 @@ function normalizeEditorMarkdown(value: string) {
 function isSafeEditorLink(value: string | undefined) {
   const normalized = normalizeMarkdownHref(value);
 
-  return Boolean(normalized && !normalized.startsWith(ATTACHMENT_MARKDOWN_URL_PREFIX));
+  return Boolean(
+    normalized &&
+      !normalized.startsWith(ATTACHMENT_MARKDOWN_URL_PREFIX) &&
+      !normalized.startsWith(ATTACHMENT_GALLERY_MARKDOWN_URL_PREFIX),
+  );
 }
 
 function encodeAttachmentIdForMarkdown(value: string) {
   return encodeURIComponent(value).replace(/[()]/g, (character) =>
     `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
   );
+}
+
+function escapeMarkdownAltText(value: string) {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/\[/g, "\\[")
+    .replace(/\]/g, "\\]")
+    .replace(/\r?\n/g, " ");
 }

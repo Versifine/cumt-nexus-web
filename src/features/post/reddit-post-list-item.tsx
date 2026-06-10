@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element */
-
 import { useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -18,7 +16,10 @@ import {
   resolveLinkPreview,
   type ResolvedLinkPreview,
 } from "@/features/content/link-preview";
+import { ContentImageGallery } from "@/features/content/content-image-gallery";
+import { resolveFirstContentMediaBlock } from "@/features/content/content-media";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
+import { MediaEmbedPlayer } from "@/features/content/media-embed-player";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { cn } from "@/lib/utils";
 
@@ -79,8 +80,11 @@ export function RedditPostListItem({
     "用户";
   const authorUsername =
     post.author?.username?.trim() || authorFallback?.username?.trim() || "";
-  const previewImage = getPreviewImage(post);
-  const linkPreview = !previewImage ? getPostLinkPreview(post) : null;
+  const mediaBlock = resolveFirstContentMediaBlock({
+    attachments: post.attachments,
+    markdown: post.body,
+  });
+  const linkPreview = mediaBlock ? null : getPostLinkPreview(post);
   const excerpt = getPostExcerpt(post);
   const postUrl =
     typeof window === "undefined"
@@ -168,19 +172,20 @@ export function RedditPostListItem({
           </Link>
         </h2>
 
-        {previewImage ? (
-          <Link
-            href={postHref}
-            onClick={rememberSource}
-            className="mt-3 block w-full max-w-[540px] overflow-hidden border border-border bg-background-soft"
-          >
-            <img
-              src={previewImage.url}
-              alt={previewImage.alt_text || `${post.title} 的图片预览`}
-              className="max-h-[360px] w-full object-cover"
-              loading="lazy"
+        {mediaBlock?.kind === "image-gallery" ? (
+          <div className="mt-3">
+            <ContentImageGallery
+              attachments={mediaBlock.attachments}
+              caption={mediaBlock.caption}
+              href={postHref}
+              onNavigate={rememberSource}
+              variant="preview"
             />
-          </Link>
+          </div>
+        ) : mediaBlock?.kind === "embed" ? (
+          <div className="mt-3 max-w-[640px]">
+            <MediaEmbedPlayer embed={mediaBlock.embed} />
+          </div>
         ) : linkPreview ? (
           <div className="mt-3 space-y-2">
             <PostLinkPreviewCard preview={linkPreview} />
@@ -226,13 +231,19 @@ export function RedditPostListItem({
             postId={post.id}
             saveCount={post.save_count}
           />
-          {previewImage ? (
+          {mediaBlock?.kind === "image-gallery" ? (
             <span className="inline-flex h-8 items-center gap-1.5 px-2">
               <ImageIcon className="size-4" aria-hidden="true" />
               图片
             </span>
           ) : null}
-          {linkPreview || post.preview?.kind === "link" ? (
+          {mediaBlock?.kind === "embed" ? (
+            <span className="inline-flex h-8 items-center gap-1.5 px-2">
+              <ExternalLink className="size-4" aria-hidden="true" />
+              播放器
+            </span>
+          ) : null}
+          {linkPreview ? (
             <span className="inline-flex h-8 items-center gap-1.5 px-2">
               <LinkIcon className="size-4" aria-hidden="true" />
               链接
@@ -301,18 +312,6 @@ function PostActionLink({
 
 function getPostExcerpt(post: Post) {
   return getMarkdownPlainTextSummary(post.body_excerpt || post.body, "");
-}
-
-function getPreviewImage(post: Post) {
-  if (post.preview?.image?.url) {
-    return post.preview.image;
-  }
-
-  return (
-    post.attachments?.find(
-      (item) => item.kind === "image" && item.status === "ready" && item.url,
-    ) ?? null
-  );
 }
 
 function getPostLinkPreview(post: Post) {

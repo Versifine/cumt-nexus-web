@@ -1,6 +1,7 @@
 import type { MediaAttachment } from "@/features/media/types";
 
 export const ATTACHMENT_MARKDOWN_URL_PREFIX = "nexus-attachment:";
+export const ATTACHMENT_GALLERY_MARKDOWN_URL_PREFIX = "nexus-gallery:";
 
 export function createAttachmentMarkdown(attachment: MediaAttachment) {
   const altText = escapeMarkdownAltText(
@@ -10,6 +11,18 @@ export function createAttachmentMarkdown(attachment: MediaAttachment) {
   return `![${altText}](${ATTACHMENT_MARKDOWN_URL_PREFIX}${encodeAttachmentIdForMarkdown(
     attachment.id,
   )})`;
+}
+
+export function createAttachmentGalleryMarkdown(
+  attachments: MediaAttachment[],
+  caption = "图片轮播",
+) {
+  const ids = attachments
+    .map((attachment) => encodeAttachmentIdForMarkdown(attachment.id))
+    .join(",");
+  const altText = escapeMarkdownAltText(caption);
+
+  return `![${altText}](${ATTACHMENT_GALLERY_MARKDOWN_URL_PREFIX}${ids})`;
 }
 
 export function getAttachmentIdFromMarkdownUrl(value?: string | null) {
@@ -29,15 +42,45 @@ export function getAttachmentIdFromMarkdownUrl(value?: string | null) {
     return null;
   }
 
-  try {
-    return decodeURIComponent(encodedId);
-  } catch {
-    return encodedId;
+  return decodeAttachmentIdFromMarkdown(encodedId);
+}
+
+export function getGalleryAttachmentIdsFromMarkdownUrl(value?: string | null) {
+  if (!value) {
+    return [];
   }
+
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue.startsWith(ATTACHMENT_GALLERY_MARKDOWN_URL_PREFIX)) {
+    return [];
+  }
+
+  const encodedIds = trimmedValue
+    .slice(ATTACHMENT_GALLERY_MARKDOWN_URL_PREFIX.length)
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+  return encodedIds.map(decodeAttachmentIdFromMarkdown);
 }
 
 export function isAttachmentMarkdownUrl(value?: string | null) {
   return Boolean(getAttachmentIdFromMarkdownUrl(value));
+}
+
+export function isAttachmentGalleryMarkdownUrl(value?: string | null) {
+  return getGalleryAttachmentIdsFromMarkdownUrl(value).length > 0;
+}
+
+export function getAttachmentIdsFromMarkdownUrl(value?: string | null) {
+  const attachmentId = getAttachmentIdFromMarkdownUrl(value);
+
+  if (attachmentId) {
+    return [attachmentId];
+  }
+
+  return getGalleryAttachmentIdsFromMarkdownUrl(value);
 }
 
 export function hasUnsupportedMarkdownImageReferences(markdown: string) {
@@ -55,7 +98,10 @@ export function getUnsupportedMarkdownImageReferenceCount(markdown: string) {
       continue;
     }
 
-    if (isAttachmentMarkdownUrl(match[1])) {
+    if (
+      isAttachmentMarkdownUrl(match[1]) ||
+      isAttachmentGalleryMarkdownUrl(match[1])
+    ) {
       continue;
     }
 
@@ -70,6 +116,8 @@ export function getReferencedAttachmentIds(markdown: string) {
   const imagePattern = new RegExp(
     `!\\[(?:\\\\.|[^\\]\\\\])*\\]\\(\\s*(${escapeRegExp(
       ATTACHMENT_MARKDOWN_URL_PREFIX,
+    )}[^\\s)]+|${escapeRegExp(
+      ATTACHMENT_GALLERY_MARKDOWN_URL_PREFIX,
     )}[^\\s)]+)(?:\\s+(?:"[^"]*"|'[^']*'|[^\\s)]+))?\\s*\\)`,
     "g",
   );
@@ -80,9 +128,7 @@ export function getReferencedAttachmentIds(markdown: string) {
       continue;
     }
 
-    const id = getAttachmentIdFromMarkdownUrl(match[1]);
-
-    if (id) {
+    for (const id of getAttachmentIdsFromMarkdownUrl(match[1])) {
       ids.add(id);
     }
   }
@@ -156,13 +202,8 @@ function stripMarkdownCodeSegments(markdown: string) {
 }
 
 function getAttachmentMarkdownReferenceRanges(markdown: string, id: string) {
-  const encodedId = encodeAttachmentIdForMarkdown(id);
-  const imagePattern = new RegExp(
-    `!\\[(?:\\\\.|[^\\]\\\\])*\\]\\(\\s*${escapeRegExp(
-      ATTACHMENT_MARKDOWN_URL_PREFIX,
-    )}${escapeRegExp(encodedId)}(?:\\s+(?:"[^"]*"|'[^']*'|[^\\s)]+))?\\s*\\)\\r?\\n?`,
-    "g",
-  );
+  const imagePattern =
+    /!\[(?:\\.|[^\]\\])*\]\(\s*([^\s)]+)(?:\s+(?:"[^"]*"|'[^']*'|[^\s)]+))?\s*\)\r?\n?/g;
   const lines = markdown.split(/\r?\n/);
   let fenceMarker: "`" | "~" | null = null;
   const ranges: Array<{ end: number; start: number }> = [];
@@ -197,8 +238,10 @@ function getAttachmentMarkdownReferenceRanges(markdown: string, id: string) {
 
     for (const match of searchableLine.matchAll(imagePattern)) {
       const matchIndex = match.index ?? 0;
+      const referenceIds = getAttachmentIdsFromMarkdownUrl(match[1]);
 
       if (
+        !referenceIds.includes(id) ||
         isEscapedMarkdownToken(searchableLine, matchIndex) ||
         isInsideInlineCode(searchableLine, matchIndex)
       ) {
@@ -292,10 +335,18 @@ function escapeMarkdownAltText(value: string) {
     .replace(/\r?\n/g, " ");
 }
 
-function encodeAttachmentIdForMarkdown(value: string) {
+export function encodeAttachmentIdForMarkdown(value: string) {
   return encodeURIComponent(value).replace(/[()]/g, (character) =>
     `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
   );
+}
+
+function decodeAttachmentIdFromMarkdown(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 function escapeRegExp(value: string) {

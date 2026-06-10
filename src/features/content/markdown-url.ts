@@ -1,4 +1,7 @@
-const attachmentMarkdownUrlPrefix = "nexus-attachment:";
+const internalMediaMarkdownUrlPrefixes = [
+  "nexus-attachment:",
+  "nexus-gallery:",
+];
 const allowedAbsoluteProtocols = new Set(["http:", "https:", "mailto:"]);
 const controlCharacterPattern = /[\u0000-\u001f\u007f]/;
 
@@ -17,7 +20,11 @@ export function normalizeMarkdownHref(value?: string | null) {
     return trimmedValue;
   }
 
-  if (trimmedValue.startsWith(attachmentMarkdownUrlPrefix)) {
+  if (
+    internalMediaMarkdownUrlPrefixes.some((prefix) =>
+      trimmedValue.startsWith(prefix),
+    )
+  ) {
     return trimmedValue;
   }
 
