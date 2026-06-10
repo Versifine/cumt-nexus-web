@@ -93,7 +93,13 @@ const routes = [
     path: "/communities",
   },
   {
-    absentMarkers: ["登录后使用搜索", "搜索需要身份上下文", "需要登录"],
+    absentMarkers: [
+      "登录后使用搜索",
+      "搜索需要身份上下文",
+      "公开搜索暂不可用",
+      "当前服务还没有开放未登录搜索",
+      "需要登录",
+    ],
     hrefMarkers: [...appShellHrefMarkers],
     markers: ["CUMT Nexus", "搜索社区和帖子", "搜索关键词", "范围"],
     path: "/search?q=public&scope=all",
@@ -156,6 +162,21 @@ const routes = [
   {
     hrefMarkers: [
       ...appShellHrefMarkers,
+      "/communities/public",
+      "/login?next=%2Fcommunities%2Fpublic%2Fmanage",
+    ],
+    markers: [
+      "CUMT Nexus",
+      "社区管理",
+      "管理概览",
+      "登录后管理社区",
+      "社区管理需要 owner 或 moderator 权限",
+    ],
+    path: "/communities/public/manage",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
       "/login?next=%2Fcommunity-applications%2Fnew",
       "/register?next=%2Fcommunity-applications%2Fnew",
     ],
@@ -163,9 +184,47 @@ const routes = [
     path: "/community-applications/new",
   },
   {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fnotifications%2Freplies",
+    ],
+    markers: ["CUMT Nexus", "回复通知", "通知列表", "未读 / 回复", "登录后查看通知"],
+    path: "/notifications/replies",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fnotifications%2Fmentions",
+    ],
+    markers: ["CUMT Nexus", "@通知", "通知列表", "未读 / @", "登录后查看通知"],
+    path: "/notifications/mentions",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fnotifications%2Flikes",
+    ],
+    markers: ["CUMT Nexus", "赞通知", "通知列表", "未读 / 赞", "登录后查看通知"],
+    path: "/notifications/likes",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fnotifications%2Fsystem",
+    ],
+    markers: ["CUMT Nexus", "系统通知", "通知列表", "未读 / 系统", "登录后查看通知"],
+    path: "/notifications/system",
+  },
+  {
     expectedStatus: 404,
     hrefMarkers: ["/", "/communities"],
-    markers: ["CUMT Nexus", "这个页面不存在或已经移动", "返回最新讨论", "浏览社区"],
+    markers: ["CUMT Nexus", "这个页面不存在或已经移动", "返回最新讨论", "浏览社区索引"],
+    path: "/notifications/unknown",
+  },
+  {
+    expectedStatus: 404,
+    hrefMarkers: ["/", "/communities"],
+    markers: ["CUMT Nexus", "这个页面不存在或已经移动", "返回最新讨论", "浏览社区索引"],
     path: "/route-smoke-not-found",
   },
 ];

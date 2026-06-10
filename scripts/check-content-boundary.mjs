@@ -101,6 +101,7 @@ checkPublishedAttachmentImageSizing();
 checkComposerImageCopy();
 checkComposerReferencedImageLimit();
 checkMarkdownTypographyBoundary();
+checkMarkdownMobileOverflowBoundary();
 checkCommentTreeMobileIndentBoundary();
 checkMarkdownSourceLeakage();
 checkMediaContractDocs();
@@ -855,13 +856,31 @@ function checkComposerImageCopy() {
   }
 
   if (
-    !composer.content.includes("onPaste={handleComposerPaste}") ||
+    !composer.content.includes("const minimumInlineImageUploadNoticeMs") ||
+    !composer.content.includes("createMinimumInlineImageUploadNoticePromise") ||
+    !composer.content.includes(
+      "const uploadNoticeSettled = createMinimumInlineImageUploadNoticePromise()",
+    ) ||
+    !composer.content.includes("await uploadNoticeSettled") ||
+    !composer.content.includes("正在上传图片，保存按钮会暂时禁用")
+  ) {
+    addFail(
+      "composer image upload waiting state",
+      "MarkdownComposerField must keep a visible upload waiting state and disable submit while inline images are uploading",
+    );
+    return;
+  }
+
+  if (
+    !composer.content.includes("handlePaste: (view, event)") ||
+    !composer.content.includes("const insertionPosition = view.state.selection.from") ||
+    !composer.content.includes("return handleInlineImagePaste(event, insertionPosition)") ||
     !composer.content.includes("onDrop={handleComposerDrop}") ||
     !composer.content.includes("onDragOver={handleComposerDragOver}") ||
     !composer.content.includes("getImageFilesFromDataTransfer") ||
     !composer.content.includes("hasImageFileData") ||
     !composer.content.includes('await uploadInlineImageFiles(imageFiles, { insertion: "cursor" })') ||
-    !composer.content.includes("event.clipboardData") ||
+    !composer.content.includes("const clipboardData = event.clipboardData") ||
     !composer.content.includes("event.dataTransfer") ||
     !composer.content.includes("extractDataImageSourcesFromClipboardHtml") ||
     !composer.content.includes("extractDataImageSourcesFromClipboardText") ||
@@ -874,8 +893,11 @@ function checkComposerImageCopy() {
     !composer.content.includes("uploadInlineDataImageTextPaste") ||
     !composer.content.includes("replaceClipboardDataImagePlaceholders") ||
     !composer.content.includes("insertMarkdownIntoEditor") ||
-    !composer.content.includes('chain.insertContent(markdown, { contentType: "markdown" }).run()') ||
-    !composer.content.includes('await uploadInlineImageFiles(imageFiles, { insertion })')
+    !composer.content.includes("setTextSelection(insertPosition)") ||
+    !composer.content.includes('insertContent(markdown, { contentType: "markdown" })') ||
+    !composer.content.includes("clampEditorInsertionPosition") ||
+    !composer.content.includes("void uploadInlineImageFiles(imageFiles, { insertion })") ||
+    !composer.content.includes('typeof insertion === "number"')
   ) {
     addFail(
       "composer pasted image insertion",
@@ -1217,6 +1239,52 @@ function checkMarkdownTypographyBoundary() {
   addPass(
     "Markdown typography boundary",
     "ContentBody keeps Markdown headings and task lists at content scale",
+  );
+}
+
+function checkMarkdownMobileOverflowBoundary() {
+  const contentBody = sourceFiles.find(
+    (file) => file.path === "src/features/content/content-body.tsx",
+  );
+  const problems = [];
+
+  if (!contentBody) {
+    addFail("Markdown mobile overflow boundary", "src/features/content/content-body.tsx is missing");
+    return;
+  }
+
+  if (
+    !contentBody.content.includes("pre({ children })") ||
+    !contentBody.content.includes("min-w-0 max-w-full overflow-x-auto") ||
+    !contentBody.content.includes("font-mono text-sm leading-6")
+  ) {
+    problems.push("fenced code blocks must keep horizontal overflow inside the code block on mobile");
+  }
+
+  if (
+    !contentBody.content.includes("table({ children })") ||
+    !contentBody.content.includes('className="my-4 overflow-x-auto border border-border"') ||
+    !contentBody.content.includes("min-w-[560px]") ||
+    !contentBody.content.includes("border-collapse text-sm")
+  ) {
+    problems.push("wide Markdown tables must use a scrolling wrapper instead of widening the page");
+  }
+
+  if (
+    !contentBody.content.includes("img({ alt, src })") ||
+    !contentBody.content.includes("外部图片不会直接渲染；请上传图片后放入正文。")
+  ) {
+    problems.push("external Markdown images must render a local upload notice instead of remote images");
+  }
+
+  if (problems.length > 0) {
+    addFail("Markdown mobile overflow boundary", problems.join("; "));
+    return;
+  }
+
+  addPass(
+    "Markdown mobile overflow boundary",
+    "ContentBody keeps wide tables and code blocks scrollable and blocks external image rendering",
   );
 }
 

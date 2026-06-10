@@ -277,6 +277,50 @@ async function checkUploadPostAndComments() {
     return;
   }
 
+  const postRemoveImageResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}`, {
+    body: {
+      attachment_ids: [],
+      body: [
+        `# ${marker} image removed`,
+        "",
+        "帖子编辑态删除正文图片后保存。",
+      ].join("\n"),
+      title: `${marker} post image removed`,
+    },
+    method: "PATCH",
+    token: reporter.token,
+  });
+
+  if (!expectOk(postRemoveImageResponse, "edit post removes image attachments")) {
+    return;
+  }
+
+  const postWithoutImage = postRemoveImageResponse.json?.post;
+  if (
+    !postWithoutImage?.body?.includes("帖子编辑态删除正文图片后保存。") ||
+    postWithoutImage.body.includes(postAttachmentMarkdown) ||
+    postWithoutImage.body.includes(postEditAttachmentMarkdown) ||
+    postWithoutImage.attachments?.length
+  ) {
+    addFail("edit post removes image attachments", `unexpected response payload: ${preview(postRemoveImageResponse.bodyText)}`);
+    return;
+  }
+
+  const postWithoutImageDetailResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}`, {
+    token: reporter.token,
+  });
+  if (!expectOk(postWithoutImageDetailResponse, "post detail preserves removed image state")) {
+    return;
+  }
+  if (
+    postWithoutImageDetailResponse.json?.post?.body?.includes(postAttachmentMarkdown) ||
+    postWithoutImageDetailResponse.json?.post?.body?.includes(postEditAttachmentMarkdown) ||
+    postWithoutImageDetailResponse.json?.post?.attachments?.length
+  ) {
+    addFail("post detail preserves removed image state", `unexpected response payload: ${preview(postWithoutImageDetailResponse.bodyText)}`);
+    return;
+  }
+
   const rootResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}/comments`, {
     body: {
       attachment_ids: [rootAttachment.id],
@@ -327,6 +371,30 @@ async function checkUploadPostAndComments() {
     return;
   }
 
+  const rootRemoveImageResponse = await request(`/api/v1/comments/${encodeURIComponent(rootCommentId)}`, {
+    body: {
+      attachment_ids: [],
+      body: `${marker} root comment image removed`,
+    },
+    method: "PATCH",
+    token: reporter.token,
+  });
+
+  if (!expectOk(rootRemoveImageResponse, "edit root comment removes image attachments")) {
+    return;
+  }
+
+  const rootCommentWithoutImage = rootRemoveImageResponse.json?.comment;
+  if (
+    !rootCommentWithoutImage?.body?.includes("root comment image removed") ||
+    rootCommentWithoutImage.body.includes(rootAttachmentMarkdown) ||
+    rootCommentWithoutImage.body.includes(rootEditAttachmentMarkdown) ||
+    rootCommentWithoutImage.attachments?.length
+  ) {
+    addFail("edit root comment removes image attachments", `unexpected response payload: ${preview(rootRemoveImageResponse.bodyText)}`);
+    return;
+  }
+
   const childResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}/comments`, {
     body: {
       attachment_ids: [childAttachment.id],
@@ -372,18 +440,18 @@ async function checkUploadPostAndComments() {
     : null;
 
   if (
-    !rootFromTree?.body?.includes(rootEditAttachmentMarkdown) ||
+    !rootFromTree?.body?.includes("root comment image removed") ||
+    rootFromTree?.body?.includes(rootAttachmentMarkdown) ||
+    rootFromTree?.body?.includes(rootEditAttachmentMarkdown) ||
     !childFromTree?.body?.includes(childAttachmentMarkdown) ||
-    !rootFromTree?.attachments?.length ||
     !childFromTree?.attachments?.length ||
-    !rootFromTree.attachments.some((attachment) => attachment?.id === rootEditAttachment.id) ||
-    rootFromTree.attachments.some((attachment) => attachment?.id === rootAttachment.id)
+    rootFromTree?.attachments?.length
   ) {
     addFail("comment tree with attachments", `attachments missing from tree: ${preview(treeResponse.bodyText)}`);
     return;
   }
 
-  addPass("content media path", `created and edited post ${postId}, root comment ${rootCommentId} and child comment ${childCommentId} with inline image markers`);
+  addPass("content media path", `created, edited and removed inline images for post ${postId}, root comment ${rootCommentId} and child comment ${childCommentId}`);
 }
 
 async function checkBrowserEditCors() {
@@ -478,6 +546,9 @@ async function checkSearch() {
 
 async function checkNotifications() {
   const notificationId = randomUUID();
+  const mentionNotificationId = randomUUID();
+  const likeNotificationId = randomUUID();
+  const readAllNotificationId = randomUUID();
   const insert = runDockerPsql(`
     INSERT INTO notifications (
       id,
@@ -492,9 +563,39 @@ async function checkNotifications() {
     ) VALUES (
       '${notificationId}'::uuid,
       '${escapeSql(reporter.user.id)}'::uuid,
+      'post_reply',
+      'V2 smoke reply notification',
+      'V2 smoke reply notification body',
+      'post',
+      '${escapeSql(postId)}',
+      now(),
+      now()
+    ), (
+      '${mentionNotificationId}'::uuid,
+      '${escapeSql(reporter.user.id)}'::uuid,
+      'mention',
+      'V2 smoke mention notification',
+      'V2 smoke mention notification body',
+      'post',
+      '${escapeSql(postId)}',
+      now(),
+      now()
+    ), (
+      '${likeNotificationId}'::uuid,
+      '${escapeSql(reporter.user.id)}'::uuid,
+      'post_like',
+      'V2 smoke like notification',
+      'V2 smoke like notification body',
+      'post',
+      '${escapeSql(postId)}',
+      now(),
+      now()
+    ), (
+      '${readAllNotificationId}'::uuid,
+      '${escapeSql(reporter.user.id)}'::uuid,
       'system',
-      'V2 smoke notification',
-      'V2 smoke notification body',
+      'V2 smoke system notification',
+      'V2 smoke system notification body',
       'post',
       '${escapeSql(postId)}',
       now(),
@@ -514,6 +615,51 @@ async function checkNotifications() {
 
   if (!unread.json?.notifications?.some((notification) => notification?.id === notificationId)) {
     addFail("list unread notifications", `seeded notification ${notificationId} missing`);
+    return;
+  }
+
+  const replies = await request("/api/v1/notifications?category=replies&status=unread&limit=20&offset=0", { token: reporter.token });
+  const mentions = await request("/api/v1/notifications?category=mentions&status=unread&limit=20&offset=0", { token: reporter.token });
+  const likes = await request("/api/v1/notifications?category=likes&status=unread&limit=20&offset=0", { token: reporter.token });
+  const system = await request("/api/v1/notifications?category=system&status=unread&limit=20&offset=0", { token: reporter.token });
+  if (
+    !expectOk(replies, "list replies notifications") ||
+    !expectOk(mentions, "list mentions notifications") ||
+    !expectOk(likes, "list likes notifications") ||
+    !expectOk(system, "list system notifications")
+  ) {
+    return;
+  }
+
+  if (replies.json?.category !== "replies" || !replies.json?.notifications?.some((notification) => notification?.id === notificationId)) {
+    addFail("list replies notifications", `reply notification ${notificationId} missing: ${preview(replies.bodyText)}`);
+    return;
+  }
+  if (mentions.json?.category !== "mentions" || !mentions.json?.notifications?.some((notification) => notification?.id === mentionNotificationId)) {
+    addFail("list mentions notifications", `mention notification ${mentionNotificationId} missing: ${preview(mentions.bodyText)}`);
+    return;
+  }
+  if (likes.json?.category !== "likes" || !likes.json?.notifications?.some((notification) => notification?.id === likeNotificationId)) {
+    addFail("list likes notifications", `like notification ${likeNotificationId} missing: ${preview(likes.bodyText)}`);
+    return;
+  }
+  if (system.json?.category !== "system" || !system.json?.notifications?.some((notification) => notification?.id === readAllNotificationId)) {
+    addFail("list system notifications", `system notification ${readAllNotificationId} missing: ${preview(system.bodyText)}`);
+    return;
+  }
+
+  const summary = await request("/api/v1/notifications/unread-summary", { token: reporter.token });
+  if (!expectOk(summary, "notification unread summary")) {
+    return;
+  }
+  if (
+    summary.json?.total < 4 ||
+    summary.json?.replies < 1 ||
+    summary.json?.mentions < 1 ||
+    summary.json?.likes < 1 ||
+    summary.json?.system < 1
+  ) {
+    addFail("notification unread summary", `unexpected summary: ${preview(summary.bodyText)}`);
     return;
   }
 
@@ -540,7 +686,29 @@ async function checkNotifications() {
     return;
   }
 
-  addPass("notifications", "list unread, mark read and list read all work");
+  const readAllResponse = await request("/api/v1/notifications/read-all", {
+    method: "POST",
+    token: reporter.token,
+  });
+  if (!expectOk(readAllResponse, "mark all notifications read")) {
+    return;
+  }
+
+  if (!readAllResponse.json?.read_at || readAllResponse.json?.updated_count < 3) {
+    addFail("mark all notifications read", `unexpected payload: ${preview(readAllResponse.bodyText)}`);
+    return;
+  }
+
+  const afterReadAllSummary = await request("/api/v1/notifications/unread-summary", { token: reporter.token });
+  if (!expectOk(afterReadAllSummary, "notification unread summary after read all")) {
+    return;
+  }
+  if (afterReadAllSummary.json?.total !== 0) {
+    addFail("notification unread summary after read all", `expected total=0: ${preview(afterReadAllSummary.bodyText)}`);
+    return;
+  }
+
+  addPass("notifications", "category list, unread summary, mark read and mark all read all work");
 }
 
 async function checkReportsAndModeration() {
