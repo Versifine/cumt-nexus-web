@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AtSign,
   Bell,
@@ -24,12 +25,25 @@ import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 import {
+  getNotificationCategoryHref,
+  notificationCategoryOptions,
+} from "./categories";
+import {
+  useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
   useNotificationsQuery,
+  useUnreadSummaryQuery,
 } from "./queries";
-import type { Notification, NotificationStatus } from "./types";
-
-type NotificationCategory = "all" | "reply" | "mention" | "reaction" | "system";
+import type {
+  Notification,
+  NotificationCategory,
+  NotificationStatus,
+  UnreadSummaryResponse,
+} from "./types";
+import {
+  resolveNotificationTarget,
+  type NotificationTarget,
+} from "./targets";
 
 const statusOptions: Array<{ label: string; value: NotificationStatus }> = [
   { label: "未读", value: "unread" },
@@ -37,29 +51,41 @@ const statusOptions: Array<{ label: string; value: NotificationStatus }> = [
   { label: "已读", value: "read" },
 ];
 
-const categoryOptions: Array<{ label: string; value: NotificationCategory }> = [
-  { label: "全部", value: "all" },
-  { label: "回复", value: "reply" },
-  { label: "@", value: "mention" },
-  { label: "赞", value: "reaction" },
-  { label: "系统", value: "system" },
-];
+type NotificationCenterProps = {
+  initialCategory?: NotificationCategory;
+};
 
-export function NotificationCenter() {
+export function NotificationCenter({
+  initialCategory = "all",
+}: NotificationCenterProps) {
+  const router = useRouter();
   const { isReady, token } = useAuthSession();
   const [status, setStatus] = useState<NotificationStatus>("unread");
-  const [category, setCategory] = useState<NotificationCategory>("all");
+  const category = initialCategory;
   const canLoadNotifications = isReady && Boolean(token);
   const notificationsQuery = useNotificationsQuery(
-    { limit: 20, offset: 0, status },
+    { category, limit: 20, offset: 0, status },
     canLoadNotifications,
   );
+  const unreadSummaryQuery = useUnreadSummaryQuery(canLoadNotifications);
   const markReadMutation = useMarkNotificationReadMutation();
+  const markAllReadMutation = useMarkAllNotificationsReadMutation();
   const notifications = notificationsQuery.data?.notifications ?? [];
-  const filteredNotifications = filterNotifications(notifications, category);
-  const unreadCount = notifications.filter((notification) => !notification.read_at).length;
-  const categoryCounts = getCategoryCounts(notifications);
-  const loginHref = `/login?next=${encodeURIComponent("/notifications")}`;
+  const unreadSummary = unreadSummaryQuery.data ?? emptyUnreadSummary;
+  const unreadCount = unreadSummary.total;
+  const categoryCounts = getCategoryCounts(unreadSummary);
+  const currentCategoryHref = getNotificationCategoryHref(category);
+  const loginHref = `/login?next=${encodeURIComponent(currentCategoryHref)}`;
+  const isFetchingControls =
+    notificationsQuery.isFetching || unreadSummaryQuery.isFetching;
+
+  function handleCategoryChange(nextCategory: NotificationCategory) {
+    if (nextCategory === category) {
+      return;
+    }
+
+    router.push(getNotificationCategoryHref(nextCategory));
+  }
 
   return (
     <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
@@ -67,7 +93,7 @@ export function NotificationCenter() {
         <section className="border border-border bg-background">
           <NotificationHeader
             category={category}
-            currentCount={canLoadNotifications ? filteredNotifications.length : null}
+            currentCount={canLoadNotifications ? notifications.length : null}
             status={status}
             unreadCount={canLoadNotifications ? unreadCount : null}
           />
@@ -85,11 +111,11 @@ export function NotificationCenter() {
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                 <CategoryTabs
                   category={category}
-                  disabled={!isReady || notificationsQuery.isFetching}
-                  onCategoryChange={setCategory}
+                  disabled={!isReady || isFetchingControls}
+                  onCategoryChange={handleCategoryChange}
                 />
                 <StatusTabs
-                  disabled={!isReady || notificationsQuery.isFetching}
+                  disabled={!isReady || isFetchingControls}
                   onStatusChange={setStatus}
                   status={status}
                 />
@@ -152,29 +178,20 @@ export function NotificationCenter() {
           notifications.length === 0 ? (
             <div className="border-b border-border p-4">
               <EmptyState
-                title={formatEmptyTitle(status)}
-                description="有新的回复、@、赞或系统消息时，会出现在这里。"
-                action={<TextAction href="/">回到信息流</TextAction>}
-              />
-            </div>
-          ) : null}
-
-          {canLoadNotifications &&
-          notificationsQuery.isSuccess &&
-          notifications.length > 0 &&
-          filteredNotifications.length === 0 ? (
-            <div className="border-b border-border p-4">
-              <EmptyState
-                title={`没有${formatCategory(category)}通知`}
-                description="切换其他分类或查看全部通知。"
+                title={formatEmptyTitle(status, category)}
+                description={getEmptyDescription(status, category)}
                 action={
-                  <button
-                    type="button"
-                    className="text-sm font-semibold text-primary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                    onClick={() => setCategory("all")}
-                  >
-                    查看全部
-                  </button>
+                  category === "all" ? (
+                    <TextAction href="/">回到信息流</TextAction>
+                  ) : (
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-primary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      onClick={() => handleCategoryChange("all")}
+                    >
+                      查看全部
+                    </button>
+                  )
                 }
               />
             </div>
@@ -182,8 +199,27 @@ export function NotificationCenter() {
 
           {canLoadNotifications &&
           notificationsQuery.isSuccess &&
-          filteredNotifications.length > 0
-            ? filteredNotifications.map((notification) => (
+          notifications.length > 0 ? (
+            <>
+              {status !== "read" && unreadCount > 0 ? (
+                <div className="flex flex-col gap-2 border-b border-border bg-background-soft/45 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    当前账号还有 {unreadCount} 条未读通知。
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 self-start px-2 text-xs sm:self-auto"
+                    disabled={markAllReadMutation.isPending}
+                    onClick={() => markAllReadMutation.mutate()}
+                  >
+                    <Check className="size-4" aria-hidden="true" />
+                    {markAllReadMutation.isPending ? "处理中" : "全部标记已读"}
+                  </Button>
+                </div>
+              ) : null}
+              {notifications.map((notification) => (
                 <NotificationRow
                   key={notification.id}
                   isMarkingRead={
@@ -193,8 +229,9 @@ export function NotificationCenter() {
                   notification={notification}
                   onMarkRead={() => markReadMutation.mutate(notification.id)}
                 />
-              ))
-            : null}
+              ))}
+            </>
+          ) : null}
         </section>
       </div>
 
@@ -204,6 +241,7 @@ export function NotificationCenter() {
         isAuthenticated={Boolean(token)}
         status={status}
         unreadCount={unreadCount}
+        unreadSummaryPending={canLoadNotifications && unreadSummaryQuery.isPending}
       />
     </div>
   );
@@ -277,14 +315,14 @@ function CategoryTabs({
       onValueChange={(value) => onCategoryChange(value as NotificationCategory)}
     >
       <TabsList className="h-9 rounded-none border border-border bg-background p-0">
-        {categoryOptions.map((option, index) => (
+        {notificationCategoryOptions.map((option, index) => (
           <TabsTrigger
             key={option.value}
             value={option.value}
             disabled={disabled}
             className={cn(
               "h-9 rounded-none px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
-              index < categoryOptions.length - 1 ? "border-r border-border" : null,
+              index < notificationCategoryOptions.length - 1 ? "border-r border-border" : null,
             )}
           >
             {option.label}
@@ -339,7 +377,7 @@ function NotificationRow({
 }) {
   const isUnread = !notification.read_at;
   const category = getNotificationCategory(notification);
-  const targetHref = getNotificationTargetHref(notification);
+  const target = resolveNotificationTarget(notification);
 
   return (
     <article
@@ -368,6 +406,12 @@ function NotificationRow({
           </span>
           <span aria-hidden="true">·</span>
           <span>{formatNotificationType(notification.type)}</span>
+          {notification.aggregate_count && notification.aggregate_count > 1 ? (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>{notification.aggregate_count} 次</span>
+            </>
+          ) : null}
           <span aria-hidden="true">·</span>
           <span>{formatDate(notification.created_at)}</span>
           {isUnread ? (
@@ -389,9 +433,7 @@ function NotificationRow({
         </p>
 
         <div className="mt-3 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-          {targetHref ? (
-            <NotificationActionLink href={targetHref}>查看来源</NotificationActionLink>
-          ) : null}
+          <NotificationTargetAction target={target} />
           {isUnread ? (
             <Button
               type="button"
@@ -405,8 +447,8 @@ function NotificationRow({
               {isMarkingRead ? "处理中" : "标记已读"}
             </Button>
           ) : null}
-          <span className="inline-flex h-8 items-center gap-1.5 px-2 font-mono">
-            {notification.source_type || "未知"} / {notification.source_id || "--"}
+          <span className="inline-flex min-h-8 items-center gap-1.5 break-words px-2">
+            {target.summary}
           </span>
         </div>
       </div>
@@ -414,19 +456,25 @@ function NotificationRow({
   );
 }
 
-function NotificationActionLink({
-  children,
-  href,
+function NotificationTargetAction({
+  target,
 }: {
-  children: string;
-  href: string;
+  target: NotificationTarget;
 }) {
+  if (!target.href) {
+    return (
+      <span className="inline-flex h-8 items-center gap-1.5 px-2 font-semibold text-muted-foreground">
+        {target.label}
+      </span>
+    );
+  }
+
   return (
     <Link
-      href={href}
+      href={target.href}
       className="inline-flex h-8 items-center gap-1.5 px-2 font-semibold transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      {children}
+      {target.label}
     </Link>
   );
 }
@@ -437,12 +485,14 @@ function NotificationRail({
   isAuthenticated,
   status,
   unreadCount,
+  unreadSummaryPending,
 }: {
   category: NotificationCategory;
   categoryCounts: Record<NotificationCategory, number>;
   isAuthenticated: boolean;
   status: NotificationStatus;
   unreadCount: number;
+  unreadSummaryPending: boolean;
 }) {
   return (
     <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
@@ -452,19 +502,26 @@ function NotificationRail({
           <div className="mt-3 divide-y divide-border border-y border-border">
             <InfoRow label="状态" value={formatStatus(status)} />
             <InfoRow label="分类" value={formatCategory(category)} />
-            <InfoRow label="未读" value={isAuthenticated ? String(unreadCount) : "--"} />
+            <InfoRow
+              label="未读"
+              value={formatRailCount(isAuthenticated, unreadSummaryPending, unreadCount)}
+            />
           </div>
         </section>
 
         <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">分类</h2>
+          <h2 className="text-sm font-semibold">分类未读</h2>
           <div className="mt-3 divide-y divide-border border-y border-border">
-            {categoryOptions.map((option) => (
+            {notificationCategoryOptions.map((option) => (
               <InfoRow
                 key={option.value}
                 active={category === option.value}
                 label={option.label}
-                value={isAuthenticated ? String(categoryCounts[option.value]) : "--"}
+                value={formatRailCount(
+                  isAuthenticated,
+                  unreadSummaryPending,
+                  categoryCounts[option.value],
+                )}
               />
             ))}
           </div>
@@ -486,35 +543,6 @@ function NotificationRail({
   );
 }
 
-function filterNotifications(
-  notifications: Notification[],
-  category: NotificationCategory,
-) {
-  if (category === "all") {
-    return notifications;
-  }
-
-  return notifications.filter(
-    (notification) => getNotificationCategory(notification) === category,
-  );
-}
-
-function getCategoryCounts(notifications: Notification[]) {
-  const counts: Record<NotificationCategory, number> = {
-    all: notifications.length,
-    reply: 0,
-    mention: 0,
-    reaction: 0,
-    system: 0,
-  };
-
-  notifications.forEach((notification) => {
-    counts[getNotificationCategory(notification)] += 1;
-  });
-
-  return counts;
-}
-
 function getNotificationCategory(notification: Notification): NotificationCategory {
   const value = [
     notification.type,
@@ -525,7 +553,7 @@ function getNotificationCategory(notification: Notification): NotificationCatego
     .toLowerCase();
 
   if (value.includes("mention") || value.includes("at_") || value.includes("@")) {
-    return "mention";
+    return "mentions";
   }
 
   if (
@@ -535,7 +563,7 @@ function getNotificationCategory(notification: Notification): NotificationCatego
     value.includes("reaction") ||
     value.includes("赞")
   ) {
-    return "reaction";
+    return "likes";
   }
 
   if (
@@ -544,7 +572,7 @@ function getNotificationCategory(notification: Notification): NotificationCatego
     value.includes("评论") ||
     value.includes("回复")
   ) {
-    return "reply";
+    return "replies";
   }
 
   return "system";
@@ -552,45 +580,17 @@ function getNotificationCategory(notification: Notification): NotificationCatego
 
 function renderCategoryIcon(category: NotificationCategory) {
   switch (category) {
-    case "reply":
+    case "replies":
       return <MessageSquare className="size-4" aria-hidden="true" />;
-    case "mention":
+    case "mentions":
       return <AtSign className="size-4" aria-hidden="true" />;
-    case "reaction":
+    case "likes":
       return <Heart className="size-4" aria-hidden="true" />;
     case "system":
       return <Shield className="size-4" aria-hidden="true" />;
     default:
       return <Bell className="size-4" aria-hidden="true" />;
   }
-}
-
-function getNotificationTargetHref(notification: Notification) {
-  const sourceType = notification.source_type.toLowerCase();
-  const sourceId = notification.source_id.trim();
-
-  if (!sourceId) {
-    return null;
-  }
-
-  if (
-    sourceType === "post" ||
-    sourceType === "posts" ||
-    sourceType === "comment" ||
-    sourceType === "comments"
-  ) {
-    return `/posts/${encodeURIComponent(sourceId)}`;
-  }
-
-  if (sourceType === "community" || sourceType === "communities") {
-    return `/communities/${encodeURIComponent(sourceId)}`;
-  }
-
-  if (sourceType === "report" || sourceType === "moderation_report") {
-    return `/moderation/reports/${encodeURIComponent(sourceId)}`;
-  }
-
-  return null;
 }
 
 function formatStatus(status: NotificationStatus) {
@@ -606,11 +606,11 @@ function formatStatus(status: NotificationStatus) {
 
 function formatCategory(category: NotificationCategory) {
   switch (category) {
-    case "reply":
+    case "replies":
       return "回复";
-    case "mention":
+    case "mentions":
       return "@";
-    case "reaction":
+    case "likes":
       return "赞";
     case "system":
       return "系统";
@@ -619,7 +619,14 @@ function formatCategory(category: NotificationCategory) {
   }
 }
 
-function formatEmptyTitle(status: NotificationStatus) {
+function formatEmptyTitle(
+  status: NotificationStatus,
+  category: NotificationCategory,
+) {
+  if (category !== "all") {
+    return `没有${formatCategory(category)}通知`;
+  }
+
   switch (status) {
     case "read":
       return "还没有已读通知";
@@ -630,8 +637,27 @@ function formatEmptyTitle(status: NotificationStatus) {
   }
 }
 
+function getEmptyDescription(
+  status: NotificationStatus,
+  category: NotificationCategory,
+) {
+  if (category !== "all") {
+    return `后端当前没有返回${formatStatus(status)}范围内的${formatCategory(category)}通知。`;
+  }
+
+  return "有新的回复、@、赞或系统消息时，会出现在这里。";
+}
+
 function formatNotificationType(type: string) {
   switch (type) {
+    case "post_reply":
+      return "帖子回复";
+    case "comment_reply":
+      return "评论回复";
+    case "post_like":
+      return "帖子点赞";
+    case "comment_like":
+      return "评论点赞";
     case "system":
       return "系统";
     case "reply":
@@ -677,4 +703,34 @@ function getErrorDescription(error: Error | null) {
   }
 
   return "请求失败，请稍后重试。";
+}
+
+const emptyUnreadSummary: UnreadSummaryResponse = {
+  likes: 0,
+  mentions: 0,
+  replies: 0,
+  system: 0,
+  total: 0,
+};
+
+function getCategoryCounts(summary: UnreadSummaryResponse) {
+  return {
+    all: summary.total,
+    likes: summary.likes,
+    mentions: summary.mentions,
+    replies: summary.replies,
+    system: summary.system,
+  } satisfies Record<NotificationCategory, number>;
+}
+
+function formatRailCount(
+  isAuthenticated: boolean,
+  isPending: boolean,
+  value: number,
+) {
+  if (!isAuthenticated) {
+    return "--";
+  }
+
+  return isPending ? "..." : String(value);
 }
