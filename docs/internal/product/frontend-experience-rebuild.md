@@ -519,7 +519,7 @@ E. 全局收口与上线验收
 - `GET /api/v1/search?q=...&scope=all|communities|posts` 应支持可选 Bearer。
 - 无 token 时返回 active public 社区和 visible public 帖子。
 - 有有效 token 时可以返回当前用户视角；无效 token 仍返回 `unauthenticated`，不要静默降级。
-- 当前后端仍把搜索注册在 `RequireAuth` 保护分组，handler 也要求 `CurrentUserID`；前端可以去掉搜索页登录墙，但不能伪造搜索结果，只能显示公开搜索暂不可用并记录后端缺口。
+- 当前后端已把搜索注册在 public read + optional Bearer 分组；前端按公开读取调用，不伪造评论搜索、高亮、排序或扩展结果类型。
 
 非目标：
 

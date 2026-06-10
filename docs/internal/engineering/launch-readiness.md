@@ -79,7 +79,7 @@ npm run check:v2-path
 npm run check:routes
 ```
 
-该命令要求本地或目标前端服务已启动。它会请求 `/`、`/new`、`/hot`、`/login`、带 `next` 的登录/注册页、`/communities`、`/search?q=public&scope=all`、`/users/route-smoke`、`/users/route-smoke/posts`、`/users/route-smoke/comments`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面，检查页面包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页、`/new` 和 `/hot` 还会检查未登录状态不回退到旧的“登录后查看最新讨论”“待登录”登录墙或“需要登录”错误面板，并要求公开帖子流文案存在；搜索页壳会检查未登录状态不回退到旧的“登录后使用搜索”登录墙；用户主页壳、用户帖子列表壳和用户评论列表壳会检查未登录状态不回退到登录墙；社区详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看社区详情和帖子”登录墙；帖子详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看帖子详情、评论和投票”登录墙；社区列表、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它用于发现路由丢失、页面级 500、中文文案缺失、错误页误渲染和页面出口缺失；客户端水合后才出现的动态状态仍需要浏览器 QA。
+该命令要求本地或目标前端服务已启动。它会请求 `/`、`/new`、`/hot`、`/all`、`/all/hot`、`/following`、`/saved`、`/login`、带 `next` 的登录/注册页、`/communities`、`/search?q=public&scope=all`、`/users/route-smoke`、`/users/route-smoke/posts`、`/users/route-smoke/comments`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/communities/public/manage`、`/community-applications/new`、通知分类 URL 和 404 页面，检查页面包含 `zh-CN` 语言标记，并包含该页面应有的关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页、`/new` 和 `/hot` 还会检查未登录状态不回退到旧的“登录后查看最新讨论”“待登录”登录墙或“需要登录”错误面板，并要求公开帖子流文案存在；搜索页壳会检查未登录状态不回退到旧的“登录后使用搜索”登录墙、旧身份上下文提示或“公开搜索暂不可用”面板；用户主页壳、用户帖子列表壳和用户评论列表壳会检查未登录状态不回退到登录墙；社区详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看社区详情和帖子”登录墙；帖子详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看帖子详情、评论和投票”登录墙；社区列表、发帖、社区管理、社区申请、通知分类和 404 页面会检查是否保留稳定出口链接；发帖、社区管理和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它用于发现路由丢失、页面级 500、中文文案缺失、错误页误渲染和页面出口缺失；客户端水合后才出现的动态状态仍需要浏览器 QA。
 
 可选参数：
 
@@ -123,6 +123,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `NEXT_PUBLIC_API_BASE_URL` 是否只由 `src/lib/api/client.ts` 读取。
 - `/api/v1` 后端路径是否只出现在 `src/features/*/api.ts`。
 - feature API 模块里的 `apiRequest(...)` 路径是否都以 `/api/v1` 开头。
+- 举报审核列表和详情是否先确认 `/me.is_platform_staff`，避免非 staff 用户只凭 token 就请求受保护举报数据。
 
 `scripts/check-dependency-boundary.mjs` 当前检查：
 
@@ -173,18 +174,68 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `/register`：包含 `CUMT Nexus`、`注册账号`、`账号创建`、`去登录`。
 - `/register?next=%2Fcommunity-applications%2Fnew`：切换到登录时必须保留 `next=%2Fcommunity-applications%2Fnew`。
 - `/communities`：包含 `社区目录`、`校园社区`、`申请社区`，并保留首页、社区索引和社区申请出口。
-- `/search?q=public&scope=all`：包含 `搜索社区和帖子`、`搜索关键词和范围`、`范围`，并保留首页和社区索引出口，且不能包含旧的 `登录后使用搜索` 登录墙。
+- `/search?q=public&scope=all`：包含 `搜索社区和帖子`、`搜索关键词和范围`、`范围`，并保留首页和社区索引出口，且不能包含旧的 `登录后使用搜索` 登录墙、`搜索需要身份上下文` 提示或 `公开搜索暂不可用` 面板。
 - `/users/route-smoke`：至少证明动态用户主页路由壳可返回 `200`，并包含 `用户主页`、`正在加载`、`浏览社区`、首页和社区索引出口，且不能包含登录墙。
 - `/users/route-smoke/posts`：至少证明动态用户帖子列表路由壳可返回 `200`，并包含 `用户帖子`、`正在加载`、`浏览社区`、首页和社区索引出口，且不能包含登录墙。
 - `/users/route-smoke/comments`：至少证明动态用户评论列表路由壳可返回 `200`，并包含 `用户评论`、`正在加载`、`浏览社区`、首页和社区索引出口，且不能包含登录墙。
 - `/communities/public`：至少证明动态社区详情路由壳可返回 `200`，并包含 `CUMT Nexus`、`首页`、`社区`、`正在加载`、`浏览社区`、首页和社区索引出口，且不能包含 `需要登录` 或旧社区详情登录墙说明。
 - `/posts/route-smoke`：至少证明动态帖子详情路由壳可返回 `200`，并包含 `CUMT Nexus`、`返回社区索引`、`正在加载`、`浏览社区`、首页和社区索引出口，且不能包含 `需要登录` 或旧帖子详情登录墙说明。
 - `/communities/public/new`：包含 `CUMT Nexus`、`发起讨论`、`需要登录`、`登录后发起讨论`、`去登录`，且登录/注册链接必须指向 `next=%2Fcommunities%2Fpublic%2Fnew`。
+- `/communities/public/manage`：包含 `CUMT Nexus`、`社区管理`、`管理概览`、`登录后管理社区` 和 `社区管理需要 owner 或 moderator 权限`，且登录链接必须指向 `next=%2Fcommunities%2Fpublic%2Fmanage`。
 - `/community-applications/new`：包含 `CUMT Nexus`、`申请新社区`、`返回社区索引`，且登录/注册链接必须指向 `next=%2Fcommunity-applications%2Fnew`。
+- `/notifications/replies`、`/notifications/mentions`、`/notifications/likes`、`/notifications/system`：包含对应分类标题、通知列表、未读分类文案和登录门禁，并保留分类 URL 的 `next` 回跳。
+- `/notifications/unknown`：预期返回项目统一 `404`。
 - `/route-smoke-not-found`：预期返回 `404`，并包含 `这个页面不存在或已经移动`、`返回最新讨论` 和 `浏览社区索引`。
 - 所有页面都必须包含 `zh-CN` 语言标记，且不能渲染常见错误页标记。
 
 ## 最新浏览器 QA 记录
+
+2026-06-10 社区详情权限入口和管理概览回归记录：
+
+- 代码边界已复验：`CommunityDetail` 按 `viewer_permissions.can_post/can_manage/can_moderate` 控制社区详情右栏动作；`CommunityManagePage` 先读取公开社区详情确认 viewer 权限，只有 `can_manage` 或 `can_moderate` 才启用受保护管理上下文、内容、举报、成员、资料和规则 query。
+- 普通登录用户 `qafile19eb21425cf` 桌面访问 `/communities/public`：右栏显示 `社区操作` 和 `申请社区`，不显示 `发布帖子` 或 `管理社区`，不出现旧社区详情登录墙；`scrollWidth` 等于 `clientWidth`，控制台无 error/warn。
+- 同一账号桌面访问 `/communities/public/manage`：页面显示 `社区管理`、`管理概览`、`需要社区权限` 和 `当前账号不是这个社区的 owner 或 moderator，不能查看社区管理。`；不显示 `无法加载社区管理` 或 `服务暂时不可用`，不是 404，`scrollWidth` 等于 `clientWidth`，控制台无 error/warn。
+- `390px` 移动端复验 `/communities/public` 和 `/communities/public/manage`：同样显示申请社区和社区权限门禁，`scrollWidth` 等于 `clientWidth`，控制台无 error/warn。
+- `check:api-boundary` 已固化社区详情权限入口、管理页先读 viewer 权限、管理 API/query 边界、资料 / 规则写操作、成员只读边界和真实管理路由；`check:routes` 已覆盖未登录 `/communities/public/manage` 登录门禁和 `next` 回跳。
+- 2026-06-11 追加 owner 写操作 QA：本地 `cumt-nexus-api:local` 已重建并迁移到 version 16 dirty=false；真实后端路径创建普通用户 `qa_manage_user_0588ky`、owner 用户 `qa_manage_owner_0588ky` 和社区 `/qa-manage-0588ky`。普通用户桌面和 `390px` 移动端访问 `/communities/qa-manage-0588ky/manage` 均显示 `需要社区权限`，不显示 owner 成员用户名，不出现 `无法加载社区管理` 或 `服务暂时不可用`。owner 桌面同页显示成员、资料编辑、规则编辑和“资料和规则写操作走真实后端接口；成员管理仍保持只读。”；写入社区名称 `QA Manage 0588ky` 和简介 `Browser QA settings write 2026-06-11 0053` 后出现 `资料已更新` / `社区资料已保存`；新增规则 `QA rule 2026-06-11 0054` 后出现 `已新增规则`，编辑为 `QA rule edited 2026-06-11 0056` 后出现 `已更新规则`，删除后出现 `规则已删除` 且规则列表回到空态。删除成功后弹层已关闭，不再残留 `删除社区规则` 或 `确认删除`。
+- 2026-06-11 追加移动端写操作 QA：`390px` 移动端访问 `/communities/qa-manage-0588ky/manage` 显示 `社区管理`、`保存资料`、`新增规则` 和成员只读说明，不显示权限门禁或加载错误。移动端新增规则 `QA mobile rule 2026-06-11 0102` 后出现 `已新增规则`，编辑 / 删除入口出现；删除后出现 `规则已删除`、规则列表回到 `暂无社区规则`，删除弹层关闭。桌面和移动端写操作期间均无横向溢出，QA 开始后的控制台 error/warn 数为 0。
+- 本条证明权限入口、普通用户门禁、owner 管理读取、资料写操作、规则新增 / 编辑 / 删除和移动端规则写操作；成员编辑、邀请和角色调整仍需后续专门 QA。
+
+2026-06-10 审核台 staff 权限态回归记录：
+
+- 代码边界已复验：`ModerationConsole` 和 `ModerationReportDetail` 先通过 `useCurrentUserQuery()` 确认 `/me.is_platform_staff`，只有 staff 才启用举报列表和举报详情 query。
+- 非 staff 体验态已补齐：举报列表显示 `需要平台权限` 和 `当前账号不是平台 staff，不能查看举报列表或执行审核处理。`；举报详情显示 `需要平台权限` 和 `当前账号不是平台 staff，不能查看举报详情或执行审核处理。`
+- 身份读取失败有独立错误态 `无法确认用户身份`；`check:api-boundary` 已固化列表和详情不能退回 token-only gate。
+- 浏览器复验普通登录用户 `qafile19eb21425cf`：桌面 `/moderation` 和 `/moderation/reports/fbcf1d84-f198-4091-a031-9a6dfbdeed32` 均显示对应 `需要平台权限` 说明，不显示通用 `无法加载审核数据`，页面 `scrollWidth` 等于 `clientWidth`，控制台无 error/warn。
+- 浏览器复验同一普通用户移动端：`390px` 视口下举报列表和举报详情同样显示权限说明，`scrollWidth` 等于 `clientWidth`，控制台无 error/warn。
+- 本条是权限预门禁和静态回归记录，不替代真实 staff 的 dismiss / remove-target 点击 QA；完整 staff 操作仍按 `docs/internal/engineering/browser-qa.md` 执行。
+
+2026-06-10 Markdown 阅读态移动端边界复验记录：
+
+- 真实后端 QA 数据：账号 `qamdb19eb2197f00` 创建帖子 `70d3e224-e88d-4876-845f-e339c80bca21` 和根评论 `ecb61621-7f5e-44b2-8ec2-622a9189b659`；帖子和评论正文同时覆盖宽表格、fenced code 长行、任务列表、引用和外部 Markdown 图片。
+- 浏览器复验 `/posts/70d3e224-e88d-4876-845f-e339c80bca21` 移动端：`390px` 视口下页面 `scrollWidth` 等于 `clientWidth`，控制台无 error/warn。
+- 帖子和评论各自的表格 wrapper 均为 `overflow-x: auto`，表格宽度 `560px` 只在 wrapper 内横向滚动；帖子代码块 `scrollWidth=1197/clientWidth=273`，评论代码块 `scrollWidth=766/clientWidth=287`，均只在 `pre` 内横向滚动。
+- 页面显示 2 处 `外部图片不会直接渲染；请上传图片后放入正文。`，外部 Markdown 图片没有直接渲染远程图片；任务列表 checkbox 带 `已完成 / 未完成` 中文 aria label。`check:content-boundary` 已固化阅读态移动端溢出边界。
+
+2026-06-10 评论投票可视复验记录：
+
+- 真实后端 QA 数据：作者账号 `qavoteauthormq86k1mj9ivf` 创建帖子 `6aa741f3-e9f0-4284-885c-275d4932eac0` 和根评论 `0eed8f16-e77f-46a3-8a42-cf80a35ada11`；登录 QA 账号 `qantmq86cevkgiry` 作为投票者操作该评论。
+- 浏览器复验 `/posts/6aa741f3-e9f0-4284-885c-275d4932eac0` 桌面：评论初始分数为 `0`；点击 `赞同` 后分数变为 `1`，赞同按钮 `aria-pressed=true`；再次点击赞同后分数回到 `0`；点击 `反对` 后分数变为 `-1`，反对按钮 `aria-pressed=true`。页面 `scrollWidth` 等于 `clientWidth`，控制台无 error/warn。
+- 浏览器复验同一帖子移动端：`390px` 视口下反对票取消后分数回到 `0`，反对按钮 `aria-pressed=false`，页面无横向溢出，控制台无 error/warn。
+- 失败回滚复验：真实后端已确认对已删除评论投票返回 `404 not_found`。桌面保留帖子 `0eb0731e-9933-4803-a3bf-cc027750a722` / 评论 `391300c1-4b55-48ad-856b-eb089dba9d92` 的旧页面，后台删除评论后点击旧赞同按钮，页面显示 `没有找到对应内容。`，分数保持 `0`，赞同 / 反对按钮保持 `aria-pressed=false`，无横向溢出，控制台无 error/warn。
+- 移动端失败回滚复验：`390px` 视口保留帖子 `3056aa94-3a56-40ad-a1a0-e0a6c444edee` / 评论 `195852ff-902c-4c72-8f52-0ed8d9bb2e32` 的旧页面，后台删除评论后点击旧赞同按钮，页面同样显示 `没有找到对应内容。`，分数保持 `0`，赞同 / 反对按钮保持 `aria-pressed=false`，`scrollWidth` 等于 `clientWidth`，控制台无 error/warn。统一 `RedditVoteControl` 的可见 `toast.error` 失败提示已由 `check:actions` 固化。
+
+2026-06-10 通知来源解析可视复验记录：
+
+- 真实后端 QA 数据：账号 `qantmq86cevkgiry` 登录后在 `/notifications` 读取 4 条未读通知，分别覆盖 `source_type=post`、`comment`、`community` 和 `report`。
+- 浏览器复验 `/notifications` 桌面：`post` 行显示 `查看帖子` 并链接到 `/posts/cd3e0a1f-6b9d-482c-a282-8d2df3951675`，`community` 行显示 `查看社区` 并链接到 `/communities/public`，`report` 行显示 `查看举报` 并链接到 `/moderation/reports/fbcf1d84-f198-4091-a031-9a6dfbdeed32`；`comment` 行显示 `等待评论上下文` 和 `后端尚未返回所属帖子 ID`，且该行没有目标 `<a>`。
+- 浏览器复验 `/notifications` 移动端：`390px` 视口下同样显示 4 条通知和上述目标行为；`comment` 行仍无目标链接，`scrollWidth` 等于 `clientWidth`，控制台无 error/warn。
+
+2026-06-10 全局 404 状态页复验记录：
+
+- 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:ui-primitives`、`npm run check:copy`、`npm run check:docs` 和 `npm run check:routes` 均通过。
+- 浏览器复验 `/route-smoke-not-found` 桌面：页面显示 `这个页面不存在或已经移动`、`返回最新讨论` 和 `浏览社区索引`，不显示 `错误标识`、`digest` 或 Next.js 默认错误页文案，`scrollWidth` 等于 `clientWidth`，控制台无 error。
+- 浏览器复验 `/route-smoke-not-found` 移动端：`390px` 视口下页面显示同一套 404 中文说明和稳定出口，`scrollWidth` 等于 `clientWidth`，控制台无 error。
 
 2026-06-07 App Shell 头像菜单入口复验记录：
 
@@ -296,12 +347,20 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 前端路由壳复验：`http://localhost:3010/users/posts_15dojehg/posts` 返回 `200`，HTML 包含 `用户帖子`、`posts_15dojehg` 和 `返回用户主页`，且不包含登录墙。
 - 本轮 in-app Browser 可见复验受当前会话限制：桌面 tab 的页面标题正确，但可见 body 持续停在全局 loading shell，控制台无 error；因此本条不作为桌面/移动端人工可视化通过证据，后续需要在可正常水合的浏览器中复验列表行、排序点击和移动端横向溢出。
 
-2026-06-07 搜索页未登录公开读取前端门禁复验记录：
+2026-06-10 搜索页公开搜索合同复验记录：
+
+- 后端合同只读复核：`cumt-nexus-api` 当前 README 和 `docs/contracts/http-api-contract.md` 均记录 `GET /api/v1/search` 为 public + optional Bearer，`cmd/api/main.go` 将 `searchhttp.RegisterRoutes` 注册在 `publicReadV1`。
+- 匿名 API 复验：直连 `GET /api/v1/search?q=public&scope=all&limit=3&offset=0` 返回 `HTTP 200`，包含 `/public` 社区和真实 visible 帖子结果。
+- 前端合同复核：`src/features/search/api.ts` 对 `/api/v1/search` 使用 `token: null` 公开读取；`check:api-boundary` 和 `check:routes` 已禁止旧的搜索登录墙、身份上下文提示和“公开搜索暂不可用”面板回归。
+- 浏览器复验 `/search?q=public&scope=all` 桌面：页面显示 `搜索社区和帖子`、`范围`、真实 `/public` 社区和多条公开帖子结果，不显示旧搜索登录墙、身份上下文提示或“公开搜索暂不可用”，`scrollWidth` 等于 `clientWidth`，控制台无 error。
+- 浏览器复验 `/search?q=public&scope=all` 移动端：`390px` 视口下显示同一批公开帖子结果，`scrollWidth` 等于 `clientWidth`，控制台无 error。
+
+2026-06-07 搜索页未登录公开读取前端门禁历史记录：
 
 - 自动检查已复验：`npm run lint`、`npm run typecheck`、`npm run check:actions`、`npm run check:api-boundary`、`npm run check:copy`、`npm run check:docs`、`npm run check:ui-primitives` 和 `npm run check:routes` 通过；完整静态验收见本切片最终验证。
-- 后端合同只读复核：当前后端 `GET /api/v1/search` 仍注册在 `RequireAuth` 保护分组，合同 Auth 列仍是 Bearer，handler 仍要求 `CurrentUserID`；无 token 直连 `GET /api/v1/search?q=public&scope=all&limit=20&offset=0` 返回 `HTTP 401`。本切片未改后端。
-- 浏览器复验未登录 `/search?q=public&scope=all` 桌面和 `390px` 移动端：页面展示搜索页壳和“公开搜索暂不可用”，不再展示旧的 `登录后使用搜索` 或 `搜索需要身份上下文` 登录墙。
-- 浏览器复验未登录 `/search?q=public&scope=all` 桌面和 `390px` 移动端：`scrollWidth` 等于 `clientWidth`，控制台无 error。未登录真实搜索结果等待后端把 `GET /api/v1/search` 改为可选 Bearer 后复验。
+- 当时后端合同只读复核：`GET /api/v1/search` 仍注册在 `RequireAuth` 保护分组，合同 Auth 列仍是 Bearer；无 token 直连返回 `HTTP 401`。该状态已由 2026-06-10 搜索页公开搜索合同复验记录覆盖。
+- 当时浏览器复验未登录 `/search?q=public&scope=all` 桌面和 `390px` 移动端：页面展示搜索页壳和后端缺口提示，不再展示旧的 `登录后使用搜索` 或 `搜索需要身份上下文` 登录墙。
+- 当时浏览器复验未登录 `/search?q=public&scope=all` 桌面和 `390px` 移动端：`scrollWidth` 等于 `clientWidth`，控制台无 error；真实搜索结果已由 2026-06-10 的后端 optional Bearer 合同和前端公开读取复验覆盖。
 
 2026-06-07 社区详情公开阅读复验记录：
 

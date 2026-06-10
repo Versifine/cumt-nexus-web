@@ -57,6 +57,8 @@ Reddit-style campus community content system
 - 社区列表。
 - 社区详情。
 - 社区帖子列表。
+- 社区详情内按后端 viewer 权限显示发帖、申请、登录参与和社区管理入口。
+- 社区管理 `/communities/:slug/manage`，接入社区管理上下文、帖子、评论、举报、成员、资料和规则；资料和规则写操作走真实后端接口，成员管理仍保持只读。
 - 提交社区创建申请。
 
 ### 帖子
@@ -148,7 +150,7 @@ Reddit-style campus community content system
 
 ### 工程与上线收口
 
-- 全局错误页和 404。
+- 全局错误页、404 和页面级 loading 骨架。
 - 页面级标题、描述、`robots.txt` 和 `sitemap.xml`。
 - 基础 favicon、Web App Manifest、Open Graph 和 Twitter 分享元信息。
 - 前端 `/healthz`。
@@ -205,11 +207,11 @@ V2 详细路线见 `docs/internal/product/v2-roadmap.md`。优先级固定为：
 
 这些不是前端直接实现项，但会影响前端派工顺序。前端推进中发现的新接口需求，先写入根目录 `backend-api-needs.md`，并保持该文件在 `.gitignore` 中。
 
-- 公开搜索仍有后端缺口：当前后端 `GET /api/v1/search` 注册在 `RequireAuth` 保护分组，合同 Auth 列仍是 Bearer，handler 还强制要求 `CurrentUserID`。产品目标要求未登录用户能搜索公开社区和公开帖子；后端需要把该读取接口改为可选 Bearer：无 token 时搜索 active public 社区和 visible public 帖子，有有效 token 时返回当前用户视角，无效 token 仍返回 `unauthenticated`。前端不能伪造搜索结果。
+- 公开搜索后端缺口已补齐：当前后端 `GET /api/v1/search` 注册在 public read + optional Bearer 分组，合同 Auth 列为 optional Bearer；前端按公开读取调用，无 token 时可以搜索 active public 社区和 visible public 帖子。后续搜索增强仍包括评论搜索、标签搜索、高亮、排序和分析。
 - 推荐、全站、关注和社区 feed 的 source 合同仍未完全收口：`best | hot | new | top | rising` 基础排序已在本地运行态通过前端主链路验收；但推荐 / 全站 / 关注是否真实区分、`top` 是否支持 `t=day|week|month|year|all` 时间范围仍需后端合同。前端不能自己发明 source 或时间窗口排序。
 - 图片缩略图、对象清理、对象物理删除、失败对象回收和编辑态图片重绑是否已完成，仍需以后端最终合同复核；前端当前只展示正文图片移除后的清理提示，不直接删除对象。
-- 通知事件源是否覆盖回复、@、赞、审核、社区申请和内容生命周期等业务事件，仍需以后端最终合同复核；前端当前会按现有 `type`、`source_type` 和标题保守归类。
-- 社区 staff / moderator 管理、成员加入退出、私密社区和邀请制仍不是当前前端可接能力。
+- 通知事件源是否覆盖回复、@、赞、审核、社区申请和内容生命周期等业务事件，仍需以后端最终合同复核；前端当前会按现有 `type`、`source_type` 和标题保守归类，并集中解析可确定来源：帖子、社区和举报可直达，评论通知在后端未返回所属帖子 ID 前不伪造跳转。
+- 社区 owner / moderator 管理入口、读取概览、资料写操作和规则新增 / 编辑 / 删除已接入当前后端合同；成员编辑、成员邀请、角色调整、成员加入退出、私密社区和邀请制仍不是当前前端已完成能力。
 - 评论投票和评论基础排序已接入当前后端合同；积分、贴图和评论特效仍需后续后端产品合同。
 - 用户公开评论列表当前后端只返回 `post_id`，未返回帖子标题、社区 slug 或评论所在上下文；前端先显示稳定的“关联原帖 / 查看原帖”入口，不把 `post_id` 短 ID 当作用户可读信息。后续如果要做漂亮上下文，需要后端在 `GET /api/v1/users/:username/comments` 返回帖子摘要和社区摘要。
 - 搜索增强仍未覆盖评论搜索、标签搜索、高亮、排序和分析。
