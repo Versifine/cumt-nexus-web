@@ -34,6 +34,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { useCurrentUserQuery } from "@/features/auth/queries";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { ApiError } from "@/lib/api/client";
 
@@ -65,8 +66,10 @@ type RemoveTargetFormValues = z.infer<typeof removeTargetSchema>;
 
 export function ModerationConsole() {
   const { isReady, token } = useAuthSession();
+  const currentUserQuery = useCurrentUserQuery();
   const [status, setStatus] = useState<ReportStatusFilter>("pending");
-  const canLoadReports = isReady && Boolean(token);
+  const canLoadReports =
+    isReady && Boolean(token) && currentUserQuery.data?.is_platform_staff === true;
   const reportsQuery = useModerationReportsQuery(
     { limit: 20, offset: 0, status },
     canLoadReports,
@@ -84,16 +87,54 @@ export function ModerationConsole() {
             </StatePanel>
           ) : null}
 
+          {isReady && token && currentUserQuery.isLoading ? (
+            <StatePanel>
+              <LoadingState rows={3} />
+            </StatePanel>
+          ) : null}
+
           {isReady && !token ? (
             <StatePanel>
               <EmptyState
                 title="登录后进入举报审核"
-                description="举报审核需要登录身份。平台权限会由后端继续校验。"
+                description="举报审核需要平台 staff 身份。登录后会自动确认权限。"
                 action={
                   <TextAction href={loginHref} tone="primary">
                     登录
                   </TextAction>
                 }
+              />
+            </StatePanel>
+          ) : null}
+
+          {isReady && token && currentUserQuery.isError ? (
+            <StatePanel>
+              <ErrorState
+                title="无法确认用户身份"
+                description={getErrorDescription(currentUserQuery.error)}
+                action={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => currentUserQuery.refetch()}
+                  >
+                    重试
+                  </Button>
+                }
+              />
+            </StatePanel>
+          ) : null}
+
+          {isReady &&
+          token &&
+          !currentUserQuery.isLoading &&
+          !currentUserQuery.isError &&
+          !currentUserQuery.data?.is_platform_staff ? (
+            <StatePanel>
+              <EmptyState
+                title="需要平台权限"
+                description="当前账号不是平台 staff，不能查看举报列表或执行审核处理。"
+                action={<TextAction href="/">返回信息流</TextAction>}
               />
             </StatePanel>
           ) : null}
@@ -143,7 +184,7 @@ export function ModerationConsole() {
           ) : null}
         </>
       }
-      isFetching={reportsQuery.isFetching}
+      isFetching={canLoadReports && reportsQuery.isFetching}
       offset={reportsQuery.data?.offset ?? 0}
       onRefresh={() => reportsQuery.refetch()}
       onStatusChange={setStatus}
@@ -155,7 +196,9 @@ export function ModerationConsole() {
 
 export function ModerationReportDetail({ id }: { id: string }) {
   const { isReady, token } = useAuthSession();
-  const canLoadReport = isReady && Boolean(token);
+  const currentUserQuery = useCurrentUserQuery();
+  const canLoadReport =
+    isReady && Boolean(token) && currentUserQuery.data?.is_platform_staff === true;
   const reportQuery = useModerationReportQuery(id, canLoadReport);
   const report = reportQuery.data?.report;
   const loginHref = `/login?next=${encodeURIComponent(`/moderation/reports/${id}`)}`;
@@ -170,16 +213,54 @@ export function ModerationReportDetail({ id }: { id: string }) {
             </StatePanel>
           ) : null}
 
+          {isReady && token && currentUserQuery.isLoading ? (
+            <StatePanel>
+              <LoadingState rows={3} />
+            </StatePanel>
+          ) : null}
+
           {isReady && !token ? (
             <StatePanel>
               <EmptyState
                 title="登录后查看举报详情"
-                description="举报详情需要登录身份。平台权限会由后端继续校验。"
+                description="举报详情需要平台 staff 身份。登录后会自动确认权限。"
                 action={
                   <TextAction href={loginHref} tone="primary">
                     登录
                   </TextAction>
                 }
+              />
+            </StatePanel>
+          ) : null}
+
+          {isReady && token && currentUserQuery.isError ? (
+            <StatePanel>
+              <ErrorState
+                title="无法确认用户身份"
+                description={getErrorDescription(currentUserQuery.error)}
+                action={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => currentUserQuery.refetch()}
+                  >
+                    重试
+                  </Button>
+                }
+              />
+            </StatePanel>
+          ) : null}
+
+          {isReady &&
+          token &&
+          !currentUserQuery.isLoading &&
+          !currentUserQuery.isError &&
+          !currentUserQuery.data?.is_platform_staff ? (
+            <StatePanel>
+              <EmptyState
+                title="需要平台权限"
+                description="当前账号不是平台 staff，不能查看举报详情或执行审核处理。"
+                action={<TextAction href="/">返回信息流</TextAction>}
               />
             </StatePanel>
           ) : null}

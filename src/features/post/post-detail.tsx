@@ -6,8 +6,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { MessageSquare, Share2, User } from "lucide-react";
 
 import {
-  readPostNavigationSource,
   resolvePostBackSource,
+  usePostNavigationSource,
   type PostNavigationSource,
 } from "@/components/app-shell/post-navigation-source";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -56,9 +56,7 @@ export function PostDetail({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [navigationSource] = useState<PostNavigationSource | null>(() =>
-    readPostNavigationSource(id),
-  );
+  const navigationSource = usePostNavigationSource(id);
   const currentUserQuery = useCurrentUserQuery();
   const postQuery = usePostQuery(id, isReady, initialPostData);
   const canRequestComments =
@@ -86,7 +84,7 @@ export function PostDetail({
     Boolean(post) &&
     currentUserQuery.isSuccess &&
     currentUserId === post?.author_id;
-  const commentCount = post?.comment_count ?? comments.length;
+  const commentCount = Math.max(post?.comment_count ?? 0, comments.length);
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_312px]">

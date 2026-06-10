@@ -3,6 +3,7 @@ import type { MediaAttachment } from "@/features/media/types";
 export type PostSort = "best" | "hot" | "new" | "top" | "rising";
 
 export type FeedSource = "recommended" | "all" | "following";
+export type ReadableFeedSource = Exclude<FeedSource, "following">;
 
 export type PostViewerPermissions = {
   can_comment?: boolean;

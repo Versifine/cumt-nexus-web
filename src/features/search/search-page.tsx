@@ -113,22 +113,16 @@ export function SearchPage() {
           {isReady && query && searchQuery.isError ? (
             <div className="border-b border-border p-4">
               <ErrorState
-                title={getErrorTitle(searchQuery.error)}
+                title={getErrorTitle()}
                 description={getErrorDescription(searchQuery.error)}
                 action={
-                  isUnauthenticated(searchQuery.error) ? (
-                    <TextAction href="/communities" tone="primary">
-                      浏览社区
-                    </TextAction>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => searchQuery.refetch()}
-                    >
-                      重试
-                    </Button>
-                  )
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => searchQuery.refetch()}
+                  >
+                    重试
+                  </Button>
                 }
               />
             </div>
@@ -521,23 +515,11 @@ function formatPostStatus(status: string) {
   }
 }
 
-function isUnauthenticated(error: Error | null) {
-  return error instanceof ApiError && error.code === "unauthenticated";
-}
-
-function getErrorTitle(error: Error | null) {
-  if (isUnauthenticated(error)) {
-    return "公开搜索暂不可用";
-  }
-
+function getErrorTitle() {
   return "无法完成搜索";
 }
 
 function getErrorDescription(error: Error | null) {
-  if (isUnauthenticated(error)) {
-    return "当前服务还没有开放未登录搜索。可以先浏览社区，或稍后在公开搜索开放后重试。";
-  }
-
   if (error instanceof ApiError) {
     return error.message;
   }

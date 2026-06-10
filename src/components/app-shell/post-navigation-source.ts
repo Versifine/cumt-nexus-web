@@ -1,3 +1,5 @@
+import { useMemo, useSyncExternalStore } from "react";
+
 export type PostNavigationSource = {
   href: string;
   label: string;
@@ -10,29 +12,20 @@ export type ResolvedPostBackSource = {
 };
 
 const POST_SOURCE_PREFIX = "cumt-nexus:post-source:";
+const POST_SOURCE_CHANGE_EVENT = "cumt-nexus:post-source-change";
 
 export function readPostNavigationSource(postId: string) {
-  if (typeof window === "undefined") {
-    return null;
-  }
+  return parsePostNavigationSource(readRawPostNavigationSource(postId));
+}
 
-  try {
-    const rawValue = window.sessionStorage.getItem(getPostSourceKey(postId));
+export function usePostNavigationSource(postId: string) {
+  const rawValue = useSyncExternalStore(
+    subscribePostNavigationSource,
+    () => readRawPostNavigationSource(postId),
+    () => null,
+  );
 
-    if (!rawValue) {
-      return null;
-    }
-
-    const parsedValue = JSON.parse(rawValue);
-
-    if (!isPostNavigationSource(parsedValue)) {
-      return null;
-    }
-
-    return parsedValue;
-  } catch {
-    return null;
-  }
+  return useMemo(() => parsePostNavigationSource(rawValue), [rawValue]);
 }
 
 export function rememberPostNavigationSource(source: PostNavigationSource) {
@@ -54,6 +47,7 @@ export function rememberPostNavigationSource(source: PostNavigationSource) {
     getPostSourceKey(normalizedSource.postId),
     JSON.stringify(normalizedSource),
   );
+  window.dispatchEvent(new Event(POST_SOURCE_CHANGE_EVENT));
 }
 
 export function resolvePostBackSource({
@@ -87,6 +81,56 @@ export function resolvePostBackSource({
 
 function getPostSourceKey(postId: string) {
   return `${POST_SOURCE_PREFIX}${postId}`;
+}
+
+function subscribePostNavigationSource(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  function handleStorageChange(event: StorageEvent) {
+    if (!event.key || event.key.startsWith(POST_SOURCE_PREFIX)) {
+      onStoreChange();
+    }
+  }
+
+  window.addEventListener("storage", handleStorageChange);
+  window.addEventListener(POST_SOURCE_CHANGE_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", handleStorageChange);
+    window.removeEventListener(POST_SOURCE_CHANGE_EVENT, onStoreChange);
+  };
+}
+
+function readRawPostNavigationSource(postId: string) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.sessionStorage.getItem(getPostSourceKey(postId));
+  } catch {
+    return null;
+  }
+}
+
+function parsePostNavigationSource(rawValue: string | null) {
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsedValue = JSON.parse(rawValue);
+
+    if (!isPostNavigationSource(parsedValue)) {
+      return null;
+    }
+
+    return parsedValue;
+  } catch {
+    return null;
+  }
 }
 
 function getPostBackFallback(communitySlug?: string | null): ResolvedPostBackSource {

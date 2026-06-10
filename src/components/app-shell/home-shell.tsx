@@ -60,14 +60,17 @@ export function HomeShell({
   const pathname = usePathname();
   const sort = initialSort;
   const requiresAuth = source === "following";
+  const isFollowingFeed = source === "following";
+  const readableSource = isFollowingFeed ? "recommended" : source;
   const postSource = getHomePostSource(pathname, source, sort);
-  const canReadLatestPosts = isReady && (!requiresAuth || Boolean(token));
+  const canReadLatestPosts =
+    isReady && !isFollowingFeed && (!requiresAuth || Boolean(token));
   const latestPostsQuery = useLatestPostsQuery(
     20,
     0,
     canReadLatestPosts,
     sort,
-    source,
+    readableSource,
     initialPostsData,
   );
   const posts = canReadLatestPosts ? (latestPostsQuery.data?.posts ?? []) : [];
@@ -86,8 +89,7 @@ export function HomeShell({
                 {formatFeedSourceLabel(source)}讨论
               </h1>
               <p className="mt-1 text-xs text-muted-foreground">
-                {formatFeedSourceDescription(source)}当前按
-                {formatPostSortLabel(sort)}排序。
+                {getFeedIntroText(source, sort, Boolean(token))}
               </p>
               {sortFallbackNotice ? (
                 <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
@@ -179,6 +181,25 @@ export function HomeShell({
             </div>
           ) : null}
 
+          {isReady && isFollowingFeed && token ? (
+            <div className="py-5">
+              <EmptyState
+                title="关注信息流暂未开放"
+                description="后端当前只确认推荐和全站信息流合同。关注入口先保留，避免把普通公开帖子误当成关注内容。"
+                action={
+                  <div className="flex flex-col items-stretch justify-center gap-2 sm:flex-row">
+                    <TextAction href="/all" tone="primary">
+                      浏览全站
+                    </TextAction>
+                    <TextAction href="/communities">
+                      浏览社区
+                    </TextAction>
+                  </div>
+                }
+              />
+            </div>
+          ) : null}
+
           {canReadLatestPosts &&
           latestPostsQuery.isSuccess &&
           posts.length === 0 ? (
@@ -252,6 +273,18 @@ function FeedSortTabs({
   );
 }
 
+function getFeedIntroText(
+  source: FeedSource,
+  sort: PostSort,
+  hasToken: boolean,
+) {
+  if (source === "following" && hasToken) {
+    return "关注流合同尚未确认，当前不会请求或展示普通公开帖子。";
+  }
+
+  return `${formatFeedSourceDescription(source)}当前按${formatPostSortLabel(sort)}排序。`;
+}
+
 function FeedSourceTabs({
   disabled,
   onSourceChange,
@@ -319,8 +352,7 @@ function RightRail({
             今天从{formatFeedSourceLabel(feedSource)}信息流开始。
           </h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            {sortFallbackNotice ??
-              "排序由后端返回结果决定，右侧只保留和当前信息流有关的上下文。"}
+            {getRailDescription(feedSource, sortFallbackNotice)}
           </p>
           <div className="mt-4 flex flex-col border-y border-border">
             <TextAction href="/communities" tone="primary" variant="bar">
@@ -365,9 +397,7 @@ function RightRail({
             </div>
           ) : (
             <p className="text-sm leading-6 text-muted-foreground">
-              {canReadLatestPosts
-                ? "等待帖子数据加载后展示。"
-                : "正在准备公开帖子流。"}
+              {getTopPostsEmptyText(feedSource, canReadLatestPosts)}
             </p>
           )}
         </section>
@@ -388,6 +418,32 @@ function RightRail({
       </div>
     </aside>
   );
+}
+
+function getRailDescription(
+  source: FeedSource,
+  sortFallbackNotice: string | null,
+) {
+  if (sortFallbackNotice) {
+    return sortFallbackNotice;
+  }
+
+  if (source === "following") {
+    return "关注流入口已经保留；真实关注内容需要后端 source 合同确认后再接入。";
+  }
+
+  return "排序由后端返回结果决定，右侧只保留和当前信息流有关的上下文。";
+}
+
+function getTopPostsEmptyText(
+  source: FeedSource,
+  canReadLatestPosts: boolean,
+) {
+  if (source === "following") {
+    return "关注流不会用普通公开帖子填充。";
+  }
+
+  return canReadLatestPosts ? "等待帖子数据加载后展示。" : "正在准备公开帖子流。";
 }
 
 function isUnauthenticated(error: Error | null) {

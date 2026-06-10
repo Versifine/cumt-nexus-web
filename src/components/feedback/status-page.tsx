@@ -88,7 +88,7 @@ export function StatusPage({
                     返回最新讨论
                   </TextAction>
                   <TextAction href="/communities" variant="bar">
-                    浏览社区
+                    浏览社区索引
                   </TextAction>
                 </div>
               )}
@@ -115,7 +115,7 @@ export function RetryAction({ onRetry }: { onRetry: () => void }) {
         返回最新讨论
       </TextAction>
       <TextAction href="/communities" variant="bar">
-        浏览社区
+        浏览社区索引
       </TextAction>
     </div>
   );

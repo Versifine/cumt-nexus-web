@@ -1,12 +1,12 @@
 import { ApiError, apiRequest } from "@/lib/api/client";
 
 import type {
-  FeedSource,
   GetPostResponse,
   ListPostsResponse,
   PostSort,
   PublishPostInput,
   PublishPostResponse,
+  ReadableFeedSource,
   UpdatePostInput,
   UpdatePostResponse,
 } from "./types";
@@ -42,7 +42,7 @@ type GetPostOptions = {
 type ListLatestPostsOptions = {
   cache?: RequestCache;
   fallbackSort?: PostSort | null;
-  source?: FeedSource;
+  source?: ReadableFeedSource;
   timeoutMs?: number;
   token?: string | null;
 };
@@ -92,7 +92,7 @@ export function listLatestPosts(
   sort: PostSort = "new",
   options: ListLatestPostsOptions = {},
 ) {
-  const source = options.source ?? "recommended";
+  const source: ReadableFeedSource = options.source ?? "recommended";
 
   return listPostsWithSortFallback({
     fallbackSort: options.fallbackSort ?? DEFAULT_SORT_FALLBACK,
@@ -171,7 +171,7 @@ async function listPostsWithSortFallback({
   fallbackSort: PostSort | null;
   request: (sort: PostSort) => Promise<ListPostsResponse>;
   sort: PostSort;
-  source: FeedSource;
+  source: ReadableFeedSource;
 }) {
   try {
     const result = await request(sort);
@@ -213,7 +213,7 @@ function withSortMeta(
   }: {
     effectiveSort: PostSort;
     requestedSort: PostSort;
-    source: FeedSource;
+    source: ReadableFeedSource;
   },
 ) {
   return {

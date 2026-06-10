@@ -15,5 +15,7 @@ export function searchContent({
     offset: String(offset),
   });
 
-  return apiRequest<SearchResponse>(`/api/v1/search?${params.toString()}`);
+  return apiRequest<SearchResponse>(`/api/v1/search?${params.toString()}`, {
+    token: null,
+  });
 }

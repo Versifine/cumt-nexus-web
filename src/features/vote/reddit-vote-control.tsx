@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowBigDown, ArrowBigUp } from "lucide-react";
+import { toast } from "sonner";
 
 import { useAuthSession } from "@/features/auth/auth-session";
 import { commentQueryKeys } from "@/features/comment/queries";
@@ -61,6 +62,9 @@ export function RedditVoteControl({
       }
 
       await setCommentVote(targetId, nextVote);
+    },
+    onError: (error) => {
+      toast.error(getVoteError(error));
     },
     onSuccess: async () => {
       if (targetType === "post") {
