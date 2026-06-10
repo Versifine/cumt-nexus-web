@@ -2,22 +2,83 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   approveCommunityApplication,
+  createCommunityRule,
+  deleteCommunityRule,
   getCommunity,
   getCommunityApplication,
+  getCommunityManageContext,
+  getCommunityManageSettings,
+  listCommunityMembers,
+  listCommunityManageComments,
+  listCommunityManagePosts,
+  listCommunityManageReports,
+  listCommunityRules,
   listCommunityApplications,
   listCommunities,
   rejectCommunityApplication,
+  updateCommunityManageSettings,
+  updateCommunityRule,
 } from "./api";
 import type {
+  CreateCommunityRuleInput,
   CommunityApplicationStatus,
+  DeleteCommunityRuleInput,
   GetCommunityResponse,
+  ListCommunityMembersInput,
+  ListCommunityManageCommentsInput,
+  ListCommunityManagePostsInput,
+  ListCommunityManageReportsInput,
   ListCommunityApplicationsInput,
   RejectCommunityApplicationInput,
+  UpdateCommunityManageSettingsInput,
+  UpdateCommunityRuleInput,
 } from "./types";
 
 export const communityQueryKeys = {
   all: ["communities"] as const,
   detail: (slug: string) => ["community", slug] as const,
+  manageContext: (slug: string) => ["community", slug, "manage"] as const,
+  manageMembers: (input: ListCommunityMembersInput) =>
+    [
+      "community",
+      input.slug,
+      "manage",
+      "members",
+      input.limit ?? 5,
+      input.offset ?? 0,
+    ] as const,
+  manageSettings: (slug: string) => ["community", slug, "manage", "settings"] as const,
+  manageRules: (slug: string) => ["community", slug, "manage", "rules"] as const,
+  managePosts: (input: ListCommunityManagePostsInput) =>
+    [
+      "community",
+      input.slug,
+      "manage",
+      "posts",
+      input.status ?? "all",
+      input.limit ?? 5,
+      input.offset ?? 0,
+    ] as const,
+  manageComments: (input: ListCommunityManageCommentsInput) =>
+    [
+      "community",
+      input.slug,
+      "manage",
+      "comments",
+      input.status ?? "all",
+      input.limit ?? 5,
+      input.offset ?? 0,
+    ] as const,
+  manageReports: (input: ListCommunityManageReportsInput) =>
+    [
+      "community",
+      input.slug,
+      "manage",
+      "reports",
+      input.status ?? "pending",
+      input.limit ?? 5,
+      input.offset ?? 0,
+    ] as const,
   applications: (input: ListCommunityApplicationsInput) =>
     [
       "community-applications",
@@ -45,6 +106,137 @@ export function useCommunityQuery(
     queryFn: () => getCommunity(slug),
     enabled,
     initialData,
+  });
+}
+
+export function useCommunityManageContextQuery(slug: string, enabled = true) {
+  return useQuery({
+    queryKey: communityQueryKeys.manageContext(slug),
+    queryFn: () => getCommunityManageContext(slug),
+    enabled,
+  });
+}
+
+export function useCommunityMembersQuery(
+  input: ListCommunityMembersInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.manageMembers(input),
+    queryFn: () => listCommunityMembers(input),
+    enabled,
+  });
+}
+
+export function useCommunityManageSettingsQuery(slug: string, enabled = true) {
+  return useQuery({
+    queryKey: communityQueryKeys.manageSettings(slug),
+    queryFn: () => getCommunityManageSettings(slug),
+    enabled,
+  });
+}
+
+export function useCommunityRulesQuery(slug: string, enabled = true) {
+  return useQuery({
+    queryKey: communityQueryKeys.manageRules(slug),
+    queryFn: () => listCommunityRules(slug),
+    enabled,
+  });
+}
+
+export function useUpdateCommunityManageSettingsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateCommunityManageSettingsInput) =>
+      updateCommunityManageSettings(input),
+    onSuccess: (result) => {
+      queryClient.setQueryData(communityQueryKeys.manageSettings(result.community.slug), {
+        community: result.community,
+        settings: result.settings,
+      });
+      queryClient.setQueryData(communityQueryKeys.detail(result.community.slug), {
+        community: result.community,
+      });
+      queryClient.setQueryData(communityQueryKeys.manageContext(result.community.slug), {
+        community: result.community,
+      });
+    },
+  });
+}
+
+export function useCreateCommunityRuleMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateCommunityRuleInput) => createCommunityRule(input),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({
+        queryKey: communityQueryKeys.manageRules(result.community.slug),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: communityQueryKeys.manageContext(result.community.slug),
+      });
+    },
+  });
+}
+
+export function useUpdateCommunityRuleMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateCommunityRuleInput) => updateCommunityRule(input),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({
+        queryKey: communityQueryKeys.manageRules(result.community.slug),
+      });
+    },
+  });
+}
+
+export function useDeleteCommunityRuleMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: DeleteCommunityRuleInput) => deleteCommunityRule(input),
+    onSuccess: (_result, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: communityQueryKeys.manageRules(variables.slug),
+      });
+    },
+  });
+}
+
+export function useCommunityManagePostsQuery(
+  input: ListCommunityManagePostsInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.managePosts(input),
+    queryFn: () => listCommunityManagePosts(input),
+    enabled,
+  });
+}
+
+export function useCommunityManageCommentsQuery(
+  input: ListCommunityManageCommentsInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.manageComments(input),
+    queryFn: () => listCommunityManageComments(input),
+    enabled,
+  });
+}
+
+export function useCommunityManageReportsQuery(
+  input: ListCommunityManageReportsInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.manageReports(input),
+    queryFn: () => listCommunityManageReports(input),
+    enabled,
   });
 }
 

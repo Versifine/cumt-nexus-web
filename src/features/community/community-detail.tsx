@@ -43,6 +43,7 @@ export function CommunityDetail({
   const isAuthenticated = Boolean(token);
   const communityQuery = useCommunityQuery(slug, isReady, initialCommunityData);
   const community = communityQuery.data?.community;
+  const canPostInCommunity = community?.viewer_permissions?.can_post === true;
   const canShowCommunityContent =
     isReady && communityQuery.isSuccess && Boolean(community);
   const postsQuery = useCommunityPostsQuery(
@@ -124,7 +125,7 @@ export function CommunityDetail({
                   onSortChange={setSort}
                   sort={sort}
                 />
-                {isAuthenticated ? (
+                {canPostInCommunity && community ? (
                   <TextAction
                     href={`/communities/${encodeURIComponent(community.slug)}/new`}
                     tone="primary"
@@ -171,12 +172,16 @@ export function CommunityDetail({
                   title="还没有帖子"
                   description="这个社区还没有形成可公开浏览的讨论。"
                   action={
-                    isAuthenticated ? (
+                    canPostInCommunity ? (
                       <TextAction
                         href={`/communities/${encodeURIComponent(community.slug)}/new`}
                         tone="primary"
                       >
                         发布第一条帖子
+                      </TextAction>
+                    ) : isAuthenticated ? (
+                      <TextAction href="/community-applications/new" tone="primary">
+                        申请社区
                       </TextAction>
                     ) : (
                       <TextAction href="/communities" tone="primary">
@@ -322,6 +327,10 @@ function CommunityRail({
   posts: Post[];
 }) {
   const topPosts = [...posts].sort((left, right) => right.score - left.score).slice(0, 3);
+  const canPost = community.viewer_permissions?.can_post === true;
+  const canManage =
+    community.viewer_permissions?.can_manage === true ||
+    community.viewer_permissions?.can_moderate === true;
 
   return (
     <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
@@ -380,18 +389,19 @@ function CommunityRail({
           )}
         </section>
 
-        <section>
-          <h2 className="text-sm font-semibold">继续浏览</h2>
+        <section className="border-b border-border pb-5">
+          <h2 className="text-sm font-semibold">社区操作</h2>
           <div className="mt-3 flex flex-col border-y border-border">
-            <TextAction href="/communities" variant="bar">
-              浏览社区
-            </TextAction>
-            {isAuthenticated ? (
+            {canPost ? (
               <TextAction
                 href={`/communities/${encodeURIComponent(community.slug)}/new`}
                 variant="bar"
               >
                 发布帖子
+              </TextAction>
+            ) : isAuthenticated ? (
+              <TextAction href="/community-applications/new" variant="bar">
+                申请社区
               </TextAction>
             ) : (
               <TextAction
@@ -403,6 +413,36 @@ function CommunityRail({
                 登录后参与
               </TextAction>
             )}
+            {canManage ? (
+              <TextAction
+                href={`/communities/${encodeURIComponent(community.slug)}/manage`}
+                variant="bar"
+              >
+                管理社区
+              </TextAction>
+            ) : null}
+          </div>
+          {isAuthenticated && !canPost ? (
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+              当前账号暂不能在本社区发帖；如需创建新社区，可以提交社区申请。
+            </p>
+          ) : null}
+          {!isAuthenticated ? (
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+              登录后会按后端 viewer 权限显示发帖和社区管理入口。
+            </p>
+          ) : null}
+        </section>
+
+        <section>
+          <h2 className="text-sm font-semibold">继续浏览</h2>
+          <div className="mt-3 flex flex-col border-y border-border">
+            <TextAction href="/communities" variant="bar">
+              浏览社区
+            </TextAction>
+            <TextAction href="/" variant="bar">
+              返回信息流
+            </TextAction>
           </div>
         </section>
       </div>
