@@ -140,13 +140,17 @@ export function getMediaAttachmentUrl(
 ) {
   switch (target) {
     case "preview":
-      return attachment.thumbnail_url || attachment.medium_url || attachment.url;
+      return attachment.medium_url || attachment.url;
     case "detail":
       return attachment.medium_url || attachment.url;
     case "lightbox":
     default:
       return attachment.original_url || attachment.url;
   }
+}
+
+export function getMediaAttachmentThumbnailUrl(attachment: MediaAttachment) {
+  return attachment.thumbnail_url || attachment.medium_url || attachment.url;
 }
 
 export function getAttachmentCaption(

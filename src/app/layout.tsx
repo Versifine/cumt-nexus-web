@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { getSiteUrl } from "@/lib/site-url";
 
 import "./globals.css";
+import "yet-another-react-lightbox/styles.css";
+import "yet-another-react-lightbox/plugins/thumbnails.css";
 
 const siteUrl = getSiteUrl();
 const siteDescription = "面向校园社区的讨论、发帖和社区申请工作区。";

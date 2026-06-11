@@ -25,6 +25,9 @@ import TableRow from "@tiptap/extension-table-row";
 import { Markdown } from "@tiptap/markdown";
 import {
   EditorContent,
+  NodeViewWrapper,
+  ReactNodeViewRenderer,
+  type ReactNodeViewProps,
   useEditor,
   useEditorState,
 } from "@tiptap/react";
@@ -68,6 +71,7 @@ import {
   getReferencedAttachmentIdsForSubmit,
   hasUnsupportedMarkdownImageReferences,
 } from "@/features/content/attachment-markdown";
+import { ContentImageGallery } from "@/features/content/content-image-gallery";
 import { normalizeMarkdownHref } from "@/features/content/markdown-url";
 import { resolveWhitelistedMediaEmbed } from "@/features/content/media-embed";
 import { createMediaEmbedPlayerElement } from "@/features/content/media-embed-player";
@@ -353,39 +357,7 @@ const AttachmentGalleryNode = TiptapNode.create<AttachmentGalleryOptions>({
   },
 
   addNodeView() {
-    return ({ node }) => {
-      const attachmentIds = normalizeAttachmentIds(node.attrs.attachmentIds);
-      const caption =
-        typeof node.attrs.caption === "string" && node.attrs.caption.trim()
-          ? node.attrs.caption.trim()
-          : "图片轮播";
-      const attachments = attachmentIds
-        .map((id) => this.options.getAttachmentById(id))
-        .filter(isVisibleImageAttachmentForEditor);
-      const dom = document.createElement("div");
-
-      dom.className =
-        "my-4 block overflow-hidden border border-border bg-background-soft outline-offset-2";
-      dom.setAttribute("data-attachment-gallery", "true");
-      dom.setAttribute("data-attachment-ids", attachmentIds.join(","));
-      dom.setAttribute("data-caption", caption);
-
-      if (attachments.length === 0) {
-        dom.append(createGalleryMissingElement());
-      } else {
-        dom.append(createGalleryPreviewElement(attachments, caption));
-      }
-
-      return {
-        deselectNode() {
-          dom.classList.remove("outline", "outline-1", "outline-primary");
-        },
-        dom,
-        selectNode() {
-          dom.classList.add("outline", "outline-1", "outline-primary");
-        },
-      };
-    };
+    return ReactNodeViewRenderer(AttachmentGalleryEditorView);
   },
 });
 
@@ -462,6 +434,47 @@ const MediaEmbedNode = TiptapNode.create({
     };
   },
 });
+
+function AttachmentGalleryEditorView({
+  extension,
+  node,
+  selected,
+}: ReactNodeViewProps) {
+  const attachmentIds = normalizeAttachmentIds(node.attrs.attachmentIds);
+  const caption =
+    typeof node.attrs.caption === "string" && node.attrs.caption.trim()
+      ? node.attrs.caption.trim()
+      : "图片轮播";
+  const options = extension.options as AttachmentGalleryOptions;
+  const attachments = attachmentIds
+    .map((id) => options.getAttachmentById(id))
+    .filter(isVisibleImageAttachmentForEditor);
+
+  return (
+    <NodeViewWrapper
+      as="div"
+      className={cn(
+        "my-4 block outline-offset-2",
+        selected && "outline outline-1 outline-primary",
+      )}
+      data-attachment-gallery="true"
+      data-attachment-ids={attachmentIds.join(",")}
+      data-caption={caption}
+    >
+      {attachments.length > 0 ? (
+        <ContentImageGallery
+          attachments={attachments}
+          caption={caption}
+          variant="preview"
+        />
+      ) : (
+        <span className="block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
+          图片轮播里的附件不存在或尚未随内容返回。
+        </span>
+      )}
+    </NodeViewWrapper>
+  );
+}
 
 const emptyToolbarState = {
   blockquote: false,
@@ -1435,60 +1448,6 @@ function createMediaFallbackLink(originalUrl: string) {
   return link;
 }
 
-function createGalleryPreviewElement(
-  attachments: MediaAttachment[],
-  caption: string,
-) {
-  const root = document.createElement("div");
-  const header = document.createElement("div");
-  const grid = document.createElement("div");
-  const hiddenCount = Math.max(0, attachments.length - 4);
-
-  root.className = "block";
-  header.className =
-    "flex min-h-10 items-center justify-between gap-3 border-b border-border px-3 py-2 text-xs text-muted-foreground";
-  header.textContent = `${caption} · ${attachments.length} 张图片`;
-  grid.className = "grid grid-cols-2 gap-1 bg-black p-1";
-
-  for (const [index, attachment] of attachments.slice(0, 4).entries()) {
-    const item = document.createElement("span");
-    const image = document.createElement("img");
-
-    item.className =
-      "relative block aspect-[4/3] overflow-hidden border border-border bg-black";
-    image.src = getEditorAttachmentPreviewUrl(attachment);
-    image.alt = attachment.alt_text || "内容图片";
-    image.loading = "lazy";
-    image.decoding = "async";
-    image.className = "block size-full object-cover";
-    item.append(image);
-
-    if (index === 3 && hiddenCount > 0) {
-      const overlay = document.createElement("span");
-
-      overlay.className =
-        "absolute inset-0 flex items-center justify-center bg-black/70 font-mono text-sm font-semibold text-foreground";
-      overlay.textContent = `+${hiddenCount}`;
-      item.append(overlay);
-    }
-
-    grid.append(item);
-  }
-
-  root.append(header, grid);
-  return root;
-}
-
-function createGalleryMissingElement() {
-  const fallback = document.createElement("span");
-
-  fallback.className =
-    "block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground";
-  fallback.textContent = "图片轮播里的附件不存在或尚未随内容返回。";
-
-  return fallback;
-}
-
 function normalizeAttachmentIds(value: unknown) {
   if (Array.isArray(value)) {
     return value.filter((id): id is string => typeof id === "string" && id.trim().length > 0);
@@ -1514,10 +1473,6 @@ function isVisibleImageAttachmentForEditor(
       attachment.status !== "failed" &&
       attachment.url,
   );
-}
-
-function getEditorAttachmentPreviewUrl(attachment: MediaAttachment) {
-  return attachment.thumbnail_url || attachment.medium_url || attachment.url;
 }
 
 function syncWhitelistedMediaEmbeds(editor: Editor) {

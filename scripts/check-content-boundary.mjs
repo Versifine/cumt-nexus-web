@@ -663,22 +663,21 @@ function checkPublishedAttachmentImageSizing() {
     problems.push("src/features/content/content-image-gallery.tsx is missing");
   } else {
     for (const token of [
-      "max-h-[320px] sm:max-h-[420px]",
-      "aspect-[4/5]",
+      "embla-carousel-react",
+      "yet-another-react-lightbox",
+      "plugins={[Download, Thumbnails, Zoom]}",
+      "getMediaAttachmentUrl(attachment, \"lightbox\")",
+      "getMediaAttachmentThumbnailUrl",
+      "h-[min(320px,76vw)] sm:h-[420px]",
+      "h-[min(80vh,760px)]",
       "aspect-video",
-      "max-h-[80vh]",
+      "object-cover object-top",
       "长图",
-      "展开长图",
-      "createPortal",
-      "touch-none",
-      "onWheel",
-      "onPointerDown",
-      "onPointerMove",
-      "onPointerUp",
+      "点击完整查看",
       "打开原图",
-      "ArrowLeft",
-      "ArrowRight",
-      "Esc",
+      "上一张图片",
+      "下一张图片",
+      "+{hiddenCount}",
     ]) {
       if (!imageGallery.content.includes(token)) {
         problems.push(`ContentImageGallery missing media behavior token ${token}`);
@@ -1015,7 +1014,8 @@ function checkComposerImageCopy() {
     !composer.content.includes("insertUploadedAttachmentsIntoEditor") ||
     !composer.content.includes("insertAttachmentGalleryIntoEditor") ||
     !composer.content.includes('type: "attachmentGallery"') ||
-    !composer.content.includes("createGalleryPreviewElement") ||
+    !composer.content.includes("ReactNodeViewRenderer(AttachmentGalleryEditorView)") ||
+    !composer.content.includes("<ContentImageGallery") ||
     !composer.content.includes("getGalleryAttachmentIdsFromMarkdownUrl")
   ) {
     addFail(
