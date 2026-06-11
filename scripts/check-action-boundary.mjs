@@ -22,6 +22,7 @@ checkSourceRoot();
 checkButtonAsChildLinks();
 checkPostNavigationSourceBoundary();
 checkRedditVoteControlFeedback();
+checkRedditVoteControlFeedStability();
 
 for (const result of results) {
   console.log(`[${result.status.toUpperCase()}] ${result.name} - ${result.detail}`);
@@ -205,6 +206,51 @@ function checkRedditVoteControlFeedback() {
   addPass(
     "reddit vote control feedback",
     "shared vote controls keep visible error feedback, pressed state and disabled state",
+  );
+}
+
+function checkRedditVoteControlFeedStability() {
+  const voteFile = findSourceFile("src/features/vote/reddit-vote-control.tsx");
+  const problems = [];
+
+  if (!voteFile) {
+    addFail("reddit vote feed stability", "src/features/vote/reddit-vote-control.tsx is missing");
+    return;
+  }
+
+  for (const token of [
+    "updateCachedPostVote({",
+    "queryClient.setQueryData<GetPostResponse>",
+    "queryClient.getQueriesData<ListPostsResponse>",
+    "patchPostListQueries(queryClient, postQueryKeys.latestPrefix(), postId, patch)",
+    "patchPostListQueries(queryClient, postQueryKeys.communityPostsAll(), postId, patch)",
+    "patchPostListQueries(queryClient, postQueryKeys.userPostsAll(), postId, patch)",
+  ]) {
+    if (!voteFile.content.includes(token)) {
+      problems.push(`RedditVoteControl post vote stability missing ${token}`);
+    }
+  }
+
+  const feedInvalidationPattern =
+    /invalidateQueries\s*\(\s*\{[\s\S]*?queryKey:\s*postQueryKeys\.(latestPrefix|communityPostsAll|userPostsAll)\s*\(/g;
+  const feedInvalidations = [...voteFile.content.matchAll(feedInvalidationPattern)]
+    .map((match) => match[1])
+    .filter(Boolean);
+
+  if (feedInvalidations.length > 0) {
+    problems.push(
+      `post vote must patch current list entries without refetching/re-sorting feed queries; found ${feedInvalidations.join(", ")}`,
+    );
+  }
+
+  if (problems.length > 0) {
+    addFail("reddit vote feed stability", problems.join("; "));
+    return;
+  }
+
+  addPass(
+    "reddit vote feed stability",
+    "post votes patch cached list rows without invalidating feed queries or changing current order",
   );
 }
 

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { commentQueryKeys } from "@/features/comment/queries";
 import { postQueryKeys } from "@/features/post/queries";
+import type { GetPostResponse, ListPostsResponse, Post } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -46,42 +47,40 @@ export function RedditVoteControl({
   const queryClient = useQueryClient();
   const voteMutation = useMutation({
     mutationFn: async (nextVote: VoteValue) => {
+      const resolvedVote: -1 | 0 | 1 = myVote === nextVote ? 0 : nextVote;
+
       if (targetType === "post") {
-        if (myVote === nextVote) {
+        if (resolvedVote === 0) {
           await deletePostVote(targetId);
-          return;
+          return resolvedVote;
         }
 
         await setPostVote(targetId, nextVote);
-        return;
+        return resolvedVote;
       }
 
-      if (myVote === nextVote) {
+      if (resolvedVote === 0) {
         await deleteCommentVote(targetId);
-        return;
+        return resolvedVote;
       }
 
       await setCommentVote(targetId, nextVote);
+      return resolvedVote;
     },
     onError: (error) => {
       toast.error(getVoteError(error));
     },
-    onSuccess: async () => {
+    onSuccess: async (nextVote) => {
       if (targetType === "post") {
-        await Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: postQueryKeys.detail(targetId),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: postQueryKeys.latestPrefix(),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: postQueryKeys.communityPostsAll(),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: postQueryKeys.userPostsAll(),
-          }),
-        ]);
+        updateCachedPostVote({
+          currentVote: normalizeVoteValue(myVote),
+          downvoteCount,
+          nextVote,
+          postId: targetId,
+          queryClient,
+          score,
+          upvoteCount,
+        });
         return;
       }
 
@@ -177,6 +176,155 @@ function VoteButton({
       {children}
     </button>
   );
+}
+
+function updateCachedPostVote({
+  currentVote,
+  downvoteCount,
+  nextVote,
+  postId,
+  queryClient,
+  score,
+  upvoteCount,
+}: {
+  currentVote: -1 | 0 | 1;
+  downvoteCount: number;
+  nextVote: -1 | 0 | 1;
+  postId: string;
+  queryClient: ReturnType<typeof useQueryClient>;
+  score: number;
+  upvoteCount: number;
+}) {
+  const patch = getNextPostVoteFields({
+    currentVote,
+    downvoteCount,
+    nextVote,
+    score,
+    upvoteCount,
+  });
+
+  queryClient.setQueryData<GetPostResponse>(
+    postQueryKeys.detail(postId),
+    (current) =>
+      current
+        ? {
+            ...current,
+            post: applyPostVotePatch(current.post, patch),
+          }
+        : current,
+  );
+
+  patchPostListQueries(queryClient, postQueryKeys.latestPrefix(), postId, patch);
+  patchPostListQueries(queryClient, postQueryKeys.communityPostsAll(), postId, patch);
+  patchPostListQueries(queryClient, postQueryKeys.userPostsAll(), postId, patch);
+}
+
+function patchPostListQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+  queryKey: readonly unknown[],
+  postId: string,
+  patch: PostVotePatch,
+) {
+  for (const [cachedQueryKey] of queryClient.getQueriesData<ListPostsResponse>({
+    queryKey,
+  })) {
+    queryClient.setQueryData<ListPostsResponse>(cachedQueryKey, (current) =>
+      patchPostListResponse(current, postId, patch),
+    );
+  }
+}
+
+function patchPostListResponse(
+  current: ListPostsResponse | undefined,
+  postId: string,
+  patch: PostVotePatch,
+) {
+  if (!current) {
+    return current;
+  }
+
+  let didPatch = false;
+  const posts = current.posts.map((post) => {
+    if (post.id !== postId) {
+      return post;
+    }
+
+    didPatch = true;
+    return applyPostVotePatch(post, patch);
+  });
+
+  return didPatch ? { ...current, posts } : current;
+}
+
+function applyPostVotePatch(post: Post, patch: PostVotePatch): Post {
+  return {
+    ...post,
+    downvote_count: patch.downvote_count,
+    my_vote: patch.my_vote,
+    score: patch.score,
+    upvote_count: patch.upvote_count,
+  };
+}
+
+type PostVotePatch = {
+  downvote_count: number;
+  my_vote: -1 | 0 | 1;
+  score: number;
+  upvote_count: number;
+};
+
+function getNextPostVoteFields({
+  currentVote,
+  downvoteCount,
+  nextVote,
+  score,
+  upvoteCount,
+}: {
+  currentVote: -1 | 0 | 1;
+  downvoteCount: number;
+  nextVote: -1 | 0 | 1;
+  score: number;
+  upvoteCount: number;
+}): PostVotePatch {
+  let nextUpvoteCount = upvoteCount;
+  let nextDownvoteCount = downvoteCount;
+
+  if (currentVote === 1) {
+    nextUpvoteCount -= 1;
+  }
+
+  if (currentVote === -1) {
+    nextDownvoteCount -= 1;
+  }
+
+  if (nextVote === 1) {
+    nextUpvoteCount += 1;
+  }
+
+  if (nextVote === -1) {
+    nextDownvoteCount += 1;
+  }
+
+  nextUpvoteCount = Math.max(0, nextUpvoteCount);
+  nextDownvoteCount = Math.max(0, nextDownvoteCount);
+
+  return {
+    downvote_count: nextDownvoteCount,
+    my_vote: nextVote,
+    score:
+      typeof score === "number"
+        ? score - currentVote + nextVote
+        : nextUpvoteCount - nextDownvoteCount,
+    upvote_count: nextUpvoteCount,
+  };
+}
+
+function normalizeVoteValue(value: number): -1 | 0 | 1 {
+  if (value === 1 || value === -1) {
+    return value;
+  }
+
+  return 0;
 }
 
 function formatCompactNumber(value: number) {

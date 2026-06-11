@@ -229,6 +229,7 @@ V2 详细路线见 `docs/internal/product/v2-roadmap.md`。优先级固定为：
 
 - 公开搜索后端缺口已补齐：当前后端 `GET /api/v1/search` 注册在 public read + optional Bearer 分组，合同 Auth 列为 optional Bearer；前端按公开读取调用，无 token 时可以搜索 active public 社区和 visible public 帖子。后续搜索增强仍包括评论搜索、标签搜索、高亮、排序和分析。
 - 推荐、全站、关注和社区 feed 的 source 合同仍未完全收口：`best | hot | new | top | rising` 基础排序已在本地运行态通过前端主链路验收；但推荐 / 全站 / 关注是否真实区分、`top` 是否支持 `t=day|week|month|year|all` 时间范围仍需后端合同。前端不能自己发明 source 或时间窗口排序。
+- 推荐页投票稳定性仍未收口：用户在当前推荐页 upvote、downvote 或取消投票后，帖子不能因为本地刷新或后端重新排序而立即换位、消失或跳页。前端修复时应只更新当前卡片的投票状态和计数；后端若要让推荐排序受投票实时影响，需要提供 cursor / snapshot / 显式刷新语义，避免普通 vote/unvote 打断浏览连续性。
 - 图片缩略图、对象清理、对象物理删除、失败对象回收和编辑态图片重绑是否已完成，仍需以后端最终合同复核；前端当前只展示正文图片移除后的清理提示，不直接删除对象。
 - 正文媒体块和图片轮播协议仍需后端最终合同复核：现有 `content_refs` 是扁平引用列表，不能单独表达“图片 1/2/3 是一组轮播、图片 6/7 是另一组轮播”。后续需要确认继续以 `nexus-gallery:` 正文 marker 作为分组权威，还是新增可选 `content_blocks`。
 - 图片资产分层仍需后端最终合同复核：列表页优先 `thumbnail_url`，详情页优先 `medium_url`，lightbox / 打开原图优先 `original_url`；如果后端暂不提供 `medium_url` 或 `original_url`，前端只能回退到 `url`，不能伪造成已有衍生图。
