@@ -253,6 +253,10 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
     ];
   },
 
+  addNodeView() {
+    return ReactNodeViewRenderer(AttachmentImageEditorView);
+  },
+
   renderMarkdown(node) {
     const src = node.attrs?.src ?? "";
     const alt = node.attrs?.alt ?? "";
@@ -435,6 +439,54 @@ const MediaEmbedNode = TiptapNode.create({
   },
 });
 
+function AttachmentImageEditorView({
+  extension,
+  node,
+  selected,
+}: ReactNodeViewProps) {
+  const options = extension.options as AttachmentImageOptions;
+  const src = typeof node.attrs.src === "string" ? node.attrs.src : "";
+  const attachmentId =
+    typeof node.attrs.attachmentId === "string" && node.attrs.attachmentId
+      ? node.attrs.attachmentId
+      : getAttachmentIdFromMarkdownUrl(src);
+  const attachment = attachmentId
+    ? options.getAttachmentById(attachmentId)
+    : null;
+  const caption =
+    typeof node.attrs.alt === "string" && node.attrs.alt.trim()
+      ? node.attrs.alt.trim()
+      : attachment?.alt_text.trim() || "内容图片";
+
+  return (
+    <NodeViewWrapper
+      as="div"
+      className={cn(
+        "my-4 block outline-offset-2",
+        selected && "outline outline-1 outline-primary",
+      )}
+      contentEditable={false}
+      data-attachment-id={attachmentId ?? undefined}
+    >
+      {isVisibleImageAttachmentForEditor(attachment) ? (
+        <ContentImageGallery
+          attachments={[attachment]}
+          caption={caption}
+          variant="detail"
+        />
+      ) : !attachmentId ? (
+        <span className="block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
+          外部图片不会直接渲染；请上传图片后放入正文。
+        </span>
+      ) : (
+        <span className="block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
+          图片附件不存在、尚未随内容返回或当前不可显示。
+        </span>
+      )}
+    </NodeViewWrapper>
+  );
+}
+
 function AttachmentGalleryEditorView({
   extension,
   node,
@@ -457,6 +509,7 @@ function AttachmentGalleryEditorView({
         "my-4 block outline-offset-2",
         selected && "outline outline-1 outline-primary",
       )}
+      contentEditable={false}
       data-attachment-gallery="true"
       data-attachment-ids={attachmentIds.join(",")}
       data-caption={caption}
@@ -465,7 +518,7 @@ function AttachmentGalleryEditorView({
         <ContentImageGallery
           attachments={attachments}
           caption={caption}
-          variant="preview"
+          variant="detail"
         />
       ) : (
         <span className="block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
@@ -594,10 +647,10 @@ export function MarkdownComposerField({
           fieldProps?.placeholder ||
           "直接在这里写正文，选中文字后用工具栏设置格式。",
       }),
-      AttachmentImage.configure({
+      AttachmentGalleryNode.configure({
         getAttachmentById: (id: string) => attachmentById.get(id) ?? null,
       }),
-      AttachmentGalleryNode.configure({
+      AttachmentImage.configure({
         getAttachmentById: (id: string) => attachmentById.get(id) ?? null,
       }),
       MediaEmbedNode,

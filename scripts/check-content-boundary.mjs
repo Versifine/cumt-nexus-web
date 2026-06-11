@@ -1011,6 +1011,7 @@ function checkComposerImageCopy() {
   }
 
   if (
+    !composer.content.includes("AttachmentImageEditorView") ||
     !composer.content.includes("AttachmentGalleryNode") ||
     !composer.content.includes('markdownTokenName: "image"') ||
     !composer.content.includes("ATTACHMENT_GALLERY_MARKDOWN_URL_PREFIX") ||
@@ -1018,13 +1019,23 @@ function checkComposerImageCopy() {
     !composer.content.includes("insertUploadedAttachmentsIntoEditor") ||
     !composer.content.includes("insertAttachmentGalleryIntoEditor") ||
     !composer.content.includes('type: "attachmentGallery"') ||
+    !composer.content.includes("ReactNodeViewRenderer(AttachmentImageEditorView)") ||
     !composer.content.includes("ReactNodeViewRenderer(AttachmentGalleryEditorView)") ||
     !composer.content.includes("<ContentImageGallery") ||
+    !composer.content.includes('variant="detail"') ||
     !composer.content.includes("getGalleryAttachmentIdsFromMarkdownUrl")
   ) {
     addFail(
       "composer image gallery insertion",
       "MarkdownComposerField must let multi-image file selection become one visible nexus-gallery block that roundtrips through Markdown",
+    );
+    return;
+  }
+
+  if (composer.content.includes('variant="preview"')) {
+    addFail(
+      "composer image gallery insertion",
+      "MarkdownComposerField must render editor images with the same detail media renderer as published content",
     );
     return;
   }
