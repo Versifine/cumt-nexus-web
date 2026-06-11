@@ -34,6 +34,7 @@ export function MediaEmbedPlayer({ embed }: MediaEmbedPlayerProps) {
       </span>
       <span className={cn("block overflow-hidden bg-black", getFrameClassName(embed))}>
         <iframe
+          suppressHydrationWarning
           title={embed.iframeTitle}
           src={embed.embedUrl}
           loading="lazy"

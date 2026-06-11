@@ -190,6 +190,7 @@ function checkWhitelistedMediaEmbedBoundary() {
   } else {
     for (const token of [
       "<iframe",
+      "suppressHydrationWarning",
       "sandbox={playerSandbox}",
       "allowFullScreen",
       'referrerPolicy="strict-origin-when-cross-origin"',
