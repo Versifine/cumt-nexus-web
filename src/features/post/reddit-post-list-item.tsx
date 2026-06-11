@@ -17,7 +17,10 @@ import {
   type ResolvedLinkPreview,
 } from "@/features/content/link-preview";
 import { ContentImageGallery } from "@/features/content/content-image-gallery";
-import { resolveFirstContentMediaBlock } from "@/features/content/content-media";
+import {
+  resolveEmbedMediaBlockFromUrl,
+  resolveFirstContentMediaBlock,
+} from "@/features/content/content-media";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { MediaEmbedPlayer } from "@/features/content/media-embed-player";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
@@ -80,10 +83,7 @@ export function RedditPostListItem({
     "用户";
   const authorUsername =
     post.author?.username?.trim() || authorFallback?.username?.trim() || "";
-  const mediaBlock = resolveFirstContentMediaBlock({
-    attachments: post.attachments,
-    markdown: post.body,
-  });
+  const mediaBlock = getPostMediaBlock(post);
   const linkPreview = mediaBlock ? null : getPostLinkPreview(post);
   const excerpt = getPostExcerpt(post);
   const postUrl =
@@ -314,11 +314,33 @@ function getPostExcerpt(post: Post) {
   return getMarkdownPlainTextSummary(post.body_excerpt || post.body, "");
 }
 
+function getPostMediaBlock(post: Post) {
+  const bodyMediaBlock = resolveFirstContentMediaBlock({
+    attachments: post.attachments,
+    markdown: post.body,
+  });
+
+  if (bodyMediaBlock) {
+    return bodyMediaBlock;
+  }
+
+  const excerptMediaBlock = resolveFirstContentMediaBlock({
+    attachments: post.attachments,
+    markdown: post.body_excerpt,
+  });
+
+  return excerptMediaBlock ?? resolveEmbedMediaBlockFromUrl(getPostPreviewUrl(post));
+}
+
 function getPostLinkPreview(post: Post) {
   return resolveLinkPreview({
     backendPreview: post.preview?.link ?? post.preview ?? null,
-    markdown: post.body,
+    markdown: post.body || post.body_excerpt,
   });
+}
+
+function getPostPreviewUrl(post: Post) {
+  return post.preview?.link?.url ?? post.preview?.url ?? null;
 }
 
 function formatDate(value: string) {

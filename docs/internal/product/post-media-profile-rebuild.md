@@ -13,7 +13,7 @@
 - 正文媒体的 canonical 写入形态先采用 Markdown marker：单图用 `nexus-attachment:`，多图轮播用 `nexus-gallery:`。
 - `content_refs` 继续作为扁平资源引用列表；它不能单独表达图集分组。后端如需更稳定的读取模型，可以后续补充只读或派生的 `content_blocks`。
 - 旧帖子不做迁移兼容：只有附件但正文没有媒体 marker 的历史内容，后续会删除，不为它保留额外正文外图集逻辑。
-- 实现目标是一轮完整体验闭环，而不是分阶段只做一半；写作器、列表页、详情页、lightbox、移动端和个人主页都要按同一套规则验收。
+- 实现目标是一轮完整媒体体验闭环，而不是分阶段只做一半；写作器、列表页、详情页、lightbox 和移动端都要按同一套帖子媒体规则验收。个人主页是相邻规划，不作为本次帖子媒体系统完成判定。
 - 前端不伪造后端没有的字段：没有 `medium_url`、`original_url`、帖子标题、社区摘要或评论 permalink 时，只做明确降级，不假装能力已完成。
 
 一次性交付的验收面：
@@ -92,7 +92,7 @@ const ratio = width / height;
 | 类型 | 条件 | 列表页处理 | 详情页处理 |
 | --- | --- | --- | --- |
 | 普通图 | `0.6 <= ratio <= 2.2` | 正常预览，限制最大高度 | 按内容列宽显示 |
-| 长图 / 截图 | `ratio < 0.6` | 裁成 `4:5` 或 `3:4`，标记“长图” | 默认限高，允许展开或进入 lightbox |
+| 长图 / 截图 | `ratio < 0.6` | 裁成 `4:5` 或 `3:4`，标记“长图” | 默认限高截断，展开后按内容列宽完整显示，也可进入 lightbox |
 | 超宽图 | `ratio > 2.2` | `16:9` 或 `21:9` 容器，`contain` 展示 | 按宽度完整显示 |
 | 小图 | 宽或高 `< 300px` | 不强行拉满，居中显示 | 原尺寸或适度放大 |
 | 超大文件 | `> 10MB` 到 `20MB` 量级 | 不直接加载原图 | 上传侧由后端压缩或拒绝 |
@@ -104,7 +104,8 @@ const ratio = width / height;
 - 长图在角标显示“长图 / 点击查看完整图片”。
 - 超宽图优先 `object-fit: contain`，背景使用深色承托，避免裁掉中间内容。
 - 多图最多直接展示 4 张，第 4 张显示 `+N`。
-- 有 `thumbnail_url` 时列表页优先用缩略图，不能优先加载原图。
+- 列表页主预览舞台优先使用 `medium_url`，没有时回退 `url`，避免把 512px 缩略图拉糊；缩略导航、小格子和轻量预览才优先使用 `thumbnail_url`。
+- 列表页不得优先加载 `original_url`；原图只用于 lightbox、打开原图或下载。
 
 ## 帖子详情媒体
 
@@ -116,7 +117,7 @@ const ratio = width / height;
 - 单图在内容列宽内显示。
 - 图片轮播块渲染为稳定播放器，包含上一张、下一张、当前序号和缩略导航。
 - 普通图可以自然显示，但仍不能造成横向溢出。
-- 长图默认最大高度 `80vh`，提供“展开长图”或进入 lightbox。
+- 长图默认最大高度 `80vh` 并截断预览；点击“展开长图”后按内容列固定宽度完整展开，不再设置额外高度上限；也可以进入 lightbox 查看原图。
 - 超宽图按内容宽度完整显示，必要时使用深色背景承托。
 - 小图不强行铺满详情主栏。
 - 白名单外链 canonical URL 在当前位置渲染受控播放器。
@@ -133,7 +134,7 @@ Lightbox 是完整查看场景，不受列表裁切和详情页限高影响。
 - 多图左右切换。
 - 键盘方向键切换。
 - `Esc` 关闭。
-- 点击或按钮关闭。
+- 点击空白背景、`Esc` 或关闭按钮退出。
 - 缩放。
 - 拖拽平移。
 - 移动端滑动切换。
@@ -189,7 +190,7 @@ Lightbox 是完整查看场景，不受列表裁切和详情页限高影响。
 
 后端协议写入根目录 `backend-api-needs.md`，本节只保留前端依赖摘要：
 
-- 图片资产需要 `thumbnail_url`、`medium_url`、`original_url`、`width`、`height`、`size_bytes`、`mime_type`、`alt_text` 和 `status`。
+- 图片资产需要 `thumbnail_url`、`medium_url`、`original_url`、`width`、`height`、`size_bytes`、`mime_type`、`alt_text` 和 `status`。主预览使用 `medium_url`，缩略导航使用 `thumbnail_url`，lightbox / 打开原图使用 `original_url`。
 - 后端需要保留或校验正文里的 `nexus-attachment:` 和 `nexus-gallery:` marker，或返回等价 `content_blocks`。
 - 列表页如由后端返回 `preview.kind=media_block`，它必须来自正文第一个媒体块，不得来自孤立附件。
 - 白名单 embed 需要后端 resolve、短链展开、provider、canonical URL、审核状态和可选标题 / 封面。

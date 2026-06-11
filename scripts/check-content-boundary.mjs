@@ -208,7 +208,6 @@ function checkWhitelistedMediaEmbedBoundary() {
     for (const token of [
       "@/features/content/media-embed",
       "@/features/content/media-embed-player",
-      "isWhitelistedMediaAutolink",
       "resolveWhitelistedMediaEmbed",
       "<MediaEmbedPlayer embed={embed} />",
     ]) {
@@ -668,8 +667,11 @@ function checkPublishedAttachmentImageSizing() {
       "plugins={[Download, Thumbnails, Zoom]}",
       "getMediaAttachmentUrl(attachment, \"lightbox\")",
       "getMediaAttachmentThumbnailUrl",
+      "controller={{ closeOnBackdropClick: true }}",
       "h-[min(320px,76vw)] sm:h-[420px]",
       "h-[min(80vh,760px)]",
+      "展开长图",
+      "收起长图",
       "aspect-video",
       "object-cover object-top",
       "长图",
@@ -722,6 +724,7 @@ function checkPublishedAttachmentImageSizing() {
   } else {
     for (const token of [
       "resolveFirstContentMediaBlock",
+      "resolveEmbedMediaBlockFromUrl",
       "ContentImageGallery",
       "MediaEmbedPlayer",
       'variant="preview"',

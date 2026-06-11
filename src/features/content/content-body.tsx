@@ -3,7 +3,6 @@
 import {
   cloneElement,
   isValidElement,
-  type ReactNode,
   useMemo,
   useState,
 } from "react";
@@ -26,10 +25,7 @@ import {
   isExternalMarkdownHref,
   normalizeMarkdownHref,
 } from "@/features/content/markdown-url";
-import {
-  isWhitelistedMediaAutolink,
-  resolveWhitelistedMediaEmbed,
-} from "@/features/content/media-embed";
+import { resolveWhitelistedMediaEmbed } from "@/features/content/media-embed";
 import { MediaEmbedPlayer } from "@/features/content/media-embed-player";
 import type { MediaAttachment } from "@/features/media/types";
 import { cn } from "@/lib/utils";
@@ -107,12 +103,10 @@ function createMarkdownComponents(
         return <span>{children}</span>;
       }
 
-      if (isWhitelistedMediaAutolink(safeHref, getPlainChildText(children))) {
-        const embed = resolveWhitelistedMediaEmbed(safeHref);
+      const embed = resolveWhitelistedMediaEmbed(safeHref);
 
-        if (embed) {
-          return <MediaEmbedPlayer embed={embed} />;
-        }
+      if (embed) {
+        return <MediaEmbedPlayer embed={embed} />;
       }
 
       return (
@@ -288,22 +282,6 @@ function createMarkdownComponents(
       );
     },
   };
-}
-
-function getPlainChildText(children: ReactNode): string {
-  if (typeof children === "string" || typeof children === "number") {
-    return String(children);
-  }
-
-  if (Array.isArray(children)) {
-    return children.map(getPlainChildText).join("");
-  }
-
-  if (isValidElement<{ children?: ReactNode }>(children)) {
-    return getPlainChildText(children.props.children);
-  }
-
-  return "";
 }
 
 function SpoilerText({ text }: { text: string }) {

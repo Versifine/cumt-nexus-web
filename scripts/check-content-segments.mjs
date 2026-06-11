@@ -673,12 +673,24 @@ function checkMediaEmbed() {
   );
 
   expectEqual(
-    "custom labelled provider link stays a normal markdown link",
-    isWhitelistedMediaAutolink(
-      "https://www.bilibili.com/video/BV1B7411m7LV",
-      "视频链接",
+    "custom labelled provider link is treated as embeddable media",
+    contentMediaSourceAllowsLabelledProviderLinks(),
+    true,
+  );
+
+  expectEqual(
+    "backend preview provider URL is treated as embeddable media",
+    summarizeMediaEmbed(
+      resolveWhitelistedMediaEmbed("https://www.bilibili.com/video/BV1B7411m7LV"),
     ),
-    false,
+    {
+      embedUrl:
+        "https://player.bilibili.com/player.html?bvid=BV1B7411m7LV&autoplay=0&danmaku=0",
+      layout: "wide-video",
+      provider: "bilibili",
+      resourceId: "BV1B7411m7LV",
+      resourceType: "video-bvid",
+    },
   );
 }
 
@@ -1038,6 +1050,19 @@ function summarizeMediaEmbed(embed) {
 
 function summarizeMarkdownNodeText(node) {
   return `${node.type}:${node.value ?? ""}`;
+}
+
+function contentMediaSourceAllowsLabelledProviderLinks() {
+  const contentMediaSource = readFileSync(
+    resolve(root, "src/features/content/content-media.ts"),
+    "utf8",
+  );
+
+  return (
+    contentMediaSource.includes("resolveWhitelistedMediaEmbed(href)") &&
+    contentMediaSource.includes("resolveEmbedMediaBlockFromUrl") &&
+    !contentMediaSource.includes("isWhitelistedMediaAutolink(href")
+  );
 }
 
 function expectEqual(name, actual, expected) {

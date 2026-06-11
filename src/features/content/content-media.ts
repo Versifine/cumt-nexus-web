@@ -4,7 +4,6 @@ import {
   isAttachmentMarkdownUrl,
 } from "@/features/content/attachment-markdown";
 import {
-  isWhitelistedMediaAutolink,
   resolveWhitelistedMediaEmbed,
   type WhitelistedMediaEmbed,
 } from "@/features/content/media-embed";
@@ -62,6 +61,16 @@ export function resolveFirstContentMediaBlock({
   ].sort((left, right) => left.index - right.index);
 
   return occurrences[0]?.block ?? null;
+}
+
+export function resolveEmbedMediaBlockFromUrl(
+  url?: string | null,
+): ResolvedEmbedMediaBlock | null {
+  const embed = resolveWhitelistedMediaEmbed(
+    stripTrailingUrlPunctuation(url?.trim() ?? ""),
+  );
+
+  return embed ? { embed, kind: "embed" } : null;
 }
 
 export function resolveImageMediaBlockFromMarkdownUrl({
@@ -217,12 +226,6 @@ function getEmbedMediaOccurrences(markdown: string) {
     }
 
     const href = stripTrailingUrlPunctuation(match[2]);
-    const label = unescapeMarkdownLabel(match[1]).trim();
-
-    if (!isWhitelistedMediaAutolink(href, label)) {
-      continue;
-    }
-
     const embed = resolveWhitelistedMediaEmbed(href);
 
     if (embed) {
