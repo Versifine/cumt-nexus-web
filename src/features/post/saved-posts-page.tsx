@@ -108,7 +108,7 @@ export function SavedPostsPage() {
                 description="在信息流或帖子详情中点击收藏，帖子会出现在这里。"
                 action={
                   <TextAction href="/" tone="primary">
-                    返回信息流
+                    信息流首页
                   </TextAction>
                 }
               />
@@ -164,7 +164,7 @@ function SavedPostsRail({
           <h2 className="text-sm font-semibold">继续浏览</h2>
           <div className="mt-3 flex flex-col border-y border-border">
             <TextAction href="/" variant="bar">
-              返回首页
+              信息流首页
             </TextAction>
             <TextAction href="/all" variant="bar">
               浏览全站

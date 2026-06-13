@@ -1,10 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
-  Image as ImageIcon,
   ExternalLink,
   Link as LinkIcon,
   MessageSquare,
@@ -26,6 +25,11 @@ import { MediaEmbedPlayer } from "@/features/content/media-embed-player";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { cn } from "@/lib/utils";
 
+import {
+  PostPreviewAttribution,
+  type PostAuthorFallback,
+  type PostCommunityFallback,
+} from "./post-attribution";
 import { PostSaveButton } from "./post-save-button";
 import type { Post } from "./types";
 
@@ -34,20 +38,11 @@ type PostSourceContext = {
   label: string;
 };
 
-type AuthorFallback = {
-  displayName?: string;
-  username?: string;
-};
-
-type CommunityFallback = {
-  name?: string;
-  slug?: string;
-};
-
 type RedditPostListItemProps = {
-  authorFallback?: AuthorFallback;
+  authorFallback?: PostAuthorFallback;
   className?: string;
-  communityFallback?: CommunityFallback;
+  communityFallback?: PostCommunityFallback;
+  onRememberSource?: (postId: string) => void;
   post: Post;
   showCommunity?: boolean;
   source: PostSourceContext;
@@ -57,6 +52,7 @@ export function RedditPostListItem({
   authorFallback,
   className,
   communityFallback,
+  onRememberSource,
   post,
   showCommunity = true,
   source,
@@ -65,24 +61,6 @@ export function RedditPostListItem({
     "idle",
   );
   const postHref = `/posts/${post.id}`;
-  const communitySlug =
-    post.community?.slug?.trim() ||
-    post.community_slug?.trim() ||
-    communityFallback?.slug?.trim() ||
-    "";
-  const communityName =
-    post.community?.name?.trim() ||
-    post.community_name?.trim() ||
-    communityFallback?.name?.trim() ||
-    (communitySlug ? `/${communitySlug}` : "社区");
-  const authorName =
-    post.author?.display_name?.trim() ||
-    post.author?.username?.trim() ||
-    authorFallback?.displayName?.trim() ||
-    authorFallback?.username?.trim() ||
-    "用户";
-  const authorUsername =
-    post.author?.username?.trim() || authorFallback?.username?.trim() || "";
   const mediaBlock = getPostMediaBlock(post);
   const linkPreview = mediaBlock ? null : getPostLinkPreview(post);
   const excerpt = getPostExcerpt(post);
@@ -92,6 +70,11 @@ export function RedditPostListItem({
       : new URL(postHref, window.location.origin).toString();
 
   function rememberSource() {
+    if (onRememberSource) {
+      onRememberSource(post.id);
+      return;
+    }
+
     rememberPostNavigationSource({
       href: source.href,
       label: source.label,
@@ -113,55 +96,28 @@ export function RedditPostListItem({
   return (
     <article
       className={cn(
-        "group grid min-w-0 grid-cols-[42px_minmax(0,1fr)] border-b border-border bg-background transition-colors hover:bg-background-soft/60 sm:grid-cols-[48px_minmax(0,1fr)]",
+        "group flex min-w-0 gap-0 border-b border-border/60 transition-colors hover:bg-background-soft/40",
         className,
       )}
     >
-      <RedditVoteControl
-        className="border-r border-border bg-background-soft/45 py-3"
-        downvoteCount={post.downvote_count}
-        myVote={post.my_vote}
-        score={post.score}
-        targetId={post.id}
-        targetType="post"
-        upvoteCount={post.upvote_count}
-      />
+      <div className="flex w-10 shrink-0 flex-col items-center pt-3 sm:w-11">
+        <RedditVoteControl
+          downvoteCount={post.downvote_count}
+          myVote={post.my_vote}
+          score={post.score}
+          targetId={post.id}
+          targetType="post"
+          upvoteCount={post.upvote_count}
+        />
+      </div>
 
-      <div className="min-w-0 px-3 py-3 sm:px-4">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
-          {showCommunity ? (
-            communitySlug ? (
-              <Link
-                href={`/communities/${encodeURIComponent(communitySlug)}`}
-                className="font-semibold text-foreground hover:text-primary"
-              >
-                /{communitySlug}
-              </Link>
-            ) : (
-              <span className="font-semibold text-foreground">{communityName}</span>
-            )
-          ) : null}
-          {showCommunity ? <span aria-hidden="true">·</span> : null}
-          {authorUsername ? (
-            <Link
-              href={`/users/${encodeURIComponent(authorUsername)}`}
-              className="hover:text-foreground"
-            >
-              {authorName}
-            </Link>
-          ) : (
-            <span>{authorName}</span>
-          )}
-          <span aria-hidden="true">·</span>
-          <span>{formatDate(post.created_at)}</span>
-          {post.status !== "visible" ? (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>{formatPostStatus(post.status)}</span>
-            </>
-          ) : null}
-        </div>
-
+      <PostPreviewAttribution
+        authorFallback={authorFallback}
+        className="min-w-0 flex-1 px-2 py-3 sm:px-3"
+        communityFallback={communityFallback}
+        post={post}
+        showCommunity={showCommunity}
+      >
         <h2 className="mt-1 min-w-0 text-base font-semibold leading-6 tracking-normal text-foreground sm:text-lg">
           <Link
             href={postHref}
@@ -209,17 +165,17 @@ export function RedditPostListItem({
           </Link>
         ) : null}
 
-        <div className="mt-3 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+        <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
           <PostActionLink href={postHref} onClick={rememberSource}>
-            <MessageSquare className="size-4" aria-hidden="true" />
+            <MessageSquare className="size-3.5" aria-hidden="true" />
             {post.comment_count ?? 0} 条评论
           </PostActionLink>
           <button
             type="button"
-            className="inline-flex h-8 items-center gap-1.5 px-2 font-semibold transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="inline-flex h-7 items-center gap-1.5 rounded px-2 transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             onClick={copyPostLink}
           >
-            <Share2 className="size-4" aria-hidden="true" />
+            <Share2 className="size-3.5" aria-hidden="true" />
             {shareState === "copied"
               ? "已复制"
               : shareState === "failed"
@@ -227,30 +183,13 @@ export function RedditPostListItem({
                 : "分享"}
           </button>
           <PostSaveButton
+            className="h-7 text-xs"
             isSaved={post.is_saved}
             postId={post.id}
             saveCount={post.save_count}
           />
-          {mediaBlock?.kind === "image-gallery" ? (
-            <span className="inline-flex h-8 items-center gap-1.5 px-2">
-              <ImageIcon className="size-4" aria-hidden="true" />
-              图片
-            </span>
-          ) : null}
-          {mediaBlock?.kind === "embed" ? (
-            <span className="inline-flex h-8 items-center gap-1.5 px-2">
-              <ExternalLink className="size-4" aria-hidden="true" />
-              播放器
-            </span>
-          ) : null}
-          {linkPreview ? (
-            <span className="inline-flex h-8 items-center gap-1.5 px-2">
-              <LinkIcon className="size-4" aria-hidden="true" />
-              链接
-            </span>
-          ) : null}
         </div>
-      </div>
+      </PostPreviewAttribution>
     </article>
   );
 }
@@ -261,31 +200,27 @@ function PostLinkPreviewCard({ preview }: { preview: ResolvedLinkPreview }) {
       href={preview.url}
       target="_blank"
       rel="nofollow ugc noopener noreferrer"
-      className="grid max-w-[640px] grid-cols-[minmax(0,1fr)_auto] border border-border bg-background-soft transition-colors hover:border-primary/50 hover:bg-surface-hover"
+      className="group block max-w-[640px] border-l border-border bg-background-soft/40 px-3 py-2 transition-colors hover:border-primary hover:bg-surface-hover/70"
     >
-      <span className="min-w-0 px-3 py-2.5">
-        <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-          <LinkIcon className="size-3.5 shrink-0" aria-hidden="true" />
+      <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+          <LinkIcon className="size-3 shrink-0" aria-hidden="true" />
           <span className="truncate font-mono">{preview.host}</span>
           {preview.source === "backend" ? (
-            <span className="shrink-0 border-l border-border pl-2">预览</span>
+          <span className="shrink-0 text-muted-foreground/70">预览</span>
           ) : null}
+        <ExternalLink
+          className="ml-auto size-3.5 shrink-0 opacity-60 transition-colors group-hover:text-primary group-hover:opacity-100"
+          aria-hidden="true"
+        />
         </span>
-        <span className="mt-1 block truncate text-sm font-semibold text-foreground">
+      <span className="mt-0.5 block truncate text-sm font-medium text-foreground">
           {preview.title}
         </span>
         {preview.description ? (
-          <span className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+        <span className="mt-0.5 line-clamp-1 text-xs leading-5 text-muted-foreground">
             {preview.description}
           </span>
         ) : null}
-      </span>
-      <span
-        className="flex h-full w-12 items-center justify-center border-l border-border text-muted-foreground"
-        aria-hidden="true"
-      >
-        <ExternalLink className="size-4" />
-      </span>
     </a>
   );
 }
@@ -303,7 +238,7 @@ function PostActionLink({
     <Link
       href={href}
       onClick={onClick}
-      className="inline-flex h-8 items-center gap-1.5 px-2 font-semibold transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="inline-flex h-7 items-center gap-1.5 rounded px-2 transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       {children}
     </Link>
@@ -341,26 +276,4 @@ function getPostLinkPreview(post: Post) {
 
 function getPostPreviewUrl(post: Post) {
   return post.preview?.link?.url ?? post.preview?.url ?? null;
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-  }).format(new Date(value));
-}
-
-function formatPostStatus(status: string) {
-  switch (status) {
-    case "archived":
-      return "已归档";
-    case "hidden":
-      return "已隐藏";
-    case "deleted":
-      return "已删除";
-    case "removed":
-      return "已移除";
-    default:
-      return status;
-  }
 }

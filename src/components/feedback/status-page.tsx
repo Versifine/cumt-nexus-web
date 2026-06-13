@@ -78,14 +78,14 @@ export function StatusPage({
                 回到可用入口
               </h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                先返回稳定页面，再继续浏览社区内容或重新执行刚才的操作。
+                先打开稳定页面，再继续浏览社区内容或重新执行刚才的操作。
               </p>
             </div>
             <div className="border-b border-border px-5 py-4">
               {actions ?? (
                 <div className="border-y border-border">
                   <TextAction href="/" tone="primary" variant="bar">
-                    返回最新讨论
+                    最新讨论
                   </TextAction>
                   <TextAction href="/communities" variant="bar">
                     浏览社区索引
@@ -112,7 +112,7 @@ export function RetryAction({ onRetry }: { onRetry: () => void }) {
         </Button>
       </div>
       <TextAction href="/" tone="primary" variant="bar">
-        返回最新讨论
+        最新讨论
       </TextAction>
       <TextAction href="/communities" variant="bar">
         浏览社区索引

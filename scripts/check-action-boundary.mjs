@@ -136,7 +136,8 @@ function checkPostNavigationSourceBoundary() {
       "resolvePostBackSource",
       "usePostNavigationSource",
       "const navigationSource = usePostNavigationSource(id)",
-      "source={navigationSource}",
+      "getPostBackTarget(post, navigationSource)",
+      "useAppShellBackAction(postBackTarget)",
     ]) {
       if (!detailFile.content.includes(token)) {
         problems.push(`post detail return source missing ${token}`);

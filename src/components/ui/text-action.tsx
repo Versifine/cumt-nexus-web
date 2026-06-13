@@ -79,23 +79,14 @@ export function TextAction({
     <Link
       href={href}
       className={cn(
-        "group relative inline-flex h-10 items-center gap-2 overflow-hidden border border-border px-3 text-sm font-semibold transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "group inline-flex min-h-9 items-center gap-2 border-b border-transparent px-0.5 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         className,
       )}
     >
       <span
         className={cn(
-          "absolute inset-y-0 left-0 w-1 transition-all duration-200 group-hover:w-full",
-          isPrimary ? "bg-primary" : "bg-foreground",
-        )}
-        aria-hidden="true"
-      />
-      <span
-        className={cn(
-          "relative z-10 inline-flex items-center gap-2 transition-colors",
-          isPrimary
-            ? "text-foreground group-hover:text-primary-foreground"
-            : "text-foreground group-hover:text-background",
+          "inline-flex items-center gap-2 transition-colors",
+          isPrimary ? "text-primary" : "text-foreground",
         )}
       >
         {isBack ? (
@@ -109,10 +100,8 @@ export function TextAction({
       {!isBack ? (
         <span
           className={cn(
-            "relative z-10 font-mono transition-colors",
-            isPrimary
-              ? "text-primary group-hover:text-primary-foreground"
-              : "text-muted-foreground group-hover:text-background",
+            "font-mono text-xs transition-colors",
+            isPrimary ? "text-primary" : "text-muted-foreground group-hover:text-primary",
           )}
         >
           +

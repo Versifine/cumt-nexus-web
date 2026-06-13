@@ -10,6 +10,10 @@ import { ContentBody } from "@/features/content/content-body";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { ModerationRemoveDialog } from "@/features/moderation/moderation-remove-dialog";
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
+import {
+  UserHoverPreview,
+  type UserHoverIdentity,
+} from "@/features/profile/user-hover-card";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { cn } from "@/lib/utils";
 
@@ -153,91 +157,98 @@ function CommentBranch({
           upvoteCount={comment.upvote_count ?? 0}
         />
 
-        <div className="min-w-0 px-2 py-3 sm:px-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <CommentAuthorMeta comment={comment} />
-            <span aria-hidden="true">·</span>
-            <span>{formatDate(comment.created_at)}</span>
-            {comment.status !== "visible" ? (
+        <div className="grid min-w-0 grid-cols-[32px_minmax(0,1fr)] gap-3 px-2 py-3 sm:px-3">
+          <CommentAuthorAvatar
+            comment={comment}
+            name={getCommentAuthorName(comment)}
+          />
+
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <CommentAuthorMeta comment={comment} />
+              <span aria-hidden="true">·</span>
+              <span>{formatDate(comment.created_at)}</span>
+              {comment.status !== "visible" ? (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>{formatCommentStatus(comment.status)}</span>
+                </>
+              ) : null}
+            </div>
+
+            {!isCollapsed ? (
               <>
-                <span aria-hidden="true">·</span>
-                <span>{formatCommentStatus(comment.status)}</span>
-              </>
-            ) : null}
-          </div>
-
-          {!isCollapsed ? (
-            <>
-              <ContentBody
-                attachments={comment.attachments}
-                value={comment.body}
-                className="mt-2 text-sm leading-7"
-              />
-
-              <div className="mt-2 flex flex-wrap items-center gap-1 text-xs">
-                <TextCommand
-                  onClick={() =>
-                    onReply(replyingTo === comment.id ? null : comment.id)
-                  }
-                >
-                  <CornerDownRight className="size-3.5" aria-hidden="true" />
-                  {replyingTo === comment.id ? "收起回复" : "回复"}
-                </TextCommand>
-
-                {hasChildren ? (
-                  <TextCommand onClick={() => onToggleCollapsed(comment.id)}>
-                    <ChevronDown className="size-3.5" aria-hidden="true" />
-                    折叠
-                  </TextCommand>
-                ) : null}
-
-                <CommentLifecycleControls
-                  canManage={canManageComment}
-                  comment={comment}
-                  postId={postId}
+                <ContentBody
+                  attachments={comment.attachments}
+                  value={comment.body}
+                  className="mt-2 text-sm leading-7"
                 />
 
-                {isAuthenticated &&
-                comment.viewer_permissions?.can_report !== false ? (
-                  <ReportContentDialog
-                    targetId={comment.id}
-                    targetLabel={commentTargetLabel || "评论"}
-                    targetType="comment"
-                  />
-                ) : null}
+                <div className="mt-2 flex flex-wrap items-center gap-1 text-xs">
+                  <TextCommand
+                    onClick={() =>
+                      onReply(replyingTo === comment.id ? null : comment.id)
+                    }
+                  >
+                    <CornerDownRight className="size-3.5" aria-hidden="true" />
+                    {replyingTo === comment.id ? "收起回复" : "回复"}
+                  </TextCommand>
 
-                {canModerate ? (
-                  <ModerationRemoveDialog
-                    targetId={comment.id}
-                    targetLabel={commentTargetLabel || "评论"}
-                    targetType="comment"
-                  />
-                ) : null}
-              </div>
+                  {hasChildren ? (
+                    <TextCommand onClick={() => onToggleCollapsed(comment.id)}>
+                      <ChevronDown className="size-3.5" aria-hidden="true" />
+                      折叠
+                    </TextCommand>
+                  ) : null}
 
-              {replyingTo === comment.id ? (
-                <div className="mt-3">
-                  <CommentForm
-                    compact
-                    onSubmitted={() => onReply(null)}
-                    parentId={comment.id}
-                    placeholder="回复这条评论"
+                  <CommentLifecycleControls
+                    canManage={canManageComment}
+                    comment={comment}
                     postId={postId}
-                    submitLabel="发布回复"
                   />
+
+                  {isAuthenticated &&
+                  comment.viewer_permissions?.can_report !== false ? (
+                    <ReportContentDialog
+                      targetId={comment.id}
+                      targetLabel={commentTargetLabel || "评论"}
+                      targetType="comment"
+                    />
+                  ) : null}
+
+                  {canModerate ? (
+                    <ModerationRemoveDialog
+                      targetId={comment.id}
+                      targetLabel={commentTargetLabel || "评论"}
+                      targetType="comment"
+                    />
+                  ) : null}
                 </div>
-              ) : null}
-            </>
-          ) : (
-            <button
-              type="button"
-              className="mt-2 inline-flex h-8 items-center gap-1.5 px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              onClick={() => onToggleCollapsed(comment.id)}
-            >
-              <ChevronRight className="size-3.5" aria-hidden="true" />
-              展开{replyCount > 0 ? ` ${replyCount} 条回复` : "评论"}
-            </button>
-          )}
+
+                {replyingTo === comment.id ? (
+                  <div className="mt-3">
+                    <CommentForm
+                      compact
+                      onSubmitted={() => onReply(null)}
+                      parentId={comment.id}
+                      placeholder="回复这条评论"
+                      postId={postId}
+                      submitLabel="发布回复"
+                    />
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <button
+                type="button"
+                className="mt-2 inline-flex h-8 items-center gap-1.5 px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => onToggleCollapsed(comment.id)}
+              >
+                <ChevronRight className="size-3.5" aria-hidden="true" />
+                展开{replyCount > 0 ? ` ${replyCount} 条回复` : "评论"}
+              </button>
+            )}
+          </div>
         </div>
       </article>
 
@@ -340,37 +351,34 @@ function sortTreeByInputOrder(nodes: CommentTreeNode[]) {
 
 function CommentAuthorMeta({ comment }: { comment: Comment }) {
   const authorName = getCommentAuthorName(comment);
-  const authorHandle = getCommentAuthorHandle(comment);
   const authorHref = getCommentAuthorHref(comment);
-
-  const content = (
-    <>
-      <CommentAuthorAvatar comment={comment} name={authorName} />
-      <span className="min-w-0">
-        <span className="block truncate font-semibold text-foreground">
-          {authorName}
-        </span>
-        {authorHandle ? (
-          <span className="mt-0.5 block truncate font-mono text-[11px] text-primary">
-            {authorHandle}
-          </span>
-        ) : null}
-      </span>
-    </>
-  );
+  const hoverUser = getCommentAuthorHoverIdentity(comment);
+  const className =
+    "min-w-0 truncate font-semibold text-foreground transition-colors hover:text-primary";
 
   if (authorHref) {
     return (
-      <Link
-        href={authorHref}
-        className="inline-flex min-w-0 items-center gap-1.5 transition-colors hover:text-primary"
+      <UserHoverPreview
+        className="min-w-0"
+        user={hoverUser}
+        panelClassName="w-72"
       >
-        {content}
-      </Link>
+        <Link href={authorHref} className={className}>
+          {authorName}
+        </Link>
+      </UserHoverPreview>
     );
   }
 
-  return <span className="inline-flex min-w-0 items-center gap-1.5">{content}</span>;
+  return (
+    <UserHoverPreview
+      className="min-w-0"
+      user={hoverUser}
+      panelClassName="w-72"
+    >
+      <span className={className}>{authorName}</span>
+    </UserHoverPreview>
+  );
 }
 
 function CommentAuthorAvatar({
@@ -381,6 +389,38 @@ function CommentAuthorAvatar({
   name: string;
 }) {
   const avatarUrl = comment.author?.avatar_url?.trim();
+  const authorHref = getCommentAuthorHref(comment);
+  const hoverUser = getCommentAuthorHoverIdentity(comment);
+  const avatar = <CommentAuthorAvatarVisual avatarUrl={avatarUrl} name={name} />;
+
+  if (authorHref) {
+    return (
+      <UserHoverPreview user={hoverUser} panelClassName="w-72">
+        <Link
+          href={authorHref}
+          aria-label={`进入${name}的主页`}
+          className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          {avatar}
+        </Link>
+      </UserHoverPreview>
+    );
+  }
+
+  return (
+    <UserHoverPreview user={hoverUser} panelClassName="w-72">
+      {avatar}
+    </UserHoverPreview>
+  );
+}
+
+function CommentAuthorAvatarVisual({
+  avatarUrl,
+  name,
+}: {
+  avatarUrl?: string;
+  name: string;
+}) {
 
   if (avatarUrl) {
     return (
@@ -388,17 +428,17 @@ function CommentAuthorAvatar({
       <img
         src={avatarUrl}
         alt={`${name} 的头像`}
-        className="size-6 shrink-0 rounded-full border border-border object-cover"
+        className="mt-0.5 size-8 shrink-0 rounded-full border border-border bg-secondary object-cover"
       />
     );
   }
 
   return (
     <span
-      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-primary"
+      className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-primary"
       aria-label={`${name} 的头像占位`}
     >
-      <User className="size-3.5" aria-hidden="true" />
+      <User className="size-4" aria-hidden="true" />
     </span>
   );
 }
@@ -411,16 +451,20 @@ function getCommentAuthorName(comment: Comment) {
   );
 }
 
-function getCommentAuthorHandle(comment: Comment) {
-  const username = comment.author?.username?.trim();
-
-  return username ? `@${username}` : "";
-}
-
 function getCommentAuthorHref(comment: Comment) {
   const username = comment.author?.username?.trim();
 
   return username ? `/users/${encodeURIComponent(username)}` : null;
+}
+
+function getCommentAuthorHoverIdentity(comment: Comment): UserHoverIdentity {
+  return {
+    avatarUrl: comment.author?.avatar_url?.trim() || "",
+    badges: comment.author?.badges?.filter(Boolean) ?? [],
+    displayName: getCommentAuthorName(comment),
+    headline: comment.author?.headline?.trim() || "",
+    username: comment.author?.username?.trim() || "",
+  };
 }
 
 function formatDate(value: string) {

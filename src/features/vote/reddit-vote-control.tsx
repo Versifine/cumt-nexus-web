@@ -73,13 +73,9 @@ export function RedditVoteControl({
     onSuccess: async (nextVote) => {
       if (targetType === "post") {
         updateCachedPostVote({
-          currentVote: normalizeVoteValue(myVote),
-          downvoteCount,
           nextVote,
           postId: targetId,
           queryClient,
-          score,
-          upvoteCount,
         });
         return;
       }
@@ -179,29 +175,15 @@ function VoteButton({
 }
 
 function updateCachedPostVote({
-  currentVote,
-  downvoteCount,
   nextVote,
   postId,
   queryClient,
-  score,
-  upvoteCount,
 }: {
-  currentVote: -1 | 0 | 1;
-  downvoteCount: number;
   nextVote: -1 | 0 | 1;
   postId: string;
   queryClient: ReturnType<typeof useQueryClient>;
-  score: number;
-  upvoteCount: number;
 }) {
-  const patch = getNextPostVoteFields({
-    currentVote,
-    downvoteCount,
-    nextVote,
-    score,
-    upvoteCount,
-  });
+  const patch = getPostVotePatch(nextVote);
 
   queryClient.setQueryData<GetPostResponse>(
     postQueryKeys.detail(postId),
@@ -257,74 +239,47 @@ function patchPostListResponse(
 }
 
 function applyPostVotePatch(post: Post, patch: PostVotePatch): Post {
+  const previousVote = normalizeVote(post.my_vote);
+  const upvoteDelta = getVoteBucketDelta(previousVote, patch.my_vote, 1);
+  const downvoteDelta = getVoteBucketDelta(previousVote, patch.my_vote, -1);
+  const scoreDelta = patch.my_vote - previousVote;
+
   return {
     ...post,
-    downvote_count: patch.downvote_count,
+    downvote_count: Math.max(0, post.downvote_count + downvoteDelta),
     my_vote: patch.my_vote,
-    score: patch.score,
-    upvote_count: patch.upvote_count,
+    score: post.score + scoreDelta,
+    upvote_count: Math.max(0, post.upvote_count + upvoteDelta),
   };
 }
 
 type PostVotePatch = {
-  downvote_count: number;
   my_vote: -1 | 0 | 1;
-  score: number;
-  upvote_count: number;
 };
 
-function getNextPostVoteFields({
-  currentVote,
-  downvoteCount,
-  nextVote,
-  score,
-  upvoteCount,
-}: {
-  currentVote: -1 | 0 | 1;
-  downvoteCount: number;
-  nextVote: -1 | 0 | 1;
-  score: number;
-  upvoteCount: number;
-}): PostVotePatch {
-  let nextUpvoteCount = upvoteCount;
-  let nextDownvoteCount = downvoteCount;
-
-  if (currentVote === 1) {
-    nextUpvoteCount -= 1;
-  }
-
-  if (currentVote === -1) {
-    nextDownvoteCount -= 1;
-  }
-
-  if (nextVote === 1) {
-    nextUpvoteCount += 1;
-  }
-
-  if (nextVote === -1) {
-    nextDownvoteCount += 1;
-  }
-
-  nextUpvoteCount = Math.max(0, nextUpvoteCount);
-  nextDownvoteCount = Math.max(0, nextDownvoteCount);
-
+function getPostVotePatch(nextVote: -1 | 0 | 1): PostVotePatch {
   return {
-    downvote_count: nextDownvoteCount,
     my_vote: nextVote,
-    score:
-      typeof score === "number"
-        ? score - currentVote + nextVote
-        : nextUpvoteCount - nextDownvoteCount,
-    upvote_count: nextUpvoteCount,
   };
 }
 
-function normalizeVoteValue(value: number): -1 | 0 | 1 {
+function normalizeVote(value: number): -1 | 0 | 1 {
   if (value === 1 || value === -1) {
     return value;
   }
 
   return 0;
+}
+
+function getVoteBucketDelta(
+  previousVote: -1 | 0 | 1,
+  nextVote: -1 | 0 | 1,
+  bucket: -1 | 1,
+) {
+  const previousCounted = previousVote === bucket ? 1 : 0;
+  const nextCounted = nextVote === bucket ? 1 : 0;
+
+  return nextCounted - previousCounted;
 }
 
 function formatCompactNumber(value: number) {

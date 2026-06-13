@@ -15,7 +15,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import {
-  feedSourceItems,
   formatFeedSourceDescription,
   formatFeedSourceLabel,
   getFeedHref,
@@ -35,12 +34,6 @@ import type {
   PostSort,
 } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
-
-const guideItems = [
-  "先进入具体社区，再发布帖子。",
-  "投票会改变帖子分数，取消投票会恢复状态。",
-  "社区申请通过前不会创建公开社区。",
-];
 
 type HomeShellProps = {
   initialPostsData?: ListPostsResponse;
@@ -80,47 +73,38 @@ export function HomeShell({
   );
 
   return (
-    <div className="grid grid-cols-1 gap-0 xl:grid-cols-[minmax(0,1fr)_312px]">
+    <div className="grid grid-cols-1 gap-0 xl:grid-cols-[minmax(0,1fr)_280px]">
       <section className="min-w-0">
-        <section className="border border-border bg-background">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="px-3 py-3 sm:px-4">
-              <h1 className="text-base font-semibold text-foreground">
-                {formatFeedSourceLabel(source)}讨论
-              </h1>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {getFeedIntroText(source, sort, Boolean(token))}
-              </p>
-              {sortFallbackNotice ? (
-                <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
-                  {sortFallbackNotice}
+        <div className="bg-background">
+          <div className="border-b border-border pb-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+                <h1 className="text-xl font-semibold leading-7 text-foreground">
+                  {formatFeedSourceLabel(source)}讨论
+                </h1>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                  {getFeedIntroText(source, sort, Boolean(token))}
                 </p>
-              ) : null}
-            </div>
-            <div className="flex max-w-full flex-col gap-2 px-3 pb-3 sm:px-4 sm:pb-0">
-              <FeedSourceTabs
-                disabled={!isReady}
-                onSourceChange={(nextSource) => {
-                  if (nextSource !== source) {
-                    router.push(getFeedHref(nextSource, sort));
-                  }
-                }}
-                source={source}
-              />
-              <FeedSortTabs
-                disabled={!canReadLatestPosts || latestPostsQuery.isFetching}
-                onSortChange={(nextSort) => {
-                  if (nextSort !== sort) {
-                    router.push(getFeedHref(source, nextSort));
-                  }
-                }}
-                sort={sort}
-              />
+                {sortFallbackNotice ? (
+                  <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
+                    {sortFallbackNotice}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex max-w-full sm:items-end">
+                <FeedSortTabs
+                  disabled={!canReadLatestPosts || latestPostsQuery.isFetching}
+                  onSortChange={(nextSort) => {
+                    if (nextSort !== sort) {
+                      router.push(getFeedHref(source, nextSort));
+                    }
+                  }}
+                  sort={sort}
+                />
+              </div>
             </div>
           </div>
-        </section>
 
-        <section className="mt-3 border-x border-border bg-background">
           {!isReady ? (
             <div className="border-b border-border py-5">
               <LoadingState rows={5} />
@@ -215,24 +199,30 @@ export function HomeShell({
           {canReadLatestPosts &&
           latestPostsQuery.isSuccess &&
           posts.length > 0 ? (
-            <div>
+            <div className="border-t border-border">
               {posts.map((post) => (
                 <RedditPostListItem
                   key={post.id}
+                  onRememberSource={(postId) =>
+                    rememberPostNavigationSource({
+                      href: postSource.href,
+                      label: postSource.label,
+                      postId,
+                    })
+                  }
                   post={post}
                   source={postSource}
                 />
               ))}
             </div>
           ) : null}
-        </section>
+        </div>
       </section>
 
       <RightRail
         canReadLatestPosts={canReadLatestPosts}
         feedSource={source}
         posts={posts}
-        postSource={postSource}
         sortFallbackNotice={sortFallbackNotice}
       />
     </div>
@@ -250,11 +240,11 @@ function FeedSortTabs({
 }) {
   return (
     <Tabs value={sort} onValueChange={(value) => onSortChange(value as PostSort)}>
-      <TabsList className="max-w-full justify-start overflow-x-auto rounded-none border-border bg-background p-0">
+      <TabsList className="h-8 max-w-full justify-start overflow-x-auto rounded-md border-0 bg-background-soft p-0.5">
         <TabsTrigger
           value="best"
           disabled={disabled}
-          className="rounded-none border-r border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          className="h-7 rounded px-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
         >
           推荐
         </TabsTrigger>
@@ -263,7 +253,7 @@ function FeedSortTabs({
             key={item.value}
             value={item.value}
             disabled={disabled}
-            className="rounded-none border-r border-border last:border-r-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            className="h-7 rounded px-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
           >
             {item.label}
           </TabsTrigger>
@@ -285,36 +275,6 @@ function getFeedIntroText(
   return `${formatFeedSourceDescription(source)}当前按${formatPostSortLabel(sort)}排序。`;
 }
 
-function FeedSourceTabs({
-  disabled,
-  onSourceChange,
-  source,
-}: {
-  disabled: boolean;
-  onSourceChange: (source: FeedSource) => void;
-  source: FeedSource;
-}) {
-  return (
-    <Tabs
-      value={source}
-      onValueChange={(value) => onSourceChange(value as FeedSource)}
-    >
-      <TabsList className="max-w-full justify-start overflow-x-auto rounded-none border-border bg-background p-0">
-        {feedSourceItems.map((item) => (
-          <TabsTrigger
-            key={item.value}
-            value={item.value}
-            disabled={disabled}
-            className="rounded-none border-r border-border last:border-r-0 data-[state=active]:bg-foreground data-[state=active]:text-background"
-          >
-            {item.label}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
-  );
-}
-
 function getHomePostSource(
   pathname: string,
   source: FeedSource,
@@ -330,33 +290,28 @@ function RightRail({
   canReadLatestPosts,
   feedSource,
   posts,
-  postSource,
   sortFallbackNotice,
 }: {
   canReadLatestPosts: boolean;
   feedSource: FeedSource;
   posts: Post[];
-  postSource: PostSourceContext;
   sortFallbackNotice: string | null;
 }) {
-  const topPosts = posts.slice(0, 3);
+  const activeCommunities = getActiveCommunities(posts).slice(0, 4);
 
   return (
-    <aside className="border-t border-border bg-background-soft/45 px-4 py-6 md:px-6 xl:border-l xl:border-t-0">
-      <div className="sticky top-20 space-y-8">
-        <section className="border-b border-border pb-6">
-          <div className="font-mono text-xs uppercase text-muted-foreground">
-            右侧上下文
-          </div>
-          <h2 className="mt-3 text-lg font-semibold leading-7">
-            今天从{formatFeedSourceLabel(feedSource)}信息流开始。
+    <aside className="border-t border-border px-0 py-5 xl:border-l xl:border-t-0 xl:pl-5">
+      <div className="sticky top-20 space-y-6">
+        <section className="border-b border-border pb-5">
+          <h2 className="text-sm font-semibold">
+            {formatFeedSourceLabel(feedSource)}信息流
           </h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {getRailDescription(feedSource, sortFallbackNotice)}
           </p>
           <div className="mt-4 flex flex-col border-y border-border">
             <TextAction href="/communities" tone="primary" variant="bar">
-              选择社区
+              浏览社区
             </TextAction>
             <TextAction href="/community-applications/new" variant="bar">
               申请社区
@@ -364,34 +319,22 @@ function RightRail({
           </div>
         </section>
 
-        <section className="border-b border-border pb-6">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold">高分讨论</h3>
-            <span className="font-mono text-xs text-muted-foreground">
-              TOP {topPosts.length}
-            </span>
-          </div>
-          {topPosts.length > 0 ? (
+        <section>
+          <h3 className="text-sm font-semibold">当前流里的社区</h3>
+          {activeCommunities.length > 0 ? (
             <div className="divide-y divide-border">
-              {topPosts.map((post) => (
+              {activeCommunities.map((community) => (
                 <Link
-                  key={post.id}
-                  href={`/posts/${post.id}`}
-                  onClick={() =>
-                    rememberPostNavigationSource({
-                      href: postSource.href,
-                      label: postSource.label,
-                      postId: post.id,
-                    })
-                  }
-                  className="block py-3 transition-colors hover:text-primary"
+                  key={community.slug}
+                  href={`/communities/${community.slug}`}
+                  className="flex items-center justify-between gap-3 py-3 text-sm transition-colors hover:text-primary"
                 >
-                  <div className="font-mono text-xs text-muted-foreground">
-                    {post.score} 分
-                  </div>
-                  <div className="mt-1 line-clamp-2 text-sm font-medium">
-                    {post.title}
-                  </div>
+                  <span className="min-w-0 truncate font-medium">
+                    {community.name}
+                  </span>
+                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                    {community.count} 篇
+                  </span>
                 </Link>
               ))}
             </div>
@@ -400,20 +343,6 @@ function RightRail({
               {getTopPostsEmptyText(feedSource, canReadLatestPosts)}
             </p>
           )}
-        </section>
-
-        <section>
-          <h3 className="text-sm font-semibold">社区使用提示</h3>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            {guideItems.map((item, index) => (
-              <div key={item} className="flex gap-3 py-3 text-sm leading-6">
-                <span className="font-mono text-xs text-muted-foreground">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <span className="text-muted-foreground">{item}</span>
-              </div>
-            ))}
-          </div>
         </section>
       </div>
     </aside>
@@ -432,7 +361,7 @@ function getRailDescription(
     return "关注流入口已经保留；真实关注内容需要后端 source 合同确认后再接入。";
   }
 
-  return "排序由后端返回结果决定，右侧只保留和当前信息流有关的上下文。";
+  return "这里按当前来源展示公开讨论。右侧只保留能继续浏览的社区入口。";
 }
 
 function getTopPostsEmptyText(
@@ -443,7 +372,40 @@ function getTopPostsEmptyText(
     return "关注流不会用普通公开帖子填充。";
   }
 
-  return canReadLatestPosts ? "等待帖子数据加载后展示。" : "正在准备公开帖子流。";
+  return canReadLatestPosts ? "当前帖子还没有形成社区聚合。" : "正在准备公开帖子流。";
+}
+
+function getActiveCommunities(posts: Post[]) {
+  const communities = new Map<
+    string,
+    {
+      count: number;
+      name: string;
+      slug: string;
+    }
+  >();
+
+  for (const post of posts) {
+    const slug = post.community?.slug?.trim() || post.community_slug?.trim();
+
+    if (!slug) {
+      continue;
+    }
+
+    const current = communities.get(slug);
+    const name =
+      post.community?.name?.trim() ||
+      post.community_name?.trim() ||
+      `/${slug}`;
+
+    communities.set(slug, {
+      count: (current?.count ?? 0) + 1,
+      name,
+      slug,
+    });
+  }
+
+  return [...communities.values()].sort((left, right) => right.count - left.count);
 }
 
 function isUnauthenticated(error: Error | null) {

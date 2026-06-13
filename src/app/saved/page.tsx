@@ -10,7 +10,13 @@ export const metadata: Metadata = {
 
 export default function SavedRoute() {
   return (
-    <AppShell contextLabel="我的收藏">
+    <AppShell
+      backTarget={{
+        href: "/",
+        label: "返回信息流",
+      }}
+      contextLabel="我的收藏"
+    >
       <SavedPostsPage />
     </AppShell>
   );

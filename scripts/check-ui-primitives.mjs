@@ -104,7 +104,7 @@ function checkGlobalStatusPages() {
   if (
     !statusPage.includes('href="/"') ||
     !statusPage.includes('href="/communities"') ||
-    !statusPage.includes("返回最新讨论") ||
+    !statusPage.includes("最新讨论") ||
     !statusPage.includes("浏览社区索引")
   ) {
     problems.push("shared status page must keep homepage and community-index exits");

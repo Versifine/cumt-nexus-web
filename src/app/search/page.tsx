@@ -10,7 +10,13 @@ export const metadata: Metadata = {
 
 export default function SearchRoute() {
   return (
-    <AppShell contextLabel="搜索">
+    <AppShell
+      backTarget={{
+        href: "/",
+        label: "返回信息流",
+      }}
+      contextLabel="搜索"
+    >
       <SearchPage />
     </AppShell>
   );

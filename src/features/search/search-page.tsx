@@ -425,7 +425,7 @@ function SearchRail({
               浏览社区
             </TextAction>
             <TextAction href="/" variant="bar">
-              返回信息流
+              信息流首页
             </TextAction>
           </div>
         </section>

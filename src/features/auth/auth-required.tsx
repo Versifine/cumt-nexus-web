@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { InfoRow, StatusToken } from "@/components/ui/data-display";
@@ -24,9 +24,11 @@ export function AuthRequired({
   title,
 }: AuthRequiredProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { token } = useAuthSession();
   const currentUserQuery = useCurrentUserQuery();
-  const next = pathname || "/";
+  const query = searchParams.toString();
+  const next = `${pathname || "/"}${query ? `?${query}` : ""}`;
   const loginHref = `/login?next=${encodeURIComponent(next)}`;
   const registerHref = `/register?next=${encodeURIComponent(next)}`;
 
