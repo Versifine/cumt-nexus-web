@@ -19,6 +19,7 @@ export type PostAuthorSummary = {
   username: string;
   display_name: string;
   avatar_url: string;
+  banner_url?: string;
   headline: string;
   badges: string[];
 };

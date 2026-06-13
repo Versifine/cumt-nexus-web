@@ -1,11 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getPublicUser } from "./api";
-import type { GetPublicUserResponse } from "./types";
+import { getPublicUser, updateProfile } from "./api";
+import type {
+  GetPublicUserResponse,
+  UpdateProfileInput,
+  UpdateProfileResponse,
+} from "./types";
 
 export const profileQueryKeys = {
-  all: ["profiles"] as const,
-  detail: (username: string) => ["profile", username] as const,
+  all: ["profile"] as const,
+  detail: (username: string) => [...profileQueryKeys.all, username] as const,
 };
 
 export function usePublicUserQuery(
@@ -18,5 +22,19 @@ export function usePublicUserQuery(
     queryFn: () => getPublicUser(username),
     enabled: enabled && Boolean(username.trim()),
     initialData,
+  });
+}
+
+export function useUpdateProfileMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateProfileInput) => updateProfile(input),
+    onSuccess: (result: UpdateProfileResponse) => {
+      queryClient.setQueryData(profileQueryKeys.detail(result.user.username), result);
+      void queryClient.invalidateQueries({
+        queryKey: profileQueryKeys.all,
+      });
+    },
   });
 }

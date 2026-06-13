@@ -35,7 +35,10 @@ export default async function UserCommentsPage({
     : undefined;
 
   return (
-    <AppShell contextLabel={`@${username} 的评论`}>
+    <AppShell
+      backTarget={{ href: "/", label: "返回信息流" }}
+      contextLabel={`@${username} 的评论`}
+    >
       <PublicUserComments
         initialCommentsData={initialCommentsData}
         initialProfileData={initialProfileData}

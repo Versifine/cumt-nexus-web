@@ -2,25 +2,34 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { CornerDownRight, MessageSquare } from "lucide-react";
+import { CornerDownRight, MessageSquare, User as UserIcon } from "lucide-react";
 
 import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { InfoRow } from "@/components/ui/data-display";
+import { StatusToken } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useUserCommentsQuery } from "@/features/comment/queries";
 import type { Comment, ListCommentsResponse } from "@/features/comment/types";
+import {
+  CommunityHoverPreview,
+  type CommunityHoverIdentity,
+} from "@/features/community/community-hover-card";
 import { ContentBody } from "@/features/content/content-body";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
+import {
+  UserHoverPreview,
+  type UserHoverIdentity,
+} from "@/features/profile/user-hover-card";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { ApiError } from "@/lib/api/client";
 
 import {
   PublicUserLayout,
+  ProfileMetric,
   formatDate,
 } from "./public-user-layout";
 import { usePublicUserQuery } from "./queries";
@@ -33,11 +42,10 @@ type PublicUserCommentsProps = {
 };
 
 type CommentContext = {
-  communityHref: string | null;
-  communityLabel: string | null;
+  community: CommunityHoverIdentity | null;
   postHref: string;
   postId: string;
-  postMeta: string;
+  postMeta: string | null;
   postTitle: string | null;
 };
 
@@ -113,22 +121,21 @@ export function PublicUserComments({
       railContent={<UserCommentsRail comments={comments} user={user} />}
       user={user}
     >
-      <section className="mt-3 border-x border-border bg-background">
-        <div className="border-b border-border px-3 py-3 sm:px-4">
-          <h2 className="text-sm font-semibold">公开评论</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            这个用户留下的公开讨论记录。
-          </p>
+      <section className="bg-background">
+        <div className="flex flex-wrap items-center gap-2 bg-background-soft/50 px-3 py-3 sm:px-4">
+          <StatusToken tone="primary">评论视图</StatusToken>
+          <StatusToken>当前页 {comments.length}</StatusToken>
+          <StatusToken>公开评论 {user.stats.comment_count}</StatusToken>
         </div>
 
         {commentsQuery.isPending ? (
-          <div className="border-b border-border p-4">
+          <div className="p-4">
             <LoadingState rows={5} />
           </div>
         ) : null}
 
         {commentsQuery.isError ? (
-          <div className="border-b border-border p-4">
+          <div className="p-4">
             <ErrorState
               title={getErrorTitle(commentsQuery.error, "无法加载公开评论")}
               description={getErrorDescription(commentsQuery.error)}
@@ -152,7 +159,7 @@ export function PublicUserComments({
         ) : null}
 
         {commentsQuery.isSuccess && comments.length === 0 ? (
-          <div className="border-b border-border p-4">
+          <div className="p-4">
             <EmptyState
               title="还没有公开评论"
               description="这个用户还没有留下可公开浏览的评论。"
@@ -186,6 +193,7 @@ function UserCommentRow({
   const replyCount = comment.reply_count ?? 0;
   const sourceHref = `/users/${encodeURIComponent(user.username)}/comments`;
   const sourceLabel = `返回 @${user.username} 的评论`;
+  const authorName = getAuthorLabel(comment, user);
 
   function rememberSource() {
     rememberPostNavigationSource({
@@ -209,72 +217,197 @@ function UserCommentRow({
         upvoteCount={comment.upvote_count ?? 0}
       />
 
-      <div className="min-w-0 px-3 py-3 sm:px-4">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
-          <span className="font-semibold text-foreground">
-            {getAuthorLabel(comment, user)}
-          </span>
-          <span aria-hidden="true">·</span>
-          <span>{formatDate(comment.created_at)}</span>
-          {comment.status !== "visible" ? (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>{formatCommentStatus(comment.status)}</span>
-            </>
-          ) : null}
-        </div>
+      <div className="grid min-w-0 grid-cols-[32px_minmax(0,1fr)] gap-3 px-3 py-3 sm:px-4">
+        <CommentAuthorAvatar
+          comment={comment}
+          name={authorName}
+          user={user}
+        />
 
-        <div className="mt-2 border border-border bg-background-soft/45 px-3 py-2">
-          <Link
-            href={context.postHref}
-            onClick={rememberSource}
-            className="line-clamp-2 text-sm font-semibold leading-6 text-foreground transition-colors hover:text-primary"
-          >
-            {context.postTitle || "查看原帖"}
-          </Link>
-          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
-            <span>{context.postMeta}</span>
-            {context.communityHref && context.communityLabel ? (
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
+            <CommentAuthorName comment={comment} user={user} />
+            <span aria-hidden="true">·</span>
+            <span>{formatDate(comment.created_at)}</span>
+            {comment.status !== "visible" ? (
               <>
                 <span aria-hidden="true">·</span>
-                <Link
-                  href={context.communityHref}
-                  className="font-semibold text-muted-foreground transition-colors hover:text-primary"
-                >
-                  {context.communityLabel}
-                </Link>
-              </>
-            ) : context.communityLabel ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>{context.communityLabel}</span>
+                <span>{formatCommentStatus(comment.status)}</span>
               </>
             ) : null}
           </div>
-        </div>
 
-        <div className="mt-3">
-          <ContentBody
-            attachments={comment.attachments}
-            value={comment.body}
-            className="text-sm leading-7 text-muted-foreground"
-          />
-        </div>
+          <div className="mt-2 border border-border bg-background-soft/45 px-3 py-2">
+            <Link
+              href={context.postHref}
+              onClick={rememberSource}
+              className="line-clamp-2 text-sm font-semibold leading-6 text-foreground transition-colors hover:text-primary"
+            >
+              {context.postTitle || "关联原帖"}
+            </Link>
+            {context.postMeta || context.community ? (
+              <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
+                {context.postMeta ? <span>{context.postMeta}</span> : null}
+                {context.community ? (
+                  <>
+                    {context.postMeta ? <span aria-hidden="true">·</span> : null}
+                    <CommentCommunityLink community={context.community} />
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-          <PostActionLink href={context.postHref} onClick={rememberSource}>
-            <CornerDownRight className="size-4" aria-hidden="true" />
-            查看原帖
-          </PostActionLink>
-          {replyCount > 0 ? (
-            <span className="inline-flex h-8 items-center gap-1.5 px-2 font-semibold">
-              <MessageSquare className="size-4" aria-hidden="true" />
-              {replyCount} 条回复
-            </span>
-          ) : null}
+          <div className="mt-3">
+            <ContentBody
+              attachments={comment.attachments}
+              value={comment.body}
+              className="text-sm leading-7 text-muted-foreground"
+            />
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+            <PostActionLink href={context.postHref} onClick={rememberSource}>
+              <CornerDownRight className="size-4" aria-hidden="true" />
+              查看原帖
+            </PostActionLink>
+            {replyCount > 0 ? (
+              <span className="inline-flex h-8 items-center gap-1.5 px-2 font-semibold">
+                <MessageSquare className="size-4" aria-hidden="true" />
+                {replyCount} 条回复
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
     </article>
+  );
+}
+
+function CommentAuthorName({
+  comment,
+  user,
+}: {
+  comment: Comment;
+  user: PublicUser;
+}) {
+  const authorName = getAuthorLabel(comment, user);
+  const authorHref = getAuthorHref(comment, user);
+  const hoverUser = getAuthorHoverIdentity(comment, user);
+  const className =
+    "min-w-0 truncate font-semibold text-foreground transition-colors hover:text-primary";
+
+  if (authorHref) {
+    return (
+      <UserHoverPreview
+        className="min-w-0"
+        user={hoverUser}
+        panelClassName="w-72"
+      >
+        <Link href={authorHref} className={className}>
+          {authorName}
+        </Link>
+      </UserHoverPreview>
+    );
+  }
+
+  return (
+    <UserHoverPreview
+      className="min-w-0"
+      user={hoverUser}
+      panelClassName="w-72"
+    >
+      <span className={className}>{authorName}</span>
+    </UserHoverPreview>
+  );
+}
+
+function CommentAuthorAvatar({
+  comment,
+  name,
+  user,
+}: {
+  comment: Comment;
+  name: string;
+  user: PublicUser;
+}) {
+  const avatarUrl = getAuthorAvatarUrl(comment, user);
+  const authorHref = getAuthorHref(comment, user);
+  const hoverUser = getAuthorHoverIdentity(comment, user);
+  const avatar = <CommentAuthorAvatarVisual avatarUrl={avatarUrl} name={name} />;
+
+  if (authorHref) {
+    return (
+      <UserHoverPreview user={hoverUser} panelClassName="w-72">
+        <Link
+          href={authorHref}
+          aria-label={`进入${name}的主页`}
+          className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          {avatar}
+        </Link>
+      </UserHoverPreview>
+    );
+  }
+
+  return (
+    <UserHoverPreview user={hoverUser} panelClassName="w-72">
+      {avatar}
+    </UserHoverPreview>
+  );
+}
+
+function CommentAuthorAvatarVisual({
+  avatarUrl,
+  name,
+}: {
+  avatarUrl: string;
+  name: string;
+}) {
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatarUrl}
+        alt={`${name} 的头像`}
+        className="mt-0.5 size-8 shrink-0 rounded-full border border-border bg-secondary object-cover"
+      />
+    );
+  }
+
+  return (
+    <span
+      className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-primary"
+      aria-label={`${name} 的头像占位`}
+    >
+      <UserIcon className="size-4" aria-hidden="true" />
+    </span>
+  );
+}
+
+function CommentCommunityLink({
+  community,
+}: {
+  community: CommunityHoverIdentity;
+}) {
+  const label = community.label || community.name || "社区";
+  const className =
+    "font-semibold text-muted-foreground transition-colors hover:text-primary";
+
+  if (community.href) {
+    return (
+      <CommunityHoverPreview community={community} panelClassName="w-80">
+        <Link href={community.href} className={className}>
+          {label}
+        </Link>
+      </CommunityHoverPreview>
+    );
+  }
+
+  return (
+    <CommunityHoverPreview community={community} panelClassName="w-80">
+      <span className={className}>{label}</span>
+    </CommunityHoverPreview>
   );
 }
 
@@ -315,17 +448,15 @@ function UserCommentsRail({
 
   return (
     <>
-      <section className="border-b border-border pb-5">
+      <section className="bg-background-soft/35 px-4 py-4">
         <h2 className="text-sm font-semibold">评论上下文</h2>
-        <div className="mt-3 divide-y divide-border border-y border-border">
-          <InfoRow label="当前页" value={String(comments.length)} />
-          <InfoRow label="公开评论" value={String(user.stats.comment_count)} />
-          <InfoRow label="当前页总分" value={String(totalScore)} />
-          <InfoRow label="加入" value={formatDate(user.created_at)} />
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <ProfileMetric label="当前页" value={String(comments.length)} />
+          <ProfileMetric label="总分" value={String(totalScore)} />
         </div>
       </section>
 
-      <section className="border-b border-border pb-5">
+      <section className="bg-background-soft/35 px-4 py-4">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold">高分评论</h2>
           <span className="font-mono text-xs text-muted-foreground">
@@ -344,14 +475,15 @@ function UserCommentsRail({
                   onClick={() =>
                     rememberPostNavigationSource({
                       href: `/users/${encodeURIComponent(user.username)}/comments`,
-                      label: `返回 @${user.username} 的评论`,
+                      label: `返回 ${getPublicUserDisplayName(user)} 的评论`,
                       postId: context.postId,
                     })
                   }
                   className="block py-3 transition-colors hover:text-primary"
                 >
                   <div className="font-mono text-xs text-muted-foreground">
-                    {getCommentScore(comment)} 分 / {context.postMeta}
+                    {getCommentScore(comment)} 分 ·{" "}
+                    {context.postTitle ? "关联帖子" : "关联原帖"}
                   </div>
                   <div className="mt-1 line-clamp-2 text-sm font-medium">
                     {context.postTitle ||
@@ -389,13 +521,20 @@ function getCommentContext(comment: Comment): CommentContext {
   const communityHref = communitySlug
     ? `/communities/${encodeURIComponent(communitySlug)}`
     : null;
+  const community = communityLabel
+    ? {
+        href: communityHref,
+        label: communityLabel,
+        name: communityName || communityLabel,
+        slug: communitySlug,
+      }
+    : null;
 
   return {
-    communityHref,
-    communityLabel,
+    community,
     postHref,
     postId,
-    postMeta: `帖子 ${formatShortId(postId)}`,
+    postMeta: postTitle ? "关联帖子" : null,
     postTitle,
   };
 }
@@ -414,22 +553,53 @@ function normalizeInternalHref(value?: string | null) {
   return href;
 }
 
-function formatShortId(value: string) {
-  return value.length > 8 ? value.slice(0, 8) : value;
-}
-
 function getAuthorLabel(comment: Comment, user: PublicUser) {
   const author = comment.author;
 
-  if (author?.display_name) {
-    return author.display_name;
+  if (author?.display_name?.trim()) {
+    return author.display_name.trim();
   }
 
-  if (author?.username) {
-    return `@${author.username}`;
+  if (user.display_name?.trim()) {
+    return user.display_name.trim();
   }
 
-  return `@${user.username}`;
+  return author?.username?.trim() || user.username?.trim() || "用户";
+}
+
+function getAuthorAvatarUrl(comment: Comment, user: PublicUser) {
+  return comment.author?.avatar_url?.trim() || user.avatar_url?.trim() || "";
+}
+
+function getAuthorHref(comment: Comment, user: PublicUser) {
+  const username = comment.author?.username?.trim() || user.username?.trim();
+
+  return username ? `/users/${encodeURIComponent(username)}` : null;
+}
+
+function getAuthorHoverIdentity(
+  comment: Comment,
+  user: PublicUser,
+): UserHoverIdentity {
+  const author = comment.author;
+  const username = author?.username?.trim() || user.username?.trim() || "";
+  const isPublicUser = username === user.username?.trim();
+
+  return {
+    avatarUrl: author?.avatar_url?.trim() || user.avatar_url?.trim() || "",
+    badges:
+      author?.badges && author.badges.length > 0
+        ? author.badges.filter(Boolean)
+        : user.badges,
+    bannerUrl: isPublicUser ? user.banner_url?.trim() || "" : "",
+    displayName: getAuthorLabel(comment, user),
+    headline: author?.headline?.trim() || user.headline?.trim() || "",
+    username,
+  };
+}
+
+function getPublicUserDisplayName(user: PublicUser) {
+  return user.display_name?.trim() || user.username?.trim() || "用户";
 }
 
 function getCommentScore(comment: Comment) {

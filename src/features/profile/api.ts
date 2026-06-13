@@ -1,6 +1,10 @@
 import { apiRequest } from "@/lib/api/client";
 
-import type { GetPublicUserResponse } from "./types";
+import type {
+  GetPublicUserResponse,
+  UpdateProfileInput,
+  UpdateProfileResponse,
+} from "./types";
 
 type GetPublicUserOptions = {
   cache?: RequestCache;
@@ -17,4 +21,11 @@ export function getPublicUser(username: string, options: GetPublicUserOptions = 
       token: options.token,
     },
   );
+}
+
+export function updateProfile(input: UpdateProfileInput) {
+  return apiRequest<UpdateProfileResponse>("/api/v1/me/profile", {
+    method: "PATCH",
+    body: input,
+  });
 }

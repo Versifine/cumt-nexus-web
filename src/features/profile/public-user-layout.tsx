@@ -1,14 +1,20 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { CalendarDays, FileText, MessageSquare, User } from "lucide-react";
+import {
+  CalendarDays,
+  FileText,
+  MessageSquare,
+  User,
+} from "lucide-react";
 
-import { InfoRow, StatusToken } from "@/components/ui/data-display";
-import { TextAction } from "@/components/ui/text-action";
+import { StatusToken } from "@/components/ui/data-display";
+import { useCurrentUserQuery } from "@/features/auth/queries";
 import { cn } from "@/lib/utils";
 
+import { ProfileMediaEditor } from "./profile-media-editor";
 import type { PublicUser } from "./types";
 
-export type PublicUserProfileTab = "comments" | "overview" | "posts";
+export type PublicUserProfileTab = "comments" | "posts";
 
 type PublicUserLayoutProps = {
   activeTab: PublicUserProfileTab;
@@ -21,7 +27,6 @@ const profileTabs: Array<{
   label: string;
   value: PublicUserProfileTab;
 }> = [
-  { label: "资料", value: "overview" },
   { label: "帖子", value: "posts" },
   { label: "评论", value: "comments" },
 ];
@@ -33,20 +38,18 @@ export function PublicUserLayout({
   user,
 }: PublicUserLayoutProps) {
   return (
-    <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
+    <div className="grid w-full min-w-0 gap-5 py-4 sm:py-6 xl:grid-cols-[minmax(0,900px)_300px]">
       <div className="min-w-0">
-        <TextAction href="/" variant="bar">
-          返回信息流
-        </TextAction>
-
-        <section className="mt-3 border border-border bg-background">
+        <section className="bg-background">
           <PublicUserHeader activeTab={activeTab} user={user} />
         </section>
 
-        {children}
+        <div className="mt-4">{children}</div>
       </div>
 
-      <PublicUserRail user={user}>{railContent}</PublicUserRail>
+      <PublicUserRail activeTab={activeTab} user={user}>
+        {railContent}
+      </PublicUserRail>
     </div>
   );
 }
@@ -59,48 +62,102 @@ export function PublicUserHeader({
   user: PublicUser;
 }) {
   const displayName = getDisplayName(user);
+  const publicIdentityItems = [...user.roles, ...user.badges];
+  const currentUserQuery = useCurrentUserQuery();
+  const isOwnProfile =
+    currentUserQuery.data?.username?.toLowerCase() === user.username.toLowerCase();
 
   return (
     <div>
-      <div className="grid gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-3">
-            <ProfileAvatar user={user} size="large" />
-            <div className="min-w-0">
-              <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
+      <div className="relative">
+        <div className="relative">
+          <ProfileBanner user={user} />
+          {isOwnProfile ? (
+            <div className="absolute bottom-3 right-3 z-20">
+              <ProfileMediaEditor
+                kind="banner"
+                triggerVariant="banner"
+                user={user}
+              />
+            </div>
+          ) : null}
+        </div>
+        <div className="px-3 pb-5 sm:px-4">
+          <div className="relative z-10 -mt-12 flex items-end justify-between gap-3 sm:-mt-16">
+            <div className="relative shrink-0">
+              <ProfileAvatar user={user} size="hero" />
+              {isOwnProfile ? (
+                <ProfileMediaEditor
+                  className="absolute -bottom-1 -right-1"
+                  kind="avatar"
+                  triggerLabel="更换头像"
+                  triggerVariant="avatar"
+                  user={user}
+                />
+              ) : null}
+            </div>
+            {isOwnProfile ? (
+              <Link
+                href="/settings/profile"
+                className="mb-2 inline-flex h-8 items-center bg-background/70 px-2 font-mono text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                编辑文字资料 +
+              </Link>
+            ) : null}
+          </div>
+
+          <div className="mt-4 min-w-0">
+            <div className="flex min-w-0 flex-wrap items-end gap-x-3 gap-y-2">
+              <h1 className="break-words text-2xl font-semibold leading-8 tracking-normal text-foreground sm:text-3xl sm:leading-10">
                 {displayName}
               </h1>
-              <p className="mt-1 truncate font-mono text-xs text-primary">
+              <p className="pb-1 font-mono text-xs text-primary">
                 @{user.username}
               </p>
             </div>
+
+            {user.headline ? (
+              <p className="mt-3 max-w-3xl text-sm font-medium leading-6 text-foreground">
+                {user.headline}
+              </p>
+            ) : null}
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+              {user.bio || "这个用户还没有填写公开简介。"}
+            </p>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <StatusToken tone={user.status === "active" ? "success" : "warning"}>
-              {formatUserStatus(user.status)}
-            </StatusToken>
-            {user.roles.length > 0 ? (
-              user.roles.map((role) => <StatusToken key={role}>{role}</StatusToken>)
-            ) : (
-              <StatusToken>公开资料</StatusToken>
-            )}
+          {publicIdentityItems.length > 0 ? (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {publicIdentityItems.slice(0, 6).map((item) => (
+                <StatusToken key={item} tone="primary">
+                  {item}
+                </StatusToken>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <ProfileMetric
+              icon={<FileText className="size-4" aria-hidden="true" />}
+              label="公开帖子"
+              value={String(user.stats.post_count)}
+            />
+            <ProfileMetric
+              icon={<MessageSquare className="size-4" aria-hidden="true" />}
+              label="公开评论"
+              value={String(user.stats.comment_count)}
+            />
+            <ProfileMetric
+              icon={<CalendarDays className="size-4" aria-hidden="true" />}
+              label="加入"
+              value={formatDate(user.created_at)}
+            />
           </div>
-
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-            {user.headline || "这个用户还没有写个人签名。"}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-3 border border-border text-center">
-          <ProfileMetric label="帖子" value={String(user.stats.post_count)} />
-          <ProfileMetric label="评论" value={String(user.stats.comment_count)} />
-          <ProfileMetric label="加入" value={formatDate(user.created_at)} />
         </div>
       </div>
 
       <nav
-        className="grid grid-cols-3 border-t border-border text-sm"
+        className="mt-1 flex gap-2 px-3 pb-1 sm:px-4"
         aria-label={`${displayName} 的主页内容`}
       >
         {profileTabs.map((item) => {
@@ -112,9 +169,9 @@ export function PublicUserHeader({
               href={getProfileTabHref(user.username, item.value)}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "border-r border-border px-3 py-3 text-center font-semibold transition-colors last:border-r-0 hover:bg-background-soft hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                "flex-1 px-3 py-2.5 text-center text-sm font-semibold transition-colors hover:bg-background-soft hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                 isActive
-                  ? "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                  ? "bg-primary/10 text-primary"
                   : "text-muted-foreground",
               )}
             >
@@ -128,103 +185,153 @@ export function PublicUserHeader({
 }
 
 export function PublicUserRail({
+  activeTab,
   children,
   user,
 }: {
+  activeTab: PublicUserProfileTab;
   children?: ReactNode;
   user: PublicUser;
 }) {
+  const displayName = getDisplayName(user);
+  const identityItems = [...user.roles, ...user.badges];
+
   return (
-    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
+    <aside className="hidden min-w-0 xl:block">
       <div className="sticky top-20 space-y-5">
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">关于</h2>
-          <div className="mt-3 flex min-w-0 items-center gap-3">
-            <ProfileAvatar user={user} size="small" />
+        <section className="bg-background-soft/35 px-4 py-4">
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold">
-                {getDisplayName(user)}
-              </div>
-              <div className="mt-1 truncate font-mono text-xs text-primary">
+              <h2 className="truncate text-sm font-semibold">{displayName}</h2>
+              <p className="mt-1 truncate font-mono text-xs text-primary">
                 @{user.username}
-              </div>
+              </p>
             </div>
           </div>
-          <p className="mt-3 line-clamp-4 text-sm leading-6 text-muted-foreground">
+          <p className="mt-3 line-clamp-5 text-sm leading-6 text-muted-foreground">
             {user.bio || user.headline || "这个用户还没有填写公开简介。"}
           </p>
         </section>
 
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">公开统计</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow
-              icon={<FileText className="size-4" aria-hidden="true" />}
-              label="帖子"
-              value={String(user.stats.post_count)}
-            />
-            <InfoRow
-              icon={<MessageSquare className="size-4" aria-hidden="true" />}
-              label="评论"
-              value={String(user.stats.comment_count)}
-            />
-            <InfoRow
-              icon={<CalendarDays className="size-4" aria-hidden="true" />}
-              label="加入"
-              value={formatDate(user.created_at)}
-            />
+        <section className="bg-background-soft/35 px-4 py-4">
+          <h2 className="text-sm font-semibold">公开数据</h2>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <ProfileMetric label="帖子" value={String(user.stats.post_count)} />
+            <ProfileMetric label="评论" value={String(user.stats.comment_count)} />
+            <ProfileMetric label="加入" value={formatDate(user.created_at)} />
           </div>
         </section>
 
-        {children}
+        <section className="bg-background-soft/35 px-4 py-4">
+          <h2 className="text-sm font-semibold">内容入口</h2>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <RailLink
+              active={activeTab === "posts"}
+              href={getProfileTabHref(user.username, "posts")}
+            >
+              公开帖子
+            </RailLink>
+            <RailLink
+              active={activeTab === "comments"}
+              href={getProfileTabHref(user.username, "comments")}
+            >
+              公开评论
+            </RailLink>
+          </div>
+        </section>
 
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">徽章和身份</h2>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {[...user.roles, ...user.badges].length > 0 ? (
-              [...user.roles, ...user.badges].map((item) => (
+        {identityItems.length > 0 ? (
+          <section className="bg-background-soft/35 px-4 py-4">
+            <h2 className="text-sm font-semibold">身份和徽章</h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {identityItems.map((item) => (
                 <StatusToken key={item} tone="primary">
                   {item}
                 </StatusToken>
-              ))
-            ) : (
-              <p className="text-sm leading-6 text-muted-foreground">
-                暂无公开徽章。
-              </p>
-            )}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
-        <section>
-          <h2 className="text-sm font-semibold">内容入口</h2>
-          <div className="mt-3 flex flex-col border-y border-border">
-            <TextAction
-              href={getProfileTabHref(user.username, "posts")}
-              variant="bar"
-            >
-              公开帖子
-            </TextAction>
-            <TextAction
-              href={getProfileTabHref(user.username, "comments")}
-              variant="bar"
-            >
-              公开评论
-            </TextAction>
-            <TextAction href="/communities" variant="bar">
-              浏览社区
-            </TextAction>
-          </div>
-        </section>
+        {children}
       </div>
     </aside>
   );
 }
 
-export function ProfileMetric({ label, value }: { label: string; value: string }) {
+function RailLink({
+  active,
+  children,
+  href,
+}: {
+  active: boolean;
+  children: ReactNode;
+  href: string;
+}) {
   return (
-    <div className="border-r border-border p-2 last:border-r-0">
-      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate text-sm font-semibold">{value}</div>
+    <Link
+      href={href}
+      className={cn(
+        "px-3 py-2 text-sm font-semibold transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        active ? "bg-primary/10 text-primary" : "bg-background/60 text-muted-foreground",
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
+
+export function ProfileMetric({
+  icon,
+  label,
+  value,
+}: {
+  icon?: ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-0 bg-background-soft/70 px-3 py-3">
+      <div className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+        {icon ? <span className="shrink-0 text-primary">{icon}</span> : null}
+        <span className="truncate">{label}</span>
+      </div>
+      <div className="mt-1 truncate text-sm font-semibold text-foreground">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+export function ProfileBanner({
+  compact = false,
+  user,
+}: {
+  compact?: boolean;
+  user: PublicUser;
+}) {
+  const heightClass = compact ? "h-full" : "h-44 sm:h-56";
+
+  if (user.banner_url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={user.banner_url}
+        alt={`${getDisplayName(user)} 的主页背景图`}
+        className={cn("w-full object-cover", heightClass)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "relative overflow-hidden bg-background-soft",
+        heightClass,
+      )}
+      aria-label={`${getDisplayName(user)} 的主页背景图占位`}
+    >
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(45,212,191,0.14)_0_1px,transparent_1px_100%),linear-gradient(0deg,rgba(255,255,255,0.035)_0_1px,transparent_1px_100%)] bg-[size:24px_24px]" />
     </div>
   );
 }
@@ -233,10 +340,14 @@ export function ProfileAvatar({
   size,
   user,
 }: {
-  size: "large" | "small";
+  size: "hero" | "large" | "small";
   user: PublicUser;
 }) {
-  const sizeClass = size === "large" ? "size-14" : "size-10";
+  const sizeClass =
+    size === "hero" ? "size-24 sm:size-32" : size === "large" ? "size-14" : "size-10";
+  const iconClass =
+    size === "hero" ? "size-9" : size === "large" ? "size-5" : "size-4";
+  const ringClass = size === "hero" ? "ring-4 ring-background" : "";
 
   if (user.avatar_url) {
     return (
@@ -244,34 +355,31 @@ export function ProfileAvatar({
       <img
         src={user.avatar_url}
         alt={`${getDisplayName(user)} 的头像`}
-        className={`${sizeClass} shrink-0 rounded-full border border-border object-cover`}
+        className={cn(
+          sizeClass,
+          ringClass,
+          "shrink-0 rounded-full object-cover",
+        )}
       />
     );
   }
 
   return (
     <div
-      className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-primary`}
+      className={cn(
+        sizeClass,
+        ringClass,
+        "flex shrink-0 items-center justify-center rounded-full bg-secondary text-primary",
+      )}
       aria-label={`${getDisplayName(user)} 的头像占位`}
     >
-      <User className="size-5" aria-hidden="true" />
+      <User className={iconClass} aria-hidden="true" />
     </div>
   );
 }
 
 export function getDisplayName(user: PublicUser) {
   return user.display_name || user.username;
-}
-
-export function formatUserStatus(status: string) {
-  switch (status) {
-    case "active":
-      return "正常";
-    case "disabled":
-      return "已停用";
-    default:
-      return status;
-  }
 }
 
 export function formatDate(value: string) {
@@ -290,7 +398,7 @@ export function getProfileTabHref(
 
   switch (tab) {
     case "posts":
-      return `${baseHref}/posts`;
+      return baseHref;
     case "comments":
       return `${baseHref}/comments`;
     default:

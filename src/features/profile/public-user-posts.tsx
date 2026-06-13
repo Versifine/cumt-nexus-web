@@ -8,8 +8,8 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { InfoRow } from "@/components/ui/data-display";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StatusToken } from "@/components/ui/data-display";
+import { SortMenu } from "@/components/ui/sort-menu";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useUserPostsQuery } from "@/features/post/queries";
@@ -24,21 +24,25 @@ import { ApiError } from "@/lib/api/client";
 
 import {
   PublicUserLayout,
-  formatDate,
+  ProfileMetric,
   getDisplayName,
 } from "./public-user-layout";
 import { usePublicUserQuery } from "./queries";
-import type { GetPublicUserResponse, PublicUser } from "./types";
+import type { GetPublicUserResponse } from "./types";
 
 type PublicUserPostsProps = {
   initialPostsData?: ListPostsResponse;
   initialProfileData?: GetPublicUserResponse;
+  sourceHref?: string;
+  sourceLabel?: string;
   username: string;
 };
 
 export function PublicUserPosts({
   initialPostsData,
   initialProfileData,
+  sourceHref,
+  sourceLabel,
   username,
 }: PublicUserPostsProps) {
   const { isReady } = useAuthSession();
@@ -111,23 +115,29 @@ export function PublicUserPosts({
   return (
     <PublicUserLayout
       activeTab="posts"
-      railContent={<UserPostsRail posts={posts} sort={sort} user={user} />}
+      railContent={
+        <UserPostsRail
+          posts={posts}
+          sort={sort}
+          sourceHref={
+            sourceHref ?? `/users/${encodeURIComponent(user.username)}/posts`
+          }
+          sourceLabel={sourceLabel ?? `返回 @${user.username} 的帖子`}
+        />
+      }
       user={user}
     >
-      <section className="mt-3 border-x border-border bg-background">
-        <div className="flex min-h-12 flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold">公开帖子</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              当前按{formatPostSortLabel(sort)}排序，帖子预览复用全站信息流规则。
-            </p>
+      <section className="bg-background">
+        <div className="flex flex-col gap-3 bg-background-soft/50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusToken tone="primary">帖子视图</StatusToken>
+            <StatusToken>当前页 {posts.length}</StatusToken>
+            <StatusToken>公开帖子 {user.stats.post_count}</StatusToken>
             {sortFallbackNotice ? (
-              <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
-                {sortFallbackNotice}
-              </p>
+              <StatusToken tone="warning">{sortFallbackNotice}</StatusToken>
             ) : null}
           </div>
-          <UserPostSortTabs
+          <UserPostSortMenu
             disabled={postsQuery.isFetching}
             onSortChange={setSort}
             sort={sort}
@@ -135,13 +145,13 @@ export function PublicUserPosts({
         </div>
 
         {postsQuery.isPending ? (
-          <div className="border-b border-border p-4">
+          <div className="p-4">
             <LoadingState rows={5} />
           </div>
         ) : null}
 
         {postsQuery.isError ? (
-          <div className="border-b border-border p-4">
+          <div className="p-4">
             <ErrorState
               title={getErrorTitle(postsQuery.error, "无法加载公开帖子")}
               description={getErrorDescription(postsQuery.error)}
@@ -165,7 +175,7 @@ export function PublicUserPosts({
         ) : null}
 
         {postsQuery.isSuccess && posts.length === 0 ? (
-          <div className="border-b border-border p-4">
+          <div className="p-4">
             <EmptyState
               title="还没有公开帖子"
               description="这个用户还没有发布可公开浏览的帖子。"
@@ -184,10 +194,13 @@ export function PublicUserPosts({
                 key={post.id}
                 post={post}
                 source={{
-                  href: `/users/${encodeURIComponent(user.username)}/posts`,
-                  label: `返回 @${user.username} 的帖子`,
+                  href:
+                    sourceHref ??
+                    `/users/${encodeURIComponent(user.username)}/posts`,
+                  label: sourceLabel ?? `返回 @${user.username} 的帖子`,
                 }}
                 authorFallback={{
+                  avatarUrl: user.avatar_url,
                   displayName: getDisplayName(user),
                   username: user.username,
                 }}
@@ -199,7 +212,7 @@ export function PublicUserPosts({
   );
 }
 
-function UserPostSortTabs({
+function UserPostSortMenu({
   disabled,
   onSortChange,
   sort,
@@ -209,79 +222,73 @@ function UserPostSortTabs({
   sort: PostSort;
 }) {
   return (
-    <Tabs value={sort} onValueChange={(value) => onSortChange(value as PostSort)}>
-      <TabsList className="h-9 max-w-full justify-start overflow-x-auto rounded-none border border-border bg-background p-0">
-        {postSortItems.map((item) => (
-          <TabsTrigger
-            key={item.value}
-            value={item.value}
-            disabled={disabled}
-            className="h-9 rounded-none border-r border-border px-3 text-xs last:border-r-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-          >
-            {item.label}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
+    <SortMenu
+      align="start"
+      aria-label="选择用户帖子排序方式"
+      disabled={disabled}
+      items={postSortItems}
+      onValueChange={onSortChange}
+      value={sort}
+    />
   );
 }
 
 function UserPostsRail({
   posts,
   sort,
-  user,
+  sourceHref,
+  sourceLabel,
 }: {
   posts: Post[];
   sort: PostSort;
-  user: PublicUser;
+  sourceHref: string;
+  sourceLabel: string;
 }) {
-  const topPosts = [...posts].sort((left, right) => right.score - left.score).slice(0, 3);
+  const topPosts = [...posts]
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 3);
 
   return (
     <>
-      <section className="border-b border-border pb-5">
-        <h2 className="text-sm font-semibold">帖子上下文</h2>
-        <div className="mt-3 divide-y divide-border border-y border-border">
-          <InfoRow label="排序" value={formatPostSortLabel(sort)} />
-          <InfoRow label="当前页" value={String(posts.length)} />
-          <InfoRow label="公开帖子" value={String(user.stats.post_count)} />
-          <InfoRow label="加入" value={formatDate(user.created_at)} />
+      <section className="bg-background-soft/35 px-4 py-4">
+        <h2 className="text-sm font-semibold">当前内容</h2>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <ProfileMetric label="排序" value={formatPostSortLabel(sort)} />
+          <ProfileMetric label="当前页" value={String(posts.length)} />
         </div>
       </section>
 
-      <section className="border-b border-border pb-5">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">高分帖子</h2>
+      <section className="bg-background-soft/35 px-4 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold">本页高分帖子</h2>
           <span className="font-mono text-xs text-muted-foreground">
             {topPosts.length}
           </span>
         </div>
         {topPosts.length > 0 ? (
-          <div className="divide-y divide-border">
+          <div className="mt-2">
             {topPosts.map((post) => (
               <Link
                 key={post.id}
                 href={`/posts/${post.id}`}
                 onClick={() =>
                   rememberPostNavigationSource({
-                    href: `/users/${encodeURIComponent(user.username)}/posts`,
-                    label: `返回 @${user.username} 的帖子`,
+                    href: sourceHref,
+                    label: sourceLabel,
                     postId: post.id,
                   })
                 }
-                className="block py-3 transition-colors hover:text-primary"
+                className="block py-3 text-sm transition-colors hover:text-primary"
               >
                 <div className="font-mono text-xs text-muted-foreground">
                   {post.score} 分 / {post.comment_count} 条评论
                 </div>
-                <div className="mt-1 line-clamp-2 text-sm font-medium">
-                  {post.title}
-                </div>
+                <div className="mt-1 line-clamp-2 font-medium">{post.title}</div>
               </Link>
             ))}
           </div>
         ) : (
-          <p className="text-sm leading-6 text-muted-foreground">
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
             暂无可展示的公开帖子。
           </p>
         )}
