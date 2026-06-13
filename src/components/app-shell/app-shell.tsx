@@ -843,7 +843,7 @@ function HeaderUserMenu() {
   function signOut() {
     setIsMenuOpen(false);
     clearSession();
-    router.push("/login");
+    router.refresh();
   }
 
   useEffect(() => {
