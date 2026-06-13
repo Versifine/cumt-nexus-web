@@ -18,7 +18,7 @@
 - 旧内容或用户未插入正文的已绑定附件不再由 `ContentBody` 追加成正文外图集；发布态只渲染正文内 `nexus-attachment` marker 引用到的附件。
 - 帖子和评论图片均已接入；评论图片数量继续比帖子更克制。
 - 链接预览和播放器是两种能力：普通网页只做链接预览，Bilibili / 抖音 / 网易云音乐 / QQ 音乐只通过 provider 白名单 embed。
-- V2 前端已支持明确 canonical 裸链接的本地白名单识别和受控播放器渲染；这不保存 `embed_ids`，也不解析短链、标题、封面或审核状态。
+- V2 前端已支持明确 canonical 裸链接的本地白名单识别和受控播放器渲染；后端现已提供 `/api/v1/embeds/resolve`、短链展开、元数据抓取和 `embeds` 持久化，前端只需要在发布 / 编辑时接入结构化 `embed.id`。
 - 任意 iframe、用户 HTML、`data:` 图片和浏览器端抓第三方网页元数据都禁止。
 
 ## 当前已核对的图片合同
@@ -159,7 +159,7 @@ POST /api/v1/communities/:slug/posts
 - 未绑定的临时附件需要有过期清理策略。
 - 单帖图片数量需要后端限制。
 - 老请求体不带 `attachment_ids` 时必须继续兼容。
-- 外链预览和白名单 embed 不复用 `attachment_ids`；如需 `embed_ids`，必须另起合同。
+- 外链预览和白名单 embed 不复用 `attachment_ids`；白名单 embed 现在走独立的 `embeds` 合同，发布 / 编辑时提交结构化 `embed.id`。
 
 ### 附件绑定到评论
 
@@ -184,7 +184,7 @@ POST /api/v1/posts/:id/comments
 - 评论图片可以晚于帖子图片上线。
 - 首版评论图片数量应比帖子更克制，例如最多 1 张。
 - 子评论和根评论使用同一绑定规则。
-- 外链预览和白名单 embed 不复用 `attachment_ids`；如需 `embed_ids`，必须另起合同。
+- 外链预览和白名单 embed 不复用 `attachment_ids`；白名单 embed 现在走独立的 `embeds` 合同，发布 / 编辑时提交结构化 `embed.id`。
 
 ### 编辑态附件重绑已接入
 
@@ -413,7 +413,7 @@ qq_music_song
 
 - 后端只保存 provider、资源 ID 和原始 URL，不保存用户提交的 iframe HTML。
 - 不支持的 URL 返回 `unsupported`，不要抛成通用 500。
-- 前端只根据 provider 渲染受控组件；当前 `ContentBody` 已有一套无后端持久化的 canonical URL 本地识别，后端 resolve 完成后应切到结构化 `embed` / `embed_ids` 合同。
+- 前端只根据 provider 渲染受控组件；当前 `ContentBody` 已有一套 canonical URL 本地识别，后端 resolve 已完成，前端应切到结构化 `embed` / `embed.id` 合同。
 - iframe 权限、sandbox、referrer policy 由前端 provider wrapper 固定，不允许用户配置。
 
 当前前端本地识别范围：
@@ -425,13 +425,13 @@ Bilibili: bilibili.com/video/BV..., bilibili.com/video/av..., player.bilibili.co
 QQ 音乐: i.y.qq.com/v8/playsong.html?songid=..., y.qq.com/n/ryqq/songDetail/<songmid>, i.y.qq.com/n2/m/outchain/player/index.html
 ```
 
-仍需后端处理：
+仍需前端接线：
 
-- `b23.tv`、`v.douyin.com` 等短链展开。
-- 标题、封面、作者等元数据。
-- provider 审核状态和屏蔽状态。
-- `embed_ids` 写入帖子 / 评论发布和编辑请求。
-- 已保存内容读取时返回结构化 `embeds`。
+- 后端已完成 `b23.tv`、`v.douyin.com` 等短链展开。
+- 后端已完成标题、封面、作者等元数据。
+- 后端已完成 provider 审核状态和屏蔽状态。
+- `embed.id` 写入帖子 / 评论发布和编辑请求。
+- 已保存内容读取时直接返回结构化 `embeds`。
 
 ## 数据模型建议
 
@@ -492,7 +492,7 @@ link_previews
 4. 已完成：编辑态图片新增 / 删除 / 重绑，前端编辑弹窗上传入口提交正文实际引用的 `attachment_ids`。
 5. 链接预览：粘贴 URL 后解析，普通网页展示预览卡。
 6. 已完成前端 canonical URL 白名单 embed：按 provider 渲染受控播放器 wrapper。
-7. 待后端补齐：白名单 embed resolve、短链解析、元数据、审核状态和 `embed_ids` 持久化。
+7. 已完成后端补齐：白名单 embed resolve、短链解析、元数据、审核状态和 `embeds` 持久化；前端继续切到结构化 `embed.id`。
 
 ## 验收要求
 

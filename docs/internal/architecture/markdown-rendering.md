@@ -50,7 +50,7 @@ Reddit-style Markdown parity
 未实现：
 
 - 与 Reddit 细节完全一致的 Markdown 兼容性审查。
-- 后端结构化 embed resolve 合同尚未接入前端发布 payload；短链解析、标题缩略图、审核状态和 `embed_ids` 持久化仍需要后端合同。
+- 后端结构化 embed resolve 合同已补齐；前端发布 / 编辑 payload 仍待接入结构化 `embed.id`。
 
 ## Reddit Markdown 能力范围
 
@@ -100,7 +100,7 @@ remark-gfm
   - 抖音：`douyin.com/video/<id>`、`iesdouyin.com/share/video/<id>` 和 `open.douyin.com/player/video?vid=...`。
   - 网易云音乐：`music.163.com/#/song?id=...`、`playlist`、`album` 和 `outchain/player?...`。
   - QQ 音乐：`i.y.qq.com/v8/playsong.html?songid=...`、`y.qq.com/n/ryqq/songDetail/<songmid>` 和 `i.y.qq.com/n2/m/outchain/player/index.html?...`。
-- 当前前端只做明确白名单 canonical URL 的本地识别；`v.douyin.com`、`b23.tv`、分享短链、标题、封面、审核状态和持久化 `embed_ids` 仍应由后端 `/api/v1/embeds/resolve` 处理。
+- 当前前端只做明确白名单 canonical URL 的本地识别；`v.douyin.com`、`b23.tv`、分享短链、标题、封面、审核状态和持久化 `embed.id` 现已由后端 `/api/v1/embeds/resolve` 处理。
 - 支持在写作器中直接粘贴图片，也支持把图片文件拖到写作器区域；图片会上传为 attachment 并按当前光标位置插入正文。除浏览器直接提供的图片文件外，写作器也会识别剪贴板 HTML、纯文本或 Markdown 图片语法里的 `data:image/...;base64,...` 图片并转入同一上传流程；粘贴的纯文本片段如果同时包含文字和内联图片，会保留周边文字，只把图片源码替换成 `nexus-attachment` 正文图片引用。
 - 删除编辑器正文里的图片后，该图片不会随内容提交；新增图片必须重新通过工具栏、粘贴或拖拽进入当前正文位置。
 - 裸贴的 Bilibili、抖音、网易云音乐和 QQ 音乐白名单 URL 在写作器内会转换成 `mediaEmbed` 块并显示同一个受控播放器；序列化时仍输出原始裸链接，后端不接收 HTML 或 iframe。
@@ -133,7 +133,7 @@ remark-gfm
 - 禁止 `//example.com` 这类协议相对 URL；站内链接必须使用单斜杠路径，例如 `/communities/public`。
 - 外链必须加 `rel="nofollow ugc noopener noreferrer"`。
 - 外链是否新窗口打开由统一组件决定，不在页面里临时变化。
-- 图片必须由后端返回结构化附件；白名单 embed 当前可由前端识别明确 canonical URL 并渲染受控播放器，但短链解析、元数据、审核状态和持久化仍以后端 provider 合同为准。
+- 图片必须由后端返回结构化附件；白名单 embed 现已由后端 `/api/v1/embeds/resolve`、短链展开、元数据和 `embed.id` 持久化补齐，前端仍只渲染受控播放器。
 
 允许协议首版建议：
 

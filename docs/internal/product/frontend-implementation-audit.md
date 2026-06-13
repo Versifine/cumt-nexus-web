@@ -22,7 +22,7 @@
 - Feed 规划仍未完整落地：前端已有 `best | hot | new | top | rising` 和推荐 / 全站 / 关注 source 的 URL / UI 基础；本地运行时已证明帖子五种排序可用。当前后端合同确认 `source=recommended|all`，关注流入口保留但不请求或展示普通公开帖子，避免伪造关注内容。
 - 保存收藏链路已接入当前后端合同；帖子列表和详情可以收藏 / 取消收藏，用户菜单进入 `/saved` 查看真实账号收藏列表。
 - 通知中心已按后端 `category` / `status` / `unread-summary` / `read-all` 合同接入：回复、@、赞、系统分类、分类未读摘要和全部标记已读都走真实接口；`/notifications/replies`、`/notifications/mentions`、`/notifications/likes`、`/notifications/system` 分类 URL 已落地并复用同一通知中心。前端已集中解析现有 `source_type/source_id`：帖子、社区和举报可直达，评论通知不会误链到错误页面，而是明确提示后端尚未返回所属帖子 ID。后续剩余风险主要是评论 target 精度和审核 / 社区申请类事件覆盖。
-- 积分特效和个性化推荐没有落地；链接预览已有前端保守链接卡，后端网页元数据解析缓存仍未接入；评论投票已复用统一 Reddit 投票控件接入当前后端合同；Bilibili / 抖音 / 网易云 / QQ 音乐 canonical 裸链接白名单 embed 已在前端阅读态和写作器编辑态落地，但后端结构化 resolve、短链和 `embed_ids` 持久化仍未接入。
+- 积分特效和个性化推荐没有落地；链接预览已有前端保守链接卡，后端网页元数据解析缓存仍未接入；评论投票已复用统一 Reddit 投票控件接入当前后端合同；Bilibili / 抖音 / 网易云 / QQ 音乐 canonical 裸链接白名单 embed 已在前端阅读态和写作器编辑态落地，后端结构化 resolve、短链和 `embed.id` 持久化已补齐。
 
 ## 落地矩阵
 
@@ -47,7 +47,7 @@
 | Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，改为 Tiptap 单一实时渲染编辑面；工具栏对当前选区或当前块执行格式命令，覆盖行内代码和代码块。Markdown 源码不作为默认编辑 UI 暴露，`editor.getMarkdown()` 负责提交格式。 | 基础落地。 | 仍需继续做 Reddit parity 用例审计和移动端完整 QA。 |
 | 图片与正文一体化 | 图片上传后进入 Tiptap image 节点并序列化为 `![说明](nexus-attachment:<id>)`；发布帖子、评论和编辑保存都会按正文出现顺序提交实际引用的 `attachment_ids`；阅读态只渲染正文内 marker 引用到的 attachments，不再把未引用附件追加成底部外置图集；外置图片管理组件已移除；上传中会保持最短可见等待提示并通过 `onUploadingChange` 禁用提交；`check:v2-path` 已覆盖正文内图片 marker 提交、读取保留、编辑替换图片和编辑删除图片后的解绑状态；`check:content-segments` 覆盖批量图片插入顺序和发布绑定过滤，`check:content-boundary` 固化 Tiptap 写作入口、剪贴板图片入口、编辑态新增图片绑定已接入、内联图片约束和上传等待态。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；新增图片只通过编辑器正文位置进入内容，删除正文里的图片后不会随内容提交。 |
 | 普通外链 | Markdown 链接可渲染安全链接；信息流已有保守链接卡，优先消费后端 `preview.link`，否则只显示正文里首个安全外链的域名和链接文字。 | 基础落地。 | 完整网页标题、描述、缩略图和失败降级仍需要后端解析缓存；前端不抓取任意远端网页。 |
-| 白名单 embed | `ContentBody` 和 Tiptap 写作器会把裸贴的 Bilibili、抖音、网易云、QQ 音乐 canonical URL 渲染为受控播放器；自定义文字 Markdown 链接仍保持普通链接；源码中只允许白名单播放器组件使用 iframe。 | 前端基础落地。 | 后端仍需 provider resolve、短链展开、元数据、审核状态和 `embed_ids` 持久化。 |
+| 白名单 embed | `ContentBody` 和 Tiptap 写作器会把裸贴的 Bilibili、抖音、网易云、QQ 音乐 canonical URL 渲染为受控播放器；自定义文字 Markdown 链接仍保持普通链接；源码中只允许白名单播放器组件使用 iframe。 | 前端基础落地。 | 后端已补 provider resolve、短链展开、元数据、审核状态和 `embed.id` 持久化；剩余是前端接线。 |
 | 评论树 | 评论树、回复、折叠、最大深度、评论投票和五种评论排序已有基础实现。 | 基础落地。 | 积分特效、贴图仍未实现。 |
 
 ## 本次浏览器 QA 证据
@@ -104,7 +104,7 @@
 - 个性化推荐和关注 feed：关注关系、推荐排序、登录 / 未登录降级策略。前端当前只做 URL / UI 和未登录门禁，不伪造关注结果。
 - 通知 target 精度：回复、@、赞、系统的后端分类、未读摘要和全部标记已读合同已经接入并通过浏览器 QA；前端已集中解析现有来源并避免评论通知误跳。仍需后端给评论类通知提供可跳到所属帖子 / 评论锚点的 target，并补齐审核、社区申请类通知的稳定类型和目标。
 - 链接预览：普通网页解析、缓存、失败降级、图片安全策略。
-- 白名单 embed 后端合同：Bilibili、抖音、网易云、QQ 音乐 provider resolve、短链展开、元数据、审核状态和 `embed_ids` 持久化；前端 canonical 裸链接播放器已先落地。
+- 白名单 embed 后端合同：Bilibili、抖音、网易云、QQ 音乐 provider resolve、短链展开、元数据、审核状态和 `embed.id` 持久化；前端 canonical 裸链接播放器已先落地。
 - 图片后处理：缩略图 URL、对象物理删除、未绑定对象 TTL、失败对象回收。
 - 编辑绑定图片：2026-06-08 复核后端当前源码和合同，发布帖子 / 评论请求、`PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 均已支持 `attachment_ids`。编辑态新增图片绑定已接入，前端保存时按正文实际引用顺序提交图片 ID，后端按帖子 / 评论所有权重新绑定，响应继续返回最新 `attachments`。
 
@@ -116,5 +116,5 @@
 2. 推进后端 Feed source 运行态对齐：源码和合同只承认 `source=all|recommended`，但当前本地运行态仍对 `source=following` 返回普通帖子流；在后端重建或修正合同前，前端继续保持关注流占位。
 3. 通知中心分类、未读摘要、全部标记已读和现有来源解析已完成接入，并已补桌面 / 移动端可视 QA；下一步只围绕后端评论 target、审核 / 社区申请事件覆盖和完整浏览器 QA 继续。
 4. 社区详情权限入口、管理读取、资料写操作和规则写操作已接入，并已补普通用户门禁、owner 桌面写操作和移动端写操作浏览器 QA；下一步如继续社区管理，应补成员编辑 / 邀请 / 角色调整和具体子页，并继续避免把后端未完成能力伪造成已完成。
-5. 做链接预览和 embed 后端合同接入：链接预览仍未实现；embed 前端 canonical 裸链接已可显示，下一步是接后端结构化 resolve 和短链。
+5. 做链接预览和 embed 后端合同接入：链接预览仍未实现；embed 前端 canonical 裸链接已可显示，下一步是接后端结构化 `embed.id`。
 6. 按 `docs/internal/engineering/browser-qa.md` 跑完整桌面 / 移动端人工 QA，把“反人类”的页面按 P0 / P1 任务修。

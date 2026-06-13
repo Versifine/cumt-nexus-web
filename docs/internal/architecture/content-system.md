@@ -136,7 +136,7 @@ Reddit-style campus community content system
 
 ## 媒体模型
 
-图片、链接预览和白名单 embed 的后端契约缺口见 `docs/internal/architecture/content-media-api-gaps.md`。图片上传和 canonical 白名单播放器已在前端落地；短链解析、元数据、审核状态、链接预览和 `embed_ids` 持久化仍以后端合同为准。
+图片、链接预览和白名单 embed 的后端契约缺口见 `docs/internal/architecture/content-media-api-gaps.md`。图片上传和 canonical 白名单播放器已在前端落地；白名单 embed 的短链解析、元数据、审核状态和 `embed.id` 持久化已由后端 `/api/v1/embeds/resolve` 补齐，链接预览仍以后端合同为准。
 
 ### 图片
 
@@ -312,7 +312,7 @@ GET  /api/v1/posts/:id
   "title": "帖子标题",
   "body": "Reddit-style Markdown 正文",
   "attachment_ids": ["..."],
-  "embed_ids": ["..."]
+  "content_refs": [{"kind": "embed", "ref_id": "..."}]
 }
 ```
 
@@ -331,7 +331,7 @@ POST /api/v1/comments/:id/replies
   "body": "Reddit-style Markdown 评论",
   "parent_id": "nullable comment id",
   "attachment_ids": ["..."],
-  "embed_ids": ["..."]
+  "content_refs": [{"kind": "embed", "ref_id": "..."}]
 }
 ```
 
