@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -15,20 +15,35 @@ import { cn } from "@/lib/utils";
 import { register } from "./api";
 import { useAuthSession } from "./auth-session";
 import { authQueryKeys } from "./query-keys";
-import { getSafeAuthRedirectPath } from "./redirect";
+
+const USERNAME_PATTERN = /^[A-Za-z0-9_]+$/;
+const MAX_PASSWORD_BYTES = 256;
 
 const registerSchema = z.object({
-  username: z.string().trim().min(1, "请输入用户名。"),
-  password: z.string().min(1, "请输入密码。"),
+  username: z
+    .string()
+    .trim()
+    .min(3, "用户名至少 3 位。")
+    .max(32, "用户名最多 32 位。")
+    .regex(USERNAME_PATTERN, "用户名只能使用字母、数字和下划线。")
+    .transform((value) => value.toLowerCase()),
+  password: z
+    .string()
+    .min(8, "密码至少 8 位。")
+    .refine(
+      (value) => new TextEncoder().encode(value).length <= MAX_PASSWORD_BYTES,
+      "密码最多 256 bytes。",
+    ),
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 type RegisterFormProps = {
   className?: string;
+  onSuccess?: () => void;
 };
 
-export function RegisterForm({ className }: RegisterFormProps) {
+export function RegisterForm({ className, onSuccess }: RegisterFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { setToken } = useAuthSession();
@@ -45,19 +60,18 @@ export function RegisterForm({ className }: RegisterFormProps) {
     onSuccess: (result) => {
       setToken(result.access_token);
       queryClient.setQueryData(authQueryKeys.me(), result.user);
-      router.push(getSafeNextPath());
+      onSuccess?.();
+      router.push("/settings/profile");
     },
   });
 
-  const usernameValue = useWatch({ control: form.control, name: "username" }) ?? "";
-  const passwordValue = useWatch({ control: form.control, name: "password" }) ?? "";
   const submitError = getSubmitError(registerMutation.error);
   const isLocked = registerMutation.isPending || registerMutation.isSuccess;
   const statusText = registerMutation.isSuccess
-    ? "账号已创建，正在进入首页。"
+    ? "账号已创建，正在进入资料设置。"
     : form.formState.isDirty
-      ? "注册信息已修改，提交前会先校验。"
-      : "设置用户名和密码后即可创建账号。";
+      ? "确认信息后创建账号。"
+      : "创建后先完善公开资料。";
 
   return (
     <form
@@ -72,13 +86,8 @@ export function RegisterForm({ className }: RegisterFormProps) {
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 border-b border-border py-5 md:grid-cols-[128px_minmax(0,1fr)]">
-        <FieldLabel
-          description="用于登录和区分社区身份，后续展示规则以后端能力为准。"
-          htmlFor="register-username"
-          index="01"
-          title="用户名"
-        />
+      <div className="border-b border-border py-4">
+        <FieldLabel htmlFor="register-username" title="用户名" />
         <div className="min-w-0 space-y-2">
           <Input
             id="register-username"
@@ -86,24 +95,18 @@ export function RegisterForm({ className }: RegisterFormProps) {
             aria-invalid={Boolean(form.formState.errors.username)}
             disabled={isLocked}
             placeholder="输入用户名"
-            className="h-12 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
+            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
             {...form.register("username")}
           />
           <FieldMeta
-            detail={`已输入 ${usernameValue.trim().length} 字`}
             error={form.formState.errors.username?.message}
-            hint="建议使用稳定、易识别的用户名。"
+            hint="3-32 位，支持字母、数字和下划线；注册时会统一转为小写。"
           />
         </div>
       </div>
 
-      <div className="grid gap-4 border-b border-border py-5 md:grid-cols-[128px_minmax(0,1fr)]">
-        <FieldLabel
-          description="先设置可记住的密码；强度策略以后端校验为准。"
-          htmlFor="register-password"
-          index="02"
-          title="密码"
-        />
+      <div className="border-b border-border py-4">
+        <FieldLabel htmlFor="register-password" title="密码" />
         <div className="min-w-0 space-y-2">
           <Input
             id="register-password"
@@ -112,81 +115,55 @@ export function RegisterForm({ className }: RegisterFormProps) {
             aria-invalid={Boolean(form.formState.errors.password)}
             disabled={isLocked}
             placeholder="设置密码"
-            className="h-12 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
+            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
             {...form.register("password")}
           />
           <FieldMeta
-            detail={`已输入 ${passwordValue.length} 位`}
             error={form.formState.errors.password?.message}
-            hint="建议使用至少 8 位，并混合数字和字母。"
+            hint="至少 8 位，最多 256 bytes；建议混合数字、字母和符号。"
           />
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-muted-foreground">{statusText}</div>
-        <Button type="submit" disabled={isLocked}>
+      <div className="space-y-3 py-4">
+        <Button type="submit" className="w-full" disabled={isLocked}>
           {registerMutation.isPending
             ? "正在注册..."
             : registerMutation.isSuccess
               ? "正在进入..."
               : "注册账号"}
         </Button>
+        <div className="text-center text-xs text-muted-foreground">{statusText}</div>
       </div>
     </form>
   );
 }
 
 function FieldLabel({
-  description,
   htmlFor,
-  index,
   title,
 }: {
-  description: string;
   htmlFor: string;
-  index: string;
   title: string;
 }) {
   return (
-    <div>
-      <label
-        className="flex items-center gap-3 text-sm font-semibold text-foreground"
-        htmlFor={htmlFor}
-      >
-        <span className="font-mono text-xs text-primary">{index}</span>
-        {title}
-      </label>
-      <p className="mt-2 hidden text-sm leading-6 text-muted-foreground sm:block">
-        {description}
-      </p>
-    </div>
+    <label className="text-sm font-semibold text-foreground" htmlFor={htmlFor}>
+      {title}
+    </label>
   );
 }
 
 function FieldMeta({
-  detail,
   error,
   hint,
 }: {
-  detail: string;
   error?: string;
   hint: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
-      <p className={error ? "text-destructive" : "text-muted-foreground"}>
-        {error ?? hint}
-      </p>
-      <span
-        className={cn(
-          "hidden font-mono text-muted-foreground sm:inline",
-          error && "text-destructive",
-        )}
-      >
-        {detail}
-      </span>
-    </div>
+    <p className={cn("text-xs", error ? "text-destructive" : "text-muted-foreground")}>
+      {error ?? hint}
+    </p>
   );
 }
 
@@ -204,12 +181,4 @@ function getSubmitError(error: Error | null) {
   }
 
   return "请求失败，请稍后重试。";
-}
-
-function getSafeNextPath() {
-  if (typeof window === "undefined") {
-    return "/";
-  }
-
-  return getSafeAuthRedirectPath(window.location.search);
 }

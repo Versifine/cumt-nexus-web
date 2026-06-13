@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent, MouseEvent, ReactNode } from "react";
 import {
   createContext,
   useCallback,
@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Bell,
@@ -34,8 +34,13 @@ import {
 
 import { Input } from "@/components/ui/input";
 import { TextAction } from "@/components/ui/text-action";
+import {
+  AuthDialog,
+  type AuthDialogMode,
+} from "@/features/auth/auth-dialog";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useCurrentUserQuery } from "@/features/auth/queries";
+import { getSafeAuthRedirectPath } from "@/features/auth/redirect";
 import {
   emptyUnreadSummary,
   formatNotificationCategory,
@@ -76,6 +81,11 @@ type RegisteredBackTarget = {
   target: AppShellBackTarget | null;
 };
 
+type AuthDialogState = {
+  mode: AuthDialogMode;
+  nextPath: string;
+};
+
 const AppShellBackActionContext = createContext<
   ((target: AppShellBackTarget | null) => void) | null
 >(null);
@@ -114,10 +124,14 @@ export function AppShell({
   contextLabel,
 }: AppShellProps) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [authDialog, setAuthDialog] = useState<AuthDialogState | null>(null);
   const [recentCommunities, setRecentCommunities] = useState<RecentCommunity[]>([]);
   const [registeredBackTarget, setRegisteredBackTarget] =
     useState<RegisteredBackTarget | null>(null);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentSearch = searchParams.toString();
+  const currentPath = `${pathname}${currentSearch ? `?${currentSearch}` : ""}`;
   const setScopedBackTarget = useCallback(
     (target: AppShellBackTarget | null) => {
       setRegisteredBackTarget({ pathname, target });
@@ -128,6 +142,60 @@ export function AppShell({
   const activeBackTarget = hasRegisteredBackTarget
     ? registeredBackTarget.target
     : backTarget;
+  const handleAuthLinkClick = useCallback(
+    (event: MouseEvent<HTMLElement>) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.shiftKey
+      ) {
+        return;
+      }
+
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const anchor = target.closest("a[href]");
+
+      if (!(anchor instanceof HTMLAnchorElement)) {
+        return;
+      }
+
+      if ((anchor.target && anchor.target !== "_self") || anchor.hasAttribute("download")) {
+        return;
+      }
+
+      let url: URL;
+
+      try {
+        url = new URL(anchor.href);
+      } catch {
+        return;
+      }
+
+      if (
+        url.origin !== window.location.origin ||
+        (url.pathname !== "/login" && url.pathname !== "/register")
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      setAuthDialog({
+        mode: url.pathname === "/register" ? "register" : "login",
+        nextPath: url.searchParams.has("next")
+          ? getSafeAuthRedirectPath(url.search)
+          : currentPath,
+      });
+    },
+    [currentPath],
+  );
 
   useEffect(() => {
     function syncRecentCommunities() {
@@ -152,7 +220,10 @@ export function AppShell({
 
   return (
     <AppShellBackActionContext.Provider value={setScopedBackTarget}>
-      <main className="min-h-screen bg-background text-foreground">
+      <main
+        className="min-h-screen bg-background text-foreground"
+        onClickCapture={handleAuthLinkClick}
+      >
         <div className="mx-auto grid min-h-screen w-full max-w-[1440px] grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)]">
           <aside className="hidden border-r border-border bg-background px-5 py-5 lg:fixed lg:left-[max(0px,calc((100vw-1440px)/2))] lg:top-0 lg:z-30 lg:block lg:h-dvh lg:w-[248px] lg:overflow-y-auto">
             <ShellBrand />
@@ -199,6 +270,21 @@ export function AppShell({
             </div>
           </section>
         </div>
+        <AuthDialog
+          mode={authDialog?.mode ?? "login"}
+          nextPath={authDialog?.nextPath ?? currentPath}
+          onModeChange={(mode) =>
+            setAuthDialog((state) =>
+              state ? { ...state, mode } : { mode, nextPath: currentPath },
+            )
+          }
+          onOpenChange={(open) => {
+            if (!open) {
+              setAuthDialog(null);
+            }
+          }}
+          open={Boolean(authDialog)}
+        />
       </main>
     </AppShellBackActionContext.Provider>
   );
@@ -329,18 +415,27 @@ function ShellNav({
 }
 
 function TopSearch() {
+  const pathname = usePathname();
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q") ?? "";
+  const urlScope = searchParams.get("scope") ?? "all";
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   function goToSearch() {
-    const nextQuery = query.trim();
+    const nextQuery = inputRef.current?.value.trim() ?? "";
+    const scope =
+      pathname === "/search" &&
+      (urlScope === "communities" || urlScope === "posts")
+        ? urlScope
+        : "all";
 
     if (!nextQuery) {
       router.push("/search");
       return;
     }
 
-    router.push(`/search?q=${encodeURIComponent(nextQuery)}&scope=all`);
+    router.push(`/search?q=${encodeURIComponent(nextQuery)}&scope=${scope}`);
   }
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
@@ -350,7 +445,7 @@ function TopSearch() {
 
   return (
     <form
-      className="min-w-0 flex-1 basis-0 max-w-[calc(100vw-176px)] sm:max-w-none"
+      className="min-w-0 flex-1 basis-0 max-w-[calc(100vw-152px)] sm:max-w-none"
       role="search"
       onSubmit={submitSearch}
     >
@@ -359,21 +454,22 @@ function TopSearch() {
       </label>
       <div className="relative min-w-0">
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          className="pointer-events-none absolute left-0 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           aria-hidden="true"
         />
         <Input
           id="app-shell-search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          key={urlQuery}
+          ref={inputRef}
+          defaultValue={urlQuery}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
               goToSearch();
             }
           }}
-          placeholder="搜索社区或帖子"
-          className="h-9 min-w-0 rounded-none pl-9 sm:h-10"
+          placeholder="搜索社区、帖子"
+          className="h-9 min-w-0 rounded-none border-x-0 border-t-0 bg-transparent pl-6 pr-0 text-sm focus-visible:ring-0 sm:h-10"
         />
       </div>
     </form>

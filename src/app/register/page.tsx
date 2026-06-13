@@ -22,8 +22,8 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 py-6 sm:px-6 lg:px-8">
-        <header className="flex items-center justify-between border-b border-border pb-5">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 py-6 sm:px-6">
+        <header className="flex items-center justify-between border-b border-border pb-4">
           <Link
             href="/"
             className="group flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -38,51 +38,27 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
               </span>
             </span>
           </Link>
-          <TextAction
-            href={loginHref}
-            tone="primary"
-            className="hidden sm:inline-flex"
-          >
+          <TextAction href={loginHref} tone="primary">
             去登录
           </TextAction>
         </header>
 
-        <div className="grid flex-1 items-center py-8 lg:py-12">
+        <div className="grid flex-1 items-center py-8">
           <section className="min-w-0">
-            <p className="font-mono text-xs text-primary">注册入口 / 02</p>
-            <h1 className="mt-3 max-w-2xl text-2xl font-semibold leading-8 tracking-normal sm:text-3xl">
-              创建 CUMT Nexus 账号
+            <p className="font-mono text-xs text-primary">注册入口</p>
+            <h1 className="mt-3 text-2xl font-semibold leading-8 tracking-normal">
+              创建账号
             </h1>
-            <p className="mt-4 max-w-xl text-sm leading-7 text-muted-foreground">
-              设置用户名和密码后进入社区。注册成功后会回到原页面或进入首页。
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              注册后先完善公开资料，再进入社区参与讨论。
             </p>
-          </section>
 
-          <section
-            aria-labelledby="register-title"
-            className="mt-8 border-t border-border"
-          >
-            <div className="border-b border-border px-5 py-5">
-              <p className="font-mono text-xs text-primary">账号创建</p>
-              <h2
-                id="register-title"
-                className="mt-2 text-xl font-semibold tracking-normal"
-              >
-                注册账号
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                设置用户名和密码，创建 CUMT Nexus 账号。
-              </p>
-            </div>
-            <div className="px-5">
+            <div className="mt-6 border-t border-border">
               <RegisterForm />
             </div>
-            <div className="border-t border-border px-5 py-4">
-              <p className="mb-3 text-sm text-muted-foreground">
-                已经有账号？
-              </p>
+            <div className="border-t border-border py-4">
               <TextAction href={loginHref} tone="primary" variant="bar">
-                去登录
+                已有账号，去登录
               </TextAction>
             </div>
           </section>

@@ -61,16 +61,16 @@ const routes = [
     path: "/following",
   },
   {
-    markers: ["CUMT Nexus", "登录", "账号验证", "创建账号"],
+    markers: ["CUMT Nexus", "登录", "进入 CUMT Nexus", "没有账号，去注册"],
     path: "/login",
   },
   {
     hrefMarkers: ["/", "/register?next=%2Fcommunities%2Fpublic%2Fnew"],
-    markers: ["CUMT Nexus", "登录", "账号验证", "创建账号"],
+    markers: ["CUMT Nexus", "登录", "进入 CUMT Nexus", "没有账号，去注册"],
     path: "/login?next=%2Fcommunities%2Fpublic%2Fnew",
   },
   {
-    markers: ["CUMT Nexus", "注册账号", "账号创建", "去登录"],
+    markers: ["CUMT Nexus", "创建账号", "先完善公开资料", "已有账号，去登录"],
     path: "/register",
   },
   {
@@ -93,7 +93,7 @@ const routes = [
   },
   {
     hrefMarkers: ["/", "/login?next=%2Fcommunity-applications%2Fnew"],
-    markers: ["CUMT Nexus", "注册账号", "账号创建", "去登录"],
+    markers: ["CUMT Nexus", "创建账号", "先完善公开资料", "已有账号，去登录"],
     path: "/register?next=%2Fcommunity-applications%2Fnew",
   },
   {
@@ -110,7 +110,7 @@ const routes = [
       "需要登录",
     ],
     hrefMarkers: [...appShellHrefMarkers],
-    markers: ["CUMT Nexus", "搜索社区和帖子", "搜索关键词", "范围"],
+    markers: ["CUMT Nexus", "搜索：public", "顶部搜索框", "范围"],
     path: "/search?q=public&scope=all",
   },
   {

@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -26,9 +26,11 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 type LoginFormProps = {
   className?: string;
+  onSuccess?: () => void;
+  redirectTo?: string;
 };
 
-export function LoginForm({ className }: LoginFormProps) {
+export function LoginForm({ className, onSuccess, redirectTo }: LoginFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { setToken } = useAuthSession();
@@ -45,19 +47,18 @@ export function LoginForm({ className }: LoginFormProps) {
     onSuccess: (result) => {
       setToken(result.access_token);
       queryClient.setQueryData(authQueryKeys.me(), result.user);
-      router.push(getSafeNextPath());
+      onSuccess?.();
+      router.push(redirectTo ?? getSafeNextPath());
     },
   });
 
-  const usernameValue = useWatch({ control: form.control, name: "username" }) ?? "";
-  const passwordValue = useWatch({ control: form.control, name: "password" }) ?? "";
   const submitError = getSubmitError(loginMutation.error);
   const isLocked = loginMutation.isPending || loginMutation.isSuccess;
   const statusText = loginMutation.isSuccess
-    ? "验证通过，正在进入首页。"
+    ? "验证通过，正在进入。"
     : form.formState.isDirty
-      ? "表单已修改，提交前会先校验。"
-      : "输入账号信息后即可登录。";
+      ? "确认信息后登录。"
+      : "输入账号信息后登录。";
 
   return (
     <form
@@ -72,13 +73,8 @@ export function LoginForm({ className }: LoginFormProps) {
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 border-b border-border py-5 md:grid-cols-[128px_minmax(0,1fr)]">
-        <FieldLabel
-          description="使用注册时设置的用户名。"
-          htmlFor="login-username"
-          index="01"
-          title="用户名"
-        />
+      <div className="border-b border-border py-4">
+        <FieldLabel htmlFor="login-username" title="用户名" />
         <div className="min-w-0 space-y-2">
           <Input
             id="login-username"
@@ -86,24 +82,18 @@ export function LoginForm({ className }: LoginFormProps) {
             aria-invalid={Boolean(form.formState.errors.username)}
             disabled={isLocked}
             placeholder="输入用户名"
-            className="h-12 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
+            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
             {...form.register("username")}
           />
           <FieldMeta
-            detail={`已输入 ${usernameValue.trim().length} 字`}
             error={form.formState.errors.username?.message}
-            hint="用户名区分你在社区中的身份。"
+            hint="使用注册时设置的用户名。"
           />
         </div>
       </div>
 
-      <div className="grid gap-4 border-b border-border py-5 md:grid-cols-[128px_minmax(0,1fr)]">
-        <FieldLabel
-          description="密码只用于本次验证，不会在页面中明文展示。"
-          htmlFor="login-password"
-          index="02"
-          title="密码"
-        />
+      <div className="border-b border-border py-4">
+        <FieldLabel htmlFor="login-password" title="密码" />
         <div className="min-w-0 space-y-2">
           <Input
             id="login-password"
@@ -112,81 +102,55 @@ export function LoginForm({ className }: LoginFormProps) {
             aria-invalid={Boolean(form.formState.errors.password)}
             disabled={isLocked}
             placeholder="输入密码"
-            className="h-12 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
+            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
             {...form.register("password")}
           />
           <FieldMeta
-            detail={`已输入 ${passwordValue.length} 位`}
             error={form.formState.errors.password?.message}
-            hint="如果登录失败，请先检查用户名和密码。"
+            hint="密码不会在页面中明文展示。"
           />
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-muted-foreground">{statusText}</div>
-        <Button type="submit" disabled={isLocked}>
+      <div className="space-y-3 py-4">
+        <Button type="submit" className="w-full" disabled={isLocked}>
           {loginMutation.isPending
             ? "正在登录..."
             : loginMutation.isSuccess
               ? "正在进入..."
               : "登录"}
         </Button>
+        <div className="text-center text-xs text-muted-foreground">{statusText}</div>
       </div>
     </form>
   );
 }
 
 function FieldLabel({
-  description,
   htmlFor,
-  index,
   title,
 }: {
-  description: string;
   htmlFor: string;
-  index: string;
   title: string;
 }) {
   return (
-    <div>
-      <label
-        className="flex items-center gap-3 text-sm font-semibold text-foreground"
-        htmlFor={htmlFor}
-      >
-        <span className="font-mono text-xs text-primary">{index}</span>
-        {title}
-      </label>
-      <p className="mt-2 hidden text-sm leading-6 text-muted-foreground sm:block">
-        {description}
-      </p>
-    </div>
+    <label className="text-sm font-semibold text-foreground" htmlFor={htmlFor}>
+      {title}
+    </label>
   );
 }
 
 function FieldMeta({
-  detail,
   error,
   hint,
 }: {
-  detail: string;
   error?: string;
   hint: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
-      <p className={error ? "text-destructive" : "text-muted-foreground"}>
-        {error ?? hint}
-      </p>
-      <span
-        className={cn(
-          "hidden font-mono text-muted-foreground sm:inline",
-          error && "text-destructive",
-        )}
-      >
-        {detail}
-      </span>
-    </div>
+    <p className={cn("text-xs", error ? "text-destructive" : "text-muted-foreground")}>
+      {error ?? hint}
+    </p>
   );
 }
 
