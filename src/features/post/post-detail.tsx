@@ -487,7 +487,7 @@ function PostArticle({
   }
 
   return (
-    <article className="grid grid-cols-[42px_minmax(0,1fr)] border-y border-border bg-background sm:grid-cols-[52px_minmax(0,1fr)]">
+    <article className="grid grid-cols-[42px_minmax(0,1fr)] border-t border-border bg-background sm:grid-cols-[52px_minmax(0,1fr)]">
       <RedditVoteControl
         className="border-r border-border/70 py-3"
         downvoteCount={post.downvote_count}
@@ -518,7 +518,7 @@ function PostArticle({
         <footer className="flex flex-wrap items-center gap-1 border-t border-border px-3 py-2 text-xs text-muted-foreground sm:px-4">
           <button
             type="button"
-            className="inline-flex h-8 items-center gap-1.5 px-2 font-semibold transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             onClick={onCommentIntent}
           >
             <MessageSquare className="size-4" aria-hidden="true" />
@@ -526,7 +526,7 @@ function PostArticle({
           </button>
           <button
             type="button"
-            className="inline-flex h-8 items-center gap-1.5 px-2 font-semibold transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             onClick={copyPostLink}
           >
             <Share2 className="size-4" aria-hidden="true" />
@@ -667,15 +667,15 @@ function PostRail({
 
         <section>
           <h2 className="text-sm font-semibold">发布时间</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border text-sm">
+          <dl className="mt-3 space-y-2 border-t border-border pt-3 text-sm">
             {post.status !== "visible" ? (
-            <RailRow label="状态" value={formatPostStatus(post.status)} />
+              <RailRow label="状态" value={formatPostStatus(post.status)} />
             ) : null}
             <RailRow label="发布" value={formatDate(post.created_at)} />
             {post.updated_at !== post.created_at ? (
               <RailRow label="更新" value={formatDate(post.updated_at)} />
             ) : null}
-          </div>
+          </dl>
         </section>
       </div>
     </aside>
@@ -684,9 +684,9 @@ function PostRail({
 
 function RailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 py-2">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="min-w-0 truncate text-right">{value}</span>
+    <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 truncate text-right">{value}</dd>
     </div>
   );
 }

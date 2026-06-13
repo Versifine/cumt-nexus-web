@@ -9,7 +9,6 @@ import {
   useFollowedCommunitiesQuery,
 } from "@/features/community/queries";
 import type { Community } from "@/features/community/types";
-import { InfoRow } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 
 import { PostForm } from "./post-form";
@@ -43,17 +42,15 @@ export function PostCreatePage({ defaultCommunitySlug = "" }: PostCreatePageProp
   );
 
   return (
-    <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
-      <div className="min-w-0">
-        <section className="border-x border-t border-border bg-background">
-          <PostCreateHeader
-            isLoading={selectedCommunityQuery.isLoading}
-            selectedCommunitySlug={communitySlug}
-            selectedCommunity={selectedCommunity}
-          />
-        </section>
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <section className="min-w-0 bg-background">
+        <PostCreateHeader
+          isLoading={selectedCommunityQuery.isLoading}
+          selectedCommunitySlug={communitySlug}
+          selectedCommunity={selectedCommunity}
+        />
 
-        <section className="border border-border bg-background">
+        <div className="py-5">
           <AuthRequired
             title="登录后发起讨论"
             description="登录后会回到本页继续编辑。"
@@ -67,8 +64,8 @@ export function PostCreatePage({ defaultCommunitySlug = "" }: PostCreatePageProp
               suggestedCommunities={suggestedCommunities}
             />
           </AuthRequired>
-        </section>
-      </div>
+        </div>
+      </section>
 
       <PostCreateRail
         isLoading={selectedCommunityQuery.isLoading}
@@ -95,7 +92,7 @@ function PostCreateHeader({
   );
 
   return (
-    <div className="flex flex-col gap-2 px-3 py-4 sm:px-4">
+    <div className="flex flex-col gap-2 border-b border-border py-4">
       <div className="min-w-0">
         <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground">
           发布帖子
@@ -117,51 +114,46 @@ function PostCreateRail({
   selectedCommunitySlug: string;
   selectedCommunity: Community | null;
 }) {
+  const communityLabel = selectedCommunity
+    ? `/${selectedCommunity.slug}`
+    : isLoading
+      ? "加载中"
+      : selectedCommunitySlug
+        ? `/${selectedCommunitySlug}`
+        : "待选择";
+  const permissionLabel = selectedCommunity
+    ? canPublishToCommunity(selectedCommunity)
+      ? "可发布"
+      : "不可发布"
+    : isLoading
+      ? "确认中"
+      : "待确认";
+
   return (
-    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
-      <div className="sticky top-20 space-y-5">
+    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
+      <div className="sticky top-20 space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">发布位置</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow
-              label="社区"
-              value={
-                selectedCommunity
-                  ? `/${selectedCommunity.slug}`
-                  : isLoading
-                    ? "加载中"
-                    : selectedCommunitySlug
-                      ? `/${selectedCommunitySlug}`
-                      : "待选择"
-              }
-            />
-            <InfoRow
-              label="权限"
-              value={
-                selectedCommunity
-                  ? canPublishToCommunity(selectedCommunity)
-                    ? "可发布"
-                    : "不可发布"
-                  : isLoading
-                    ? "确认中"
-                    : "待确认"
-              }
-            />
-          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            当前目标是{" "}
+            <span className="font-mono text-foreground">{communityLabel}</span>
+            ，发布前会确认社区权限。
+          </p>
+          <p className="mt-2 text-xs font-mono text-muted-foreground">
+            权限：{permissionLabel}
+          </p>
         </section>
 
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">发帖提示</h2>
-          <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-            <li>标题尽量直接，让别人一眼看懂讨论主题。</li>
-            <li>正文支持 Markdown、图片和基础排版。</li>
-            <li>发布后会进入帖子详情页。</li>
-          </ul>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            标题直接写讨论主题；正文支持 Markdown、图片和基础排版。发布成功后会进入帖子详情页。
+          </p>
         </section>
 
         <section>
           <h2 className="text-sm font-semibold">其他入口</h2>
-          <div className="mt-3 flex flex-col border-y border-border">
+          <div className="mt-3 flex flex-col border-t border-border">
             {selectedCommunity ? (
               <TextAction
                 href={`/communities/${encodeURIComponent(selectedCommunity.slug)}`}

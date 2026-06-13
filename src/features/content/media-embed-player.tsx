@@ -12,7 +12,7 @@ export function MediaEmbedPlayer({ embed }: MediaEmbedPlayerProps) {
   return (
     <span
       className={cn(
-        "my-4 block min-w-0 overflow-hidden border border-border bg-background-soft",
+        "my-4 block min-w-0 overflow-hidden bg-background ring-1 ring-border/70",
         embed.layout === "portrait-video" && "w-full max-w-[380px]",
         embed.layout === "music-compact" && "max-w-[520px]",
       )}
@@ -52,7 +52,7 @@ export function MediaEmbedPlayer({ embed }: MediaEmbedPlayerProps) {
 export function createMediaEmbedPlayerElement(embed: WhitelistedMediaEmbed) {
   const root = document.createElement("span");
   root.className = cn(
-    "my-4 block min-w-0 overflow-hidden border border-border bg-background-soft",
+    "my-4 block min-w-0 overflow-hidden bg-background ring-1 ring-border/70",
     embed.layout === "portrait-video" && "w-full max-w-[380px]",
     embed.layout === "music-compact" && "max-w-[520px]",
   );

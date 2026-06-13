@@ -142,14 +142,14 @@ function createMarkdownComponents(
 
       if (!attachmentId && !isAttachmentGalleryMarkdownUrl(safeSrc)) {
         return (
-          <span className="my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
+          <span className="my-4 block border-l border-border px-3 py-2 text-sm text-muted-foreground">
             外部图片不会直接渲染；请上传图片后放入正文。
           </span>
         );
       }
 
       return (
-        <span className="my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
+        <span className="my-4 block border-l border-border px-3 py-2 text-sm text-muted-foreground">
           图片附件不存在、尚未随内容返回或当前不可显示。
         </span>
       );

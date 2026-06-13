@@ -149,7 +149,7 @@ export function CommentForm({
         className={
           compact || docked
             ? "border-l border-border pl-4 text-sm text-muted-foreground"
-            : "border-y border-border py-4 text-sm text-muted-foreground"
+            : "border-t border-border py-4 text-sm text-muted-foreground"
         }
         aria-label="正在读取登录状态"
       >
@@ -161,7 +161,7 @@ export function CommentForm({
   if (!token) {
     if (docked && !compact) {
       return (
-        <section className="flex min-h-11 w-full items-center justify-between gap-3 border border-border bg-background-soft/80 px-3 py-2">
+        <section className="flex min-h-11 w-full items-center justify-between gap-3 border-t border-border pt-3">
           <span className="min-w-0 truncate text-sm text-muted-foreground">
             登录后发表评论
           </span>
@@ -175,7 +175,7 @@ export function CommentForm({
     return (
       <section
         className={
-          compact ? "border-l border-border pl-4" : "border-y border-border py-4"
+          compact ? "border-l border-border pl-4" : "border-t border-border py-4"
         }
       >
         <h3
@@ -190,11 +190,11 @@ export function CommentForm({
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           未登录可以阅读帖子和评论；发表内容、投票和举报需要登录。
         </p>
-        <div className="mt-3 border-y border-border">
-          <TextAction href={loginHref} tone="primary" variant="bar">
+        <div className="mt-3 flex flex-wrap gap-4 border-t border-border pt-3">
+          <TextAction href={loginHref} tone="primary">
             去登录
           </TextAction>
-          <TextAction href={registerHref} variant="bar">
+          <TextAction href={registerHref}>
             创建账号
           </TextAction>
         </div>
@@ -206,7 +206,7 @@ export function CommentForm({
     return (
       <button
         type="button"
-        className="flex min-h-11 w-full max-w-3xl items-center justify-between gap-3 border border-border bg-background-soft/50 px-3 py-2 text-left text-sm transition-colors hover:border-primary/60 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="flex min-h-11 w-full max-w-3xl items-center justify-between gap-3 border-b border-border px-0 py-2 text-left text-sm transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         aria-label="展开评论输入框"
         onClick={expandComposer}
       >
@@ -235,7 +235,7 @@ export function CommentForm({
           </span>
           <button
             type="button"
-            className="inline-flex h-8 shrink-0 items-center px-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-8 shrink-0 items-center px-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
             disabled={commentMutation.isPending || isUploadingImage}
             onClick={collapseComposer}
           >

@@ -142,7 +142,7 @@ export function PostForm({
 
   return (
     <form
-      className={cn("divide-y divide-border", className)}
+      className={cn("space-y-5", className)}
       onSubmit={form.handleSubmit((values) => {
         if (isSubmitDisabled) {
           return;
@@ -154,7 +154,7 @@ export function PostForm({
       <input type="hidden" {...form.register("communitySlug")} />
 
       {submitError ? (
-        <div className="px-3 py-3 sm:px-4">
+        <div>
           <Alert variant="destructive">
             <AlertTitle>发布失败</AlertTitle>
             <AlertDescription>{submitError}</AlertDescription>
@@ -162,7 +162,7 @@ export function PostForm({
         </div>
       ) : null}
 
-      <div className="space-y-2 px-3 py-3 sm:px-4">
+      <div className="space-y-2">
         <PostCommunityPicker
           disabled={postMutation.isPending || isUploadingImage}
           isSelectedCommunityLoading={isSelectedCommunityLoading}
@@ -184,14 +184,14 @@ export function PostForm({
         />
       </div>
 
-      <div className="space-y-2 px-3 py-3 sm:px-4">
+      <div className="space-y-2">
         <Input
           id="title"
           autoComplete="off"
           aria-invalid={Boolean(form.formState.errors.title)}
           disabled={postMutation.isPending}
           placeholder="标题"
-          className="h-12 border-border bg-background-soft text-base font-semibold"
+          className="h-12 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:border-primary focus-visible:ring-0"
           {...form.register("title")}
         />
         <FieldMeta
@@ -200,7 +200,7 @@ export function PostForm({
         />
       </div>
 
-      <div className="space-y-2 px-3 py-3 sm:px-4">
+      <div className="space-y-2">
         <MarkdownComposerField
           disabled={postMutation.isPending}
           maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerPost}
@@ -208,7 +208,7 @@ export function PostForm({
           fieldProps={{
             "aria-invalid": Boolean(form.formState.errors.body),
             className:
-              "min-h-80 border-border bg-background-soft text-base leading-7",
+              "min-h-64 bg-background text-base leading-7 sm:min-h-80",
             id: "body",
             placeholder: "正文",
           }}
@@ -226,7 +226,7 @@ export function PostForm({
         />
       </div>
 
-      <div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+      <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-h-5 text-xs text-muted-foreground">
           {getSubmitStatusText(
             isSelectedCommunityLoading,
@@ -239,7 +239,7 @@ export function PostForm({
           )}
         </div>
         <Button
-          className="h-9 rounded-full px-5"
+          className="h-10 px-5"
           type="submit"
           disabled={isSubmitDisabled}
         >

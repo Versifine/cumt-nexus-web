@@ -174,10 +174,10 @@ export function PostCommunityPicker({
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         className={cn(
-          "flex h-11 w-full items-center gap-2 rounded-lg border border-border bg-background-soft px-2.5 text-left text-sm outline-none transition-colors",
-          "hover:border-primary/50 hover:bg-muted/45 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30",
-          value ? "pr-16" : "pr-9",
-          disabled && "cursor-not-allowed opacity-60 hover:border-border hover:bg-background-soft",
+          "flex h-11 w-full items-center gap-2 border-b border-border bg-transparent text-left text-sm outline-none transition-colors",
+          "hover:border-primary/60 focus-visible:border-primary focus-visible:ring-0",
+          value ? "pr-14" : "pr-8",
+          disabled && "cursor-not-allowed opacity-60 hover:border-border",
         )}
         disabled={disabled}
         id="communitySlug"
@@ -193,7 +193,7 @@ export function PostCommunityPicker({
         />
         <ChevronDown
           className={cn(
-            "absolute right-3 size-4 shrink-0 text-muted-foreground transition-transform",
+            "absolute right-0 size-4 shrink-0 text-muted-foreground transition-transform",
             isOpen && "rotate-180",
           )}
           aria-hidden="true"
@@ -203,7 +203,7 @@ export function PostCommunityPicker({
       {value ? (
         <button
           aria-label="清除已选社区"
-          className="absolute right-9 top-1/2 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
+          className="absolute right-6 top-1/2 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={disabled}
           onClick={clearCommunity}
           type="button"
@@ -214,7 +214,7 @@ export function PostCommunityPicker({
 
       {isOpen ? (
         <div
-          className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-[0_18px_50px_rgb(0_0_0/0.42)]"
+          className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_18px_50px_rgb(0_0_0/0.42)]"
           id={panelId}
           role="listbox"
         >
@@ -315,10 +315,10 @@ function CommunityAvatar({ isSelected }: { isSelected: boolean }) {
   return (
     <span
       className={cn(
-        "flex size-7 shrink-0 items-center justify-center rounded-full border text-[13px] font-semibold",
+        "flex size-7 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold",
         isSelected
-          ? "border-primary/40 bg-primary/15 text-primary"
-          : "border-border bg-background text-muted-foreground",
+          ? "bg-primary/15 text-primary"
+          : "bg-background text-muted-foreground",
       )}
       aria-hidden="true"
     >

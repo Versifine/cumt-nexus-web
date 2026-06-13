@@ -194,7 +194,7 @@ export function CommentLifecycleControls({
             <DialogFooter>
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 disabled={isUpdating}
                 onClick={() => handleEditOpenChange(false)}
               >
@@ -241,7 +241,7 @@ export function CommentLifecycleControls({
             </Alert>
           ) : null}
 
-          <div className="border-y border-border py-3">
+          <div className="border-t border-border pt-3">
             <div className="font-mono text-xs text-muted-foreground">
               将删除
             </div>
@@ -253,7 +253,7 @@ export function CommentLifecycleControls({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               disabled={isDeleting}
               onClick={() => setDeleteOpen(false)}
             >
@@ -310,9 +310,9 @@ const TextCommand = forwardRef<HTMLButtonElement, TextCommandProps>(
         {...props}
         className={cn(
           tone === "danger"
-            ? "text-destructive hover:bg-destructive/10 focus-visible:ring-destructive/40"
-            : "text-muted-foreground hover:bg-surface-hover hover:text-foreground focus-visible:ring-ring",
-          "inline-flex h-8 items-center gap-1.5 px-2 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            ? "text-destructive focus-visible:ring-destructive/40"
+            : "text-muted-foreground hover:text-primary focus-visible:ring-ring",
+          "inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           className,
         )}
       >

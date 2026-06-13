@@ -145,7 +145,7 @@ function CommentBranch({
         visualDepth > 0 && "border-l border-border pl-2 sm:pl-4",
       )}
     >
-      <article className="grid grid-cols-[36px_minmax(0,1fr)] bg-background transition-colors hover:bg-background-soft/45">
+      <article className="grid grid-cols-[34px_minmax(0,1fr)] bg-background">
         <RedditVoteControl
           className="py-3"
           downvoteCount={comment.downvote_count ?? 0}
@@ -157,7 +157,7 @@ function CommentBranch({
           upvoteCount={comment.upvote_count ?? 0}
         />
 
-        <div className="grid min-w-0 grid-cols-[32px_minmax(0,1fr)] gap-3 px-2 py-3 sm:px-3">
+        <div className="grid min-w-0 grid-cols-[32px_minmax(0,1fr)] gap-3 py-3 pl-2 sm:pl-3">
           <CommentAuthorAvatar
             comment={comment}
             name={getCommentAuthorName(comment)}
@@ -241,7 +241,7 @@ function CommentBranch({
             ) : (
               <button
                 type="button"
-                className="mt-2 inline-flex h-8 items-center gap-1.5 px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="mt-2 inline-flex h-8 items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => onToggleCollapsed(comment.id)}
               >
                 <ChevronRight className="size-3.5" aria-hidden="true" />
@@ -257,7 +257,7 @@ function CommentBranch({
           {isDepthLimited ? (
             <button
               type="button"
-              className="my-2 inline-flex min-h-9 items-center gap-2 border-l border-primary/50 px-3 py-2 text-xs text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="my-2 inline-flex min-h-9 items-center gap-2 border-l border-primary/50 px-3 py-2 text-xs text-primary transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               onClick={() => onExpandDepth(comment.id)}
             >
               查看后续 {children.length} 条回复
@@ -286,7 +286,7 @@ function CommentBranch({
       ) : null}
 
       {hasMoreReplies && isCollapsed ? (
-        <div className="ml-9 border-l border-border px-3 py-2 text-xs text-muted-foreground">
+        <div className="ml-9 border-l border-border/70 px-3 py-2 text-xs text-muted-foreground">
           这条评论已折叠，展开后可以继续查看回复。
         </div>
       ) : null}
@@ -304,7 +304,7 @@ function TextCommand({
   return (
     <button
       type="button"
-      className="inline-flex h-8 items-center gap-1.5 px-2 font-semibold text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="inline-flex h-8 items-center gap-1.5 px-1 font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       onClick={onClick}
     >
       {children}
@@ -428,14 +428,14 @@ function CommentAuthorAvatarVisual({
       <img
         src={avatarUrl}
         alt={`${name} 的头像`}
-        className="mt-0.5 size-8 shrink-0 rounded-full border border-border bg-secondary object-cover"
+        className="mt-0.5 size-8 shrink-0 rounded-full bg-secondary object-cover ring-1 ring-border/70"
       />
     );
   }
 
   return (
     <span
-      className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-primary"
+      className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-primary ring-1 ring-border/70"
       aria-label={`${name} 的头像占位`}
     >
       <User className="size-4" aria-hidden="true" />

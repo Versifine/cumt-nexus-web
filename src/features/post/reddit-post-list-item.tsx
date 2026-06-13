@@ -96,7 +96,7 @@ export function RedditPostListItem({
   return (
     <article
       className={cn(
-        "group flex min-w-0 gap-0 border-b border-border/60 transition-colors hover:bg-background-soft/40",
+        "group flex min-w-0 gap-0 border-b border-border/60",
         className,
       )}
     >
@@ -172,7 +172,7 @@ export function RedditPostListItem({
           </PostActionLink>
           <button
             type="button"
-            className="inline-flex h-7 items-center gap-1.5 rounded px-2 transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="inline-flex h-7 items-center gap-1.5 px-1 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             onClick={copyPostLink}
           >
             <Share2 className="size-3.5" aria-hidden="true" />
@@ -200,7 +200,7 @@ function PostLinkPreviewCard({ preview }: { preview: ResolvedLinkPreview }) {
       href={preview.url}
       target="_blank"
       rel="nofollow ugc noopener noreferrer"
-      className="group block max-w-[640px] border-l border-border bg-background-soft/40 px-3 py-2 transition-colors hover:border-primary hover:bg-surface-hover/70"
+      className="group block max-w-[640px] border-l border-border px-3 py-2 transition-colors hover:border-primary"
     >
       <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
           <LinkIcon className="size-3 shrink-0" aria-hidden="true" />
@@ -238,7 +238,7 @@ function PostActionLink({
     <Link
       href={href}
       onClick={onClick}
-      className="inline-flex h-7 items-center gap-1.5 rounded px-2 transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="inline-flex h-7 items-center gap-1.5 px-1 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       {children}
     </Link>

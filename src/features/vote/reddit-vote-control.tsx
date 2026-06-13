@@ -164,7 +164,7 @@ function VoteButton({
         "inline-flex size-8 items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         active
           ? "text-primary [&_svg]:fill-primary"
-          : "hover:bg-surface-hover hover:text-foreground",
+          : "hover:text-foreground",
         disabled && "cursor-not-allowed opacity-60 hover:bg-transparent",
       )}
       onClick={onClick}

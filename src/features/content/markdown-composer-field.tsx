@@ -247,7 +247,7 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
         "span",
         {
           class:
-            "my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground",
+            "my-4 block border-l border-border px-3 py-2 text-sm text-muted-foreground",
         },
         "图片附件不存在或尚未随内容返回。",
       ];
@@ -257,7 +257,7 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
       "span",
       {
         class:
-          "my-4 block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground",
+          "my-4 block border-l border-border px-3 py-2 text-sm text-muted-foreground",
       },
       "外部图片不会直接渲染；请上传图片后放入正文。",
     ];
@@ -505,11 +505,11 @@ function AttachmentImageEditorView({
           variant="detail"
         />
       ) : !attachmentId ? (
-        <span className="block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
+        <span className="block border-l border-border px-3 py-2 text-sm text-muted-foreground">
           外部图片不会直接渲染；请上传图片后放入正文。
         </span>
       ) : (
-        <span className="block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
+        <span className="block border-l border-border px-3 py-2 text-sm text-muted-foreground">
           图片附件不存在、尚未随内容返回或当前不可显示。
         </span>
       )}
@@ -572,7 +572,7 @@ function AttachmentGalleryEditorView({
           variant="detail"
         />
       ) : (
-        <span className="block border border-border bg-background-soft px-3 py-2 text-sm text-muted-foreground">
+        <span className="block border-l border-border px-3 py-2 text-sm text-muted-foreground">
           图片轮播里的附件不存在或尚未随内容返回。
         </span>
       )}
@@ -616,7 +616,7 @@ function AttachmentEditorActionButton({
   return (
     <button
       type="button"
-      className="inline-flex h-8 items-center gap-1.5 border border-border bg-background-soft px-2 font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="inline-flex h-8 items-center gap-1.5 border-b border-transparent px-1 font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       contentEditable={false}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
@@ -1644,8 +1644,11 @@ function ToolbarButton({
       size="icon"
       title={label}
       type="button"
-      variant={active ? "secondary" : "ghost"}
-      className="size-9 shrink-0 rounded-md"
+      variant="ghost"
+      className={cn(
+        "size-9 shrink-0 rounded-none border-b border-transparent hover:bg-transparent hover:text-primary",
+        active && "border-primary text-primary",
+      )}
     >
       {icon}
     </Button>
@@ -1957,7 +1960,7 @@ function createMediaFallbackLink(originalUrl: string) {
   link.rel = "nofollow ugc noopener noreferrer";
   link.target = "_blank";
   link.className =
-    "block border border-border bg-background-soft px-3 py-2 text-sm text-primary underline decoration-primary/40 underline-offset-4";
+    "block border-l border-border px-3 py-2 text-sm text-primary underline decoration-primary/40 underline-offset-4";
   link.textContent = originalUrl;
 
   return link;

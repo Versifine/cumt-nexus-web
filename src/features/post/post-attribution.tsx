@@ -201,7 +201,7 @@ export function PostAuthorAvatar({
         alt={`${name} 的头像`}
         className={cn(
           sizeClass,
-          "shrink-0 rounded-full border border-border bg-secondary object-cover",
+          "shrink-0 rounded-full bg-secondary object-cover ring-1 ring-border/70",
           className,
         )}
       />
@@ -212,7 +212,7 @@ export function PostAuthorAvatar({
     <span
       className={cn(
         sizeClass,
-        "flex shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-primary",
+        "flex shrink-0 items-center justify-center rounded-full bg-secondary text-primary ring-1 ring-border/70",
         className,
       )}
       aria-label={`${name} 的头像占位`}

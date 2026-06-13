@@ -351,7 +351,7 @@ export function ContentImageGallery({
               href={activeAttachment.original_url || activeAttachment.url}
               target="_blank"
               rel="nofollow ugc noopener noreferrer"
-              className="inline-flex size-7 items-center justify-center transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="inline-flex size-7 items-center justify-center transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               title="打开原图"
               aria-label="打开原图"
             >

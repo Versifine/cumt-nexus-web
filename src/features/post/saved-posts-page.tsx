@@ -1,12 +1,9 @@
 "use client";
 
-import { Bookmark } from "lucide-react";
-
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { InfoRow } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { ApiError } from "@/lib/api/client";
@@ -22,28 +19,18 @@ export function SavedPostsPage() {
   const posts = savedPostsQuery.data?.posts ?? [];
 
   return (
-    <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
       <section className="min-w-0">
-        <section className="border border-border bg-background px-3 py-4 sm:px-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className="flex size-11 shrink-0 items-center justify-center border border-border bg-secondary text-primary"
-              aria-hidden="true"
-            >
-              <Bookmark className="size-5" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-xl font-semibold leading-7 tracking-normal">
-                我的收藏
-              </h1>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                登录后查看你保存过的公开帖子，取消收藏会从这里移除。
-              </p>
-            </div>
-          </div>
+        <section className="border-b border-border bg-background py-4">
+          <h1 className="text-xl font-semibold leading-7 tracking-normal">
+            我的收藏
+          </h1>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            保存过的公开帖子会集中在这里，取消收藏后会从列表移除。
+          </p>
         </section>
 
-        <section className="mt-3 border-x border-border bg-background">
+        <section className="bg-background">
           {!isReady ? (
             <div className="border-b border-border p-4">
               <LoadingState rows={5} />
@@ -149,20 +136,19 @@ function SavedPostsRail({
   posts: Post[];
 }) {
   return (
-    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
-      <div className="sticky top-20 space-y-5">
+    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
+      <div className="sticky top-20 space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">收藏上下文</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow label="状态" value={isAuthenticated ? "已登录" : "未登录"} />
-            <InfoRow label="当前页" value={isLoading ? "加载中" : `${posts.length} 条`} />
-            <InfoRow label="来源" value="账号收藏" />
-          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            {isAuthenticated ? "当前账号" : "未登录状态"}的收藏列表
+            {isLoading ? "正在加载" : `当前页有 ${posts.length} 篇帖子`}。
+          </p>
         </section>
 
         <section>
           <h2 className="text-sm font-semibold">继续浏览</h2>
-          <div className="mt-3 flex flex-col border-y border-border">
+          <div className="mt-3 flex flex-col border-t border-border">
             <TextAction href="/" variant="bar">
               信息流首页
             </TextAction>
