@@ -9,7 +9,6 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { StatusToken } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useUserCommentsQuery } from "@/features/comment/queries";
@@ -29,7 +28,6 @@ import { ApiError } from "@/lib/api/client";
 
 import {
   PublicUserLayout,
-  ProfileMetric,
   formatDate,
 } from "./public-user-layout";
 import { usePublicUserQuery } from "./queries";
@@ -70,7 +68,7 @@ export function PublicUserComments({
   if (!isReady || profileQuery.isPending) {
     return (
       <div className="py-4">
-        <section className="border border-border bg-background p-4">
+        <section className="bg-background p-4">
           <LoadingState rows={4} />
         </section>
       </div>
@@ -80,7 +78,7 @@ export function PublicUserComments({
   if (profileQuery.isError) {
     return (
       <div className="py-4">
-        <section className="border border-border bg-background p-4">
+        <section className="bg-background p-4">
           {isNotFound(profileQuery.error) ? (
             <EmptyState
               title="没有找到这个用户"
@@ -122,10 +120,11 @@ export function PublicUserComments({
       user={user}
     >
       <section className="bg-background">
-        <div className="flex flex-wrap items-center gap-2 bg-background-soft/50 px-3 py-3 sm:px-4">
-          <StatusToken tone="primary">评论视图</StatusToken>
-          <StatusToken>当前页 {comments.length}</StatusToken>
-          <StatusToken>公开评论 {user.stats.comment_count}</StatusToken>
+        <div className="border-b border-border py-3">
+          <h2 className="text-sm font-semibold text-foreground">公开评论</h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            当前页 {comments.length} 条 / 共 {user.stats.comment_count} 条
+          </p>
         </div>
 
         {commentsQuery.isPending ? (
@@ -204,9 +203,9 @@ function UserCommentRow({
   }
 
   return (
-    <article className="grid grid-cols-[42px_minmax(0,1fr)] border-b border-border bg-background transition-colors hover:bg-background-soft/60 sm:grid-cols-[48px_minmax(0,1fr)]">
+    <article className="grid grid-cols-[42px_minmax(0,1fr)] border-b border-border bg-background sm:grid-cols-[48px_minmax(0,1fr)]">
       <RedditVoteControl
-        className="border-r border-border bg-background-soft/45 py-3"
+        className="py-3"
         downvoteCount={comment.downvote_count ?? 0}
         mode="column"
         myVote={comment.my_vote ?? 0}
@@ -237,7 +236,7 @@ function UserCommentRow({
             ) : null}
           </div>
 
-          <div className="mt-2 border border-border bg-background-soft/45 px-3 py-2">
+          <div className="mt-2 border-l border-border pl-3">
             <Link
               href={context.postHref}
               onClick={rememberSource}
@@ -370,14 +369,14 @@ function CommentAuthorAvatarVisual({
       <img
         src={avatarUrl}
         alt={`${name} 的头像`}
-        className="mt-0.5 size-8 shrink-0 rounded-full border border-border bg-secondary object-cover"
+        className="mt-0.5 size-8 shrink-0 rounded-full bg-secondary object-cover ring-1 ring-border/70"
       />
     );
   }
 
   return (
     <span
-      className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-primary"
+      className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-primary ring-1 ring-border/70"
       aria-label={`${name} 的头像占位`}
     >
       <UserIcon className="size-4" aria-hidden="true" />
@@ -424,7 +423,7 @@ function PostActionLink({
     <Link
       href={href}
       onClick={onClick}
-      className="inline-flex h-8 items-center gap-1.5 px-2 font-semibold transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       {children}
     </Link>
@@ -448,15 +447,17 @@ function UserCommentsRail({
 
   return (
     <>
-      <section className="bg-background-soft/35 px-4 py-4">
+      <section className="border-b border-border pb-5">
         <h2 className="text-sm font-semibold">评论上下文</h2>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <ProfileMetric label="当前页" value={String(comments.length)} />
-          <ProfileMetric label="总分" value={String(totalScore)} />
-        </div>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          当前页展示{" "}
+          <span className="font-mono text-foreground">{comments.length}</span>{" "}
+          条公开评论，合计{" "}
+          <span className="font-mono text-foreground">{totalScore}</span> 分。
+        </p>
       </section>
 
-      <section className="bg-background-soft/35 px-4 py-4">
+      <section className="border-b border-border pb-5">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold">高分评论</h2>
           <span className="font-mono text-xs text-muted-foreground">

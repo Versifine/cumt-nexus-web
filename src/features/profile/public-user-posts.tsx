@@ -8,7 +8,6 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { StatusToken } from "@/components/ui/data-display";
 import { SortMenu } from "@/components/ui/sort-menu";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
@@ -24,7 +23,6 @@ import { ApiError } from "@/lib/api/client";
 
 import {
   PublicUserLayout,
-  ProfileMetric,
   getDisplayName,
 } from "./public-user-layout";
 import { usePublicUserQuery } from "./queries";
@@ -67,7 +65,7 @@ export function PublicUserPosts({
   if (!isReady || profileQuery.isPending) {
     return (
       <div className="py-4">
-        <section className="border border-border bg-background p-4">
+        <section className="bg-background p-4">
           <LoadingState rows={4} />
         </section>
       </div>
@@ -77,7 +75,7 @@ export function PublicUserPosts({
   if (profileQuery.isError) {
     return (
       <div className="py-4">
-        <section className="border border-border bg-background p-4">
+        <section className="bg-background p-4">
           {isNotFound(profileQuery.error) ? (
             <EmptyState
               title="没有找到这个用户"
@@ -128,14 +126,13 @@ export function PublicUserPosts({
       user={user}
     >
       <section className="bg-background">
-        <div className="flex flex-col gap-3 bg-background-soft/50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusToken tone="primary">帖子视图</StatusToken>
-            <StatusToken>当前页 {posts.length}</StatusToken>
-            <StatusToken>公开帖子 {user.stats.post_count}</StatusToken>
-            {sortFallbackNotice ? (
-              <StatusToken tone="warning">{sortFallbackNotice}</StatusToken>
-            ) : null}
+        <div className="flex flex-col gap-3 border-b border-border py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-foreground">公开帖子</h2>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              当前页 {posts.length} 篇 / 共 {user.stats.post_count} 篇
+              {sortFallbackNotice ? ` · ${sortFallbackNotice}` : ""}
+            </p>
           </div>
           <UserPostSortMenu
             disabled={postsQuery.isFetching}
@@ -250,15 +247,16 @@ function UserPostsRail({
 
   return (
     <>
-      <section className="bg-background-soft/35 px-4 py-4">
+      <section className="border-b border-border pb-5">
         <h2 className="text-sm font-semibold">当前内容</h2>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <ProfileMetric label="排序" value={formatPostSortLabel(sort)} />
-          <ProfileMetric label="当前页" value={String(posts.length)} />
-        </div>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          按 {formatPostSortLabel(sort)} 排序，当前页展示{" "}
+          <span className="font-mono text-foreground">{posts.length}</span>{" "}
+          篇公开帖子。
+        </p>
       </section>
 
-      <section className="bg-background-soft/35 px-4 py-4">
+      <section className="border-b border-border pb-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold">本页高分帖子</h2>
           <span className="font-mono text-xs text-muted-foreground">

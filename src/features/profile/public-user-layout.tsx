@@ -38,13 +38,11 @@ export function PublicUserLayout({
   user,
 }: PublicUserLayoutProps) {
   return (
-    <div className="grid w-full min-w-0 gap-5 py-4 sm:py-6 xl:grid-cols-[minmax(0,900px)_300px]">
+    <div className="grid w-full min-w-0 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
-        <section className="bg-background">
-          <PublicUserHeader activeTab={activeTab} user={user} />
-        </section>
+        <PublicUserHeader activeTab={activeTab} user={user} />
 
-        <div className="mt-4">{children}</div>
+        <div>{children}</div>
       </div>
 
       <PublicUserRail activeTab={activeTab} user={user}>
@@ -136,7 +134,7 @@ export function PublicUserHeader({
             </div>
           ) : null}
 
-          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="mt-5 grid grid-cols-3 border-t border-border">
             <ProfileMetric
               icon={<FileText className="size-4" aria-hidden="true" />}
               label="公开帖子"
@@ -150,14 +148,14 @@ export function PublicUserHeader({
             <ProfileMetric
               icon={<CalendarDays className="size-4" aria-hidden="true" />}
               label="加入"
-              value={formatDate(user.created_at)}
+              value={formatCompactDate(user.created_at)}
             />
           </div>
         </div>
       </div>
 
       <nav
-        className="mt-1 flex gap-2 px-3 pb-1 sm:px-4"
+        className="flex border-b border-border"
         aria-label={`${displayName} 的主页内容`}
       >
         {profileTabs.map((item) => {
@@ -169,9 +167,9 @@ export function PublicUserHeader({
               href={getProfileTabHref(user.username, item.value)}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex-1 px-3 py-2.5 text-center text-sm font-semibold transition-colors hover:bg-background-soft hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                "relative flex-1 px-3 py-3 text-center text-sm font-semibold transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                 isActive
-                  ? "bg-primary/10 text-primary"
+                  ? "text-primary after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-primary"
                   : "text-muted-foreground",
               )}
             >
@@ -197,34 +195,22 @@ export function PublicUserRail({
   const identityItems = [...user.roles, ...user.badges];
 
   return (
-    <aside className="hidden min-w-0 xl:block">
-      <div className="sticky top-20 space-y-5">
-        <section className="bg-background-soft/35 px-4 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="truncate text-sm font-semibold">{displayName}</h2>
-              <p className="mt-1 truncate font-mono text-xs text-primary">
-                @{user.username}
-              </p>
-            </div>
-          </div>
-          <p className="mt-3 line-clamp-5 text-sm leading-6 text-muted-foreground">
-            {user.bio || user.headline || "这个用户还没有填写公开简介。"}
+    <aside className="hidden min-w-0 border-l border-border pl-5 xl:block">
+      <div className="sticky top-20 space-y-6">
+        <section className="border-b border-border pb-5">
+          <h2 className="text-sm font-semibold">公开资料</h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            {displayName} 在 {formatDate(user.created_at)} 加入。公开内容包含{" "}
+            <span className="font-mono text-foreground">{user.stats.post_count}</span>{" "}
+            篇帖子和{" "}
+            <span className="font-mono text-foreground">{user.stats.comment_count}</span>{" "}
+            条评论。
           </p>
         </section>
 
-        <section className="bg-background-soft/35 px-4 py-4">
-          <h2 className="text-sm font-semibold">公开数据</h2>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <ProfileMetric label="帖子" value={String(user.stats.post_count)} />
-            <ProfileMetric label="评论" value={String(user.stats.comment_count)} />
-            <ProfileMetric label="加入" value={formatDate(user.created_at)} />
-          </div>
-        </section>
-
-        <section className="bg-background-soft/35 px-4 py-4">
+        <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">内容入口</h2>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-3 flex flex-col border-t border-border">
             <RailLink
               active={activeTab === "posts"}
               href={getProfileTabHref(user.username, "posts")}
@@ -241,7 +227,7 @@ export function PublicUserRail({
         </section>
 
         {identityItems.length > 0 ? (
-          <section className="bg-background-soft/35 px-4 py-4">
+          <section className="border-b border-border pb-5">
             <h2 className="text-sm font-semibold">身份和徽章</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {identityItems.map((item) => (
@@ -272,8 +258,10 @@ function RailLink({
     <Link
       href={href}
       className={cn(
-        "px-3 py-2 text-sm font-semibold transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        active ? "bg-primary/10 text-primary" : "bg-background/60 text-muted-foreground",
+        "relative px-3 py-3 text-sm font-semibold transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        active
+          ? "text-primary before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-primary"
+          : "text-muted-foreground",
       )}
     >
       {children}
@@ -291,12 +279,12 @@ export function ProfileMetric({
   value: string;
 }) {
   return (
-    <div className="min-w-0 bg-background-soft/70 px-3 py-3">
+    <div className="min-w-0 border-r border-border px-3 py-3 last:border-r-0">
       <div className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
         {icon ? <span className="shrink-0 text-primary">{icon}</span> : null}
         <span className="truncate">{label}</span>
       </div>
-      <div className="mt-1 truncate text-sm font-semibold text-foreground">
+      <div className="mt-1 break-words text-xs font-semibold text-foreground sm:text-sm">
         {value}
       </div>
     </div>
@@ -388,6 +376,15 @@ export function formatDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function formatCompactDate(value: string) {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}.${month}.${day}`;
 }
 
 export function getProfileTabHref(

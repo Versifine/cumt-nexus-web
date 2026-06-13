@@ -86,7 +86,7 @@ export function LoginForm({ className }: LoginFormProps) {
             aria-invalid={Boolean(form.formState.errors.username)}
             disabled={isLocked}
             placeholder="输入用户名"
-            className="h-12 border-border bg-background text-base font-semibold"
+            className="h-12 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
             {...form.register("username")}
           />
           <FieldMeta
@@ -112,7 +112,7 @@ export function LoginForm({ className }: LoginFormProps) {
             aria-invalid={Boolean(form.formState.errors.password)}
             disabled={isLocked}
             placeholder="输入密码"
-            className="h-12 border-border bg-background text-base"
+            className="h-12 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
             {...form.register("password")}
           />
           <FieldMeta

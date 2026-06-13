@@ -8,39 +8,32 @@ export default function Loading() {
       aria-label="正在加载页面"
     >
       <div className="mx-auto grid min-h-screen w-full max-w-[1440px] grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-border bg-background px-5 py-5 lg:fixed lg:left-[max(0px,calc((100vw-1440px)/2))] lg:top-0 lg:z-30 lg:block lg:h-dvh lg:w-[248px] lg:overflow-y-auto">
+        <aside className="hidden border-r border-border px-5 py-5 lg:fixed lg:left-[max(0px,calc((100vw-1440px)/2))] lg:top-0 lg:z-30 lg:block lg:h-dvh lg:w-[248px] lg:overflow-y-auto">
           <div className="border-b border-border pb-5">
-            <div className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card text-sm font-semibold text-primary">
-              CN
-            </div>
-            <div className="mt-4 text-sm font-semibold">CUMT Nexus</div>
+            <div className="text-sm font-semibold">CUMT Nexus</div>
             <div className="mt-1 text-xs text-muted-foreground">校园社区</div>
           </div>
 
-          <nav className="mt-6 divide-y divide-border border-y border-border">
-            {["首页", "社区"].map((label, index) => (
-              <div key={label} className="flex items-center justify-between py-3">
-                <span className="flex items-center gap-3 text-sm">
-                  <span className="w-6 font-mono text-xs text-muted-foreground">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <Skeleton className="size-4 rounded-sm" />
-                  <span className="text-muted-foreground">{label}</span>
+          <nav className="mt-6 space-y-4">
+            {["首页", "全站", "关注", "社区"].map((label, index) => (
+              <div key={label} className="flex items-center gap-3 text-sm">
+                <span className="w-6 font-mono text-xs text-muted-foreground">
+                  {String(index + 1).padStart(2, "0")}
                 </span>
-                <Skeleton className="size-1.5 rounded-full" />
+                <Skeleton className="h-4 w-20 rounded-none" />
               </div>
             ))}
           </nav>
 
-          <section className="mt-6">
+          <section className="mt-8 border-t border-border pt-5">
             <div className="font-mono text-[11px] uppercase text-muted-foreground">
               最近访问
             </div>
-            <div className="mt-3 divide-y divide-border border-y border-border">
+            <div className="mt-4 space-y-4">
               {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="flex items-center justify-between py-3">
+                <div key={index} className="flex items-center justify-between gap-3">
                   <Skeleton className="h-4 w-24 rounded-none" />
-                  <Skeleton className="h-3 w-12 rounded-none" />
+                  <Skeleton className="h-3 w-10 rounded-none" />
                 </div>
               ))}
             </div>
@@ -67,48 +60,39 @@ export default function Loading() {
 
           <div className="min-w-0 flex-1">
             <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px]">
                 <section className="min-w-0">
-                  <section className="border border-border bg-background">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="px-3 py-3 sm:px-4">
-                        <Skeleton className="h-5 w-24 rounded-none" />
-                        <Skeleton className="mt-2 h-4 w-20 rounded-none" />
-                      </div>
-                      <div className="px-3 pb-3 sm:px-4 sm:pb-0">
-                        <div className="flex border border-border">
-                          {Array.from({ length: 5 }).map((_, index) => (
-                            <Skeleton
-                              key={index}
-                              className="h-9 w-14 rounded-none border-r border-border last:border-r-0"
-                            />
-                          ))}
-                        </div>
-                      </div>
+                  <div className="border-b border-border py-4">
+                    <Skeleton className="h-5 w-28 rounded-none" />
+                    <Skeleton className="mt-3 h-4 w-56 max-w-full rounded-none" />
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <Skeleton
+                          key={index}
+                          className="h-5 w-12 rounded-none"
+                        />
+                      ))}
                     </div>
-                  </section>
+                  </div>
 
-                  <section className="mt-3 divide-y divide-border border-x border-border">
+                  <section className="divide-y divide-border">
                     {Array.from({ length: 5 }).map((_, index) => (
                       <div
                         key={index}
-                        className="grid gap-4 py-5 md:grid-cols-[72px_minmax(0,1fr)_96px]"
+                        className="grid gap-4 py-5 md:grid-cols-[48px_minmax(0,1fr)_80px]"
                       >
-                        <div className="flex items-center gap-3 md:block">
-                          <div className="font-mono text-xs text-muted-foreground">
-                            {String(index + 1).padStart(2, "0")}
-                          </div>
-                          <Skeleton className="mt-0 h-4 w-16 rounded-none md:mt-4" />
+                        <div className="font-mono text-xs text-muted-foreground">
+                          {String(index + 1).padStart(2, "0")}
                         </div>
 
                         <div className="min-w-0 space-y-3">
-                          <Skeleton className="h-4 w-48 max-w-full rounded-none" />
+                          <Skeleton className="h-4 w-40 max-w-full rounded-none" />
                           <Skeleton className="h-6 w-3/4 rounded-none" />
                           <Skeleton className="h-4 w-full max-w-2xl rounded-none" />
                         </div>
 
                         <div className="flex items-center gap-3 md:flex-col md:items-end md:justify-center">
-                          <Skeleton className="h-8 w-12 rounded-none" />
+                          <Skeleton className="h-4 w-12 rounded-none" />
                           <Skeleton className="h-4 w-14 rounded-none" />
                         </div>
                       </div>
@@ -116,27 +100,22 @@ export default function Loading() {
                   </section>
                 </section>
 
-                <aside className="border-t border-border bg-background-soft/45 px-4 py-6 md:px-6 xl:border-l xl:border-t-0">
+                <aside className="border-t border-border py-6 xl:border-l xl:border-t-0 xl:pl-5">
                   <div className="sticky top-20 space-y-8">
                     <section className="border-b border-border pb-6">
-                      <div className="font-mono text-xs uppercase text-muted-foreground">
-                        右侧上下文
-                      </div>
-                      <div className="mt-3 space-y-3">
-                        <Skeleton className="h-7 w-48 rounded-none" />
+                      <Skeleton className="h-4 w-24 rounded-none" />
+                      <div className="mt-4 space-y-3">
+                        <Skeleton className="h-6 w-48 max-w-full rounded-none" />
                         <Skeleton className="h-4 w-full rounded-none" />
                         <Skeleton className="h-4 w-4/5 rounded-none" />
                       </div>
                     </section>
 
-                    <section className="border-b border-border pb-6">
-                      <div className="mb-3 flex items-center justify-between">
-                        <Skeleton className="h-4 w-20 rounded-none" />
-                        <Skeleton className="h-4 w-12 rounded-none" />
-                      </div>
-                      <div className="divide-y divide-border">
+                    <section>
+                      <Skeleton className="h-4 w-20 rounded-none" />
+                      <div className="mt-4 space-y-4">
                         {Array.from({ length: 3 }).map((_, index) => (
-                          <div key={index} className="py-3">
+                          <div key={index}>
                             <Skeleton className="h-3 w-12 rounded-none" />
                             <Skeleton className="mt-2 h-4 w-full rounded-none" />
                           </div>

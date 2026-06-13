@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { InfoRow, StatusToken } from "@/components/ui/data-display";
+import { StatusToken } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useCurrentUserQuery } from "@/features/auth/queries";
@@ -39,16 +39,13 @@ export function AuthRequired({
         eyebrow="需要登录"
         title={title}
         description={description}
-        rows={[
-          ["当前状态", "未登录"],
-          ["下一步", "登录或注册后继续"],
-        ]}
+        detail="当前状态：未登录。登录或注册后会回到这里继续。"
         actions={
-          <div className="border-y border-border">
-            <TextAction href={loginHref} tone="primary" variant="bar">
+          <div className="flex flex-wrap gap-4 border-t border-border pt-4">
+            <TextAction href={loginHref} tone="primary">
               去登录
             </TextAction>
-            <TextAction href={registerHref} variant="bar">
+            <TextAction href={registerHref}>
               创建账号
             </TextAction>
           </div>
@@ -64,10 +61,7 @@ export function AuthRequired({
         eyebrow="正在确认"
         title="正在确认登录状态"
         description="系统正在读取当前账号信息，确认后会显示操作表单。"
-        rows={[
-          ["当前状态", "验证中"],
-          ["下一步", "保留当前页面"],
-        ]}
+        detail="当前状态：验证中。确认后会保留当前页面。"
         actions={<AuthSkeleton />}
       />
     );
@@ -80,12 +74,9 @@ export function AuthRequired({
         eyebrow="验证失败"
         title="无法确认当前账号"
         description="请重试当前登录状态。如果仍然失败，可以重新登录后继续这个操作。"
-        rows={[
-          ["当前状态", "不可用"],
-          ["下一步", "重试或重新登录"],
-        ]}
+        detail="当前状态：不可用。可以重试当前会话，或重新登录。"
         actions={
-          <div className="flex flex-col gap-3 border-y border-border py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center">
             <Button type="button" onClick={() => currentUserQuery.refetch()}>
               重试
             </Button>
@@ -103,39 +94,30 @@ function AuthPanel({
   actions,
   className,
   description,
+  detail,
   eyebrow,
-  rows,
   title,
 }: {
   actions: ReactNode;
   className?: string;
   description: string;
+  detail: string;
   eyebrow: string;
-  rows: Array<[string, string]>;
   title: string;
 }) {
   return (
-    <section className={cn("border-y border-border py-4", className)}>
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_240px]">
-        <div className="min-w-0">
-          <StatusToken tone={getAuthPanelTone(eyebrow)}>{eyebrow}</StatusToken>
-          <h2 className="mt-3 break-words text-base font-semibold leading-6 tracking-normal">
-            {title}
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            {description}
-          </p>
-        </div>
-        <div className="divide-y divide-border border-y border-border">
-          {rows.map(([label, value]) => (
-            <InfoRow
-              key={label}
-              className="px-0"
-              label={label}
-              value={value}
-            />
-          ))}
-        </div>
+    <section className={cn("border-l border-border py-5 pl-4", className)}>
+      <div className="min-w-0">
+        <StatusToken tone={getAuthPanelTone(eyebrow)}>{eyebrow}</StatusToken>
+        <h2 className="mt-3 break-words text-base font-semibold leading-6 tracking-normal">
+          {title}
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          {description}
+        </p>
+        <p className="mt-3 max-w-2xl text-xs leading-5 text-muted-foreground">
+          {detail}
+        </p>
       </div>
       <div className="mt-4">{actions}</div>
     </section>
@@ -145,7 +127,7 @@ function AuthPanel({
 function AuthSkeleton() {
   return (
     <div
-      className="space-y-3 border-y border-border py-4"
+      className="space-y-3 border-t border-border pt-4"
       aria-label="正在加载账号"
     >
       <div className="h-4 w-40 animate-pulse bg-muted" />

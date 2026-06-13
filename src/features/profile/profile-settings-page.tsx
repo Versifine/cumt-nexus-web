@@ -12,7 +12,7 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { InfoRow, StatusToken } from "@/components/ui/data-display";
+import { StatusToken } from "@/components/ui/data-display";
 import { Input } from "@/components/ui/input";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,7 +72,7 @@ function ProfileSettingsContent() {
 
   if (currentUserQuery.isLoading || profileQuery.isPending) {
     return (
-      <section className="border border-border bg-background p-4">
+      <section className="bg-background p-4">
         <LoadingState rows={4} />
       </section>
     );
@@ -80,15 +80,16 @@ function ProfileSettingsContent() {
 
   if (profileQuery.isError || !user) {
     return (
-      <section className="border border-border bg-background p-4">
+      <section className="bg-background p-4">
         <ErrorState
           title="无法加载公开资料"
           description={getErrorDescription(profileQuery.error)}
           action={
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
+              className="px-1 hover:bg-transparent hover:text-primary"
               onClick={() => profileQuery.refetch()}
             >
               重试
@@ -141,9 +142,9 @@ function ProfileSettingsForm({
   }
 
   return (
-    <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-5 py-4 xl:grid-cols-[minmax(0,900px)_300px]">
+    <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
       <section className="min-w-0 bg-background">
-        <div className="px-3 pb-4 pt-1 sm:px-4">
+        <div className="border-b border-border pb-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="min-w-0">
               <StatusToken tone="primary">个人主页工作台</StatusToken>
@@ -160,8 +161,8 @@ function ProfileSettingsForm({
           </div>
         </div>
 
-        <section className="px-3 sm:px-4">
-          <div className="overflow-hidden bg-background-soft/45">
+        <section className="py-4">
+          <div className="overflow-hidden">
             <div className="relative">
               <ProfileBanner user={user} />
               <div className="absolute bottom-3 right-3 z-20">
@@ -211,10 +212,7 @@ function ProfileSettingsForm({
           </div>
         </section>
 
-        <form
-          className="px-3 py-4 sm:px-4"
-          onSubmit={form.handleSubmit(handleSubmit)}
-        >
+        <form className="py-4" onSubmit={form.handleSubmit(handleSubmit)}>
           {updateMutation.isSuccess && !isDirty ? (
             <Alert variant="success" className="mb-4">
               <AlertTitle>文字资料已保存</AlertTitle>
@@ -242,7 +240,7 @@ function ProfileSettingsForm({
               </p>
             </div>
 
-            <div className="min-w-0 bg-background-soft/30">
+            <div className="min-w-0 border-t border-border">
               <ProfileSettingsField
                 description="展示在个人主页头像旁边。留空时使用用户名。"
                 htmlFor="profile-display-name"
@@ -252,7 +250,7 @@ function ProfileSettingsForm({
                 <Input
                   id="profile-display-name"
                   aria-invalid={Boolean(form.formState.errors.display_name)}
-                  className="border-border bg-background"
+                  className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 focus-visible:ring-0"
                   disabled={isSaving}
                   placeholder="你的展示名"
                   {...form.register("display_name")}
@@ -273,7 +271,7 @@ function ProfileSettingsForm({
                 <Input
                   id="profile-headline"
                   aria-invalid={Boolean(form.formState.errors.headline)}
-                  className="border-border bg-background"
+                  className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 focus-visible:ring-0"
                   disabled={isSaving}
                   placeholder="例如：关注校园生活和课程资料"
                   {...form.register("headline")}
@@ -315,7 +313,7 @@ function ProfileSettingsForm({
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 disabled={!isDirty || isSaving}
                 onClick={handleReset}
               >
@@ -350,11 +348,11 @@ function ProfileSettingsRail({
   user: PublicUser;
 }) {
   return (
-    <aside className="hidden min-w-0 xl:block">
-      <div className="sticky top-20 space-y-5">
-        <section className="bg-background-soft/35 px-4 py-4">
+    <aside className="hidden min-w-0 border-l border-border pl-5 xl:block">
+      <div className="sticky top-20 space-y-6">
+        <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">保存状态</h2>
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 space-y-3">
             <SaveStateRow
               active={!isSaving}
               label="头像"
@@ -373,18 +371,23 @@ function ProfileSettingsRail({
           </div>
         </section>
 
-        <section className="bg-background-soft/35 px-4 py-4">
+        <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">文字预览</h2>
-          <div className="mt-3 bg-background/60 px-3">
-            <InfoRow label="展示名" value={user.display_name || user.username} />
-            <InfoRow label="签名" value={user.headline || "未设置"} />
-            <InfoRow label="加入" value={formatDate(user.created_at)} />
-          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            展示名为{" "}
+            <span className="font-medium text-foreground">
+              {user.display_name || user.username}
+            </span>
+            ，签名{user.headline ? `是「${user.headline}」` : "未设置"}。
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            加入时间：{formatDate(user.created_at)}
+          </p>
         </section>
 
-        <section className="bg-background-soft/35 px-4 py-4">
+        <section>
           <h2 className="text-sm font-semibold">入口</h2>
-          <div className="mt-3 flex flex-col bg-background/60">
+          <div className="mt-3 flex flex-col border-t border-border">
             <TextAction
               href={`/users/${encodeURIComponent(user.username)}`}
               variant="bar"
@@ -411,7 +414,7 @@ function SaveStateRow({
   text: string;
 }) {
   return (
-    <div className="flex gap-3 bg-background/60 px-3 py-3">
+    <div className="flex gap-3">
       <CheckCircle2
         className={active ? "mt-0.5 size-4 text-primary" : "mt-0.5 size-4 text-warning"}
         aria-hidden="true"
@@ -438,7 +441,7 @@ function ProfileSettingsField({
   title: string;
 }) {
   return (
-    <div className="grid gap-4 px-3 py-5 md:grid-cols-[160px_minmax(0,1fr)]">
+    <div className="grid gap-4 border-b border-border py-5 last:border-b-0 md:grid-cols-[160px_minmax(0,1fr)]">
       <div>
         <label
           className="flex items-center gap-3 text-sm font-semibold text-foreground"

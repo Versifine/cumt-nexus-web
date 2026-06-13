@@ -309,7 +309,7 @@ export function ProfileMediaEditor({
               : "md:grid-cols-[220px_minmax(0,1fr)]",
           )}
         >
-          <div className="bg-background-soft/60 p-3">
+          <div className="border-l border-border pl-3">
             <div className="font-mono text-[11px] text-muted-foreground">
               {selectedFile ? "裁剪预览" : "当前预览"}
             </div>
@@ -453,7 +453,12 @@ export function ProfileMediaEditor({
           </Button>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <DialogClose asChild>
-              <Button type="button" variant="outline" disabled={isBusy}>
+              <Button
+                type="button"
+                variant="ghost"
+                className="hover:bg-transparent hover:text-primary"
+                disabled={isBusy}
+              >
                 取消
               </Button>
             </DialogClose>
@@ -503,7 +508,11 @@ export function ProfileMediaEditor({
     }
 
     return (
-      <Button type="button" variant="outline" className={className}>
+      <Button
+        type="button"
+        variant="ghost"
+        className={cn("px-1 hover:bg-transparent hover:text-primary", className)}
+      >
         {kind === "avatar" ? (
           <Camera className="size-4" aria-hidden="true" />
         ) : (

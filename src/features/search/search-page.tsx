@@ -60,10 +60,10 @@ export function SearchPage() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-0 xl:grid-cols-[minmax(0,1fr)_312px]">
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
-        <section className="border border-border bg-background">
-          <div className="flex flex-col gap-3 border-b border-border px-3 py-3 sm:px-4 lg:flex-row lg:items-end lg:justify-between">
+        <section className="bg-background">
+          <div className="flex flex-col gap-3 border-b border-border py-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
               <h1 className="text-xl font-semibold tracking-normal text-foreground">
                 搜索
@@ -88,7 +88,7 @@ export function SearchPage() {
           />
         </section>
 
-        <section className="mt-3 border-x border-border bg-background">
+        <section className="bg-background">
           {!isReady ? (
             <div className="border-b border-border p-4">
               <LoadingState rows={3} />
@@ -205,7 +205,7 @@ function SearchControls({
 
   return (
     <form
-      className="grid gap-3 px-3 py-3 sm:px-4 md:grid-cols-[minmax(0,1fr)_auto]"
+      className="grid gap-3 border-b border-border py-4 md:grid-cols-[minmax(0,1fr)_auto]"
       onSubmit={submitSearch}
     >
       <label className="sr-only" htmlFor="search-query">
@@ -221,7 +221,7 @@ function SearchControls({
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           placeholder="输入社区名、slug、帖子标题或正文关键词"
-          className="rounded-none pl-9"
+          className="rounded-none border-x-0 border-t-0 bg-transparent pl-9 focus-visible:ring-0"
           disabled={!isReady}
         />
       </div>
@@ -243,13 +243,13 @@ function ScopeTabs({
 }) {
   return (
     <Tabs value={scope} onValueChange={(value) => onScopeChange(value as SearchScope)}>
-      <TabsList className="rounded-none border border-border bg-background p-0">
-        {scopeOptions.map((option, index) => (
+      <TabsList className="rounded-none bg-transparent p-0">
+        {scopeOptions.map((option) => (
           <TabsTrigger
             key={option.value}
             value={option.value}
             disabled={disabled}
-            className={cnScopeTrigger(index)}
+            className={cnScopeTrigger()}
           >
             {option.label}
           </TabsTrigger>
@@ -270,12 +270,9 @@ function SearchResultSection({
 }) {
   return (
     <section>
-      <div className="grid grid-cols-[42px_minmax(0,1fr)] border-b border-border bg-background-soft/45 sm:grid-cols-[48px_minmax(0,1fr)]">
-        <div className="border-r border-border" />
-        <div className="flex items-center justify-between px-3 py-2 text-xs sm:px-4">
-          <h2 className="font-semibold text-foreground">{title}</h2>
-          <span className="font-mono text-muted-foreground">{count}</span>
-        </div>
+      <div className="flex items-center justify-between border-b border-border py-3 text-xs">
+        <h2 className="font-semibold text-foreground">{title}</h2>
+        <span className="font-mono text-muted-foreground">{count}</span>
       </div>
       {children}
     </section>
@@ -288,13 +285,13 @@ function CommunityResultRow({
   community: SearchCommunityResult;
 }) {
   return (
-    <article className="grid grid-cols-[42px_minmax(0,1fr)] border-b border-border bg-background transition-colors hover:bg-background-soft/60 sm:grid-cols-[48px_minmax(0,1fr)]">
-      <div className="flex items-start justify-center border-r border-border bg-background-soft/45 py-3 text-primary">
+    <article className="grid grid-cols-[32px_minmax(0,1fr)] border-b border-border bg-background py-3">
+      <div className="flex items-start justify-center pt-1 text-primary">
         <Hash className="size-5" aria-hidden="true" />
       </div>
       <Link
         href={`/communities/${community.slug}`}
-        className="block min-w-0 px-3 py-3 sm:px-4"
+        className="block min-w-0 pl-3"
       >
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
           <span className="font-semibold text-foreground">/{community.slug}</span>
@@ -332,11 +329,11 @@ function PostResultRow({
   }
 
   return (
-    <article className="grid grid-cols-[42px_minmax(0,1fr)] border-b border-border bg-background transition-colors hover:bg-background-soft/60 sm:grid-cols-[48px_minmax(0,1fr)]">
-      <div className="flex items-start justify-center border-r border-border bg-background-soft/45 py-3 text-muted-foreground">
+    <article className="grid grid-cols-[32px_minmax(0,1fr)] border-b border-border bg-background py-3">
+      <div className="flex items-start justify-center pt-1 text-muted-foreground">
         <FileText className="size-5" aria-hidden="true" />
       </div>
-      <div className="min-w-0 px-3 py-3 sm:px-4">
+      <div className="min-w-0 pl-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
           <Link
             href={`/communities/${encodeURIComponent(post.community_slug)}`}
@@ -374,12 +371,9 @@ function PostResultRow({
 
 function EmptyResultRow({ children }: { children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[42px_minmax(0,1fr)] border-b border-border sm:grid-cols-[48px_minmax(0,1fr)]">
-      <div className="border-r border-border bg-background-soft/45" />
-      <p className="px-3 py-4 text-sm text-muted-foreground sm:px-4">
-        {children}
-      </p>
-    </div>
+    <p className="border-b border-border py-4 text-sm text-muted-foreground">
+      {children}
+    </p>
   );
 }
 
@@ -397,8 +391,8 @@ function SearchRail({
   scope: SearchScope;
 }) {
   return (
-    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
-      <div className="sticky top-20 space-y-5">
+    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
+      <div className="sticky top-20 space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">当前搜索</h2>
           <p className="mt-3 break-words text-lg font-semibold tracking-normal">
@@ -412,15 +406,22 @@ function SearchRail({
 
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">结果</h2>
-          <div className="mt-3 grid grid-cols-2 border border-border text-center">
-            <RailMetric label="社区" value={query ? String(communityCount) : "--"} />
-            <RailMetric label="帖子" value={query ? String(postCount) : "--"} />
-          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            社区{" "}
+            <span className="font-mono text-foreground">
+              {query ? communityCount : "--"}
+            </span>{" "}
+            个，帖子{" "}
+            <span className="font-mono text-foreground">
+              {query ? postCount : "--"}
+            </span>{" "}
+            篇。
+          </p>
         </section>
 
         <section>
           <h2 className="text-sm font-semibold">继续浏览</h2>
-          <div className="mt-3 flex flex-col border-y border-border">
+          <div className="mt-3 flex flex-col border-t border-border">
             <TextAction href="/communities" variant="bar">
               浏览社区
             </TextAction>
@@ -431,15 +432,6 @@ function SearchRail({
         </section>
       </div>
     </aside>
-  );
-}
-
-function RailMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-r border-border p-3 last:border-r-0">
-      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate text-sm font-semibold">{value}</div>
-    </div>
   );
 }
 
@@ -470,10 +462,9 @@ function formatScope(scope: SearchScope) {
   }
 }
 
-function cnScopeTrigger(index: number) {
+function cnScopeTrigger() {
   return [
-    "rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
-    index < scopeOptions.length - 1 ? "border-r border-border" : "",
+    "rounded-none border-b border-transparent px-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary",
   ].join(" ");
 }
 
