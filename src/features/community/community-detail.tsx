@@ -92,8 +92,9 @@ export function CommunityDetail({
                     </TextAction>
                   ) : (
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
+                      className="px-1 hover:bg-transparent hover:text-primary"
                       onClick={() => communityQuery.refetch()}
                     >
                       重试
@@ -107,7 +108,7 @@ export function CommunityDetail({
           ) : null}
           {community ? (
             <div>
-            <div className="flex min-h-12 flex-col gap-3 border-y border-border py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-h-12 flex-col gap-3 border-t border-border py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold">社区帖子</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -368,7 +369,7 @@ function CommunityRail({
 
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">社区操作</h2>
-          <div className="mt-3 flex flex-col border-y border-border">
+          <div className="mt-3 flex flex-col border-t border-border">
             {canPost ? (
               <TextAction
                 href={`/communities/${encodeURIComponent(community.slug)}/new`}
@@ -413,7 +414,7 @@ function CommunityRail({
 
         <section>
           <h2 className="text-sm font-semibold">继续浏览</h2>
-          <div className="mt-3 flex flex-col border-y border-border">
+          <div className="mt-3 flex flex-col border-t border-border">
             <TextAction href="/communities" variant="bar">
               浏览社区
             </TextAction>

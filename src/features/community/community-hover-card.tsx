@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { FileText, Hash, Users } from "lucide-react";
+import { Hash } from "lucide-react";
 
 import { HoverPreview } from "@/components/ui/hover-preview";
 import { StatusToken } from "@/components/ui/data-display";
@@ -92,10 +92,10 @@ function CommunityHoverCard({
     profile?.viewer_is_following ?? community.viewerIsFollowing;
 
   return (
-    <span className="relative block min-h-44 overflow-hidden border border-border bg-background-soft text-left shadow-[0_18px_48px_rgb(0_0_0/0.36)]">
+    <span className="relative block min-h-44 overflow-hidden bg-background text-left shadow-[0_18px_48px_rgb(0_0_0/0.36)] ring-1 ring-border/70">
       <CommunityPreviewBackdrop imageUrl={bannerUrl} />
 
-      <span className="relative z-10 flex min-h-44 flex-col justify-end p-3">
+      <span className="relative z-10 flex min-h-44 flex-col justify-end p-4">
         <span className="flex min-w-0 items-start gap-3">
           <CommunityHoverAvatar
             avatarUrl={avatarUrl}
@@ -129,14 +129,12 @@ function CommunityHoverCard({
           </span>
         )}
 
-        <span className="mt-2 grid grid-cols-2 border-y border-white/10 bg-background/20 text-center backdrop-blur-[1px]">
+        <span className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-border/70 pt-3">
           <CommunityPreviewMetric
-            icon={<FileText className="size-3.5" aria-hidden="true" />}
             label="帖子"
             value={formatCompactNumber(postCount)}
           />
           <CommunityPreviewMetric
-            icon={<Users className="size-3.5" aria-hidden="true" />}
             label="成员"
             value={formatCompactNumber(memberCount)}
           />
@@ -170,7 +168,7 @@ export function CommunityHoverAvatar({
         alt={`${label} 的社区头像`}
         className={cn(
           sizeClass,
-          "shrink-0 rounded-lg border border-border bg-background-soft object-cover",
+          "shrink-0 rounded-lg bg-background-soft object-cover ring-1 ring-border/70",
           className,
         )}
       />
@@ -181,7 +179,7 @@ export function CommunityHoverAvatar({
     <span
       className={cn(
         sizeClass,
-        "inline-flex shrink-0 items-center justify-center rounded-lg border border-border bg-background-soft text-primary",
+        "inline-flex shrink-0 items-center justify-center rounded-lg bg-background-soft text-primary ring-1 ring-border/70",
         className,
       )}
       aria-label={`${label} 的社区头像占位`}
@@ -203,26 +201,23 @@ function CommunityPreviewBackdrop({ imageUrl }: { imageUrl: string }) {
           aria-hidden="true"
         />
       ) : (
-        <span className="block size-full bg-[radial-gradient(circle_at_18%_18%,rgb(45_212_191/0.26),transparent_36%),linear-gradient(135deg,rgb(24_24_27),rgb(9_9_11))]" />
+        <span className="block size-full bg-background-soft" />
       )}
-      <span className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/28 to-transparent" />
+      <span className="absolute inset-0 bg-background/82" />
     </span>
   );
 }
 
 function CommunityPreviewMetric({
-  icon,
   label,
   value,
 }: {
-  icon: ReactNode;
   label: string;
   value: string;
 }) {
   return (
-    <span className="flex min-w-0 flex-col items-center gap-1 border-r border-border px-2 py-2 last:border-r-0">
-      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-        {icon}
+    <span className="inline-flex min-w-0 items-baseline gap-1.5">
+      <span className="text-[11px] text-muted-foreground">
         {label}
       </span>
       <span className="max-w-full truncate font-mono text-xs font-semibold text-foreground">

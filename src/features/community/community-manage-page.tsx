@@ -4,24 +4,12 @@ import { useEffect, useState, type ReactNode } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { z } from "zod";
-import {
-  ClipboardList,
-  MessageSquareWarning,
-  ScrollText,
-  Settings2,
-  UsersRound,
-} from "lucide-react";
-
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  IndexedInfoRow,
-  InfoRow,
-  StatusToken,
-} from "@/components/ui/data-display";
+import { IndexedInfoRow } from "@/components/ui/data-display";
 import {
   Dialog,
   DialogContent,
@@ -131,9 +119,9 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
   const canEditRules = community?.viewer_permissions?.can_moderate === true;
 
   return (
-    <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
-        <section className="border border-border bg-background">
+        <section className="bg-background">
           <ManageHeader
             canManageCommunity={canManageCommunity}
             community={community}
@@ -141,8 +129,8 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
           />
         </section>
 
-        <section className="mt-3 border-x border-border bg-background">
-          <div className="border-b border-border px-3 py-3 sm:px-4">
+        <section className="bg-background">
+          <div className="border-b border-border py-3">
             <h2 className="text-sm font-semibold">管理概览</h2>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
               集中查看本社区的内容状态和成员，并维护资料与规则；未接入的成员写操作不会在这里伪造。
@@ -182,8 +170,9 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
                 description="读取社区权限上下文失败，请稍后重试。"
                 action={
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
+                    className="px-1 hover:bg-transparent hover:text-primary"
                     onClick={() => communityQuery.refetch()}
                   >
                     重试
@@ -228,8 +217,9 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
                     </TextAction>
                   ) : (
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
+                      className="px-1 hover:bg-transparent hover:text-primary"
                       onClick={() => manageQuery.refetch()}
                     >
                       重试
@@ -246,7 +236,6 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
                 <ManagePreviewSection
                   description="最新管理视角帖子"
                   emptyText="暂无可管理帖子。"
-                  icon={<ClipboardList className="size-4" aria-hidden="true" />}
                   isError={postsQuery.isError}
                   isEmpty={managedPosts.length === 0}
                   isLoading={postsQuery.isPending}
@@ -259,7 +248,6 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
                 <ManagePreviewSection
                   description="最新评论片段"
                   emptyText="暂无可管理评论。"
-                  icon={<Settings2 className="size-4" aria-hidden="true" />}
                   isError={commentsQuery.isError}
                   isEmpty={managedComments.length === 0}
                   isLoading={commentsQuery.isPending}
@@ -272,7 +260,6 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
                 <ManagePreviewSection
                   description="待处理社区举报"
                   emptyText="暂无待处理举报。"
-                  icon={<MessageSquareWarning className="size-4" aria-hidden="true" />}
                   isError={reportsQuery.isError}
                   isEmpty={managedReports.length === 0}
                   isLoading={reportsQuery.isPending}
@@ -287,7 +274,6 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
                 <ManagePreviewSection
                   description="当前管理可见成员"
                   emptyText="暂无成员记录。"
-                  icon={<UsersRound className="size-4" aria-hidden="true" />}
                   isError={membersQuery.isError}
                   isEmpty={managedMembers.length === 0}
                   isLoading={membersQuery.isPending}
@@ -300,7 +286,6 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
                 <ManagePreviewSection
                   description="负责人可维护社区名称和简介"
                   emptyText="暂无社区资料。"
-                  icon={<Settings2 className="size-4" aria-hidden="true" />}
                   isError={settingsQuery.isError}
                   isEmpty={!managedSettings}
                   isLoading={settingsQuery.isPending}
@@ -319,7 +304,6 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
                 <ManagePreviewSection
                   description="负责人和版主可维护规则"
                   emptyText="暂无社区规则。"
-                  icon={<ScrollText className="size-4" aria-hidden="true" />}
                   isError={rulesQuery.isError}
                   isEmpty={false}
                   isLoading={rulesQuery.isPending}
@@ -359,7 +343,7 @@ function ManageHeader({
   slug: string;
 }) {
   return (
-    <div className="grid gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
+    <div className="border-b border-border py-4">
       <div className="min-w-0">
         <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
           社区管理
@@ -367,16 +351,9 @@ function ManageHeader({
         <p className="mt-1 truncate font-mono text-xs text-primary">
           /{slug}/manage
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <StatusToken tone="primary">社区权限</StatusToken>
-          <StatusToken>{formatViewerRole(community?.viewer_role)}</StatusToken>
-          {community?.viewer_permissions?.can_moderate ? (
-            <StatusToken tone="warning">可审核</StatusToken>
-          ) : null}
-        </div>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
           {community && canManageCommunity
-            ? `${community.name} 的社区管理入口。所有写操作仍由后端权限校验。`
+            ? `${community.name} 的社区管理入口。当前角色 ${formatViewerRole(community.viewer_role)}，成员 ${formatCount(community.member_count)}，帖子 ${formatCount(community.post_count)}。所有写操作仍由后端权限校验。`
             : null}
           {community && !canManageCommunity
             ? `当前账号没有 ${community.name} 的管理权限。`
@@ -385,23 +362,6 @@ function ManageHeader({
         </p>
       </div>
 
-      <div className="grid grid-cols-3 border border-border text-center">
-        <HeaderMetric label="成员" value={formatCount(community?.member_count)} />
-        <HeaderMetric label="帖子" value={formatCount(community?.post_count)} />
-        <HeaderMetric
-          label="权限"
-          value={formatManagePermissionLabel(community)}
-        />
-      </div>
-    </div>
-  );
-}
-
-function HeaderMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-r border-border p-2 last:border-r-0">
-      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate text-sm font-semibold">{value}</div>
     </div>
   );
 }
@@ -410,7 +370,6 @@ function ManagePreviewSection({
   children,
   description,
   emptyText,
-  icon,
   isError,
   isEmpty,
   isLoading,
@@ -420,7 +379,6 @@ function ManagePreviewSection({
   children: ReactNode;
   description: string;
   emptyText: string;
-  icon: ReactNode;
   isError: boolean;
   isEmpty: boolean;
   isLoading: boolean;
@@ -428,17 +386,12 @@ function ManagePreviewSection({
   title: string;
 }) {
   return (
-    <section className="min-w-0 border-b border-border p-4 last:border-b-0 lg:border-b-0 lg:border-r lg:last:border-r-0">
-      <div className="flex items-center gap-2">
-        <span className="flex size-7 items-center justify-center border border-border text-primary">
-          {icon}
-        </span>
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold">{title}</h3>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            {description}
-          </p>
-        </div>
+    <section className="min-w-0 border-b border-border px-0 py-4 last:border-b-0 lg:border-b-0 lg:border-r lg:px-4 lg:first:pl-0 lg:last:border-r-0 lg:last:pr-0">
+      <div className="min-w-0">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          {description}
+        </p>
       </div>
 
       <div className="mt-4">
@@ -448,7 +401,12 @@ function ManagePreviewSection({
             title={`无法加载${title}`}
             description="请求失败，请稍后重试。"
             action={
-              <Button variant="outline" size="sm" onClick={onRetry}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="px-1 hover:bg-transparent hover:text-primary"
+                onClick={onRetry}
+              >
                 重试
               </Button>
             }
@@ -469,7 +427,7 @@ function ManagePostList({ posts }: { posts: CommunityManagePost[] }) {
   }
 
   return (
-    <div className="divide-y divide-border border-y border-border">
+    <div>
       {posts.map((post, index) => (
         <IndexedInfoRow
           key={post.id}
@@ -488,7 +446,7 @@ function ManageCommentList({ comments }: { comments: CommunityManageComment[] })
   }
 
   return (
-    <div className="divide-y divide-border border-y border-border">
+    <div>
       {comments.map((comment, index) => (
         <IndexedInfoRow
           key={comment.id}
@@ -507,7 +465,7 @@ function ManageReportList({ reports }: { reports: CommunityManageReport[] }) {
   }
 
   return (
-    <div className="divide-y divide-border border-y border-border">
+    <div>
       {reports.map((report, index) => (
         <IndexedInfoRow
           key={report.id}
@@ -526,7 +484,7 @@ function ManageMemberList({ members }: { members: CommunityMember[] }) {
   }
 
   return (
-    <div className="divide-y divide-border border-y border-border">
+    <div>
       {members.map((member, index) => (
         <IndexedInfoRow
           key={member.user.id}
@@ -594,18 +552,25 @@ function ManageSettingsEditor({
   if (!canEdit) {
     return (
       <div className="space-y-3">
-        <div className="divide-y divide-border border-y border-border">
-          <InfoRow label="名称" value={settings.name || "--"} />
-          <InfoRow
-            className="items-start"
+        <dl className="space-y-3 border-t border-border pt-3 text-sm">
+          <SettingsReadOnlyRow label="名称" value={settings.name || "--"} />
+          <SettingsReadOnlyRow
             label="简介"
             value={settings.description || "暂无简介"}
-            valueClassName="whitespace-normal text-right leading-5"
           />
-          <InfoRow label="头像 URL" value={settings.avatar_url || "未设置"} />
-          <InfoRow label="横幅 URL" value={settings.banner_url || "未设置"} />
-          <InfoRow label="更新" value={formatDate(settings.updated_at)} />
-        </div>
+          <SettingsReadOnlyRow
+            label="头像 URL"
+            value={settings.avatar_url || "未设置"}
+          />
+          <SettingsReadOnlyRow
+            label="横幅 URL"
+            value={settings.banner_url || "未设置"}
+          />
+          <SettingsReadOnlyRow
+            label="更新"
+            value={formatDate(settings.updated_at)}
+          />
+        </dl>
         <p className="text-xs leading-5 text-muted-foreground">
           只有社区负责人可以修改名称和简介；版主可以查看资料和维护规则。
         </p>
@@ -677,6 +642,21 @@ function ManageSettingsEditor({
   );
 }
 
+function SettingsReadOnlyRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="grid gap-1 border-b border-border pb-3 last:border-b-0 last:pb-0">
+      <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
+      <dd className="break-words text-sm leading-6 text-foreground">{value}</dd>
+    </div>
+  );
+}
+
 function ManageRuleManager({
   canEdit,
   rules,
@@ -741,7 +721,7 @@ function ManageRuleManager({
           暂无社区规则。
         </p>
       ) : (
-        <div className="divide-y divide-border border-y border-border">
+        <div className="border-t border-border">
           {rules.map((rule) => {
             const isEditing = editingRuleId === rule.id;
 
@@ -773,15 +753,14 @@ function ManageRuleManager({
                           </p>
                         </div>
                         {canEdit ? (
-                          <div className="flex shrink-0 flex-wrap gap-2">
-                            <Button
+                          <div className="flex shrink-0 flex-wrap items-center gap-3">
+                            <button
                               type="button"
-                              variant="outline"
-                              size="sm"
+                              className="text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                               onClick={() => setEditingRuleId(rule.id)}
                             >
                               编辑
-                            </Button>
+                            </button>
                             <Button
                               type="button"
                               variant="destructive"
@@ -822,7 +801,7 @@ function ManageRuleManager({
               </Alert>
             ) : null}
 
-            <div className="border-y border-border py-3">
+            <div className="border-t border-border pt-3">
               <p className="text-sm font-semibold">{deleteRule.title}</p>
               <p className="mt-2 text-xs leading-6 text-muted-foreground">
                 {deleteRule.body || "暂无规则说明。"}
@@ -832,7 +811,7 @@ function ManageRuleManager({
             <DialogFooter>
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 disabled={deleteRuleMutation.isPending}
                 onClick={() => setDeleteRule(null)}
               >
@@ -907,7 +886,7 @@ function CreateRuleForm({
 
   return (
     <form
-      className="space-y-3 border-y border-border py-3"
+      className="space-y-3 border-t border-border pt-3"
       onSubmit={form.handleSubmit(handleSubmit)}
     >
       {submitError ? (
@@ -1004,7 +983,7 @@ function RuleEditForm({
         </Button>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
           disabled={updateRuleMutation.isPending}
           onClick={onCancel}
@@ -1140,61 +1119,41 @@ function ManageRail({
   slug: string;
 }) {
   return (
-    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
-      <div className="sticky top-20 space-y-5">
+    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
+      <div className="sticky top-20 space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">权限上下文</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow label="社区" value={`/${slug}`} />
-            <InfoRow label="角色" value={formatViewerRole(community?.viewer_role)} />
-            <InfoRow
-              label="发帖"
-              value={formatPermission(community?.viewer_permissions?.can_post)}
-            />
-            <InfoRow
-              label="管理"
-              value={formatPermission(community?.viewer_permissions?.can_manage)}
-            />
-            <InfoRow
-              label="审核"
-              value={formatPermission(community?.viewer_permissions?.can_moderate)}
-            />
-          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            当前查看{" "}
+            <span className="font-mono text-foreground">/{slug}</span> 的管理入口，
+            角色为 {formatViewerRole(community?.viewer_role)}。发帖
+            {formatPermission(community?.viewer_permissions?.can_post)}，管理
+            {formatPermission(community?.viewer_permissions?.can_manage)}，审核
+            {formatPermission(community?.viewer_permissions?.can_moderate)}。
+          </p>
         </section>
 
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">管理范围</h2>
-          <div className="mt-3 border-y border-border">
-            <IndexedInfoRow
-              index="01"
-              title="内容和举报"
-              text="帖子、评论和待处理举报已接入真实管理读取。"
-            />
-            <IndexedInfoRow
-              index="02"
-              title="资料和规则"
-              text="资料和规则写操作走真实后端接口；成员管理仍保持只读。"
-            />
-            <IndexedInfoRow
-              index="03"
-              title="成员"
-              text="成员列表只展示真实读取结果，不伪造成员编辑或邀请能力。"
-            />
-          </div>
+          <ol className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
+            <li><span className="font-mono text-primary">01</span> 帖子、评论和待处理举报已接入真实管理读取。</li>
+            <li><span className="font-mono text-primary">02</span> 资料和规则写操作走真实后端接口；成员管理仍保持只读。</li>
+            <li><span className="font-mono text-primary">03</span> 成员列表只展示真实读取结果，不伪造成员编辑。</li>
+          </ol>
         </section>
 
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">读取状态</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow label="成员" value={hasMembers ? "已读取" : "空或未读取"} />
-            <InfoRow label="资料" value={hasSettings ? "已读取" : "空或未读取"} />
-            <InfoRow label="规则" value={hasRules ? "已读取" : "空或未读取"} />
-          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            成员{hasMembers ? "已读取" : "为空或未读取"}，资料
+            {hasSettings ? "已读取" : "为空或未读取"}，规则
+            {hasRules ? "已读取" : "为空或未读取"}。
+          </p>
         </section>
 
         <section>
           <h2 className="text-sm font-semibold">稳定出口</h2>
-          <div className="mt-3 flex flex-col border-y border-border">
+          <div className="mt-3 flex flex-col border-t border-border">
             <TextAction href={`/communities/${encodeURIComponent(slug)}`} variant="bar">
               社区主页
             </TextAction>
@@ -1209,7 +1168,7 @@ function ManageRail({
 }
 
 function StatePanel({ children }: { children: ReactNode }) {
-  return <div className="border-b border-border p-4">{children}</div>;
+  return <div className="border-b border-border py-4">{children}</div>;
 }
 
 function isUnauthenticated(error: Error | null) {
@@ -1281,18 +1240,6 @@ function formatMemberStatus(status: string) {
     default:
       return status;
   }
-}
-
-function formatManagePermissionLabel(community?: Community) {
-  if (community?.viewer_permissions?.can_manage) {
-    return "管理";
-  }
-
-  if (community?.viewer_permissions?.can_moderate) {
-    return "审核";
-  }
-
-  return "--";
 }
 
 function formatCount(value?: number) {

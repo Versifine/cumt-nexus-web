@@ -16,8 +16,6 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  IndexedInfoRow,
-  InfoRow,
   StatusToken,
   type StatusTokenTone,
 } from "@/components/ui/data-display";
@@ -316,9 +314,9 @@ function ReviewLayout({
   toolbar?: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
-        <section className="border border-border bg-background">
+        <section className="bg-background">
           <ReviewHeader
             applicationsCount={applicationsCount}
             offset={offset}
@@ -326,8 +324,8 @@ function ReviewLayout({
           />
         </section>
 
-        <section className="mt-3 border-x border-border bg-background">
-          <div className="flex min-h-12 flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+        <section className="bg-background">
+          <div className="flex min-h-12 flex-col gap-3 border-b border-border py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <h2 className="text-sm font-semibold">申请审批</h2>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -359,7 +357,7 @@ function ReviewHeader({
   status: CommunityApplicationStatus;
 }) {
   return (
-    <div className="grid gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
+    <div className="border-b border-border py-4">
       <div className="min-w-0">
         <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
           社区审批
@@ -367,36 +365,13 @@ function ReviewHeader({
         <p className="mt-1 truncate font-mono text-xs text-primary">
           /community-applications/review
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <StatusToken tone="primary">平台权限</StatusToken>
-          <StatusToken>{formatApplicationStatus(status)}</StatusToken>
-        </div>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          平台 staff 在这里查看申请详情，并执行通过或拒绝。普通社区申请入口保持在社区功能里。
+          当前查看{formatApplicationStatus(status)}申请，本页 {applicationsCount} 条
+          {applicationsCount > 0
+            ? `，范围 ${offset + 1}-${offset + applicationsCount}。`
+            : "。"}
         </p>
       </div>
-
-      <div className="grid grid-cols-3 border border-border text-center">
-        <HeaderMetric label="视图" value={formatApplicationStatus(status)} />
-        <HeaderMetric label="本页" value={String(applicationsCount)} />
-        <HeaderMetric
-          label="分页"
-          value={
-            applicationsCount > 0
-              ? `${offset + 1}-${offset + applicationsCount}`
-              : "0-0"
-          }
-        />
-      </div>
-    </div>
-  );
-}
-
-function HeaderMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-r border-border p-2 last:border-r-0">
-      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate text-sm font-semibold">{value}</div>
     </div>
   );
 }
@@ -415,12 +390,12 @@ function ReviewToolbar({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Tabs value={status} onValueChange={(value) => onStatusChange(value as CommunityApplicationStatus)}>
-        <TabsList className="h-9 rounded-none border border-border bg-background p-0">
+        <TabsList className="h-9 rounded-none bg-transparent p-0">
           {statusTabs.map((tab) => (
             <TabsTrigger
               key={tab.status}
               value={tab.status}
-              className="h-9 rounded-none border-r border-border px-3 text-xs last:border-r-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="h-9 rounded-none border-b border-transparent px-3 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
             >
               {tab.label}
             </TabsTrigger>
@@ -428,7 +403,7 @@ function ReviewToolbar({
         </TabsList>
       </Tabs>
       <Button
-        variant="outline"
+        variant="ghost"
         size="sm"
         disabled={isFetching}
         onClick={onRefresh}
@@ -450,41 +425,28 @@ function ReviewRail({
   status: CommunityApplicationStatus;
 }) {
   return (
-    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
-      <div className="sticky top-20 space-y-5">
+    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
+      <div className="sticky top-20 space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">审批上下文</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow label="当前身份" value={currentUserState} />
-            <InfoRow label="当前视图" value={formatApplicationStatus(status)} />
-            <InfoRow label="本页数量" value={String(applicationsCount)} />
-          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            当前身份为 {currentUserState}，正在查看{formatApplicationStatus(status)}
+            申请，本页 {applicationsCount} 条。
+          </p>
         </section>
 
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">处理规则</h2>
-          <div className="mt-3 border-y border-border">
-            <IndexedInfoRow
-              index="01"
-              title="读取详情"
-              text="列表只负责定位申请，审批前必须以详情内容为准。"
-            />
-            <IndexedInfoRow
-              index="02"
-              title="拒绝留痕"
-              text="拒绝申请时填写原因，方便申请人后续调整。"
-            />
-            <IndexedInfoRow
-              index="03"
-              title="后端校验"
-              text="通过和拒绝都会由后端校验 staff 权限。"
-            />
-          </div>
+          <ol className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
+            <li><span className="font-mono text-primary">01</span> 审批前以详情内容为准。</li>
+            <li><span className="font-mono text-primary">02</span> 拒绝申请必须填写原因。</li>
+            <li><span className="font-mono text-primary">03</span> 通过和拒绝都由后端校验 staff 权限。</li>
+          </ol>
         </section>
 
         <section>
           <h2 className="text-sm font-semibold">其他入口</h2>
-          <div className="mt-3 flex flex-col border-y border-border">
+          <div className="mt-3 flex flex-col border-t border-border">
             <TextAction href="/community-applications/new" variant="bar">
               社区申请
             </TextAction>
@@ -499,12 +461,12 @@ function ReviewRail({
 }
 
 function StatePanel({ children }: { children: ReactNode }) {
-  return <div className="border-b border-border p-4">{children}</div>;
+  return <div className="border-b border-border py-4">{children}</div>;
 }
 
 function LoadingPanel() {
   return (
-    <div className="border-b border-border p-4">
+    <div className="border-b border-border py-4">
       <LoadingState rows={5} />
     </div>
   );
@@ -534,7 +496,7 @@ function ApplicationListPanel({
   selectedId: string | null;
 }) {
   return (
-    <aside className="border-b border-border p-3 sm:p-4 xl:border-b-0 xl:border-r">
+    <aside className="border-b border-border py-4 xl:border-b-0 xl:border-r xl:pr-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">申请列表</h2>
@@ -542,7 +504,9 @@ function ApplicationListPanel({
             按状态分页读取后端申请。
           </p>
         </div>
-        <StatusToken>{applicationsQueryState.isFetching ? "同步中" : "已同步"}</StatusToken>
+        <span className="font-mono text-xs text-muted-foreground">
+          {applicationsQueryState.isFetching ? "同步中" : "已同步"}
+        </span>
       </div>
 
       {applicationsQueryState.isLoading ? <LoadingState rows={5} /> : null}
@@ -569,14 +533,16 @@ function ApplicationListPanel({
       ) : null}
 
       {applications.length > 0 ? (
-        <div className="divide-y divide-border border-y border-border">
+        <div className="border-t border-border">
           {applications.map((application, index) => (
             <button
               key={application.id}
               type="button"
               className={cn(
-                "grid w-full grid-cols-[40px_minmax(0,1fr)] gap-3 py-3 text-left transition-colors hover:bg-background-soft/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                selectedId === application.id ? "bg-primary/10" : null,
+                "grid w-full grid-cols-[40px_minmax(0,1fr)] gap-3 border-b border-l-2 border-b-border py-3 pr-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                selectedId === application.id
+                  ? "border-l-primary text-primary"
+                  : "border-l-transparent hover:text-primary",
               )}
               onClick={() => onSelect(application.id)}
             >
@@ -604,8 +570,9 @@ function ApplicationListPanel({
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
+          className="px-1 hover:bg-transparent hover:text-primary"
           disabled={offset === 0 || applicationsQueryState.isFetching}
           onClick={onPreviousPage}
         >
@@ -616,8 +583,9 @@ function ApplicationListPanel({
           OFFSET {offset}
         </span>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
+          className="px-1 hover:bg-transparent hover:text-primary"
           disabled={applications.length < PAGE_SIZE || applicationsQueryState.isFetching}
           onClick={onNextPage}
         >
@@ -656,7 +624,7 @@ function ApplicationDetailPanel({
 }) {
   if (isDetailLoading) {
     return (
-      <section className="p-3 sm:p-4">
+      <section className="py-4 xl:pl-4">
         <LoadingState rows={6} />
       </section>
     );
@@ -664,7 +632,7 @@ function ApplicationDetailPanel({
 
   if (isDetailError) {
     return (
-      <section className="p-3 sm:p-4">
+      <section className="py-4 xl:pl-4">
         <ErrorState
           title="无法加载申请详情"
           description={getErrorDescription(detailError)}
@@ -680,7 +648,7 @@ function ApplicationDetailPanel({
 
   if (!application) {
     return (
-      <section className="p-3 sm:p-4">
+      <section className="py-4 xl:pl-4">
         <EmptyState
           title="选择一条申请"
           description="从申请列表选择项目后，可以查看详情并执行审批动作。"
@@ -693,7 +661,7 @@ function ApplicationDetailPanel({
   const canReview = application.status === "pending";
 
   return (
-    <section className="p-3 sm:p-4">
+    <section className="py-4 xl:pl-4">
       <div className="border-b border-border pb-4">
         <div className="flex flex-wrap items-center gap-2">
           <ApplicationStatusToken status={application.status} />
@@ -709,11 +677,11 @@ function ApplicationDetailPanel({
         </p>
       </div>
 
-      <div className="divide-y divide-border border-b border-border">
-        <InfoRow label="申请人" value={formatShortId(application.applicant_id)} />
-        <InfoRow label="创建时间" value={formatDateTime(application.created_at)} />
-        <InfoRow label="更新时间" value={formatDateTime(application.updated_at)} />
-        <InfoRow
+      <div className="grid grid-cols-1 border-b border-border sm:grid-cols-2">
+        <ApplicationMeta label="申请人" value={formatShortId(application.applicant_id)} />
+        <ApplicationMeta label="创建时间" value={formatDateTime(application.created_at)} />
+        <ApplicationMeta label="更新时间" value={formatDateTime(application.updated_at)} />
+        <ApplicationMeta
           label="审核人"
           value={
             application.reviewed_by
@@ -721,7 +689,7 @@ function ApplicationDetailPanel({
               : "尚未审核"
           }
         />
-        <InfoRow
+        <ApplicationMeta
           label="审核时间"
           value={
             application.reviewed_at
@@ -796,6 +764,23 @@ function ApplicationDetailPanel({
         )}
       </section>
     </section>
+  );
+}
+
+function ApplicationMeta({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-0 border-b border-border py-3 last:border-b-0 sm:border-r sm:px-3 sm:last:border-r-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
+      <div className="mt-1 break-words text-sm font-medium text-foreground">
+        {value}
+      </div>
+    </div>
   );
 }
 

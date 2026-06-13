@@ -16,8 +16,6 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  IndexedInfoRow,
-  InfoRow,
   StatusToken,
   type StatusTokenTone,
 } from "@/components/ui/data-display";
@@ -114,7 +112,7 @@ export function ModerationConsole() {
                 description={getErrorDescription(currentUserQuery.error)}
                 action={
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => currentUserQuery.refetch()}
                   >
@@ -157,7 +155,7 @@ export function ModerationConsole() {
                     </TextAction>
                   ) : (
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={() => reportsQuery.refetch()}
                     >
@@ -240,7 +238,7 @@ export function ModerationReportDetail({ id }: { id: string }) {
                 description={getErrorDescription(currentUserQuery.error)}
                 action={
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => currentUserQuery.refetch()}
                   >
@@ -283,7 +281,7 @@ export function ModerationReportDetail({ id }: { id: string }) {
                     </TextAction>
                   ) : (
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={() => reportQuery.refetch()}
                     >
@@ -327,9 +325,9 @@ function ModerationLayout({
   status: ReportStatusFilter;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
-        <section className="border border-border bg-background">
+        <section className="bg-background">
           <ModerationHeader
             offset={offset}
             reportCount={reportCount}
@@ -337,8 +335,8 @@ function ModerationLayout({
           />
         </section>
 
-        <section className="mt-3 border-x border-border bg-background">
-          <div className="flex min-h-12 flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+        <section className="bg-background">
+          <div className="flex min-h-12 flex-col gap-3 border-b border-border py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <h2 className="text-sm font-semibold">举报列表</h2>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -371,7 +369,7 @@ function ModerationHeader({
   status: ReportStatusFilter;
 }) {
   return (
-    <div className="grid gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
+    <div className="border-b border-border py-4">
       <div className="min-w-0">
         <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
           举报审核
@@ -379,29 +377,10 @@ function ModerationHeader({
         <p className="mt-1 truncate font-mono text-xs text-primary">
           /moderation
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <StatusToken tone="primary">平台权限</StatusToken>
-          <StatusToken>{formatReportStatus(status)}</StatusToken>
-        </div>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          平台 staff 在这里查看举报列表、目标预览和处理状态；普通用户不会在左侧主导航看到这个入口。
+          当前查看{formatReportStatus(status)}举报，本页 {reportCount} 条，偏移 {offset}。
         </p>
       </div>
-
-      <div className="grid grid-cols-3 border border-border text-center">
-        <HeaderMetric label="当前" value={String(reportCount)} />
-        <HeaderMetric label="状态" value={formatReportStatus(status)} />
-        <HeaderMetric label="偏移" value={String(offset)} />
-      </div>
-    </div>
-  );
-}
-
-function HeaderMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-r border-border p-2 last:border-r-0">
-      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate text-sm font-semibold">{value}</div>
     </div>
   );
 }
@@ -423,20 +402,20 @@ function ModerationToolbar({
         value={status}
         onValueChange={(value) => onStatusChange(value as ReportStatusFilter)}
       >
-        <TabsList className="h-9 rounded-none border border-border bg-background p-0">
+        <TabsList className="h-9 rounded-none bg-transparent p-0">
           {statusOptions.map((option) => (
             <TabsTrigger
               key={option.value}
               value={option.value}
               disabled={disabled}
-              className="h-9 rounded-none border-r border-border px-3 text-xs last:border-r-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="h-9 rounded-none border-b border-transparent px-3 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
             >
               {option.label}
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
-      <Button variant="outline" size="sm" disabled={disabled} onClick={onRefresh}>
+      <Button variant="ghost" size="sm" disabled={disabled} onClick={onRefresh}>
         <RefreshCw className="size-4" aria-hidden="true" />
         刷新
       </Button>
@@ -452,41 +431,28 @@ function ModerationRail({
   status: ReportStatusFilter;
 }) {
   return (
-    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
-      <div className="sticky top-20 space-y-5">
+    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
+      <div className="sticky top-20 space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">审核上下文</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow label="入口" value="用户菜单" />
-            <InfoRow label="当前视图" value={formatReportStatus(status)} />
-            <InfoRow label="本页数量" value={String(reportCount)} />
-          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            当前从用户菜单进入举报审核，正在查看{formatReportStatus(status)}
+            举报，本页 {reportCount} 条。
+          </p>
         </section>
 
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">处理规则</h2>
-          <div className="mt-3 border-y border-border">
-            <IndexedInfoRow
-              index="01"
-              title="先看目标"
-              text="举报详情以目标预览和举报理由共同判断。"
-            />
-            <IndexedInfoRow
-              index="02"
-              title="动作留痕"
-              text="驳回和移除目标都会通过后端记录审核动作。"
-            />
-            <IndexedInfoRow
-              index="03"
-              title="权限后置"
-              text="入口显隐不替代后端 staff 权限校验。"
-            />
-          </div>
+          <ol className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
+            <li><span className="font-mono text-primary">01</span> 详情页以目标预览和举报理由共同判断。</li>
+            <li><span className="font-mono text-primary">02</span> 驳回和移除目标都会记录审核动作。</li>
+            <li><span className="font-mono text-primary">03</span> 入口显隐不替代后端 staff 权限校验。</li>
+          </ol>
         </section>
 
         <section>
           <h2 className="text-sm font-semibold">其他入口</h2>
-          <div className="mt-3 flex flex-col border-y border-border">
+          <div className="mt-3 flex flex-col border-t border-border">
             <TextAction href="/community-applications/review" variant="bar">
               社区审批
             </TextAction>
@@ -519,7 +485,7 @@ function ReportRow({ index, report }: { index: number; report: ContentReport }) 
   return (
     <Link
       href={`/moderation/reports/${report.id}`}
-      className="group grid grid-cols-[40px_minmax(0,1fr)] gap-3 border-b border-border px-3 py-3 transition-colors last:border-b-0 hover:bg-background-soft/70 sm:px-4"
+      className="group grid grid-cols-[40px_minmax(0,1fr)] gap-3 border-b border-border px-3 py-3 last:border-b-0 sm:px-4"
     >
       <span className="font-mono text-xs text-muted-foreground">
         {String(index + 1).padStart(2, "0")}
@@ -557,14 +523,14 @@ function ReportDetailLayout({
   const shortId = formatShortId(reportId);
 
   return (
-    <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
-        <section className="border border-border bg-background">
+        <section className="bg-background">
           <ReportHeader report={report} shortId={shortId} />
         </section>
 
-        <section className="mt-3 border-x border-border bg-background">
-          <div className="border-b border-border px-3 py-3 sm:px-4">
+        <section className="bg-background">
+          <div className="border-b border-border py-3">
             <h2 className="text-sm font-semibold">举报详情</h2>
             <p className="mt-1 text-xs text-muted-foreground">
               目标预览、举报理由和处理动作。
@@ -587,7 +553,7 @@ function ReportHeader({
   shortId: string;
 }) {
   return (
-    <div className="grid gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
+    <div className="border-b border-border py-4">
       <div className="min-w-0">
         <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
           举报 {shortId}
@@ -610,18 +576,6 @@ function ReportHeader({
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
           {report?.reason || "读取举报详情后会显示举报理由和目标预览。"}
         </p>
-      </div>
-
-      <div className="grid grid-cols-3 border border-border text-center">
-        <HeaderMetric label="编号" value={shortId} />
-        <HeaderMetric
-          label="目标"
-          value={report ? formatTargetType(report.target_type) : "--"}
-        />
-        <HeaderMetric
-          label="状态"
-          value={report ? formatReportStatus(report.status) : "--"}
-        />
       </div>
     </div>
   );
@@ -721,14 +675,14 @@ function ReportDecisionPanel({
       ) : null}
 
       <div className="mt-4 flex flex-wrap gap-3">
-        <Button
+        <button
           type="button"
-          variant="outline"
           disabled={!isPending || dismissMutation.isPending}
+          className="min-h-10 text-sm font-semibold text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           onClick={dismissReport}
         >
           {dismissMutation.isPending ? "正在驳回..." : "驳回举报"}
-        </Button>
+        </button>
         <RemoveTargetDialog
           disabled={!isPending}
           onAfterAction={onAfterAction}
@@ -821,7 +775,7 @@ function RemoveTargetDialog({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               disabled={mutation.isPending}
               onClick={() => setOpen(false)}
             >
@@ -845,50 +799,33 @@ function ReportRail({
   shortId: string;
 }) {
   return (
-    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
-      <div className="sticky top-20 space-y-5">
+    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
+      <div className="sticky top-20 space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">举报信息</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow label="编号" value={shortId} />
-            <InfoRow
-              label="目标"
-              value={report ? formatTargetType(report.target_type) : "--"}
-            />
-            <InfoRow
-              label="状态"
-              value={report ? formatReportStatus(report.status) : "--"}
-            />
-            <InfoRow
-              label="创建"
-              value={report ? formatDate(report.created_at) : "--"}
-            />
-            <InfoRow
-              label="更新"
-              value={report ? formatDate(report.updated_at) : "--"}
-            />
-          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            编号 <span className="font-mono text-foreground">{shortId}</span>，
+            目标 {report ? formatTargetType(report.target_type) : "--"}，
+            状态 {report ? formatReportStatus(report.status) : "--"}。
+          </p>
+          {report ? (
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              创建 {formatDate(report.created_at)}，更新 {formatDate(report.updated_at)}。
+            </p>
+          ) : null}
         </section>
 
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">处理规则</h2>
-          <div className="mt-3 border-y border-border">
-            <IndexedInfoRow
-              index="01"
-              title="驳回举报"
-              text="认为举报不成立时，只关闭举报，不改动目标内容。"
-            />
-            <IndexedInfoRow
-              index="02"
-              title="移除目标"
-              text="认为目标确实违规时，填写原因并移除帖子或评论。"
-            />
-          </div>
+          <ol className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
+            <li><span className="font-mono text-primary">01</span> 举报不成立时只关闭举报。</li>
+            <li><span className="font-mono text-primary">02</span> 目标违规时填写原因并移除帖子或评论。</li>
+          </ol>
         </section>
 
         <section>
           <h2 className="text-sm font-semibold">稳定出口</h2>
-          <div className="mt-3 flex flex-col border-y border-border">
+          <div className="mt-3 flex flex-col border-t border-border">
             <TextAction href="/moderation" variant="bar">
               举报审核
             </TextAction>

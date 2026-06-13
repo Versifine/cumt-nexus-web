@@ -151,7 +151,7 @@ function CommunityRow({ community }: { community: Community }) {
     <Link
       href={`/communities/${encodeURIComponent(community.slug)}`}
       onClick={() => rememberRecentCommunity(community)}
-      className="group grid grid-cols-[36px_minmax(0,1fr)] border-b border-border bg-background py-3 transition-colors hover:bg-background-soft/40 sm:grid-cols-[40px_minmax(0,1fr)]"
+      className="group grid grid-cols-[36px_minmax(0,1fr)] border-b border-border bg-background py-3 sm:grid-cols-[40px_minmax(0,1fr)]"
     >
       <div className="pt-1">
         <div className="flex size-8 items-center justify-center text-primary">
@@ -242,7 +242,7 @@ function CommunityListRail({
 
         <section>
           <h2 className="text-sm font-semibold">社区入口</h2>
-          <div className="mt-3 flex flex-col border-y border-border">
+          <div className="mt-3 flex flex-col border-t border-border">
             <CommunityApplicationAction
               isAuthenticated={isAuthenticated}
               variant="bar"

@@ -131,7 +131,7 @@ export function ReportContentDialog({
           </Alert>
         ) : null}
 
-        <div className="border-y border-border py-3">
+        <div className="border-t border-border pt-3">
           <div className="font-mono text-xs text-muted-foreground">目标</div>
           <p className="mt-2 break-words text-sm font-semibold">{targetLabel}</p>
         </div>
@@ -163,7 +163,7 @@ export function ReportContentDialog({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               disabled={mutation.isPending}
               onClick={() => setOpen(false)}
             >
@@ -194,7 +194,7 @@ const ReportTrigger = forwardRef<HTMLButtonElement, ReportTriggerProps>(
         type={type}
         {...props}
         className={cn(
-          "-mx-1 inline-flex min-h-10 items-center gap-1.5 px-1 py-2 text-xs text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40",
+          "-mx-1 inline-flex min-h-10 items-center gap-1.5 px-1 py-2 text-xs text-muted-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40",
           className,
         )}
       >
