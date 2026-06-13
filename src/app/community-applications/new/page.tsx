@@ -18,14 +18,16 @@ export const metadata: Metadata = {
 
 export default function NewCommunityApplicationPage() {
   return (
-    <AppShell contextLabel="社区申请">
+    <AppShell
+      backTarget={{
+        href: "/communities",
+        label: "浏览社区",
+      }}
+      contextLabel="社区申请"
+    >
       <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
         <div className="min-w-0">
-          <TextAction direction="back" href="/communities">
-            浏览社区
-          </TextAction>
-
-          <section className="mt-3 border border-border bg-background">
+          <section className="border border-border bg-background">
             <ApplicationHeader />
           </section>
 
@@ -136,7 +138,7 @@ function ApplicationRail() {
               浏览社区
             </TextAction>
             <TextAction href="/" variant="bar">
-              返回信息流
+              信息流首页
             </TextAction>
           </div>
         </section>

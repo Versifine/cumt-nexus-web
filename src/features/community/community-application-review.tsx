@@ -211,7 +211,7 @@ export function CommunityApplicationReview() {
             <EmptyState
               title="需要平台权限"
               description="当前账号不是平台 staff，不能查看社区申请列表或执行审批。"
-              action={<TextAction href="/">返回信息流</TextAction>}
+              action={<TextAction href="/">信息流首页</TextAction>}
             />
           </StatePanel>
         }
@@ -318,11 +318,7 @@ function ReviewLayout({
   return (
     <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
       <div className="min-w-0">
-        <TextAction href="/community-applications/new" variant="bar">
-          返回社区申请
-        </TextAction>
-
-        <section className="mt-3 border border-border bg-background">
+        <section className="border border-border bg-background">
           <ReviewHeader
             applicationsCount={applicationsCount}
             offset={offset}

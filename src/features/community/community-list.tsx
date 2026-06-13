@@ -8,7 +8,6 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { InfoRow } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { ApiError } from "@/lib/api/client";
@@ -21,44 +20,31 @@ export function CommunityList() {
   const isAuthenticated = Boolean(token);
   const communitiesQuery = useCommunitiesQuery();
   const communities = communitiesQuery.data?.communities ?? [];
-  const activeCount = communities.filter(
-    (community) => community.status === "active",
-  ).length;
-  const publicCount = communities.filter(
-    (community) => community.visibility === "public",
-  ).length;
 
   return (
-    <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
-        <section className="border border-border bg-background">
-          <CommunityListHeader
-            activeCount={activeCount}
-            communities={communities}
-            isLoading={communitiesQuery.isLoading}
-            publicCount={publicCount}
-          />
-        </section>
+        <section className="bg-background">
+          <div className="border-b border-border pb-4">
+            <CommunityListHeader
+              communities={communities}
+              isLoading={communitiesQuery.isLoading}
+            />
+          </div>
 
-        <section className="mt-3 border-x border-border bg-background">
-          <div className="flex min-h-12 flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold">社区列表</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                选择一个社区进入对应帖子流
-              </p>
-            </div>
+          <div className="flex min-h-12 flex-col gap-3 border-b border-border py-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-sm font-semibold">全部社区</h2>
             <CommunityApplicationAction isAuthenticated={isAuthenticated} />
           </div>
 
           {communitiesQuery.isLoading ? (
-            <div className="border-b border-border p-4">
+            <div className="border-b border-border py-4">
               <LoadingState rows={5} />
             </div>
           ) : null}
 
           {communitiesQuery.isError ? (
-            <div className="border-b border-border p-4">
+            <div className="border-b border-border py-4">
               <ErrorState
                 title={getErrorTitle(communitiesQuery.error)}
                 description={getErrorDescription(communitiesQuery.error)}
@@ -82,7 +68,7 @@ export function CommunityList() {
           ) : null}
 
           {communitiesQuery.isSuccess && communities.length === 0 ? (
-            <div className="border-b border-border p-4">
+            <div className="border-b border-border">
               <EmptyState
                 title="还没有社区"
                 description="公开社区创建并启用后，会出现在这里。"
@@ -115,33 +101,27 @@ export function CommunityList() {
       </div>
 
       <CommunityListRail
-        activeCount={activeCount}
         communities={communities}
         isAuthenticated={isAuthenticated}
         isLoading={communitiesQuery.isLoading}
-        publicCount={publicCount}
       />
     </div>
   );
 }
 
 function CommunityListHeader({
-  activeCount,
   communities,
   isLoading,
-  publicCount,
 }: {
-  activeCount: number;
   communities: Community[];
   isLoading: boolean;
-  publicCount: number;
 }) {
   return (
-    <div className="grid gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
+    <div className="py-4">
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-3">
           <div
-            className="flex size-12 shrink-0 items-center justify-center border border-border bg-secondary text-primary"
+            className="flex size-10 shrink-0 items-center justify-center bg-background-soft text-primary"
             aria-label="社区图标"
           >
             <Hash className="size-5" aria-hidden="true" />
@@ -155,28 +135,13 @@ function CommunityListHeader({
             </p>
           </div>
         </div>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          按社区进入讨论场域。公开社区可直接浏览，登录后再申请创建新的社区。
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+          浏览已经开放的校园讨论场域，进入具体社区后再阅读、发帖或管理。
+        </p>
+        <p className="mt-2 font-mono text-xs text-muted-foreground">
+          {isLoading ? "正在加载社区目录" : `${communities.length} 个社区`}
         </p>
       </div>
-
-      <div className="grid grid-cols-3 border border-border text-center">
-        <HeaderMetric
-          label="全部"
-          value={formatMetric(communities.length, isLoading)}
-        />
-        <HeaderMetric label="启用" value={formatMetric(activeCount, isLoading)} />
-        <HeaderMetric label="公开" value={formatMetric(publicCount, isLoading)} />
-      </div>
-    </div>
-  );
-}
-
-function HeaderMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-r border-border p-2 last:border-r-0">
-      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate text-sm font-semibold">{value}</div>
     </div>
   );
 }
@@ -186,15 +151,15 @@ function CommunityRow({ community }: { community: Community }) {
     <Link
       href={`/communities/${encodeURIComponent(community.slug)}`}
       onClick={() => rememberRecentCommunity(community)}
-      className="group grid grid-cols-[42px_minmax(0,1fr)] border-b border-border bg-background transition-colors hover:bg-background-soft/60 sm:grid-cols-[48px_minmax(0,1fr)]"
+      className="group grid grid-cols-[36px_minmax(0,1fr)] border-b border-border bg-background py-3 transition-colors hover:bg-background-soft/40 sm:grid-cols-[40px_minmax(0,1fr)]"
     >
-      <div className="border-r border-border bg-background-soft/45 px-2 py-3">
-        <div className="flex size-8 items-center justify-center border border-border text-primary">
+      <div className="pt-1">
+        <div className="flex size-8 items-center justify-center text-primary">
           <Hash className="size-4" aria-hidden="true" />
         </div>
       </div>
 
-      <div className="min-w-0 px-3 py-3 sm:px-4">
+      <div className="min-w-0">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
           <span className="font-semibold text-foreground">/{community.slug}</span>
           <span aria-hidden="true">·</span>
@@ -216,8 +181,6 @@ function CommunityRow({ community }: { community: Community }) {
 
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-5 text-muted-foreground">
           <span>创建 {formatDate(community.created_at)}</span>
-          <span aria-hidden="true">·</span>
-          <span>点击进入帖子流</span>
         </div>
       </div>
     </Link>
@@ -225,17 +188,13 @@ function CommunityRow({ community }: { community: Community }) {
 }
 
 function CommunityListRail({
-  activeCount,
   communities,
   isAuthenticated,
   isLoading,
-  publicCount,
 }: {
-  activeCount: number;
   communities: Community[];
   isAuthenticated: boolean;
   isLoading: boolean;
-  publicCount: number;
 }) {
   const recentCommunities = [...communities]
     .sort(
@@ -245,17 +204,8 @@ function CommunityListRail({
     .slice(0, 3);
 
   return (
-    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
-      <div className="sticky top-20 space-y-5">
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">目录上下文</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow label="全部" value={formatMetric(communities.length, isLoading)} />
-            <InfoRow label="启用" value={formatMetric(activeCount, isLoading)} />
-            <InfoRow label="公开" value={formatMetric(publicCount, isLoading)} />
-          </div>
-        </section>
-
+    <aside className="border-t border-border px-0 py-5 xl:border-l xl:border-t-0 xl:pl-5">
+      <div className="sticky top-20 space-y-6">
         <section className="border-b border-border pb-5">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold">最近更新</h2>
@@ -291,7 +241,7 @@ function CommunityListRail({
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold">社区功能</h2>
+          <h2 className="text-sm font-semibold">社区入口</h2>
           <div className="mt-3 flex flex-col border-y border-border">
             <CommunityApplicationAction
               isAuthenticated={isAuthenticated}
@@ -335,10 +285,6 @@ function CommunityApplicationAction({
       登录后申请
     </TextAction>
   );
-}
-
-function formatMetric(value: number, isLoading: boolean) {
-  return isLoading ? "--" : String(value);
 }
 
 function formatDate(value: string) {

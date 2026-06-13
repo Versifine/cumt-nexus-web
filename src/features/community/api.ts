@@ -9,6 +9,8 @@ import type {
   GetCommunityApplicationResponse,
   GetCommunityManageContextResponse,
   GetCommunityManageSettingsResponse,
+  ListFollowedCommunitiesInput,
+  ListFollowedCommunitiesResponse,
   ListCommunityMembersInput,
   ListCommunityMembersResponse,
   ListCommunityManageCommentsInput,
@@ -46,6 +48,20 @@ type CommunityManageListInput = {
 
 export function listCommunities() {
   return apiRequest<ListCommunitiesResponse>("/api/v1/communities");
+}
+
+export function listFollowedCommunities({
+  limit = 5,
+  offset = 0,
+}: ListFollowedCommunitiesInput = {}) {
+  const searchParams = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+
+  return apiRequest<ListFollowedCommunitiesResponse>(
+    `/api/v1/me/followed-communities?${searchParams.toString()}`,
+  );
 }
 
 export function getCommunity(slug: string, options: GetCommunityOptions = {}) {

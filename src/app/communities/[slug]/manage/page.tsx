@@ -26,7 +26,13 @@ export default async function CommunityManageRoute({
   const { slug } = await params;
 
   return (
-    <AppShell contextLabel={`/${slug} 管理`}>
+    <AppShell
+      backTarget={{
+        href: `/communities/${encodeURIComponent(slug)}`,
+        label: "返回社区",
+      }}
+      contextLabel={`/${slug} 管理`}
+    >
       <CommunityManagePage slug={slug} />
     </AppShell>
   );

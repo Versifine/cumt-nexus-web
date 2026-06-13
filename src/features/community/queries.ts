@@ -8,6 +8,7 @@ import {
   getCommunityApplication,
   getCommunityManageContext,
   getCommunityManageSettings,
+  listFollowedCommunities,
   listCommunityMembers,
   listCommunityManageComments,
   listCommunityManagePosts,
@@ -24,6 +25,7 @@ import type {
   CommunityApplicationStatus,
   DeleteCommunityRuleInput,
   GetCommunityResponse,
+  ListFollowedCommunitiesInput,
   ListCommunityMembersInput,
   ListCommunityManageCommentsInput,
   ListCommunityManagePostsInput,
@@ -38,6 +40,8 @@ type CommunityQueryScope = "public" | "viewer";
 
 export const communityQueryKeys = {
   all: ["communities"] as const,
+  followed: (input: ListFollowedCommunitiesInput) =>
+    ["me", "followed-communities", input.limit ?? 5, input.offset ?? 0] as const,
   detail: (slug: string, scope: CommunityQueryScope = "viewer") =>
     ["community", slug, scope] as const,
   manageContext: (slug: string) => ["community", slug, "manage"] as const,
@@ -96,6 +100,18 @@ export function useCommunitiesQuery() {
   return useQuery({
     queryKey: communityQueryKeys.all,
     queryFn: listCommunities,
+  });
+}
+
+export function useFollowedCommunitiesQuery(
+  input: ListFollowedCommunitiesInput = {},
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.followed(input),
+    queryFn: () => listFollowedCommunities(input),
+    enabled,
+    staleTime: 30_000,
   });
 }
 

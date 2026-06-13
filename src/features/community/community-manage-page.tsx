@@ -133,11 +133,7 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
   return (
     <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
       <div className="min-w-0">
-        <TextAction href={`/communities/${encodeURIComponent(slug)}`} variant="bar">
-          返回社区
-        </TextAction>
-
-        <section className="mt-3 border border-border bg-background">
+        <section className="border border-border bg-background">
           <ManageHeader
             canManageCommunity={canManageCommunity}
             community={community}
@@ -207,7 +203,7 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
                     href={`/communities/${encodeURIComponent(slug)}`}
                     tone="primary"
                   >
-                    返回社区
+                    查看社区
                   </TextAction>
                 }
               />
@@ -1200,7 +1196,7 @@ function ManageRail({
           <h2 className="text-sm font-semibold">稳定出口</h2>
           <div className="mt-3 flex flex-col border-y border-border">
             <TextAction href={`/communities/${encodeURIComponent(slug)}`} variant="bar">
-              返回社区
+              社区主页
             </TextAction>
             <TextAction href="/communities" variant="bar">
               浏览社区

@@ -10,7 +10,13 @@ export const metadata: Metadata = {
 
 export default function CommunityApplicationReviewRoute() {
   return (
-    <AppShell contextLabel="社区审批">
+    <AppShell
+      backTarget={{
+        href: "/community-applications/new",
+        label: "返回社区申请",
+      }}
+      contextLabel="社区审批"
+    >
       <CommunityApplicationReview />
     </AppShell>
   );

@@ -134,7 +134,7 @@ export function ModerationConsole() {
               <EmptyState
                 title="需要平台权限"
                 description="当前账号不是平台 staff，不能查看举报列表或执行审核处理。"
-                action={<TextAction href="/">返回信息流</TextAction>}
+                action={<TextAction href="/">信息流首页</TextAction>}
               />
             </StatePanel>
           ) : null}
@@ -174,7 +174,7 @@ export function ModerationConsole() {
               <EmptyState
                 title={`没有${formatReportStatus(status)}举报`}
                 description="该状态下暂时没有举报记录。"
-                action={<TextAction href="/">返回信息流</TextAction>}
+                action={<TextAction href="/">信息流首页</TextAction>}
               />
             </StatePanel>
           ) : null}
@@ -260,7 +260,7 @@ export function ModerationReportDetail({ id }: { id: string }) {
               <EmptyState
                 title="需要平台权限"
                 description="当前账号不是平台 staff，不能查看举报详情或执行审核处理。"
-                action={<TextAction href="/">返回信息流</TextAction>}
+                action={<TextAction href="/">信息流首页</TextAction>}
               />
             </StatePanel>
           ) : null}
@@ -329,11 +329,7 @@ function ModerationLayout({
   return (
     <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
       <div className="min-w-0">
-        <TextAction href="/" variant="bar">
-          返回信息流
-        </TextAction>
-
-        <section className="mt-3 border border-border bg-background">
+        <section className="border border-border bg-background">
           <ModerationHeader
             offset={offset}
             reportCount={reportCount}
@@ -495,7 +491,7 @@ function ModerationRail({
               社区审批
             </TextAction>
             <TextAction href="/" variant="bar">
-              返回信息流
+              信息流首页
             </TextAction>
           </div>
         </section>
@@ -563,11 +559,7 @@ function ReportDetailLayout({
   return (
     <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
       <div className="min-w-0">
-        <TextAction href="/moderation" variant="bar">
-          返回举报审核
-        </TextAction>
-
-        <section className="mt-3 border border-border bg-background">
+        <section className="border border-border bg-background">
           <ReportHeader report={report} shortId={shortId} />
         </section>
 
@@ -901,7 +893,7 @@ function ReportRail({
               举报审核
             </TextAction>
             <TextAction href="/" variant="bar">
-              返回信息流
+              信息流首页
             </TextAction>
           </div>
         </section>

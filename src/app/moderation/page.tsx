@@ -10,7 +10,13 @@ export const metadata: Metadata = {
 
 export default function ModerationRoute() {
   return (
-    <AppShell contextLabel="举报审核">
+    <AppShell
+      backTarget={{
+        href: "/",
+        label: "返回信息流",
+      }}
+      contextLabel="举报审核"
+    >
       <ModerationConsole />
     </AppShell>
   );

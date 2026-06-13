@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { InfoRow, StatusToken, type StatusTokenTone } from "@/components/ui/data-display";
+import { StatusToken, type StatusTokenTone } from "@/components/ui/data-display";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
@@ -73,19 +73,15 @@ export function CommunityDetail({
   }, [community]);
 
   return (
-    <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
-        <TextAction href="/communities" variant="bar">
-          浏览社区
-        </TextAction>
-
-        <section className="mt-3 border border-border bg-background">
+        <section className="bg-background">
           {!isReady || communityQuery.isPending ? (
-            <div className="p-4">
+            <div className="border-b border-border py-4">
               <LoadingState rows={3} />
             </div>
           ) : communityQuery.isError ? (
-            <div className="p-4">
+            <div className="border-b border-border py-4">
               <ErrorState
                 title={getErrorTitle(communityQuery.error, "无法加载社区")}
                 description={getErrorDescription(communityQuery.error)}
@@ -107,13 +103,11 @@ export function CommunityDetail({
               />
             </div>
           ) : community ? (
-            <CommunityHeader community={community} posts={posts} />
+            <CommunityHeader community={community} />
           ) : null}
-        </section>
-
-        {community ? (
-          <section className="mt-3 border-x border-border bg-background">
-            <div className="flex min-h-12 flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+          {community ? (
+            <div>
+            <div className="flex min-h-12 flex-col gap-3 border-y border-border py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold">社区帖子</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -125,7 +119,7 @@ export function CommunityDetail({
                   </p>
                 ) : null}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-3">
                 <CommunityPostSortTabs
                   disabled={postsQuery.isFetching}
                   onSortChange={setSort}
@@ -143,13 +137,13 @@ export function CommunityDetail({
             </div>
 
             {postsQuery.isPending ? (
-              <div className="border-b border-border p-4">
+              <div className="border-b border-border py-4">
                 <LoadingState rows={5} />
               </div>
             ) : null}
 
             {postsQuery.isError ? (
-              <div className="border-b border-border p-4">
+              <div className="border-b border-border py-4">
                 <ErrorState
                   title={getErrorTitle(postsQuery.error, "无法加载帖子")}
                   description={getErrorDescription(postsQuery.error)}
@@ -173,7 +167,7 @@ export function CommunityDetail({
             ) : null}
 
             {postsQuery.isSuccess && posts.length === 0 ? (
-              <div className="border-b border-border p-4">
+              <div className="border-b border-border">
                 <EmptyState
                   title="还没有帖子"
                   description="这个社区还没有形成可公开浏览的讨论。"
@@ -213,8 +207,9 @@ export function CommunityDetail({
                   />
                 ))
               : null}
-          </section>
-        ) : null}
+            </div>
+          ) : null}
+        </section>
       </div>
 
       {community ? (
@@ -231,16 +226,11 @@ export function CommunityDetail({
 
 function CommunityHeader({
   community,
-  posts,
 }: {
   community: Community;
-  posts: Post[];
 }) {
-  const totalScore = posts.reduce((total, post) => total + post.score, 0);
-  const authors = new Set(posts.map((post) => post.author_id)).size;
-
   return (
-    <div className="grid gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
+    <div className="border-b border-border py-4">
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-3">
           <CommunityIcon community={community} />
@@ -264,21 +254,6 @@ function CommunityHeader({
           {community.description || "这个社区还没有填写描述。"}
         </p>
       </div>
-
-      <div className="grid grid-cols-3 border border-border text-center">
-        <HeaderMetric label="帖子" value={String(posts.length)} />
-        <HeaderMetric label="总分" value={String(totalScore)} />
-        <HeaderMetric label="作者" value={String(authors)} />
-      </div>
-    </div>
-  );
-}
-
-function HeaderMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-r border-border p-2 last:border-r-0">
-      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate text-sm font-semibold">{value}</div>
     </div>
   );
 }
@@ -286,7 +261,7 @@ function HeaderMetric({ label, value }: { label: string; value: string }) {
 function CommunityIcon({ community }: { community: Community }) {
   return (
     <div
-      className="flex size-12 shrink-0 items-center justify-center border border-border bg-secondary text-primary"
+      className="flex size-10 shrink-0 items-center justify-center bg-background-soft text-primary"
       aria-label={`/${community.slug} 的社区图标`}
     >
       <Hash className="size-5" aria-hidden="true" />
@@ -305,13 +280,13 @@ function CommunityPostSortTabs({
 }) {
   return (
     <Tabs value={sort} onValueChange={(value) => onSortChange(value as PostSort)}>
-      <TabsList className="h-9 max-w-full justify-start overflow-x-auto rounded-none border border-border bg-background p-0">
+      <TabsList className="h-9 max-w-full justify-start overflow-x-auto">
         {postSortItems.map((item) => (
           <TabsTrigger
             key={item.value}
             value={item.value}
             disabled={disabled}
-            className="h-9 rounded-none border-r border-border px-3 text-xs last:border-r-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            className="h-9 px-2.5 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground"
           >
             {item.label}
           </TabsTrigger>
@@ -339,20 +314,16 @@ function CommunityRail({
     community.viewer_permissions?.can_moderate === true;
 
   return (
-    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
-      <div className="sticky top-20 space-y-5">
+    <aside className="border-t border-border px-0 py-5 xl:border-l xl:border-t-0 xl:pl-5">
+      <div className="sticky top-20 space-y-6">
         <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">社区上下文</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow label="Slug" value={`/${community.slug}`} />
-            <InfoRow label="状态" value={formatCommunityStatus(community.status)} />
-            <InfoRow
-              label="可见性"
-              value={formatCommunityVisibility(community.visibility)}
-            />
-            <InfoRow label="类型" value={formatCommunityKind(community.kind)} />
-            <InfoRow label="创建" value={formatDate(community.created_at)} />
-          </div>
+          <h2 className="text-sm font-semibold">社区动态</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {formatCommunitySummary(community, posts)}
+          </p>
+          <p className="mt-3 font-mono text-xs text-muted-foreground">
+            创建于 {formatDate(community.created_at)}
+          </p>
         </section>
 
         <section className="border-b border-border pb-5">
@@ -462,6 +433,20 @@ function formatDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function formatCommunitySummary(community: Community, posts: Post[]) {
+  const parts = [`/${community.slug}`];
+
+  if (typeof community.member_count === "number") {
+    parts.push(`${community.member_count} 名成员`);
+  }
+
+  if (posts.length > 0) {
+    parts.push(`${posts.length} 篇当前帖子`);
+  }
+
+  return parts.join(" / ");
 }
 
 function isUnauthenticated(error: Error | null) {

@@ -35,7 +35,13 @@ export default async function CommunityDetailPage({
     : undefined;
 
   return (
-    <AppShell contextLabel={`/${slug}`}>
+    <AppShell
+      backTarget={{
+        href: "/communities",
+        label: "浏览社区",
+      }}
+      contextLabel={`/${slug}`}
+    >
       <CommunityDetail
         initialCommunityData={initialCommunityData}
         initialPostsData={initialPostsData}

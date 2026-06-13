@@ -27,6 +27,17 @@ export type ListCommunitiesResponse = {
   communities: Community[];
 };
 
+export type ListFollowedCommunitiesInput = {
+  limit?: number;
+  offset?: number;
+};
+
+export type ListFollowedCommunitiesResponse = {
+  communities: Community[];
+  limit: number;
+  offset: number;
+};
+
 export type GetCommunityResponse = {
   community: Community;
 };
