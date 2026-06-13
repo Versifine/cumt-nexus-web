@@ -1,10 +1,18 @@
 "use client";
 
 import type { FormEvent, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   Bell,
   Bookmark,
   ClipboardCheck,
@@ -13,6 +21,7 @@ import {
   Home,
   LogOut,
   Menu,
+  Pencil,
   Search,
   Send,
   ShieldAlert,
@@ -21,18 +30,11 @@ import {
   X,
 } from "lucide-react";
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useCurrentUserQuery } from "@/features/auth/queries";
+import { usePublicUserQuery } from "@/features/profile/queries";
 import { cn } from "@/lib/utils";
 
 import {
@@ -41,10 +43,25 @@ import {
 } from "./recent-communities";
 
 type AppShellProps = {
+  backTarget?: AppShellBackTarget | null;
   children: ReactNode;
   className?: string;
   contextLabel: string;
 };
+
+export type AppShellBackTarget = {
+  href: string;
+  label: string;
+};
+
+type RegisteredBackTarget = {
+  pathname: string;
+  target: AppShellBackTarget | null;
+};
+
+const AppShellBackActionContext = createContext<
+  ((target: AppShellBackTarget | null) => void) | null
+>(null);
 
 const primaryNavItems = [
   { href: "/", icon: Home, label: "首页" },
@@ -53,10 +70,47 @@ const primaryNavItems = [
   { href: "/communities", icon: Hash, label: "社区" },
 ];
 
-export function AppShell({ children, className, contextLabel }: AppShellProps) {
+export function useAppShellBackAction(target: AppShellBackTarget | null) {
+  const setBackTarget = useContext(AppShellBackActionContext);
+  const href = target?.href ?? null;
+  const label = target?.label ?? null;
+
+  useEffect(() => {
+    if (!setBackTarget) {
+      return;
+    }
+
+    if (href && label) {
+      setBackTarget({ href, label });
+    } else {
+      setBackTarget(null);
+    }
+
+    return () => setBackTarget(null);
+  }, [href, label, setBackTarget]);
+}
+
+export function AppShell({
+  backTarget = null,
+  children,
+  className,
+  contextLabel,
+}: AppShellProps) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [recentCommunities, setRecentCommunities] = useState<RecentCommunity[]>([]);
+  const [registeredBackTarget, setRegisteredBackTarget] =
+    useState<RegisteredBackTarget | null>(null);
   const pathname = usePathname();
+  const setScopedBackTarget = useCallback(
+    (target: AppShellBackTarget | null) => {
+      setRegisteredBackTarget({ pathname, target });
+    },
+    [pathname],
+  );
+  const hasRegisteredBackTarget = registeredBackTarget?.pathname === pathname;
+  const activeBackTarget = hasRegisteredBackTarget
+    ? registeredBackTarget.target
+    : backTarget;
 
   useEffect(() => {
     function syncRecentCommunities() {
@@ -80,59 +134,88 @@ export function AppShell({ children, className, contextLabel }: AppShellProps) {
   }, []);
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto grid min-h-screen w-full max-w-[1440px] grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-border bg-background px-5 py-5 lg:fixed lg:left-[max(0px,calc((100vw-1440px)/2))] lg:top-0 lg:z-30 lg:block lg:h-dvh lg:w-[248px] lg:overflow-y-auto">
-          <ShellBrand />
-          <ShellNav pathname={pathname} recentCommunities={recentCommunities} />
-        </aside>
+    <AppShellBackActionContext.Provider value={setScopedBackTarget}>
+      <main className="min-h-screen bg-background text-foreground">
+        <div className="mx-auto grid min-h-screen w-full max-w-[1440px] grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)]">
+          <aside className="hidden border-r border-border bg-background px-5 py-5 lg:fixed lg:left-[max(0px,calc((100vw-1440px)/2))] lg:top-0 lg:z-30 lg:block lg:h-dvh lg:w-[248px] lg:overflow-y-auto">
+            <ShellBrand />
+            <ShellNav pathname={pathname} recentCommunities={recentCommunities} />
+          </aside>
 
-        <section className="flex min-w-0 flex-col lg:col-start-2">
-          <header className="sticky top-0 z-20 border-b border-border bg-background/95 px-3 py-3 backdrop-blur md:px-4 lg:px-6">
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 lg:grid-cols-[minmax(120px,180px)_minmax(260px,1fr)_auto] lg:gap-4">
-              <button
-                type="button"
-                className="inline-flex size-10 items-center justify-center border border-border text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:hidden"
-                aria-label={isMobileNavOpen ? "收起导航" : "打开导航"}
-                aria-expanded={isMobileNavOpen}
-                onClick={() => setIsMobileNavOpen((value) => !value)}
-              >
-                {isMobileNavOpen ? (
-                  <X className="size-4" aria-hidden="true" />
-                ) : (
-                  <Menu className="size-4" aria-hidden="true" />
-                )}
-              </button>
+          <section className="flex min-w-0 flex-col lg:col-start-2">
+            <header className="sticky top-0 z-20 border-b border-border bg-background/95 px-2 py-3 backdrop-blur sm:px-3 md:px-4 lg:px-6">
+              <div className="flex min-w-0 items-center gap-1 sm:gap-2 lg:gap-4">
+                <button
+                  type="button"
+                  className="inline-flex size-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10 lg:hidden"
+                  aria-label={isMobileNavOpen ? "收起导航" : "打开导航"}
+                  aria-expanded={isMobileNavOpen}
+                  onClick={() => setIsMobileNavOpen((value) => !value)}
+                >
+                  {isMobileNavOpen ? (
+                    <X className="size-4" aria-hidden="true" />
+                  ) : (
+                    <Menu className="size-4" aria-hidden="true" />
+                  )}
+                </button>
 
-              <div className="hidden min-w-0 lg:block">
-                <div className="truncate text-xs font-medium text-muted-foreground">
-                  {contextLabel}
+                <TopBackAction contextLabel={contextLabel} target={activeBackTarget} />
+                <TopSearch />
+                <TopActions />
+              </div>
+
+              {isMobileNavOpen ? (
+                <div className="mt-3 max-h-[calc(100vh-72px)] overflow-y-auto border-t border-border pt-3 lg:hidden">
+                  <ShellNav
+                    pathname={pathname}
+                    recentCommunities={recentCommunities}
+                    variant="mobile"
+                  />
                 </div>
+              ) : null}
+            </header>
+
+            <div className="min-w-0 flex-1">
+              <div className={cn("mx-auto box-border w-full min-w-0 max-w-full px-4 py-6 md:max-w-[1180px] md:px-6", className)}>
+                {children}
               </div>
-
-              <TopSearch />
-              <TopActions />
             </div>
+          </section>
+        </div>
+      </main>
+    </AppShellBackActionContext.Provider>
+  );
+}
 
-            {isMobileNavOpen ? (
-              <div className="mt-3 max-h-[calc(100vh-72px)] overflow-y-auto border-t border-border pt-3 lg:hidden">
-                <ShellNav
-                  pathname={pathname}
-                  recentCommunities={recentCommunities}
-                  variant="mobile"
-                />
-              </div>
-            ) : null}
-          </header>
-
-          <div className="min-w-0 flex-1">
-            <div className={cn("mx-auto box-border min-w-0 w-full max-w-full px-4 py-6 md:max-w-[1180px] md:px-6", className)}>
-              {children}
-            </div>
-          </div>
-        </section>
+function TopBackAction({
+  contextLabel,
+  target,
+}: {
+  contextLabel: string;
+  target: AppShellBackTarget | null;
+}) {
+  if (!target) {
+    return (
+      <div className="hidden min-w-0 shrink-0 lg:block lg:w-[180px]">
+        <div className="truncate text-xs font-medium text-muted-foreground">
+          {contextLabel}
+        </div>
       </div>
-    </main>
+    );
+  }
+
+  return (
+    <div className="min-w-0 shrink-0 lg:w-[180px]">
+      <Link
+        href={target.href}
+        className="inline-flex h-10 max-w-[42vw] items-center gap-2 border-b border-transparent px-1 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:max-w-[220px] lg:max-w-full"
+        aria-label={target.label}
+        title={target.label}
+      >
+        <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+        <span className="hidden min-w-0 truncate sm:inline">{target.label}</span>
+      </Link>
+    </div>
   );
 }
 
@@ -249,7 +332,11 @@ function TopSearch() {
   }
 
   return (
-    <form className="min-w-0" role="search" onSubmit={submitSearch}>
+    <form
+      className="min-w-0 flex-1 basis-0 max-w-[calc(100vw-176px)] sm:max-w-none"
+      role="search"
+      onSubmit={submitSearch}
+    >
       <label className="sr-only" htmlFor="app-shell-search">
         全站搜索
       </label>
@@ -269,7 +356,7 @@ function TopSearch() {
             }
           }}
           placeholder="搜索社区或帖子"
-          className="rounded-none pl-9"
+          className="h-9 min-w-0 rounded-none pl-9 sm:h-10"
         />
       </div>
     </form>
@@ -282,14 +369,14 @@ function TopActions() {
     ? "/notifications"
     : `/login?next=${encodeURIComponent("/notifications")}`;
   const submitHref = token
-    ? "/communities"
-    : `/login?next=${encodeURIComponent("/communities")}`;
+    ? "/posts/new"
+    : `/login?next=${encodeURIComponent("/posts/new")}`;
 
   return (
-    <div className="flex items-center gap-1 sm:gap-2">
+    <div className="flex shrink-0 items-center gap-1 sm:gap-2">
       <Link
         href={submitHref}
-        className="inline-flex h-10 w-10 items-center justify-center gap-2 border border-border px-0 text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:w-auto sm:px-3"
+        className="inline-flex h-9 w-9 items-center justify-center gap-2 text-muted-foreground transition-colors hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:h-10 sm:w-auto sm:px-2"
         aria-label="发帖"
       >
         <Send className="size-4" aria-hidden="true" />
@@ -297,7 +384,7 @@ function TopActions() {
       </Link>
       <Link
         href={notificationHref}
-        className="inline-flex size-10 items-center justify-center border border-border text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="hidden size-9 items-center justify-center text-muted-foreground transition-colors hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:inline-flex sm:size-10"
         aria-label="通知"
       >
         <Bell className="size-4" aria-hidden="true" />
@@ -317,12 +404,39 @@ function TopActions() {
 function HeaderUserMenu() {
   const router = useRouter();
   const { clearSession, token } = useAuthSession();
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const currentUserQuery = useCurrentUserQuery();
+  const username = currentUserQuery.data?.username ?? "";
+  const profileQuery = usePublicUserQuery(username, Boolean(token && username));
+  const avatarUrl = profileQuery.data?.user.avatar_url?.trim() ?? "";
+  const displayName = profileQuery.data?.user.display_name?.trim() || username;
 
   function signOut() {
+    setIsMenuOpen(false);
     clearSession();
     router.push("/login");
   }
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    function closeOnPointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (target instanceof Node && menuRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsMenuOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeOnPointerDown);
+
+    return () => document.removeEventListener("pointerdown", closeOnPointerDown);
+  }, [isMenuOpen]);
 
   if (token && currentUserQuery.isLoading) {
     return (
@@ -338,7 +452,7 @@ function HeaderUserMenu() {
       <>
         <Link
           href="/login"
-          className="inline-flex size-10 items-center justify-center border border-border text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:hidden"
+          className="inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:hidden"
           aria-label="登录"
         >
           <User className="size-4" aria-hidden="true" />
@@ -354,72 +468,125 @@ function HeaderUserMenu() {
   }
 
   const user = currentUserQuery.data;
+  const profileHref = `/users/${encodeURIComponent(user.username)}`;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="group inline-flex size-10 items-center justify-center border border-border text-sm font-semibold text-primary transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:w-auto sm:max-w-44 sm:gap-2 sm:px-2"
-          aria-label="打开用户菜单"
-        >
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-xs font-semibold">
-            {getUserInitial(user.username)}
-          </span>
-          <span className="hidden min-w-0 truncate text-sm text-foreground sm:inline">
-            {user.username}
-          </span>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>
-          <span className="block truncate text-sm text-foreground">
-            {user.username}
-          </span>
-          <span className="mt-1 block text-xs font-normal text-muted-foreground">
-            {user.status}
-          </span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href={`/users/${encodeURIComponent(user.username)}`}>
-            <User className="size-4" aria-hidden="true" />
-            个人主页
+    <div
+      ref={menuRef}
+      className="group/user-menu relative"
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsMenuOpen(false);
+        }
+      }}
+      onFocusCapture={() => setIsMenuOpen(true)}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          setIsMenuOpen(false);
+        }
+      }}
+      onMouseEnter={() => setIsMenuOpen(true)}
+      onMouseLeave={() => setIsMenuOpen(false)}
+    >
+      <Link
+        href={profileHref}
+        className="group relative inline-flex size-9 items-center justify-center text-sm font-semibold text-primary transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10"
+        aria-label="进入个人主页"
+        onClick={() => setIsMenuOpen(false)}
+      >
+        <HeaderAvatar
+          avatarUrl={avatarUrl}
+          size="trigger"
+          username={user.username}
+        />
+        <span
+          className="absolute bottom-1.5 right-1.5 size-2 rounded-full border border-background bg-primary"
+          aria-hidden="true"
+        />
+      </Link>
+      <div
+        className={cn(
+          "pointer-events-none absolute right-0 top-full z-50 mt-2 w-72 origin-top-right -translate-y-1 scale-[0.98] overflow-hidden rounded-lg border border-border bg-card text-card-foreground opacity-0 shadow-[0_18px_48px_rgb(0_0_0/0.38)] transition duration-150 ease-out",
+          "group-hover/user-menu:pointer-events-auto group-hover/user-menu:translate-y-0 group-hover/user-menu:scale-100 group-hover/user-menu:opacity-100",
+          "group-focus-within/user-menu:pointer-events-auto group-focus-within/user-menu:translate-y-0 group-focus-within/user-menu:scale-100 group-focus-within/user-menu:opacity-100",
+          isMenuOpen
+            ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+            : "",
+        )}
+      >
+        <div className="border-b border-border bg-background-soft/80 p-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <HeaderAvatar
+              avatarUrl={avatarUrl}
+              size="menu"
+              username={user.username}
+            />
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-foreground">
+                {displayName}
+              </div>
+              <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                @{user.username}
+              </div>
+            </div>
+          </div>
+        </div>
+        <nav className="p-1" aria-label="账号操作">
+          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+            账号
+          </div>
+          <Link
+            href="/settings/profile"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            <Pencil className="size-4" aria-hidden="true" />
+            编辑主页
           </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/saved">
+          <Link
+            href="/saved"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+            onClick={() => setIsMenuOpen(false)}
+          >
             <Bookmark className="size-4" aria-hidden="true" />
             我的收藏
           </Link>
-        </DropdownMenuItem>
-        {user.is_platform_staff ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-              平台工作台
-            </DropdownMenuLabel>
-            <DropdownMenuItem asChild>
-              <Link href="/moderation">
+          {user.is_platform_staff ? (
+            <>
+              <div className="-mx-1 my-1 h-px bg-border" />
+              <div className="px-2 py-1.5 text-xs font-normal text-muted-foreground">
+                平台工作台
+              </div>
+              <Link
+                href="/moderation"
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+                onClick={() => setIsMenuOpen(false)}
+              >
                 <ShieldAlert className="size-4" aria-hidden="true" />
                 举报审核
               </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/community-applications/review">
+              <Link
+                href="/community-applications/review"
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+                onClick={() => setIsMenuOpen(false)}
+              >
                 <ClipboardCheck className="size-4" aria-hidden="true" />
                 社区审批
               </Link>
-            </DropdownMenuItem>
-          </>
-        ) : null}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onSelect={signOut}>
-          <LogOut className="size-4" aria-hidden="true" />
-          退出登录
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+            </>
+          ) : null}
+          <div className="-mx-1 my-1 h-px bg-border" />
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground outline-none transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:bg-destructive/10 focus-visible:text-destructive"
+            onClick={signOut}
+          >
+            <LogOut className="size-4" aria-hidden="true" />
+            退出登录
+          </button>
+        </nav>
+      </div>
+    </div>
   );
 }
 
@@ -444,4 +611,43 @@ function isActivePath(pathname: string, href: string) {
 
 function getUserInitial(username: string) {
   return username.trim().charAt(0).toUpperCase() || "U";
+}
+
+function HeaderAvatar({
+  avatarUrl,
+  size,
+  username,
+}: {
+  avatarUrl: string;
+  size: "menu" | "trigger";
+  username: string;
+}) {
+  const sizeClass = size === "menu" ? "size-10" : "size-6 sm:size-7";
+  const textClass = size === "menu" ? "text-sm" : "text-xs";
+
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatarUrl}
+        alt={`${username} 的头像`}
+        className={cn(
+          sizeClass,
+          "shrink-0 rounded-full border border-border bg-secondary object-cover",
+        )}
+      />
+    );
+  }
+
+  return (
+    <span
+      className={cn(
+        sizeClass,
+        textClass,
+        "flex shrink-0 items-center justify-center rounded-full border border-border bg-secondary font-semibold text-primary",
+      )}
+    >
+      {getUserInitial(username)}
+    </span>
+  );
 }
