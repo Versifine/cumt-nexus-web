@@ -309,7 +309,7 @@ function RightRail({
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {getRailDescription(feedSource, sortFallbackNotice)}
           </p>
-          <div className="mt-4 flex flex-col border-y border-border">
+          <div className="mt-4 flex flex-col border-t border-border">
             <TextAction href="/communities" tone="primary" variant="bar">
               浏览社区
             </TextAction>

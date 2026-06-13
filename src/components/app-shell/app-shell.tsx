@@ -15,7 +15,9 @@ import {
   ArrowLeft,
   Bell,
   Bookmark,
+  Check,
   ClipboardCheck,
+  CircleDot,
   Globe2,
   Hash,
   Home,
@@ -34,6 +36,21 @@ import { Input } from "@/components/ui/input";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useCurrentUserQuery } from "@/features/auth/queries";
+import {
+  emptyUnreadSummary,
+  formatNotificationCategory,
+  formatNotificationDate,
+  formatNotificationType,
+  getNotificationCategory,
+  renderNotificationCategoryIcon,
+} from "@/features/notification/display";
+import {
+  useMarkAllNotificationsReadMutation,
+  useNotificationsQuery,
+  useUnreadSummaryQuery,
+} from "@/features/notification/queries";
+import { resolveNotificationTarget } from "@/features/notification/targets";
+import type { Notification } from "@/features/notification/types";
 import { usePublicUserQuery } from "@/features/profile/queries";
 import { cn } from "@/lib/utils";
 
@@ -147,7 +164,7 @@ export function AppShell({
               <div className="flex min-w-0 items-center gap-1 sm:gap-2 lg:gap-4">
                 <button
                   type="button"
-                  className="inline-flex size-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10 lg:hidden"
+                  className="inline-flex size-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10 lg:hidden"
                   aria-label={isMobileNavOpen ? "收起导航" : "打开导航"}
                   aria-expanded={isMobileNavOpen}
                   onClick={() => setIsMobileNavOpen((value) => !value)}
@@ -222,7 +239,7 @@ function TopBackAction({
 function ShellBrand() {
   return (
     <Link href="/" className="block border-b border-border pb-5">
-      <div className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card text-sm font-semibold text-primary transition-colors hover:border-primary/50">
+      <div className="inline-flex size-9 items-center justify-center rounded-lg border border-border text-sm font-semibold text-primary transition-colors hover:border-primary/50">
         CN
       </div>
       <div className="mt-4 text-sm font-semibold">CUMT Nexus</div>
@@ -246,7 +263,7 @@ function ShellNav({
 
       <nav
         aria-label="主导航"
-        className="divide-y divide-border border-y border-border"
+        className="divide-y divide-border border-t border-border"
       >
         {primaryNavItems.map((item, index) => {
           const isActive = isActivePath(pathname, item.href);
@@ -286,7 +303,7 @@ function ShellNav({
         <div className="font-mono text-[11px] uppercase text-muted-foreground">
           最近访问
         </div>
-        <div className="mt-3 divide-y divide-border border-y border-border">
+        <div className="mt-3 divide-y divide-border border-t border-border">
           {recentCommunities.length > 0 ? (
             recentCommunities.map((community) => (
               <Link
@@ -365,9 +382,6 @@ function TopSearch() {
 
 function TopActions() {
   const { isReady, token } = useAuthSession();
-  const notificationHref = token
-    ? "/notifications"
-    : `/login?next=${encodeURIComponent("/notifications")}`;
   const submitHref = token
     ? "/posts/new"
     : `/login?next=${encodeURIComponent("/posts/new")}`;
@@ -376,19 +390,13 @@ function TopActions() {
     <div className="flex shrink-0 items-center gap-1 sm:gap-2">
       <Link
         href={submitHref}
-        className="inline-flex h-9 w-9 items-center justify-center gap-2 text-muted-foreground transition-colors hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:h-10 sm:w-auto sm:px-2"
+        className="inline-flex h-9 w-9 items-center justify-center gap-2 text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:h-10 sm:w-auto sm:px-2"
         aria-label="发帖"
       >
         <Send className="size-4" aria-hidden="true" />
         <span className="hidden text-sm font-medium sm:inline">发帖</span>
       </Link>
-      <Link
-        href={notificationHref}
-        className="hidden size-9 items-center justify-center text-muted-foreground transition-colors hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:inline-flex sm:size-10"
-        aria-label="通知"
-      >
-        <Bell className="size-4" aria-hidden="true" />
-      </Link>
+      <HeaderNotificationMenu isReady={isReady} token={token} />
       {!isReady ? (
         <div
           className="hidden h-10 w-20 animate-pulse border border-border bg-muted sm:block"
@@ -399,6 +407,330 @@ function TopActions() {
       )}
     </div>
   );
+}
+
+function HeaderNotificationMenu({
+  isReady,
+  token,
+}: {
+  isReady: boolean;
+  token: string | null;
+}) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const canLoadNotifications = isReady && Boolean(token);
+  const notificationHref = token
+    ? "/notifications"
+    : `/login?next=${encodeURIComponent("/notifications")}`;
+  const notificationsQuery = useNotificationsQuery(
+    { category: "all", limit: 5, offset: 0, status: "unread" },
+    canLoadNotifications,
+  );
+  const unreadSummaryQuery = useUnreadSummaryQuery(canLoadNotifications);
+  const markAllReadMutation = useMarkAllNotificationsReadMutation();
+  const unreadSummary = unreadSummaryQuery.data ?? emptyUnreadSummary;
+  const notifications = notificationsQuery.data?.notifications ?? [];
+  const unreadCount = unreadSummary.total;
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    function closeOnPointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (target instanceof Node && menuRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsMenuOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeOnPointerDown);
+
+    return () => document.removeEventListener("pointerdown", closeOnPointerDown);
+  }, [isMenuOpen]);
+
+  return (
+    <div
+      ref={menuRef}
+      className="group/notification-menu relative hidden sm:block"
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsMenuOpen(false);
+        }
+      }}
+      onFocusCapture={() => setIsMenuOpen(true)}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          setIsMenuOpen(false);
+        }
+      }}
+      onMouseEnter={() => setIsMenuOpen(true)}
+      onMouseLeave={() => setIsMenuOpen(false)}
+    >
+      <Link
+        href={notificationHref}
+        className="relative inline-flex size-10 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        aria-label="消息中心"
+        onClick={() => setIsMenuOpen(false)}
+      >
+        <Bell className="size-4" aria-hidden="true" />
+        {token && unreadCount > 0 ? (
+          <span
+            className="absolute right-1.5 top-1.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-[10px] font-semibold leading-4 text-primary-foreground"
+            aria-label={`${unreadCount} 条未读消息`}
+          >
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        ) : null}
+      </Link>
+
+      <div
+        className={cn(
+          "pointer-events-none absolute right-0 top-full z-50 mt-2 w-[360px] origin-top-right -translate-y-1 scale-[0.98] overflow-hidden rounded-lg border border-border bg-card text-card-foreground opacity-0 shadow-[0_18px_48px_rgb(0_0_0/0.38)] transition duration-150 ease-out",
+          "group-hover/notification-menu:pointer-events-auto group-hover/notification-menu:translate-y-0 group-hover/notification-menu:scale-100 group-hover/notification-menu:opacity-100",
+          "group-focus-within/notification-menu:pointer-events-auto group-focus-within/notification-menu:translate-y-0 group-focus-within/notification-menu:scale-100 group-focus-within/notification-menu:opacity-100",
+          isMenuOpen
+            ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+            : "",
+        )}
+      >
+        <div className="border-b border-border bg-background p-3">
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <Bell className="size-4 text-primary" aria-hidden="true" />
+                <h2 className="truncate text-sm font-semibold text-foreground">
+                  消息中心
+                </h2>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {formatNotificationPanelSummary(
+                  canLoadNotifications,
+                  unreadSummaryQuery.isPending,
+                  unreadCount,
+                )}
+              </p>
+            </div>
+            <Link
+              href={notificationHref}
+              className="shrink-0 text-xs font-semibold text-primary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              查看全部
+            </Link>
+          </div>
+        </div>
+
+        <NotificationMenuBody
+          canLoadNotifications={canLoadNotifications}
+          isReady={isReady}
+          isMarkingAllRead={markAllReadMutation.isPending}
+          notifications={notifications}
+          notificationsError={notificationsQuery.isError}
+          notificationsPending={notificationsQuery.isPending}
+          notificationHref={notificationHref}
+          onClose={() => setIsMenuOpen(false)}
+          onMarkAllRead={() => markAllReadMutation.mutate()}
+          unreadCount={unreadCount}
+        />
+
+      </div>
+    </div>
+  );
+}
+
+function NotificationMenuBody({
+  canLoadNotifications,
+  isMarkingAllRead,
+  isReady,
+  notifications,
+  notificationsError,
+  notificationsPending,
+  notificationHref,
+  onClose,
+  onMarkAllRead,
+  unreadCount,
+}: {
+  canLoadNotifications: boolean;
+  isMarkingAllRead: boolean;
+  isReady: boolean;
+  notifications: Notification[];
+  notificationsError: boolean;
+  notificationsPending: boolean;
+  notificationHref: string;
+  onClose: () => void;
+  onMarkAllRead: () => void;
+  unreadCount: number;
+}) {
+  if (!isReady) {
+    return (
+      <div className="space-y-2 p-3" aria-label="正在加载消息">
+        <div className="h-12 animate-pulse bg-muted" />
+        <div className="h-12 animate-pulse bg-muted" />
+        <div className="h-12 animate-pulse bg-muted" />
+      </div>
+    );
+  }
+
+  if (!canLoadNotifications) {
+    return (
+      <div className="p-3">
+        <div className="border-l border-border px-3 py-2">
+          <h3 className="text-sm font-semibold text-foreground">登录即可同步消息</h3>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            回复、@、赞和系统消息会跟随账号同步。
+          </p>
+          <TextAction className="mt-3" href={notificationHref} tone="primary">
+            去登录
+          </TextAction>
+        </div>
+      </div>
+    );
+  }
+
+  if (notificationsPending) {
+    return (
+      <div className="space-y-2 p-3" aria-label="正在加载消息">
+        <div className="h-14 animate-pulse bg-muted" />
+        <div className="h-14 animate-pulse bg-muted" />
+        <div className="h-14 animate-pulse bg-muted" />
+      </div>
+    );
+  }
+
+  if (notificationsError) {
+    return (
+      <div className="p-3">
+        <div className="border-l border-border px-3 py-2">
+          <h3 className="text-sm font-semibold text-foreground">暂时无法加载消息</h3>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            可以进入完整消息中心重新加载。
+          </p>
+          <TextAction className="mt-3" href={notificationHref} tone="primary">
+            打开消息中心
+          </TextAction>
+        </div>
+      </div>
+    );
+  }
+
+  if (notifications.length === 0) {
+    return (
+      <div className="p-3">
+        <div className="border-l border-border px-3 py-2">
+          <h3 className="text-sm font-semibold text-foreground">没有未读消息</h3>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            有新的回复、@、赞或系统消息时，会显示在这里。
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {unreadCount > 0 ? (
+        <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
+          <p className="text-xs text-muted-foreground">
+            还有 {unreadCount} 条未读消息
+          </p>
+          <button
+            type="button"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 px-1 text-xs font-semibold text-primary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isMarkingAllRead}
+            onClick={onMarkAllRead}
+          >
+            <Check className="size-3.5" aria-hidden="true" />
+            {isMarkingAllRead ? "处理中" : "全部已读"}
+          </button>
+        </div>
+      ) : null}
+      <div className="max-h-[360px] overflow-y-auto">
+        {notifications.map((notification) => (
+          <NotificationMenuItem
+            key={notification.id}
+            notification={notification}
+            onClose={onClose}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NotificationMenuItem({
+  notification,
+  onClose,
+}: {
+  notification: Notification;
+  onClose: () => void;
+}) {
+  const category = getNotificationCategory(notification);
+  const target = resolveNotificationTarget(notification);
+  const content = (
+    <>
+      <div className="flex size-8 shrink-0 items-center justify-center border border-primary/40 bg-primary/10 text-primary">
+        {renderNotificationCategoryIcon(category)}
+      </div>
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="font-semibold text-foreground">
+            {formatNotificationCategory(category)}
+          </span>
+          <span aria-hidden="true">·</span>
+          <span className="truncate">{formatNotificationType(notification.type)}</span>
+          <span aria-hidden="true">·</span>
+          <span className="shrink-0">
+            {formatNotificationDate(notification.created_at)}
+          </span>
+          <CircleDot className="size-3 shrink-0 text-primary" aria-hidden="true" />
+        </div>
+        <h3 className="mt-1 line-clamp-1 text-sm font-semibold text-foreground">
+          {notification.title}
+        </h3>
+        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+          {notification.body || target.summary}
+        </p>
+      </div>
+    </>
+  );
+
+  if (!target.href) {
+    return (
+      <div className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 border-b border-border px-3 py-3 last:border-b-0">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      href={target.href}
+      className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 border-b border-border px-3 py-3 transition-colors last:border-b-0 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      onClick={onClose}
+    >
+      {content}
+    </Link>
+  );
+}
+
+function formatNotificationPanelSummary(
+  canLoadNotifications: boolean,
+  isPending: boolean,
+  unreadCount: number,
+) {
+  if (!canLoadNotifications) {
+    return "登录后同步账号消息";
+  }
+
+  if (isPending) {
+    return "正在同步未读状态";
+  }
+
+  return unreadCount > 0 ? `${unreadCount} 条未读消息` : "没有未读消息";
 }
 
 function HeaderUserMenu() {
@@ -452,7 +784,7 @@ function HeaderUserMenu() {
       <>
         <Link
           href="/login"
-          className="inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:hidden"
+          className="inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:hidden"
           aria-label="登录"
         >
           <User className="size-4" aria-hidden="true" />
@@ -490,7 +822,7 @@ function HeaderUserMenu() {
     >
       <Link
         href={profileHref}
-        className="group relative inline-flex size-9 items-center justify-center text-sm font-semibold text-primary transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10"
+        className="group relative inline-flex size-9 items-center justify-center text-sm font-semibold text-primary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10"
         aria-label="进入个人主页"
         onClick={() => setIsMenuOpen(false)}
       >

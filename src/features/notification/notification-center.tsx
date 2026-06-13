@@ -4,20 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  AtSign,
-  Bell,
   Check,
   CircleDot,
-  Heart,
-  MessageSquare,
-  Shield,
 } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { InfoRow } from "@/components/ui/data-display";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
@@ -29,6 +23,15 @@ import {
   notificationCategoryOptions,
 } from "./categories";
 import {
+  emptyUnreadSummary,
+  formatNotificationCategory,
+  formatNotificationDate,
+  formatNotificationType,
+  getNotificationCategory,
+  getNotificationCategoryCounts,
+  renderNotificationCategoryIcon,
+} from "./display";
+import {
   useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
   useNotificationsQuery,
@@ -38,7 +41,6 @@ import type {
   Notification,
   NotificationCategory,
   NotificationStatus,
-  UnreadSummaryResponse,
 } from "./types";
 import {
   resolveNotificationTarget,
@@ -73,11 +75,12 @@ export function NotificationCenter({
   const notifications = notificationsQuery.data?.notifications ?? [];
   const unreadSummary = unreadSummaryQuery.data ?? emptyUnreadSummary;
   const unreadCount = unreadSummary.total;
-  const categoryCounts = getCategoryCounts(unreadSummary);
+  const categoryCounts = getNotificationCategoryCounts(unreadSummary);
   const currentCategoryHref = getNotificationCategoryHref(category);
   const loginHref = `/login?next=${encodeURIComponent(currentCategoryHref)}`;
   const isFetchingControls =
     notificationsQuery.isFetching || unreadSummaryQuery.isFetching;
+  const scopeLabel = `${formatStatus(status)} / ${formatNotificationCategory(category)}`;
 
   function handleCategoryChange(nextCategory: NotificationCategory) {
     if (nextCategory === category) {
@@ -88,27 +91,26 @@ export function NotificationCenter({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-0 py-4 xl:grid-cols-[minmax(0,1fr)_312px]">
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
-        <section className="border border-border bg-background">
+        <section className="bg-background">
           <NotificationHeader
-            category={category}
             currentCount={canLoadNotifications ? notifications.length : null}
-            status={status}
+            scopeLabel={scopeLabel}
             unreadCount={canLoadNotifications ? unreadCount : null}
           />
         </section>
 
-        <section className="mt-3 border-x border-border bg-background">
-          <div className="border-b border-border px-3 py-3 sm:px-4">
+        <section className="bg-background">
+          <div className="border-b border-border py-3">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold">通知列表</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {formatStatus(status)} / {formatCategory(category)}
+                  {scopeLabel}
                 </p>
               </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                 <CategoryTabs
                   category={category}
                   disabled={!isReady || isFetchingControls}
@@ -202,13 +204,13 @@ export function NotificationCenter({
           notifications.length > 0 ? (
             <>
               {status !== "read" && unreadCount > 0 ? (
-                <div className="flex flex-col gap-2 border-b border-border bg-background-soft/45 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+                <div className="flex flex-col gap-2 border-b border-border py-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs leading-5 text-muted-foreground">
                     当前账号还有 {unreadCount} 条未读通知。
                   </p>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     className="h-8 self-start px-2 text-xs sm:self-auto"
                     disabled={markAllReadMutation.isPending}
@@ -248,54 +250,28 @@ export function NotificationCenter({
 }
 
 function NotificationHeader({
-  category,
   currentCount,
-  status,
+  scopeLabel,
   unreadCount,
 }: {
-  category: NotificationCategory;
   currentCount: number | null;
-  status: NotificationStatus;
+  scopeLabel: string;
   unreadCount: number | null;
 }) {
   return (
-    <div className="grid gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
+    <div className="border-b border-border py-4">
       <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-3">
-          <div
-            className="flex size-12 shrink-0 items-center justify-center border border-border bg-secondary text-primary"
-            aria-label="通知图标"
-          >
-            <Bell className="size-5" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
-              通知
-            </h1>
-            <p className="mt-1 truncate font-mono text-xs text-primary">
-              回复 / @ / 赞 / 系统
-            </p>
-          </div>
-        </div>
+        <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
+          通知
+        </h1>
+        <p className="mt-1 font-mono text-xs text-primary">
+          {scopeLabel}
+        </p>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          按回复、@、赞和系统通知分类查看账号消息，处理后可以标记已读。
+          当前查看 {scopeLabel}，列表 {currentCount === null ? "--" : currentCount} 条，未读{" "}
+          {unreadCount === null ? "--" : unreadCount} 条。
         </p>
       </div>
-
-      <div className="grid grid-cols-3 border border-border text-center">
-        <HeaderMetric label="当前" value={currentCount === null ? "--" : String(currentCount)} />
-        <HeaderMetric label="未读" value={unreadCount === null ? "--" : String(unreadCount)} />
-        <HeaderMetric label="范围" value={`${formatStatus(status)} / ${formatCategory(category)}`} />
-      </div>
-    </div>
-  );
-}
-
-function HeaderMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-r border-border p-2 last:border-r-0">
-      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate text-sm font-semibold">{value}</div>
     </div>
   );
 }
@@ -314,16 +290,13 @@ function CategoryTabs({
       value={category}
       onValueChange={(value) => onCategoryChange(value as NotificationCategory)}
     >
-      <TabsList className="h-9 rounded-none border border-border bg-background p-0">
-        {notificationCategoryOptions.map((option, index) => (
+      <TabsList className="h-9 rounded-none bg-transparent p-0">
+        {notificationCategoryOptions.map((option) => (
           <TabsTrigger
             key={option.value}
             value={option.value}
             disabled={disabled}
-            className={cn(
-              "h-9 rounded-none px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
-              index < notificationCategoryOptions.length - 1 ? "border-r border-border" : null,
-            )}
+            className="h-9 rounded-none border-b border-transparent px-3 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
           >
             {option.label}
           </TabsTrigger>
@@ -347,16 +320,13 @@ function StatusTabs({
       value={status}
       onValueChange={(value) => onStatusChange(value as NotificationStatus)}
     >
-      <TabsList className="h-9 rounded-none border border-border bg-background p-0">
-        {statusOptions.map((option, index) => (
+      <TabsList className="h-9 rounded-none bg-transparent p-0">
+        {statusOptions.map((option) => (
           <TabsTrigger
             key={option.value}
             value={option.value}
             disabled={disabled}
-            className={cn(
-              "h-9 rounded-none px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
-              index < statusOptions.length - 1 ? "border-r border-border" : null,
-            )}
+            className="h-9 rounded-none border-b border-transparent px-3 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
           >
             {option.label}
           </TabsTrigger>
@@ -382,27 +352,27 @@ function NotificationRow({
   return (
     <article
       className={cn(
-        "grid grid-cols-[42px_minmax(0,1fr)] border-b border-border bg-background transition-colors hover:bg-background-soft/60 sm:grid-cols-[48px_minmax(0,1fr)]",
+        "grid grid-cols-[34px_minmax(0,1fr)] border-b border-border bg-background py-3 sm:grid-cols-[38px_minmax(0,1fr)]",
         isUnread ? "bg-primary/5" : null,
       )}
     >
-      <div className="border-r border-border bg-background-soft/45 px-2 py-3">
+      <div className="px-1 pt-1">
         <div
           className={cn(
-            "flex size-8 items-center justify-center border",
+            "flex size-7 items-center justify-center",
             isUnread
-              ? "border-primary text-primary"
-              : "border-border text-muted-foreground",
+              ? "text-primary"
+              : "text-muted-foreground",
           )}
         >
-          {renderCategoryIcon(category)}
+          {renderNotificationCategoryIcon(category)}
         </div>
       </div>
 
-      <div className="min-w-0 px-3 py-3 sm:px-4">
+      <div className="min-w-0 pl-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
           <span className="font-semibold text-foreground">
-            {formatCategory(category)}
+            {formatNotificationCategory(category)}
           </span>
           <span aria-hidden="true">·</span>
           <span>{formatNotificationType(notification.type)}</span>
@@ -413,7 +383,7 @@ function NotificationRow({
             </>
           ) : null}
           <span aria-hidden="true">·</span>
-          <span>{formatDate(notification.created_at)}</span>
+          <span>{formatNotificationDate(notification.created_at)}</span>
           {isUnread ? (
             <>
               <span aria-hidden="true">·</span>
@@ -439,7 +409,7 @@ function NotificationRow({
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8 px-2 text-xs"
+              className="h-8 px-1 text-xs hover:bg-transparent hover:text-primary"
               disabled={isMarkingRead}
               onClick={onMarkRead}
             >
@@ -472,7 +442,7 @@ function NotificationTargetAction({
   return (
     <Link
       href={target.href}
-      className="inline-flex h-8 items-center gap-1.5 px-2 font-semibold transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       {target.label}
     </Link>
@@ -495,41 +465,47 @@ function NotificationRail({
   unreadSummaryPending: boolean;
 }) {
   return (
-    <aside className="border-t border-border bg-background-soft/45 px-4 py-5 xl:border-l xl:border-t-0">
-      <div className="sticky top-20 space-y-5">
+    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
+      <div className="sticky top-20 space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">通知范围</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow label="状态" value={formatStatus(status)} />
-            <InfoRow label="分类" value={formatCategory(category)} />
-            <InfoRow
-              label="未读"
-              value={formatRailCount(isAuthenticated, unreadSummaryPending, unreadCount)}
-            />
-          </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            正在查看 {formatStatus(status)} / {formatNotificationCategory(category)}
+            。未读{" "}
+            <span className="font-mono text-foreground">
+              {formatRailCount(isAuthenticated, unreadSummaryPending, unreadCount)}
+            </span>{" "}
+            条。
+          </p>
         </section>
 
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">分类未读</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
+          <div className="mt-3 border-t border-border">
             {notificationCategoryOptions.map((option) => (
-              <InfoRow
+              <div
                 key={option.value}
-                active={category === option.value}
-                label={option.label}
-                value={formatRailCount(
-                  isAuthenticated,
-                  unreadSummaryPending,
-                  categoryCounts[option.value],
+                className={cn(
+                  "flex items-center justify-between gap-4 border-b border-border py-3 text-sm last:border-b-0",
+                  category === option.value ? "text-primary" : "text-muted-foreground",
                 )}
-              />
+              >
+                <span>{option.label}</span>
+                <span className="font-mono text-foreground">
+                  {formatRailCount(
+                    isAuthenticated,
+                    unreadSummaryPending,
+                    categoryCounts[option.value],
+                  )}
+                </span>
+              </div>
             ))}
           </div>
         </section>
 
         <section>
           <h2 className="text-sm font-semibold">继续浏览</h2>
-          <div className="mt-3 flex flex-col border-y border-border">
+          <div className="mt-3 flex flex-col border-t border-border">
             <TextAction href="/" variant="bar">
               回到信息流
             </TextAction>
@@ -543,56 +519,6 @@ function NotificationRail({
   );
 }
 
-function getNotificationCategory(notification: Notification): NotificationCategory {
-  const value = [
-    notification.type,
-    notification.source_type,
-    notification.title,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  if (value.includes("mention") || value.includes("at_") || value.includes("@")) {
-    return "mentions";
-  }
-
-  if (
-    value.includes("like") ||
-    value.includes("upvote") ||
-    value.includes("vote") ||
-    value.includes("reaction") ||
-    value.includes("赞")
-  ) {
-    return "likes";
-  }
-
-  if (
-    value.includes("reply") ||
-    value.includes("comment") ||
-    value.includes("评论") ||
-    value.includes("回复")
-  ) {
-    return "replies";
-  }
-
-  return "system";
-}
-
-function renderCategoryIcon(category: NotificationCategory) {
-  switch (category) {
-    case "replies":
-      return <MessageSquare className="size-4" aria-hidden="true" />;
-    case "mentions":
-      return <AtSign className="size-4" aria-hidden="true" />;
-    case "likes":
-      return <Heart className="size-4" aria-hidden="true" />;
-    case "system":
-      return <Shield className="size-4" aria-hidden="true" />;
-    default:
-      return <Bell className="size-4" aria-hidden="true" />;
-  }
-}
-
 function formatStatus(status: NotificationStatus) {
   switch (status) {
     case "read":
@@ -604,27 +530,12 @@ function formatStatus(status: NotificationStatus) {
   }
 }
 
-function formatCategory(category: NotificationCategory) {
-  switch (category) {
-    case "replies":
-      return "回复";
-    case "mentions":
-      return "@";
-    case "likes":
-      return "赞";
-    case "system":
-      return "系统";
-    default:
-      return "全部";
-  }
-}
-
 function formatEmptyTitle(
   status: NotificationStatus,
   category: NotificationCategory,
 ) {
   if (category !== "all") {
-    return `没有${formatCategory(category)}通知`;
+    return `没有${formatNotificationCategory(category)}通知`;
   }
 
   switch (status) {
@@ -642,47 +553,10 @@ function getEmptyDescription(
   category: NotificationCategory,
 ) {
   if (category !== "all") {
-    return `后端当前没有返回${formatStatus(status)}范围内的${formatCategory(category)}通知。`;
+    return `后端当前没有返回${formatStatus(status)}范围内的${formatNotificationCategory(category)}通知。`;
   }
 
   return "有新的回复、@、赞或系统消息时，会出现在这里。";
-}
-
-function formatNotificationType(type: string) {
-  switch (type) {
-    case "post_reply":
-      return "帖子回复";
-    case "comment_reply":
-      return "评论回复";
-    case "post_like":
-      return "帖子点赞";
-    case "comment_like":
-      return "评论点赞";
-    case "system":
-      return "系统";
-    case "reply":
-      return "回复";
-    case "mention":
-      return "@";
-    case "like":
-    case "reaction":
-      return "赞";
-    case "moderation":
-      return "审核";
-    case "community_application":
-      return "社区申请";
-    default:
-      return type || "通知";
-  }
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }
 
 function isUnauthenticated(error: Error | null) {
@@ -703,24 +577,6 @@ function getErrorDescription(error: Error | null) {
   }
 
   return "请求失败，请稍后重试。";
-}
-
-const emptyUnreadSummary: UnreadSummaryResponse = {
-  likes: 0,
-  mentions: 0,
-  replies: 0,
-  system: 0,
-  total: 0,
-};
-
-function getCategoryCounts(summary: UnreadSummaryResponse) {
-  return {
-    all: summary.total,
-    likes: summary.likes,
-    mentions: summary.mentions,
-    replies: summary.replies,
-    system: summary.system,
-  } satisfies Record<NotificationCategory, number>;
 }
 
 function formatRailCount(
