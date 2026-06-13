@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -16,13 +16,16 @@ import {
   IMAGE_UPLOAD_LIMITS,
   type MediaAttachment,
 } from "@/features/media/types";
+import type { Community } from "@/features/community/types";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 import { publishPost } from "./api";
+import { PostCommunityPicker } from "./post-community-picker";
 import { postQueryKeys } from "./queries";
 
 const postSchema = z.object({
+  communitySlug: z.string().trim().min(1, "请选择社区。"),
   title: z.string().trim().min(1, "请输入标题。"),
   body: z.string().trim().min(1, "请输入正文。"),
 });
@@ -31,10 +34,23 @@ type PostFormValues = z.infer<typeof postSchema>;
 
 type PostFormProps = {
   className?: string;
-  slug: string;
+  communitySlug: string;
+  isSelectedCommunityLoading?: boolean;
+  onCommunitySlugChange: (slug: string) => void;
+  selectedCommunity?: Community | null;
+  selectedCommunityError?: Error | null;
+  suggestedCommunities?: Community[];
 };
 
-export function PostForm({ className, slug }: PostFormProps) {
+export function PostForm({
+  className,
+  communitySlug,
+  isSelectedCommunityLoading = false,
+  onCommunitySlugChange,
+  selectedCommunity = null,
+  selectedCommunityError = null,
+  suggestedCommunities = [],
+}: PostFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [attachments, setAttachments] = useState<MediaAttachment[]>([]);
@@ -42,23 +58,42 @@ export function PostForm({ className, slug }: PostFormProps) {
   const form = useForm<PostFormValues>({
     resolver: zodResolver(postSchema),
     defaultValues: {
+      communitySlug,
       title: "",
       body: "",
     },
   });
+  const communitySlugValue =
+    useWatch({ control: form.control, name: "communitySlug" }) ?? "";
+
+  useEffect(() => {
+    if (communitySlug !== communitySlugValue) {
+      form.setValue("communitySlug", communitySlug, {
+        shouldDirty: false,
+        shouldTouch: false,
+        shouldValidate: false,
+      });
+    }
+  }, [communitySlug, communitySlugValue, form]);
 
   const postMutation = useMutation({
-    mutationFn: (values: PostFormValues) =>
-      publishPost(slug, {
-        ...values,
+    mutationFn: (values: PostFormValues) => {
+      const { communitySlug, ...postInput } = values;
+
+      return publishPost(communitySlug, {
+        ...postInput,
         attachment_ids: getReferencedAttachmentIdsForSubmit(
           values.body,
           attachments,
         ),
-      }),
-    onSuccess: async (result) => {
+      });
+    },
+    onSuccess: async (result, values) => {
       await queryClient.invalidateQueries({
-        queryKey: postQueryKeys.communityPostsPrefix(slug),
+        queryKey: postQueryKeys.communityPostsPrefix(values.communitySlug),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: postQueryKeys.latestPrefix(),
       });
       router.push(`/posts/${result.post.id}`);
     },
@@ -67,8 +102,26 @@ export function PostForm({ className, slug }: PostFormProps) {
   const submitError = getSubmitError(postMutation.error);
   const titleValue = useWatch({ control: form.control, name: "title" }) ?? "";
   const bodyValue = useWatch({ control: form.control, name: "body" }) ?? "";
+  const confirmedSelectedCommunity =
+    selectedCommunity?.slug === communitySlugValue ? selectedCommunity : null;
+  const hasSelectedCommunitySlug = communitySlugValue.trim().length > 0;
+  const isSelectedCommunityMissing =
+    hasSelectedCommunitySlug &&
+    !isSelectedCommunityLoading &&
+    !confirmedSelectedCommunity;
+  const cannotPublishToSelectedCommunity =
+    confirmedSelectedCommunity && !canPublishToCommunity(confirmedSelectedCommunity);
   const titleLength = titleValue.trim().length;
   const bodyLength = bodyValue.trim().length;
+  const isSubmitDisabled =
+    postMutation.isPending ||
+    isUploadingImage ||
+    isSelectedCommunityLoading ||
+    !hasSelectedCommunitySlug ||
+    isSelectedCommunityMissing ||
+    Boolean(cannotPublishToSelectedCommunity) ||
+    titleLength === 0 ||
+    bodyLength === 0;
 
   function setBodyValue(nextValue: string) {
     form.setValue("body", nextValue, {
@@ -78,84 +131,121 @@ export function PostForm({ className, slug }: PostFormProps) {
     });
   }
 
+  function setCommunitySlugValue(nextValue: string) {
+    form.setValue("communitySlug", nextValue, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+    onCommunitySlugChange(nextValue);
+  }
+
   return (
     <form
-      className={cn("space-y-0", className)}
-      onSubmit={form.handleSubmit((values) => postMutation.mutate(values))}
+      className={cn("divide-y divide-border", className)}
+      onSubmit={form.handleSubmit((values) => {
+        if (isSubmitDisabled) {
+          return;
+        }
+
+        postMutation.mutate(values);
+      })}
     >
+      <input type="hidden" {...form.register("communitySlug")} />
+
       {submitError ? (
-        <Alert variant="destructive" className="mb-5">
-          <AlertTitle>发布失败</AlertTitle>
-          <AlertDescription>{submitError}</AlertDescription>
-        </Alert>
+        <div className="px-3 py-3 sm:px-4">
+          <Alert variant="destructive">
+            <AlertTitle>发布失败</AlertTitle>
+            <AlertDescription>{submitError}</AlertDescription>
+          </Alert>
+        </div>
       ) : null}
 
-      <div className="grid gap-4 border-b border-border py-5 md:grid-cols-[160px_minmax(0,1fr)]">
-        <FieldLabel
-          description="一句话说明这条讨论的主题。"
-          htmlFor="title"
-          index="01"
-          title="标题"
+      <div className="space-y-2 px-3 py-3 sm:px-4">
+        <PostCommunityPicker
+          disabled={postMutation.isPending || isUploadingImage}
+          isSelectedCommunityLoading={isSelectedCommunityLoading}
+          onChange={setCommunitySlugValue}
+          selectedCommunity={confirmedSelectedCommunity}
+          suggestedCommunities={suggestedCommunities}
+          value={communitySlugValue}
         />
-        <div className="min-w-0 space-y-2">
-          <Input
-            id="title"
-            autoComplete="off"
-            aria-invalid={Boolean(form.formState.errors.title)}
-            disabled={postMutation.isPending}
-            placeholder="想讨论什么？"
-            className="h-12 border-border bg-background text-base font-semibold"
-            {...form.register("title")}
-          />
-          <FieldMeta
-            count={titleLength}
-            error={form.formState.errors.title?.message}
-            hint="建议 8 到 40 个字，便于别人快速扫读。"
-          />
-        </div>
+        <FieldMeta
+          error={form.formState.errors.communitySlug?.message}
+          hint={getCommunityHint(
+            isSelectedCommunityLoading,
+            selectedCommunityError,
+            confirmedSelectedCommunity,
+            hasSelectedCommunitySlug,
+            isSelectedCommunityMissing,
+            Boolean(cannotPublishToSelectedCommunity),
+          )}
+        />
       </div>
 
-      <div className="grid gap-4 border-b border-border py-5 md:grid-cols-[160px_minmax(0,1fr)]">
-        <FieldLabel
-          description="把背景、问题、观点或需要的帮助写清楚。"
-          htmlFor="body"
-          index="02"
-          title="正文"
+      <div className="space-y-2 px-3 py-3 sm:px-4">
+        <Input
+          id="title"
+          autoComplete="off"
+          aria-invalid={Boolean(form.formState.errors.title)}
+          disabled={postMutation.isPending}
+          placeholder="标题"
+          className="h-12 border-border bg-background-soft text-base font-semibold"
+          {...form.register("title")}
         />
-        <div className="min-w-0 space-y-2">
-          <MarkdownComposerField
-            disabled={postMutation.isPending}
-            maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerPost}
-            onChange={setBodyValue}
-            fieldProps={{
-              "aria-invalid": Boolean(form.formState.errors.body),
-              className: "min-h-72 border-border bg-background text-base leading-7",
-              id: "body",
-              placeholder:
-                "直接写正文；选中文字可设置加粗、引用、代码、列表、表格和涂黑，也可以粘贴图片。",
-            }}
-            value={bodyValue}
-            imageUpload={{
-              attachments,
-              maxCount: IMAGE_UPLOAD_LIMITS.maxCountPerPost,
-              onChange: setAttachments,
-              onUploadingChange: setIsUploadingImage,
-            }}
-          />
-          <FieldMeta
-            count={bodyLength}
-            error={form.formState.errors.body?.message}
-            hint="正文会安全渲染发布；选中文字后用工具栏设置格式，图片会留在正文当前位置。"
-          />
-        </div>
+        <FieldMeta
+          count={titleLength}
+          error={form.formState.errors.title?.message}
+        />
       </div>
 
-      <div className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-muted-foreground">
-          {form.formState.isDirty ? "草稿尚未发布。" : "开始输入后会在这里保留草稿状态。"}
+      <div className="space-y-2 px-3 py-3 sm:px-4">
+        <MarkdownComposerField
+          disabled={postMutation.isPending}
+          maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerPost}
+          onChange={setBodyValue}
+          fieldProps={{
+            "aria-invalid": Boolean(form.formState.errors.body),
+            className:
+              "min-h-80 border-border bg-background-soft text-base leading-7",
+            id: "body",
+            placeholder: "正文",
+          }}
+          value={bodyValue}
+          imageUpload={{
+            attachments,
+            maxCount: IMAGE_UPLOAD_LIMITS.maxCountPerPost,
+            onChange: setAttachments,
+            onUploadingChange: setIsUploadingImage,
+          }}
+        />
+        <FieldMeta
+          count={bodyLength}
+          error={form.formState.errors.body?.message}
+        />
+      </div>
+
+      <div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+        <div className="min-h-5 text-xs text-muted-foreground">
+          {getSubmitStatusText(
+            isSelectedCommunityLoading,
+            confirmedSelectedCommunity,
+            hasSelectedCommunitySlug,
+            titleLength,
+            bodyLength,
+            isUploadingImage,
+            postMutation.isPending,
+          )}
         </div>
-        <Button type="submit" disabled={postMutation.isPending || isUploadingImage}>
-          {isUploadingImage
+        <Button
+          className="h-9 rounded-full px-5"
+          type="submit"
+          disabled={isSubmitDisabled}
+        >
+          {isSelectedCommunityLoading
+            ? "正在确认社区..."
+            : isUploadingImage
             ? "图片上传中..."
             : postMutation.isPending
               ? "正在发布..."
@@ -166,50 +256,76 @@ export function PostForm({ className, slug }: PostFormProps) {
   );
 }
 
-function FieldLabel({
-  description,
-  htmlFor,
-  index,
-  title,
-}: {
-  description: string;
-  htmlFor: string;
-  index: string;
-  title: string;
-}) {
-  return (
-    <div>
-      <label
-        className="flex items-center gap-3 text-sm font-semibold text-foreground"
-        htmlFor={htmlFor}
-      >
-        <span className="font-mono text-xs text-primary">{index}</span>
-        {title}
-      </label>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        {description}
-      </p>
-    </div>
-  );
-}
-
 function FieldMeta({
   count,
   error,
   hint,
 }: {
-  count: number;
+  count?: number;
   error?: string;
-  hint: string;
+  hint?: string | null;
 }) {
+  if (!error && !hint && typeof count !== "number") {
+    return null;
+  }
+
   return (
     <div className="flex flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
-      <p className={error ? "text-destructive" : "text-muted-foreground"}>
-        {error ?? hint}
-      </p>
-      <span className="font-mono text-muted-foreground">{count} 字</span>
+      {error || hint ? (
+        <p className={error ? "text-destructive" : "text-muted-foreground"}>
+          {error ?? hint}
+        </p>
+      ) : (
+        <span aria-hidden="true" />
+      )}
+      {typeof count === "number" ? (
+        <span className="font-mono text-muted-foreground">{count} 字</span>
+      ) : null}
     </div>
   );
+}
+
+function canPublishToCommunity(community: Community) {
+  if (community.status !== "active") {
+    return false;
+  }
+
+  if (community.viewer_permissions) {
+    return community.viewer_permissions.can_post !== false;
+  }
+
+  return true;
+}
+
+function getCommunityHint(
+  isLoading: boolean,
+  error: Error | null,
+  selectedCommunity: Community | null,
+  hasSelectedSlug: boolean,
+  isSelectedCommunityMissing: boolean,
+  cannotPublishToSelectedCommunity: boolean,
+) {
+  if (isLoading) {
+    return "正在确认社区。";
+  }
+
+  if (!hasSelectedSlug) {
+    return "选择社区后可发布。";
+  }
+
+  if (error || isSelectedCommunityMissing) {
+    return "没有找到这个社区，或当前账号无法读取它。";
+  }
+
+  if (cannotPublishToSelectedCommunity) {
+    return "当前账号不能在这个社区发帖。";
+  }
+
+  if (selectedCommunity) {
+    return null;
+  }
+
+  return null;
 }
 
 function getSubmitError(error: Error | null) {
@@ -222,4 +338,40 @@ function getSubmitError(error: Error | null) {
   }
 
   return "请求失败，请稍后重试。";
+}
+
+function getSubmitStatusText(
+  isCommunityLoading: boolean,
+  selectedCommunity: Community | null,
+  hasSelectedSlug: boolean,
+  titleLength: number,
+  bodyLength: number,
+  isUploadingImage: boolean,
+  isSubmitting: boolean,
+) {
+  if (isSubmitting) {
+    return "正在发布帖子。";
+  }
+
+  if (isUploadingImage) {
+    return "图片上传完成后可发布。";
+  }
+
+  if (isCommunityLoading) {
+    return "正在确认社区权限。";
+  }
+
+  if (selectedCommunity) {
+    if (titleLength === 0 || bodyLength === 0) {
+      return "填写标题和正文后可发布。";
+    }
+
+    return `将发布到 /${selectedCommunity.slug}。`;
+  }
+
+  if (hasSelectedSlug) {
+    return "正在等待社区确认。";
+  }
+
+  return "选择社区后可发布。";
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
@@ -31,6 +31,10 @@ type CommentFormValues = z.infer<typeof commentSchema>;
 
 type CommentFormProps = {
   compact?: boolean;
+  defaultExpanded?: boolean;
+  docked?: boolean;
+  focusSignal?: number;
+  onExpandedChange?: (isExpanded: boolean) => void;
   onSubmitted?: () => void;
   parentId?: string | null;
   postId: string;
@@ -40,6 +44,10 @@ type CommentFormProps = {
 
 export function CommentForm({
   compact = false,
+  defaultExpanded,
+  docked = false,
+  focusSignal,
+  onExpandedChange,
   onSubmitted,
   parentId = null,
   postId,
@@ -50,7 +58,10 @@ export function CommentForm({
   const { isReady, token } = useAuthSession();
   const queryClient = useQueryClient();
   const [attachments, setAttachments] = useState<MediaAttachment[]>([]);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? compact);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [editorFocusKey, setEditorFocusKey] = useState(0);
+  const lastFocusSignalRef = useRef(focusSignal);
   const form = useForm<CommentFormValues>({
     resolver: zodResolver(commentSchema),
     defaultValues: {
@@ -71,6 +82,9 @@ export function CommentForm({
     onSuccess: async () => {
       form.reset();
       setAttachments([]);
+      if (!compact) {
+        setIsExpanded(false);
+      }
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: commentQueryKeys.postCommentsPrefix(postId),
@@ -88,6 +102,38 @@ export function CommentForm({
   const loginHref = `/login?next=${encodeURIComponent(next)}`;
   const registerHref = `/register?next=${encodeURIComponent(next)}`;
   const bodyValue = useWatch({ control: form.control, name: "body" }) ?? "";
+  const hasDraft = bodyValue.trim().length > 0 || attachments.length > 0;
+
+  useEffect(() => {
+    if (
+      focusSignal === undefined ||
+      focusSignal === lastFocusSignalRef.current ||
+      !token
+    ) {
+      return;
+    }
+
+    lastFocusSignalRef.current = focusSignal;
+    setIsExpanded(true);
+    setEditorFocusKey((value) => value + 1);
+  }, [focusSignal, token]);
+
+  useEffect(() => {
+    onExpandedChange?.(isExpanded);
+  }, [isExpanded, onExpandedChange]);
+
+  function expandComposer() {
+    setIsExpanded(true);
+    setEditorFocusKey((value) => value + 1);
+  }
+
+  function collapseComposer() {
+    if (commentMutation.isPending || isUploadingImage) {
+      return;
+    }
+
+    setIsExpanded(false);
+  }
 
   function setBodyValue(nextValue: string) {
     form.setValue("body", nextValue, {
@@ -101,7 +147,7 @@ export function CommentForm({
     return (
       <div
         className={
-          compact
+          compact || docked
             ? "border-l border-border pl-4 text-sm text-muted-foreground"
             : "border-y border-border py-4 text-sm text-muted-foreground"
         }
@@ -113,6 +159,19 @@ export function CommentForm({
   }
 
   if (!token) {
+    if (docked && !compact) {
+      return (
+        <section className="flex min-h-11 w-full items-center justify-between gap-3 border border-border bg-background-soft/80 px-3 py-2">
+          <span className="min-w-0 truncate text-sm text-muted-foreground">
+            登录后发表评论
+          </span>
+          <TextAction href={loginHref} tone="primary" className="h-9 shrink-0">
+            去登录
+          </TextAction>
+        </section>
+      );
+    }
+
     return (
       <section
         className={
@@ -143,11 +202,48 @@ export function CommentForm({
     );
   }
 
+  if (!compact && !isExpanded) {
+    return (
+      <button
+        type="button"
+        className="flex min-h-11 w-full max-w-3xl items-center justify-between gap-3 border border-border bg-background-soft/50 px-3 py-2 text-left text-sm transition-colors hover:border-primary/60 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        aria-label="展开评论输入框"
+        onClick={expandComposer}
+      >
+        <span className="min-w-0 truncate text-muted-foreground">
+          {hasDraft ? "继续编辑评论草稿" : (placeholder ?? "写下你的评论")}
+        </span>
+      </button>
+    );
+  }
+
   return (
     <form
-      className={compact ? "space-y-3 border-l border-border pl-4" : "space-y-3"}
+      className={
+        compact
+          ? "space-y-3 border-l border-border pl-4"
+          : docked
+            ? "w-full space-y-3"
+            : "max-w-3xl space-y-3"
+      }
       onSubmit={form.handleSubmit((values) => commentMutation.mutate(values))}
     >
+      {!compact ? (
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <span className="truncate text-sm font-semibold text-muted-foreground">
+            {docked ? "底部评论窗" : "评论输入"}
+          </span>
+          <button
+            type="button"
+            className="inline-flex h-8 shrink-0 items-center px-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={commentMutation.isPending || isUploadingImage}
+            onClick={collapseComposer}
+          >
+            收起
+          </button>
+        </div>
+      ) : null}
+
       {submitError ? (
         <Alert variant="destructive">
           <AlertTitle>评论发布失败</AlertTitle>
@@ -157,13 +253,18 @@ export function CommentForm({
 
       <div className="space-y-2">
         <MarkdownComposerField
+          autoFocusKey={editorFocusKey}
           disabled={commentMutation.isPending}
           maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerComment}
           onChange={setBodyValue}
           fieldProps={{
             "aria-label": "评论内容",
             "aria-invalid": Boolean(form.formState.errors.body),
-            className: compact ? "min-h-28" : undefined,
+            className: compact
+              ? "min-h-28"
+              : docked
+                ? "max-h-[34vh] min-h-24 overflow-y-auto sm:min-h-28"
+                : "min-h-28 sm:min-h-32",
             placeholder:
               placeholder ?? (parentId ? "回复这条评论" : "写下你的评论"),
           }}

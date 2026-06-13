@@ -962,7 +962,7 @@ function checkComposerImageCopy() {
     !composer.content.includes("onDragOver={handleComposerDragOver}") ||
     !composer.content.includes("getImageFilesFromDataTransfer") ||
     !composer.content.includes("hasImageFileData") ||
-    !composer.content.includes('await uploadInlineImageFiles(imageFiles, { insertion: "cursor" })') ||
+    !composer.content.includes("await uploadInlineImageFiles(imageFiles)") ||
     !composer.content.includes("const clipboardData = event.clipboardData") ||
     !composer.content.includes("event.dataTransfer") ||
     !composer.content.includes("extractDataImageSourcesFromClipboardHtml") ||
@@ -976,10 +976,12 @@ function checkComposerImageCopy() {
     !composer.content.includes("uploadInlineDataImageTextPaste") ||
     !composer.content.includes("replaceClipboardDataImagePlaceholders") ||
     !composer.content.includes("insertMarkdownIntoEditor") ||
+    !composer.content.includes("insertUploadedAttachmentsIntoValue") ||
+    !composer.content.includes("appendMarkdownBlock") ||
     !composer.content.includes("setTextSelection(insertPosition)") ||
     !composer.content.includes('insertContent(markdown, { contentType: "markdown" })') ||
     !composer.content.includes("clampEditorInsertionPosition") ||
-    !composer.content.includes("void uploadInlineImageFiles(imageFiles, { insertion })") ||
+    !composer.content.includes("void uploadInlineImageFiles(imageFiles)") ||
     !composer.content.includes('typeof insertion === "number"')
   ) {
     addFail(
@@ -1013,12 +1015,16 @@ function checkComposerImageCopy() {
   if (
     !composer.content.includes("AttachmentImageEditorView") ||
     !composer.content.includes("AttachmentGalleryNode") ||
-    !composer.content.includes('markdownTokenName: "image"') ||
+    !composer.content.includes('helpers.createNode("attachmentGallery"') ||
     !composer.content.includes("ATTACHMENT_GALLERY_MARKDOWN_URL_PREFIX") ||
     !composer.content.includes("multiple={imageUpload.maxCount > 1}") ||
-    !composer.content.includes("insertUploadedAttachmentsIntoEditor") ||
-    !composer.content.includes("insertAttachmentGalleryIntoEditor") ||
-    !composer.content.includes('type: "attachmentGallery"') ||
+    !composer.content.includes("createAttachmentGalleryMarkdown") ||
+    !composer.content.includes("insertUploadedAttachmentsIntoValue") ||
+    !composer.content.includes("appendMarkdownBlock") ||
+    !composer.content.includes("mergeAdjacentAttachmentMedia") ||
+    !composer.content.includes("splitAttachmentGalleryMedia") ||
+    !composer.content.includes("合并为轮播") ||
+    !composer.content.includes("拆分为单图") ||
     !composer.content.includes("ReactNodeViewRenderer(AttachmentImageEditorView)") ||
     !composer.content.includes("ReactNodeViewRenderer(AttachmentGalleryEditorView)") ||
     !composer.content.includes("<ContentImageGallery") ||
@@ -1027,7 +1033,7 @@ function checkComposerImageCopy() {
   ) {
     addFail(
       "composer image gallery insertion",
-      "MarkdownComposerField must let multi-image file selection become one visible nexus-gallery block that roundtrips through Markdown",
+      "MarkdownComposerField must let multi-image file selection become one visible nexus-gallery block and let adjacent images be explicitly merged or split",
     );
     return;
   }
@@ -1263,10 +1269,11 @@ function checkComposerReferencedImageLimit() {
     }
 
     if (
-      !composer.content.includes("getReferencedUploadedAttachments(value).length < imageUpload.maxCount")
+      !composer.content.includes("getReferencedUploadedAttachments(normalizedValue).length <") ||
+      !composer.content.includes("imageUpload.maxCount")
     ) {
       problems.push(
-        "MarkdownComposerField must keep the add-image button tied to images still referenced by the editor body",
+        "MarkdownComposerField must keep the add-image button tied to images still referenced by the normalized editor body",
       );
     }
   }

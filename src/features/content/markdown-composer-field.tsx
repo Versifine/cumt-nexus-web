@@ -18,6 +18,7 @@ import {
 import Image, { type ImageOptions } from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import { Fragment, type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Table } from "@tiptap/extension-table";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
@@ -37,6 +38,7 @@ import {
   Code,
   CodeXml,
   EyeOff,
+  GalleryHorizontal,
   Heading2,
   ImagePlus,
   ImageOff,
@@ -48,6 +50,7 @@ import {
   Quote,
   Strikethrough,
   Table as TableIcon,
+  Ungroup,
 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -64,6 +67,7 @@ import {
 import {
   ATTACHMENT_MARKDOWN_URL_PREFIX,
   ATTACHMENT_GALLERY_MARKDOWN_URL_PREFIX,
+  createAttachmentGalleryMarkdown,
   createAttachmentMarkdown,
   getAttachmentIdFromMarkdownUrl,
   getGalleryAttachmentIdsFromMarkdownUrl,
@@ -85,6 +89,7 @@ import { IMAGE_UPLOAD_ACCEPT } from "@/features/media/types";
 import { cn } from "@/lib/utils";
 
 type MarkdownComposerFieldProps = {
+  autoFocusKey?: number;
   boundAttachments?: MediaAttachment[];
   className?: string;
   disabled?: boolean;
@@ -191,9 +196,14 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
 
   parseMarkdown(token, helpers) {
     const src = token.href;
+    const galleryAttachmentIds = getGalleryAttachmentIdsFromMarkdownUrl(src);
 
-    if (getGalleryAttachmentIdsFromMarkdownUrl(src).length > 0) {
-      return [];
+    if (galleryAttachmentIds.length > 0) {
+      return helpers.createNode("attachmentGallery", {
+        attachmentIds: galleryAttachmentIds,
+        attachmentSnapshots: [],
+        caption: token.text || "图片轮播",
+      });
     }
 
     const attachmentId = getAttachmentIdFromMarkdownUrl(src);
@@ -258,7 +268,15 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
   },
 
   renderMarkdown(node) {
-    const src = node.attrs?.src ?? "";
+    const attachmentId =
+      typeof node.attrs?.attachmentId === "string"
+        ? node.attrs.attachmentId
+        : getAttachmentIdFromMarkdownUrl(node.attrs?.src);
+    const src = attachmentId
+      ? `${ATTACHMENT_MARKDOWN_URL_PREFIX}${encodeAttachmentIdForMarkdown(
+          attachmentId,
+        )}`
+      : node.attrs?.src ?? "";
     const alt = node.attrs?.alt ?? "";
     const title = node.attrs?.title ?? "";
 
@@ -268,7 +286,6 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
 
 const AttachmentGalleryNode = TiptapNode.create<AttachmentGalleryOptions>({
   name: "attachmentGallery",
-  markdownTokenName: "image",
 
   atom: true,
   group: "block",
@@ -284,6 +301,10 @@ const AttachmentGalleryNode = TiptapNode.create<AttachmentGalleryOptions>({
     return {
       attachmentIds: {
         default: [],
+      },
+      attachmentSnapshots: {
+        default: [],
+        rendered: false,
       },
       caption: {
         default: "图片轮播",
@@ -344,6 +365,7 @@ const AttachmentGalleryNode = TiptapNode.create<AttachmentGalleryOptions>({
 
     return helpers.createNode("attachmentGallery", {
       attachmentIds,
+      attachmentSnapshots: [],
       caption: token.text || "图片轮播",
     });
   },
@@ -440,7 +462,9 @@ const MediaEmbedNode = TiptapNode.create({
 });
 
 function AttachmentImageEditorView({
+  editor,
   extension,
+  getPos,
   node,
   selected,
 }: ReactNodeViewProps) {
@@ -457,12 +481,18 @@ function AttachmentImageEditorView({
     typeof node.attrs.alt === "string" && node.attrs.alt.trim()
       ? node.attrs.alt.trim()
       : attachment?.alt_text.trim() || "内容图片";
+  const position = getNodeViewPosition(getPos);
+  const canMergeAdjacent =
+    editor.isEditable &&
+    attachmentId !== null &&
+    position !== null &&
+    canMergeAdjacentAttachmentMedia(editor, position);
 
   return (
     <NodeViewWrapper
       as="div"
       className={cn(
-        "my-4 block outline-offset-2",
+        "group/media-node my-4 block outline-offset-2",
         selected && "outline outline-1 outline-primary",
       )}
       contentEditable={false}
@@ -483,12 +513,24 @@ function AttachmentImageEditorView({
           图片附件不存在、尚未随内容返回或当前不可显示。
         </span>
       )}
+      {canMergeAdjacent && position !== null ? (
+        <AttachmentEditorActionBar>
+          <AttachmentEditorActionButton
+            icon={<GalleryHorizontal aria-hidden="true" />}
+            onClick={() => mergeAdjacentAttachmentMedia(editor, position)}
+          >
+            合并为轮播
+          </AttachmentEditorActionButton>
+        </AttachmentEditorActionBar>
+      ) : null}
     </NodeViewWrapper>
   );
 }
 
 function AttachmentGalleryEditorView({
+  editor,
   extension,
+  getPos,
   node,
   selected,
 }: ReactNodeViewProps) {
@@ -498,15 +540,24 @@ function AttachmentGalleryEditorView({
       ? node.attrs.caption.trim()
       : "图片轮播";
   const options = extension.options as AttachmentGalleryOptions;
+  const attachmentSnapshots = normalizeAttachmentSnapshots(
+    node.attrs.attachmentSnapshots,
+  );
+  const attachmentSnapshotById = new Map(
+    attachmentSnapshots.map((attachment) => [attachment.id, attachment] as const),
+  );
   const attachments = attachmentIds
-    .map((id) => options.getAttachmentById(id))
+    .map((id) => options.getAttachmentById(id) ?? attachmentSnapshotById.get(id))
     .filter(isVisibleImageAttachmentForEditor);
+  const position = getNodeViewPosition(getPos);
+  const canSplitGallery =
+    editor.isEditable && attachmentIds.length > 1 && position !== null;
 
   return (
     <NodeViewWrapper
       as="div"
       className={cn(
-        "my-4 block outline-offset-2",
+        "group/media-node my-4 block outline-offset-2",
         selected && "outline outline-1 outline-primary",
       )}
       contentEditable={false}
@@ -525,7 +576,54 @@ function AttachmentGalleryEditorView({
           图片轮播里的附件不存在或尚未随内容返回。
         </span>
       )}
+      {canSplitGallery && position !== null ? (
+        <AttachmentEditorActionBar>
+          <AttachmentEditorActionButton
+            icon={<Ungroup aria-hidden="true" />}
+            onClick={() =>
+              splitAttachmentGalleryMedia(
+                editor,
+                position,
+                options.getAttachmentById,
+              )
+            }
+          >
+            拆分为单图
+          </AttachmentEditorActionButton>
+        </AttachmentEditorActionBar>
+      ) : null}
     </NodeViewWrapper>
+  );
+}
+
+function AttachmentEditorActionBar({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+      {children}
+    </div>
+  );
+}
+
+function AttachmentEditorActionButton({
+  children,
+  icon,
+  onClick,
+}: {
+  children: ReactNode;
+  icon: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="inline-flex h-8 items-center gap-1.5 border border-border bg-background-soft px-2 font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      contentEditable={false}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+    >
+      <span className="[&_svg]:size-3.5">{icon}</span>
+      <span>{children}</span>
+    </button>
   );
 }
 
@@ -546,6 +644,7 @@ const emptyToolbarState = {
 const minimumInlineImageUploadNoticeMs = 650;
 
 export function MarkdownComposerField({
+  autoFocusKey,
   boundAttachments,
   className,
   disabled = false,
@@ -555,6 +654,7 @@ export function MarkdownComposerField({
   onChange,
   value,
 }: MarkdownComposerFieldProps) {
+  const attachmentUrlToIdRef = useRef<Map<string, string>>(new Map());
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
   const editorRef = useRef<Editor | null>(null);
   const latestValueRef = useRef(value);
@@ -577,7 +677,18 @@ export function MarkdownComposerField({
       ),
     [previewAttachments],
   );
-  const referencedAttachmentIds = getReferencedAttachmentIds(value);
+  const attachmentUrlToId = useMemo(
+    () => createAttachmentUrlToIdMap(previewAttachments),
+    [previewAttachments],
+  );
+  const normalizedValue = useMemo(
+    () =>
+      normalizeEditorMarkdown(
+        rewriteAttachmentImageUrlsToMarkdown(value, attachmentUrlToId),
+      ),
+    [attachmentUrlToId, value],
+  );
+  const referencedAttachmentIds = getReferencedAttachmentIds(normalizedValue);
   const maxReferencedImageAttachments =
     maxReferencedAttachments ?? imageUpload?.maxCount;
   const hasUnreferencedUploadedImages = (imageUpload?.attachments ?? []).some(
@@ -591,14 +702,27 @@ export function MarkdownComposerField({
   const unreferencedBoundImageNotice =
     "已从正文删除的历史图片不会随本次保存继续绑定；如果只是想调整位置，请重新插入或撤销后再保存。";
   const hasUnsupportedMarkdownImages =
-    hasUnsupportedMarkdownImageReferences(value);
+    hasUnsupportedMarkdownImageReferences(normalizedValue);
   const unsupportedMarkdownImageNotice =
     "外部图片不会作为正文图片保存；请用“添加图片”或粘贴、拖拽图片文件上传到正文当前位置。";
   const isEditorDisabled = disabled || Boolean(fieldProps?.disabled);
 
   useEffect(() => {
-    latestValueRef.current = value;
-  }, [value]);
+    latestValueRef.current = normalizedValue;
+  }, [normalizedValue]);
+
+  useEffect(() => {
+    attachmentUrlToIdRef.current = attachmentUrlToId;
+  }, [attachmentUrlToId]);
+
+  useEffect(() => {
+    if (normalizedValue === value) {
+      return;
+    }
+
+    latestValueRef.current = normalizedValue;
+    onChange(normalizedValue);
+  }, [normalizedValue, onChange, value]);
 
   useEffect(
     () => () => {
@@ -672,7 +796,7 @@ export function MarkdownComposerField({
 
   const editor = useEditor(
     {
-      content: value,
+      content: normalizedValue,
       contentType: "markdown",
       editable: !isEditorDisabled,
       extensions: editorExtensions,
@@ -718,7 +842,12 @@ export function MarkdownComposerField({
       onUpdate: ({ editor: updatedEditor }) => {
         scheduleMediaEmbedSync(updatedEditor);
 
-        const nextMarkdown = normalizeEditorMarkdown(updatedEditor.getMarkdown());
+        const nextMarkdown = normalizeEditorMarkdown(
+          rewriteAttachmentImageUrlsToMarkdown(
+            updatedEditor.getMarkdown(),
+            attachmentUrlToIdRef.current,
+          ),
+        );
 
         if (nextMarkdown !== latestValueRef.current) {
           latestValueRef.current = nextMarkdown;
@@ -732,6 +861,20 @@ export function MarkdownComposerField({
   useEffect(() => {
     editorRef.current = editor;
   }, [editor]);
+
+  useEffect(() => {
+    if (!autoFocusKey || !editor || isEditorDisabled) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      if (!editor.isDestroyed) {
+        editor.commands.focus("end");
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [autoFocusKey, editor, isEditorDisabled]);
 
   const toolbarState =
     useEditorState({
@@ -761,7 +904,7 @@ export function MarkdownComposerField({
 
   useEffect(() => {
     const currentEditor = editor;
-    const nextMarkdown = normalizeEditorMarkdown(value);
+    const nextMarkdown = normalizedValue;
 
     if (
       !currentEditor ||
@@ -772,7 +915,12 @@ export function MarkdownComposerField({
       return;
     }
 
-    const currentMarkdown = normalizeEditorMarkdown(currentEditor.getMarkdown());
+    const currentMarkdown = normalizeEditorMarkdown(
+      rewriteAttachmentImageUrlsToMarkdown(
+        currentEditor.getMarkdown(),
+        attachmentUrlToIdRef.current,
+      ),
+    );
 
     if (currentMarkdown !== nextMarkdown) {
       latestValueRef.current = nextMarkdown;
@@ -782,7 +930,7 @@ export function MarkdownComposerField({
       });
       scheduleMediaEmbedSync(currentEditor);
     }
-  }, [editor, scheduleMediaEmbedSync, value]);
+  }, [editor, normalizedValue, scheduleMediaEmbedSync]);
 
   function setBodyValue(nextValue: string) {
     latestValueRef.current = nextValue;
@@ -844,7 +992,7 @@ export function MarkdownComposerField({
       return;
     }
 
-    await uploadInlineImageFiles(imageFiles, { insertion: "cursor" });
+    await uploadInlineImageFiles(imageFiles);
   }
 
   function handleInlineImagePaste(
@@ -913,7 +1061,7 @@ export function MarkdownComposerField({
       return true;
     }
 
-    void uploadInlineImageFiles(imageFiles, { insertion });
+    void uploadInlineImageFiles(imageFiles);
     return true;
   }
 
@@ -932,9 +1080,7 @@ export function MarkdownComposerField({
       return;
     }
 
-    await uploadInlineImageFiles(imageFiles, {
-      insertion: "cursor",
-    });
+    await uploadInlineImageFiles(imageFiles);
   }
 
   async function uploadInlineDataImageTextPaste(
@@ -1014,7 +1160,6 @@ export function MarkdownComposerField({
         });
 
         nextAttachments = [...nextAttachments, result.attachment];
-        imageUpload.onChange(nextAttachments);
         markdownByPlaceholder.set(
           getClipboardDataImagePlaceholder(index),
           createAttachmentMarkdown(result.attachment),
@@ -1026,6 +1171,7 @@ export function MarkdownComposerField({
         markdownByPlaceholder,
       );
 
+      syncImageUploadAttachments(nextAttachments);
       insertMarkdownIntoEditor(pastedMarkdown, options.insertion ?? "cursor");
     } catch (error) {
       setImageUploadError(getUploadError(error));
@@ -1036,10 +1182,7 @@ export function MarkdownComposerField({
     }
   }
 
-  async function uploadInlineImageFiles(
-    imageFiles: File[],
-    options: { insertion?: InlineImageInsertion } = {},
-  ) {
+  async function uploadInlineImageFiles(imageFiles: File[]) {
     if (!imageUpload) {
       return;
     }
@@ -1099,14 +1242,10 @@ export function MarkdownComposerField({
 
         nextAttachments = [...nextAttachments, result.attachment];
         uploadedAttachments.push(result.attachment);
-        imageUpload.onChange(nextAttachments);
       }
 
-      insertUploadedAttachmentsIntoEditor(
-        editorRef.current,
-        uploadedAttachments,
-        options.insertion ?? "cursor",
-      );
+      syncImageUploadAttachments(nextAttachments);
+      insertUploadedAttachmentsIntoValue(uploadedAttachments);
     } catch (error) {
       setImageUploadError(getUploadError(error));
     } finally {
@@ -1117,7 +1256,41 @@ export function MarkdownComposerField({
   }
 
   function getCurrentMarkdown() {
-    return normalizeEditorMarkdown(editorRef.current?.getMarkdown() ?? value);
+    return normalizeEditorMarkdown(
+      rewriteAttachmentImageUrlsToMarkdown(
+        editorRef.current?.getMarkdown() ?? normalizedValue,
+        attachmentUrlToIdRef.current,
+      ),
+    );
+  }
+
+  function syncImageUploadAttachments(nextAttachments: MediaAttachment[]) {
+    if (!imageUpload) {
+      return;
+    }
+
+    const nextPreviewAttachments = dedupeAttachments([
+      ...(boundAttachments ?? []),
+      ...nextAttachments,
+    ]);
+
+    attachmentUrlToIdRef.current = createAttachmentUrlToIdMap(
+      nextPreviewAttachments,
+    );
+    imageUpload.onChange(nextAttachments);
+  }
+
+  function insertUploadedAttachmentsIntoValue(attachments: MediaAttachment[]) {
+    if (attachments.length === 0) {
+      return;
+    }
+
+    const markdown =
+      attachments.length === 1
+        ? createAttachmentMarkdown(attachments[0])
+        : createAttachmentGalleryMarkdown(attachments);
+
+    setBodyValue(appendMarkdownBlock(getCurrentMarkdown(), markdown));
   }
 
   function insertMarkdownIntoEditor(
@@ -1127,7 +1300,7 @@ export function MarkdownComposerField({
     const currentEditor = editorRef.current;
 
     if (!currentEditor) {
-      setBodyValue(`${value}${markdown}`);
+      setBodyValue(`${normalizedValue}${markdown}`);
       return;
     }
 
@@ -1162,8 +1335,9 @@ export function MarkdownComposerField({
     const canAddImage =
       !isEditorDisabled &&
       !isUploadingInlineImage &&
-      getReferencedUploadedAttachments(value).length < imageUpload.maxCount &&
-      getRemainingReferenceSlots(value) > 0;
+      getReferencedUploadedAttachments(normalizedValue).length <
+        imageUpload.maxCount &&
+      getRemainingReferenceSlots(normalizedValue) > 0;
 
     return (
       <>
@@ -1205,7 +1379,7 @@ export function MarkdownComposerField({
           renderImageTool={renderImageTool}
           state={toolbarState}
         />
-        <div className="min-w-0 max-w-full overflow-x-auto border-t border-border">
+        <div className="min-w-0 max-w-full overflow-x-auto border-t border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <EditorContent editor={editor} />
         </div>
       </section>
@@ -1387,7 +1561,7 @@ function RichMarkdownToolbar({
   return (
     <div
       role="toolbar"
-      className="min-w-0 max-w-full overflow-x-auto bg-background-soft [scrollbar-width:thin]"
+      className="min-w-0 max-w-full overflow-x-auto bg-background-soft [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       aria-label="正文格式工具栏"
     >
       <div className="flex min-w-max items-center gap-1 p-1">
@@ -1488,6 +1662,294 @@ function dedupeAttachments(attachments: MediaAttachment[]) {
   return [...attachmentById.values()];
 }
 
+function createAttachmentUrlToIdMap(attachments: MediaAttachment[]) {
+  const urlToId = new Map<string, string>();
+
+  for (const attachment of attachments) {
+    for (const url of [
+      attachment.url,
+      attachment.thumbnail_url,
+      attachment.medium_url,
+      attachment.original_url,
+    ]) {
+      for (const key of getAttachmentUrlLookupKeys(url)) {
+        urlToId.set(key, attachment.id);
+      }
+    }
+  }
+
+  return urlToId;
+}
+
+function getAttachmentUrlLookupKeys(value?: string | null) {
+  if (!value) {
+    return [];
+  }
+
+  const keys = new Set<string>();
+  addAttachmentUrlLookupKey(keys, value);
+  addAttachmentUrlLookupKey(keys, safelyDecodeUri(value));
+
+  for (const key of [...keys]) {
+    addParsedAttachmentUrlLookupKeys(keys, key);
+  }
+
+  return [...keys];
+}
+
+function addAttachmentUrlLookupKey(keys: Set<string>, value: string) {
+  const normalized = normalizeMarkdownHref(value);
+
+  if (normalized) {
+    keys.add(normalized);
+  }
+}
+
+function addParsedAttachmentUrlLookupKeys(keys: Set<string>, value: string) {
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(value);
+  } catch {
+    return;
+  }
+
+  const pathWithQuery = `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+
+  addAttachmentUrlLookupKey(keys, parsedUrl.href);
+  addAttachmentUrlLookupKey(keys, pathWithQuery);
+  addAttachmentUrlLookupKey(keys, safelyDecodeUri(parsedUrl.href));
+  addAttachmentUrlLookupKey(keys, safelyDecodeUri(pathWithQuery));
+}
+
+function safelyDecodeUri(value: string) {
+  try {
+    return decodeURI(value);
+  } catch {
+    return value;
+  }
+}
+
+function rewriteAttachmentImageUrlsToMarkdown(
+  markdown: string,
+  attachmentUrlToId: Map<string, string>,
+) {
+  if (attachmentUrlToId.size === 0) {
+    return markdown;
+  }
+
+  return markdown.replace(
+    /!\[((?:\\.|[^\]\\])*)\]\(\s*([^\s)]+)((?:\s+(?:"[^"]*"|'[^']*'|[^\s)]+))?\s*)\)/g,
+    (match, alt: string, src: string, suffix: string) => {
+      const attachmentId = getAttachmentIdByImageSource(
+        src,
+        attachmentUrlToId,
+      );
+
+      if (!attachmentId) {
+        return match;
+      }
+
+      return `![${alt}](${ATTACHMENT_MARKDOWN_URL_PREFIX}${encodeAttachmentIdForMarkdown(
+        attachmentId,
+      )}${suffix})`;
+    },
+  );
+}
+
+function getAttachmentIdByImageSource(
+  src: string,
+  attachmentUrlToId: Map<string, string>,
+) {
+  for (const key of getAttachmentUrlLookupKeys(src)) {
+    const attachmentId = attachmentUrlToId.get(key);
+
+    if (attachmentId) {
+      return attachmentId;
+    }
+  }
+
+  return null;
+}
+
+type AttachmentMediaItem = {
+  from: number;
+  ids: string[];
+  node: ProseMirrorNode;
+  to: number;
+};
+
+function getNodeViewPosition(getPos: ReactNodeViewProps["getPos"]) {
+  if (typeof getPos !== "function") {
+    return null;
+  }
+
+  try {
+    const position = getPos();
+
+    return typeof position === "number" ? position : null;
+  } catch {
+    return null;
+  }
+}
+
+function canMergeAdjacentAttachmentMedia(editor: Editor, position: number) {
+  const run = getAttachmentMediaRunAtPosition(editor, position);
+
+  return Boolean(run && run.items.length > 1 && run.ids.length > 1);
+}
+
+function mergeAdjacentAttachmentMedia(editor: Editor, position: number) {
+  const run = getAttachmentMediaRunAtPosition(editor, position);
+  const galleryType = editor.state.schema.nodes.attachmentGallery;
+
+  if (!run || !galleryType || run.items.length < 2 || run.ids.length < 2) {
+    return;
+  }
+
+  editor.view.dispatch(
+    editor.state.tr
+      .replaceWith(
+        run.from,
+        run.to,
+        galleryType.create({
+          attachmentIds: run.ids,
+          attachmentSnapshots: [],
+          caption: "图片轮播",
+        }),
+      )
+      .scrollIntoView(),
+  );
+}
+
+function splitAttachmentGalleryMedia(
+  editor: Editor,
+  position: number,
+  getAttachmentById: (id: string) => MediaAttachment | null,
+) {
+  const item = getAttachmentMediaItemAtPosition(editor, position);
+  const imageType = editor.state.schema.nodes.image;
+
+  if (!item || item.node.type.name !== "attachmentGallery" || !imageType) {
+    return;
+  }
+
+  const attachmentIds = dedupeStrings(
+    normalizeAttachmentIds(item.node.attrs.attachmentIds),
+  );
+
+  if (attachmentIds.length < 2) {
+    return;
+  }
+
+  const imageNodes = attachmentIds.map((attachmentId) => {
+    const attachment = getAttachmentById(attachmentId);
+
+    return imageType.create({
+      alt: attachment?.alt_text.trim() || "图片附件",
+      attachmentId,
+      displaySrc: null,
+      src: `${ATTACHMENT_MARKDOWN_URL_PREFIX}${encodeAttachmentIdForMarkdown(
+        attachmentId,
+      )}`,
+    });
+  });
+
+  editor.view.dispatch(
+    editor.state.tr
+      .replaceWith(item.from, item.to, Fragment.fromArray(imageNodes))
+      .scrollIntoView(),
+  );
+}
+
+function getAttachmentMediaRunAtPosition(editor: Editor, position: number) {
+  const items = getTopLevelAttachmentMediaItems(editor);
+  const currentIndex = items.findIndex(
+    (item) => position >= item.from && position < item.to,
+  );
+
+  if (currentIndex < 0) {
+    return null;
+  }
+
+  let firstIndex = currentIndex;
+  let lastIndex = currentIndex;
+
+  while (
+    firstIndex > 0 &&
+    items[firstIndex - 1]?.to === items[firstIndex]?.from
+  ) {
+    firstIndex -= 1;
+  }
+
+  while (
+    lastIndex < items.length - 1 &&
+    items[lastIndex]?.to === items[lastIndex + 1]?.from
+  ) {
+    lastIndex += 1;
+  }
+
+  const runItems = items.slice(firstIndex, lastIndex + 1);
+
+  return {
+    from: runItems[0].from,
+    ids: dedupeStrings(runItems.flatMap((item) => item.ids)),
+    items: runItems,
+    to: runItems[runItems.length - 1].to,
+  };
+}
+
+function getAttachmentMediaItemAtPosition(editor: Editor, position: number) {
+  return (
+    getTopLevelAttachmentMediaItems(editor).find(
+      (item) => position >= item.from && position < item.to,
+    ) ?? null
+  );
+}
+
+function getTopLevelAttachmentMediaItems(editor: Editor) {
+  const items: AttachmentMediaItem[] = [];
+
+  editor.state.doc.forEach((node, offset) => {
+    const ids = getAttachmentIdsFromEditorNode(node);
+
+    if (ids.length === 0) {
+      return;
+    }
+
+    items.push({
+      from: offset,
+      ids,
+      node,
+      to: offset + node.nodeSize,
+    });
+  });
+
+  return items;
+}
+
+function getAttachmentIdsFromEditorNode(node: ProseMirrorNode) {
+  if (node.type.name === "attachmentGallery") {
+    return dedupeStrings(normalizeAttachmentIds(node.attrs.attachmentIds));
+  }
+
+  if (node.type.name !== "image") {
+    return [];
+  }
+
+  const src = typeof node.attrs.src === "string" ? node.attrs.src : "";
+  const attachmentId =
+    typeof node.attrs.attachmentId === "string" && node.attrs.attachmentId
+      ? node.attrs.attachmentId
+      : getAttachmentIdFromMarkdownUrl(src);
+
+  return attachmentId ? [attachmentId] : [];
+}
+
+function dedupeStrings(values: string[]) {
+  return [...new Set(values)];
+}
+
 function createMediaFallbackLink(originalUrl: string) {
   const link = document.createElement("a");
 
@@ -1516,8 +1978,31 @@ function normalizeAttachmentIds(value: unknown) {
   return [];
 }
 
+function normalizeAttachmentSnapshots(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(isMediaAttachmentSnapshot);
+}
+
+function isMediaAttachmentSnapshot(value: unknown): value is MediaAttachment {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const attachment = value as Partial<MediaAttachment>;
+
+  return Boolean(
+    typeof attachment.id === "string" &&
+      typeof attachment.kind === "string" &&
+      typeof attachment.url === "string" &&
+      typeof attachment.status === "string",
+  );
+}
+
 function isVisibleImageAttachmentForEditor(
-  attachment: MediaAttachment | null,
+  attachment?: MediaAttachment | null,
 ): attachment is MediaAttachment {
   return Boolean(
     attachment &&
@@ -1583,86 +2068,19 @@ function syncWhitelistedMediaEmbeds(editor: Editor) {
   return true;
 }
 
-function insertAttachmentIntoEditor(
-  editor: Editor | null,
-  attachment: MediaAttachment,
-  insertion: InlineImageInsertion,
-) {
-  if (!editor) {
-    return;
-  }
-
-  const imageNode = {
-    attrs: {
-      alt: attachment.alt_text || "内容图片",
-      attachmentId: attachment.id,
-      displaySrc: attachment.url,
-      src: `${ATTACHMENT_MARKDOWN_URL_PREFIX}${encodeAttachmentIdForMarkdown(
-        attachment.id,
-      )}`,
-    },
-    type: "image",
-  };
-
-  const currentSelection = editor.state.selection;
-  const insertPosition =
-    insertion === "end"
-      ? editor.state.doc.content.size
-      : typeof insertion === "number"
-        ? clampEditorInsertionPosition(editor, insertion)
-      : clampEditorInsertionPosition(editor, currentSelection.from);
-
-  editor.commands.insertContentAt(insertPosition, imageNode);
-}
-
-function insertUploadedAttachmentsIntoEditor(
-  editor: Editor | null,
-  attachments: MediaAttachment[],
-  insertion: InlineImageInsertion,
-) {
-  if (attachments.length === 0) {
-    return;
-  }
-
-  if (attachments.length === 1) {
-    insertAttachmentIntoEditor(editor, attachments[0], insertion);
-    return;
-  }
-
-  insertAttachmentGalleryIntoEditor(editor, attachments, insertion);
-}
-
-function insertAttachmentGalleryIntoEditor(
-  editor: Editor | null,
-  attachments: MediaAttachment[],
-  insertion: InlineImageInsertion,
-) {
-  if (!editor) {
-    return;
-  }
-
-  const galleryNode = {
-    attrs: {
-      attachmentIds: attachments.map((attachment) => attachment.id),
-      caption: "图片轮播",
-    },
-    type: "attachmentGallery",
-  };
-  const currentSelection = editor.state.selection;
-  const insertPosition =
-    insertion === "end"
-      ? editor.state.doc.content.size
-      : typeof insertion === "number"
-        ? clampEditorInsertionPosition(editor, insertion)
-        : clampEditorInsertionPosition(editor, currentSelection.from);
-
-  editor.commands.insertContentAt(insertPosition, galleryNode);
-}
-
 function clampEditorInsertionPosition(editor: Editor, position: number) {
   const docEnd = editor.state.doc.content.size;
 
   return Math.min(Math.max(position, 0), docEnd);
+}
+
+function appendMarkdownBlock(markdown: string, block: string) {
+  const trimmedMarkdown = markdown.trimEnd();
+  const trimmedBlock = block.trim();
+
+  return trimmedMarkdown
+    ? `${trimmedMarkdown}\n\n${trimmedBlock}`
+    : trimmedBlock;
 }
 
 function getImageFilesFromDataTransfer(dataTransfer: DataTransfer) {
