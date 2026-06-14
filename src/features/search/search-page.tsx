@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileText, Hash } from "lucide-react";
+import { FileText, Hash, UserRound } from "lucide-react";
 
 import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -21,10 +21,12 @@ import type {
   SearchCommunityResult,
   SearchPostResult,
   SearchScope,
+  SearchUserResult,
 } from "./types";
 
 const scopeOptions: Array<{ label: string; value: SearchScope }> = [
   { label: "全部", value: "all" },
+  { label: "用户", value: "users" },
   { label: "社区", value: "communities" },
   { label: "帖子", value: "posts" },
 ];
@@ -46,9 +48,10 @@ export function SearchPage() {
     isReady && !queryIssue,
   );
   const pages = searchQuery.data?.pages ?? [];
+  const users = pages.flatMap((page) => page.users ?? []);
   const communities = pages.flatMap((page) => page.communities);
   const posts = pages.flatMap((page) => page.posts);
-  const resultCount = communities.length + posts.length;
+  const resultCount = users.length + communities.length + posts.length;
   const loadedPages = pages.length;
   const sourceHref = getSearchSourceHref(query, scope);
 
@@ -88,7 +91,7 @@ export function SearchPage() {
             <div className="border-b border-border p-4">
               <EmptyState
                 title="输入关键词开始搜索"
-                description="可以搜索社区名称、slug、帖子标题和正文；结果会按相关度和新鲜度综合排序。"
+                description="可以搜索用户、社区、slug、帖子标题和正文；结果会按相关度和新鲜度综合排序。"
               />
             </div>
           ) : null}
@@ -130,7 +133,7 @@ export function SearchPage() {
             <div className="border-b border-border p-4">
               <EmptyState
                 title="没有找到结果"
-                description="换一个更完整的关键词，或直接搜索社区 slug、帖子标题里的核心词。"
+                description="换一个更完整的关键词，或直接搜索用户名、社区 slug、帖子标题里的核心词。"
               />
             </div>
           ) : null}
@@ -145,7 +148,23 @@ export function SearchPage() {
                 scope={scope}
               />
 
-              {scope !== "posts" ? (
+              {scope !== "communities" && scope !== "posts" ? (
+                <SearchResultSection count={users.length} title="用户">
+                  {users.length > 0 ? (
+                    users.map((user) => (
+                      <UserResultRow
+                        key={user.id}
+                        query={query}
+                        user={user}
+                      />
+                    ))
+                  ) : (
+                    <EmptyResultRow>当前范围内没有用户结果。</EmptyResultRow>
+                  )}
+                </SearchResultSection>
+              ) : null}
+
+              {scope !== "posts" && scope !== "users" ? (
                 <SearchResultSection count={communities.length} title="社区">
                   {communities.length > 0 ? (
                     communities.map((community) => (
@@ -161,7 +180,7 @@ export function SearchPage() {
                 </SearchResultSection>
               ) : null}
 
-              {scope !== "communities" ? (
+              {scope !== "communities" && scope !== "users" ? (
                 <SearchResultSection count={posts.length} title="帖子">
                   {posts.length > 0 ? (
                     posts.map((post) => (
@@ -195,6 +214,7 @@ export function SearchPage() {
         query={query}
         queryIssue={queryIssue}
         scope={scope}
+        userCount={users.length}
       />
     </div>
   );
@@ -307,6 +327,82 @@ function SearchResultSection({
       </div>
       {children}
     </section>
+  );
+}
+
+function UserResultRow({
+  query,
+  user,
+}: {
+  query: string;
+  user: SearchUserResult;
+}) {
+  const displayName = user.display_name || user.username;
+  const headline = user.headline?.trim();
+  const bioExcerpt = user.bio_excerpt?.trim();
+
+  return (
+    <article className="grid grid-cols-[40px_minmax(0,1fr)] border-b border-border bg-background py-3">
+      <div className="flex items-start justify-center pt-1">
+        <SearchUserAvatar displayName={displayName} user={user} />
+      </div>
+      <Link
+        href={`/users/${encodeURIComponent(user.username)}`}
+        className="block min-w-0 pl-3"
+      >
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
+          <span className="font-semibold text-foreground">
+            @<HighlightedText query={query} text={user.username} />
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>{formatUserStatus(user.status)}</span>
+          <span aria-hidden="true">·</span>
+          <span>{formatDate(user.created_at)}</span>
+        </div>
+        <h3 className="mt-1 break-words text-base font-semibold leading-6 tracking-normal text-foreground sm:text-lg">
+          <HighlightedText query={query} text={displayName} />
+        </h3>
+        {headline ? (
+          <p className="mt-2 line-clamp-1 text-sm font-medium leading-6 text-foreground">
+            <HighlightedText query={query} text={headline} />
+          </p>
+        ) : null}
+        <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
+          <HighlightedText
+            query={query}
+            text={bioExcerpt || "这个用户还没有填写公开简介。"}
+          />
+        </p>
+      </Link>
+    </article>
+  );
+}
+
+function SearchUserAvatar({
+  displayName,
+  user,
+}: {
+  displayName: string;
+  user: SearchUserResult;
+}) {
+  if (user.avatar_url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={user.avatar_url}
+        alt={`${displayName} 的头像`}
+        className="size-9 rounded-full border border-border bg-secondary object-cover"
+      />
+    );
+  }
+
+  return (
+    <span
+      className="flex size-9 items-center justify-center rounded-full border border-border bg-secondary text-primary"
+      aria-label={`${displayName} 的头像占位`}
+    >
+      <UserRound className="size-4" aria-hidden="true" />
+    </span>
   );
 }
 
@@ -457,6 +553,7 @@ function SearchRail({
   query,
   queryIssue,
   scope,
+  userCount,
 }: {
   communityCount: number;
   isSearching: boolean;
@@ -464,10 +561,11 @@ function SearchRail({
   query: string;
   queryIssue: SearchQueryIssue | null;
   scope: SearchScope;
+  userCount: number;
 }) {
   return (
     <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 space-y-6">
+      <div className="sticky top-20 right-rail-scroll space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">当前搜索</h2>
           <p className="mt-3 break-words text-lg font-semibold tracking-normal">
@@ -486,7 +584,11 @@ function SearchRail({
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">结果</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            社区{" "}
+            用户{" "}
+            <span className="font-mono text-foreground">
+              {query ? userCount : "--"}
+            </span>{" "}
+            个，社区{" "}
             <span className="font-mono text-foreground">
               {query ? communityCount : "--"}
             </span>{" "}
@@ -498,10 +600,20 @@ function SearchRail({
           </p>
         </section>
 
-        <section>
+        <section className="border-b border-border pb-5 xl:hidden">
+          <h2 className="text-sm font-semibold">搜索能力</h2>
+          <div className="mt-3 divide-y divide-border border-y border-border">
+            <SearchHint label="用户" value="用户名、昵称、简介" />
+            <SearchHint label="社区" value="名称、描述、slug" />
+            <SearchHint label="帖子" value="标题、社区、正文摘要" />
+          </div>
+        </section>
+
+        <section className="hidden xl:block">
           <h2 className="text-sm font-semibold">搜索能力</h2>
           <div className="mt-3 divide-y divide-border border-y border-border">
             <SearchHint label="排序" value="相关度优先，兼顾新鲜度" />
+            <SearchHint label="用户" value="用户名、昵称、简介" />
             <SearchHint label="社区" value="名称、描述、slug" />
             <SearchHint label="帖子" value="标题、社区、正文摘要" />
           </div>
@@ -545,17 +657,10 @@ function getSearchQueryIssue(query: string): SearchQueryIssue | null {
     return null;
   }
 
-  if (query.length < 2) {
-    return {
-      title: "关键词太短",
-      description: "请至少输入 2 个字符，搜索结果会更准确。",
-    };
-  }
-
-  if (query.length > 80) {
+  if ([...query].length > 100) {
     return {
       title: "关键词太长",
-      description: "请缩短关键词，保留社区名、slug 或帖子标题里的核心词。",
+      description: "请缩短关键词，保留用户名、社区名、slug 或帖子标题里的核心词。",
     };
   }
 
@@ -563,7 +668,7 @@ function getSearchQueryIssue(query: string): SearchQueryIssue | null {
 }
 
 function normalizeScope(value: string | null): SearchScope {
-  if (value === "communities" || value === "posts") {
+  if (value === "communities" || value === "posts" || value === "users") {
     return value;
   }
 
@@ -576,6 +681,8 @@ function formatScope(scope: SearchScope) {
       return "社区";
     case "posts":
       return "帖子";
+    case "users":
+      return "用户";
     default:
       return "全部";
   }
@@ -625,6 +732,19 @@ function formatPostStatus(status: string) {
   }
 }
 
+function formatUserStatus(status: string) {
+  switch (status) {
+    case "active":
+      return "活跃";
+    case "suspended":
+      return "已暂停";
+    case "deleted":
+      return "已删除";
+    default:
+      return status;
+  }
+}
+
 function getErrorTitle() {
   return "无法完成搜索";
 }
@@ -636,3 +756,4 @@ function getErrorDescription(error: Error | null) {
 
   return "请求失败，请稍后重试。";
 }
+

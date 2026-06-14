@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InlineFeedback } from "@/components/feedback/inline-feedback";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -118,17 +118,18 @@ export function ReportContentDialog({
         </DialogHeader>
 
         {successMessage ? (
-          <Alert variant="success">
-            <AlertTitle>已提交</AlertTitle>
-            <AlertDescription>{successMessage}</AlertDescription>
-          </Alert>
+          <InlineFeedback
+          tone="success"
+          title="已提交"
+          description={successMessage}
+        />
         ) : null}
 
         {submitError ? (
-          <Alert variant="destructive">
-            <AlertTitle>举报提交失败</AlertTitle>
-            <AlertDescription>{submitError}</AlertDescription>
-          </Alert>
+          <InlineFeedback
+                title="举报提交失败"
+                description={submitError}
+              />
         ) : null}
 
         <div className="border-t border-border pt-3">

@@ -135,6 +135,8 @@ src/
 
 ## 后端协作
 
+需要后端协议变化时,使用 `backend-api-needs.md`
+
 后端仓库：`D:\Projects\cumt-nexus-api`
 
 实现 API 调用前必须确认后端当前接口和响应结构。不要只凭记忆写字段。

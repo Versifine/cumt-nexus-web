@@ -42,17 +42,28 @@ export function AuthSessionProvider({ children }: AuthSessionProviderProps) {
   const previousTokenRef = useRef<string | null>(token);
 
   const setToken = useCallback((nextToken: string) => {
+    const currentToken = readAccessToken();
+
+    if (currentToken !== nextToken) {
+      queryClient.clear();
+      previousTokenRef.current = nextToken;
+      dispatchRecentCommunitiesChanged();
+    }
+
     writeAccessToken(nextToken);
-  }, []);
+  }, [queryClient]);
 
   const clearSession = useCallback(() => {
+    previousTokenRef.current = null;
     clearAccessToken();
     queryClient.clear();
+    dispatchRecentCommunitiesChanged();
   }, [queryClient]);
 
   useEffect(() => {
-    if (previousTokenRef.current && !token) {
+    if (previousTokenRef.current !== token) {
       queryClient.clear();
+      dispatchRecentCommunitiesChanged();
     }
 
     previousTokenRef.current = token;
@@ -83,4 +94,12 @@ export function useAuthSession() {
   }
 
   return context;
+}
+
+function dispatchRecentCommunitiesChanged() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new Event("cumt-nexus:recent-communities-changed"));
 }

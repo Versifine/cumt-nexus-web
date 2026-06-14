@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InlineFeedback } from "@/components/feedback/inline-feedback";
 import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
@@ -136,6 +136,10 @@ export function CommentForm({
   }
 
   function setBodyValue(nextValue: string) {
+    if (commentMutation.error) {
+      commentMutation.reset();
+    }
+
     form.setValue("body", nextValue, {
       shouldDirty: true,
       shouldTouch: true,
@@ -148,7 +152,7 @@ export function CommentForm({
       <div
         className={
           compact || docked
-            ? "border-l border-border pl-4 text-sm text-muted-foreground"
+            ? "text-sm text-muted-foreground"
             : "border-t border-border py-4 text-sm text-muted-foreground"
         }
         aria-label="正在读取登录状态"
@@ -175,7 +179,7 @@ export function CommentForm({
     return (
       <section
         className={
-          compact ? "border-l border-border pl-4" : "border-t border-border py-4"
+          compact ? "py-1" : "border-t border-border py-4"
         }
       >
         <h3
@@ -206,7 +210,7 @@ export function CommentForm({
     return (
       <button
         type="button"
-        className="flex min-h-11 w-full max-w-3xl items-center justify-between gap-3 border-b border-border px-0 py-2 text-left text-sm transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="flex min-h-11 w-full items-center justify-between gap-3 border-b border-border px-0 py-2 text-left text-sm transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         aria-label="展开评论输入框"
         onClick={expandComposer}
       >
@@ -221,12 +225,18 @@ export function CommentForm({
     <form
       className={
         compact
-          ? "space-y-3 border-l border-border pl-4"
+          ? "space-y-2"
           : docked
             ? "w-full space-y-3"
-            : "max-w-3xl space-y-3"
+            : "w-full space-y-3"
       }
-      onSubmit={form.handleSubmit((values) => commentMutation.mutate(values))}
+      onSubmit={form.handleSubmit((values) => {
+        if (commentMutation.error) {
+          commentMutation.reset();
+        }
+
+        commentMutation.mutate(values);
+      })}
     >
       {!compact ? (
         <div className="flex min-w-0 items-center justify-between gap-3">
@@ -245,10 +255,11 @@ export function CommentForm({
       ) : null}
 
       {submitError ? (
-        <Alert variant="destructive">
-          <AlertTitle>评论发布失败</AlertTitle>
-          <AlertDescription>{submitError}</AlertDescription>
-        </Alert>
+        <InlineFeedback
+          title="评论发布失败"
+          description={submitError}
+          onDismiss={() => commentMutation.reset()}
+        />
       ) : null}
 
       <div className="space-y-2">
@@ -261,7 +272,7 @@ export function CommentForm({
             "aria-label": "评论内容",
             "aria-invalid": Boolean(form.formState.errors.body),
             className: compact
-              ? "min-h-28"
+              ? "min-h-24"
               : docked
                 ? "max-h-[34vh] min-h-24 overflow-y-auto sm:min-h-28"
                 : "min-h-28 sm:min-h-32",

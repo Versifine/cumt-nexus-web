@@ -11,6 +11,8 @@ import {
   reportPost,
 } from "./api";
 import type { ListReportsInput, ReportContentInput } from "./types";
+import { commentQueryKeys } from "../comment/queries";
+import { postQueryKeys } from "../post/queries";
 
 export const moderationQueryKeys = {
   all: ["moderation"] as const,
@@ -52,15 +54,59 @@ export function useReportCommentMutation(commentId: string) {
 }
 
 export function useRemovePostByModerationMutation(postId: string) {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (input: ReportContentInput) => removePostByModeration(postId, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: postQueryKeys.detail(postId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: postQueryKeys.latestPrefix(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: postQueryKeys.communityPostsAll(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: postQueryKeys.userPostsAll(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: postQueryKeys.savedPostsAll(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: moderationQueryKeys.all,
+      });
+    },
   });
 }
 
-export function useRemoveCommentByModerationMutation(commentId: string) {
+export function useRemoveCommentByModerationMutation(
+  commentId: string,
+  postId?: string,
+) {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (input: ReportContentInput) =>
       removeCommentByModeration(commentId, input),
+    onSuccess: () => {
+      if (postId) {
+        void queryClient.invalidateQueries({
+          queryKey: commentQueryKeys.postCommentsPrefix(postId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: postQueryKeys.detail(postId),
+        });
+      }
+
+      void queryClient.invalidateQueries({
+        queryKey: commentQueryKeys.userCommentsAll(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: moderationQueryKeys.all,
+      });
+    },
   });
 }
 
@@ -78,12 +124,51 @@ export function useDismissModerationReportMutation(id: string) {
   });
 }
 
-export function useRemoveModerationReportTargetMutation(id: string) {
+export function useRemoveModerationReportTargetMutation(
+  id: string,
+  target?: {
+    postId?: string;
+    targetType?: string;
+  },
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: ReportContentInput) => removeModerationReportTarget(id, input),
     onSuccess: () => {
+      if (target?.postId) {
+        void queryClient.invalidateQueries({
+          queryKey: postQueryKeys.detail(target.postId),
+        });
+      }
+
+      if (target?.targetType === "post") {
+        void queryClient.invalidateQueries({
+          queryKey: postQueryKeys.latestPrefix(),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: postQueryKeys.communityPostsAll(),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: postQueryKeys.userPostsAll(),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: postQueryKeys.savedPostsAll(),
+        });
+      }
+
+      if (target?.targetType === "comment") {
+        if (target.postId) {
+          void queryClient.invalidateQueries({
+            queryKey: commentQueryKeys.postCommentsPrefix(target.postId),
+          });
+        }
+
+        void queryClient.invalidateQueries({
+          queryKey: commentQueryKeys.userCommentsAll(),
+        });
+      }
+
       void queryClient.invalidateQueries({
         queryKey: moderationQueryKeys.all,
       });

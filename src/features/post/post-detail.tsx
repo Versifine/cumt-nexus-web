@@ -51,6 +51,8 @@ import { PostSaveButton } from "./post-save-button";
 import { usePostQuery } from "./queries";
 import type { GetPostResponse, Post } from "./types";
 
+const APP_LAYOUT_SYNC_EVENT = "cumt-nexus:app-layout-sync";
+
 type PostDetailProps = {
   id: string;
   initialCommentSort?: CommentSort;
@@ -69,6 +71,7 @@ export function PostDetail({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const navigationSource = usePostNavigationSource(id);
+  const commentColumnRef = useRef<HTMLDivElement | null>(null);
   const commentComposerAnchorRef = useRef<HTMLDivElement | null>(null);
   const [commentComposerFocusSignal, setCommentComposerFocusSignal] = useState(0);
   const [isCommentComposerExpanded, setIsCommentComposerExpanded] =
@@ -113,6 +116,8 @@ export function PostDetail({
 
   useEffect(() => {
     let animationFrame = 0;
+    let layoutSyncFrame = 0;
+    const layoutSyncTimeouts: number[] = [];
 
     if (!postIdForCommentDock) {
       animationFrame = window.requestAnimationFrame(() => {
@@ -126,8 +131,9 @@ export function PostDetail({
 
     function updateCommentDock() {
       const anchor = commentComposerAnchorRef.current;
+      const column = commentColumnRef.current;
 
-      if (!anchor) {
+      if (!anchor || !column) {
         setIsCommentDockVisible(false);
         setCommentDockMetrics(null);
         return;
@@ -141,7 +147,7 @@ export function PostDetail({
         return;
       }
 
-      const nextMetrics = getCommentDockMetrics(anchor);
+      const nextMetrics = getCommentDockMetrics(column);
       setCommentDockMetrics((currentMetrics) =>
         currentMetrics?.left === nextMetrics.left &&
         currentMetrics.width === nextMetrics.width
@@ -150,14 +156,61 @@ export function PostDetail({
       );
     }
 
+    function scheduleCommentDockUpdate() {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(updateCommentDock);
+    }
+
+    function scheduleLayoutSyncSamples() {
+      scheduleCommentDockUpdate();
+
+      window.cancelAnimationFrame(layoutSyncFrame);
+      layoutSyncFrame = window.requestAnimationFrame(() => {
+        scheduleCommentDockUpdate();
+      });
+
+      layoutSyncTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      layoutSyncTimeouts.length = 0;
+      [80, 160, 240].forEach((delay) => {
+        layoutSyncTimeouts.push(
+          window.setTimeout(scheduleCommentDockUpdate, delay),
+        );
+      });
+    }
+
+    const column = commentColumnRef.current;
+    const anchor = commentComposerAnchorRef.current;
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(scheduleCommentDockUpdate);
+
+    if (column) {
+      resizeObserver?.observe(column);
+    }
+
+    if (anchor) {
+      resizeObserver?.observe(anchor);
+    }
+
     animationFrame = window.requestAnimationFrame(updateCommentDock);
-    window.addEventListener("scroll", updateCommentDock, { passive: true });
-    window.addEventListener("resize", updateCommentDock);
+    window.addEventListener("scroll", scheduleCommentDockUpdate, { passive: true });
+    window.addEventListener("resize", scheduleCommentDockUpdate);
+    window.addEventListener(APP_LAYOUT_SYNC_EVENT, scheduleLayoutSyncSamples);
+    window.visualViewport?.addEventListener("resize", scheduleCommentDockUpdate);
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
-      window.removeEventListener("scroll", updateCommentDock);
-      window.removeEventListener("resize", updateCommentDock);
+      window.cancelAnimationFrame(layoutSyncFrame);
+      layoutSyncTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      resizeObserver?.disconnect();
+      window.removeEventListener("scroll", scheduleCommentDockUpdate);
+      window.removeEventListener("resize", scheduleCommentDockUpdate);
+      window.removeEventListener(APP_LAYOUT_SYNC_EVENT, scheduleLayoutSyncSamples);
+      window.visualViewport?.removeEventListener(
+        "resize",
+        scheduleCommentDockUpdate,
+      );
     };
   }, [postIdForCommentDock]);
 
@@ -185,7 +238,7 @@ export function PostDetail({
             : "grid grid-cols-[minmax(0,1fr)] gap-5 py-2 lg:grid-cols-[minmax(0,1fr)_280px]"
       }
     >
-      <div className="min-w-0">
+      <div ref={commentColumnRef} className="min-w-0">
         <section>
           {!isReady || postQuery.isLoading ? <LoadingState rows={3} /> : null}
 
@@ -299,16 +352,12 @@ export function PostDetail({
                     : undefined
                 }
               >
-                <div
-                  className={isCommentDockVisible ? "w-full" : ""}
-                >
-                  <CommentForm
-                    docked={isCommentDockVisible}
-                    focusSignal={commentComposerFocusSignal}
-                    onExpandedChange={setIsCommentComposerExpanded}
-                    postId={id}
-                  />
-                </div>
+                <CommentForm
+                  docked={isCommentDockVisible}
+                  focusSignal={commentComposerFocusSignal}
+                  onExpandedChange={setIsCommentComposerExpanded}
+                  postId={id}
+                />
               </div>
             </div>
 
@@ -424,33 +473,18 @@ function getPostBackTarget(
   });
 }
 
-function getCommentDockMetrics(anchor: HTMLElement) {
-  const composerSurface = anchor.querySelector<HTMLElement>(
-    'button[aria-label="展开评论输入框"], form',
-  );
-
-  if (composerSurface) {
-    const rect = composerSurface.getBoundingClientRect();
-
-    return {
-      left: Math.round(rect.left),
-      width: Math.round(rect.width),
-    };
-  }
-
-  const rect = anchor.getBoundingClientRect();
+function getCommentDockMetrics(column: HTMLElement) {
+  const rect = column.getBoundingClientRect();
   const horizontalInset = window.innerWidth >= 640 ? 16 : 12;
-  const composerLeft = Math.round(rect.left + horizontalInset);
-  const left = Math.max(horizontalInset, composerLeft);
+  const left = Math.max(horizontalInset, Math.round(rect.left));
   const right = Math.min(
     window.innerWidth - horizontalInset,
-    Math.round(rect.right - horizontalInset),
+    Math.round(rect.right),
   );
-  const availableWidth = Math.max(0, right - left);
 
   return {
     left,
-    width: Math.min(768, Math.max(280, availableWidth)),
+    width: Math.max(280, right - left),
   };
 }
 
@@ -550,10 +584,11 @@ function PostArticle({
               targetType="post"
             />
           ) : null}
-          {canModerate ? (
+          {canModerate && post.status !== "removed" ? (
             <ModerationRemoveDialog
               targetId={post.id}
               targetLabel={post.title}
+              targetStatus={post.status}
               targetType="post"
             />
           ) : null}
@@ -575,7 +610,7 @@ function PostRail({
 
   return (
     <aside className="border-t border-border px-0 py-5 lg:border-l lg:border-t-0 lg:pl-5">
-      <div className="sticky top-20 space-y-5">
+      <div className="sticky top-20 right-rail-scroll space-y-5">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">所在社区</h2>
           <div className="mt-3 flex min-w-0 items-start gap-3">
@@ -732,3 +767,4 @@ function getErrorDescription(error: Error | null) {
 
   return "请求失败，请稍后重试。";
 }
+

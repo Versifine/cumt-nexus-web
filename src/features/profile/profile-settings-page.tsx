@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, type ReactNode } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -155,9 +155,14 @@ function ProfileSettingsForm({
                 直接调整别人看到的头像、背景图和公开文字资料；媒体保存和文字保存分开处理，避免误覆盖。
               </p>
             </div>
-            <StatusToken tone={isDirty ? "warning" : "success"}>
-              {isDirty ? "文字资料未保存" : "文字资料已同步"}
-            </StatusToken>
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusToken tone={isDirty ? "warning" : "success"}>
+                {isDirty ? "文字资料未保存" : "文字资料已同步"}
+              </StatusToken>
+              <TextAction href="/settings/security#password" tone="primary">
+                账号与密码
+              </TextAction>
+            </div>
           </div>
         </div>
 
@@ -349,7 +354,7 @@ function ProfileSettingsRail({
 }) {
   return (
     <aside className="hidden min-w-0 border-l border-border pl-5 xl:block">
-      <div className="sticky top-20 space-y-6">
+      <div className="sticky top-20 right-rail-scroll space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">保存状态</h2>
           <div className="mt-3 space-y-3">
@@ -396,6 +401,12 @@ function ProfileSettingsRail({
             </TextAction>
             <TextAction href="/saved" variant="bar">
               我的收藏
+            </TextAction>
+            <TextAction href="/settings/security#password" tone="primary" variant="bar">
+              修改密码
+            </TextAction>
+            <TextAction href="/settings/security" variant="bar">
+              账号安全
             </TextAction>
           </div>
         </section>
@@ -509,3 +520,4 @@ function getErrorDescription(error: Error | null) {
 
   return "当前账号已确认，但公开主页资料读取或保存失败。请稍后重试。";
 }
+

@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseMutationOptions,
+} from "@tanstack/react-query";
 
 import {
   deletePostSave,
@@ -159,7 +164,12 @@ export function useDeletePostMutation(id: string) {
   });
 }
 
-export function useTogglePostSaveMutation() {
+export function useTogglePostSaveMutation(
+  options: Pick<
+    UseMutationOptions<void, Error, { isSaved: boolean; postId: string }>,
+    "onError"
+  > = {},
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -177,6 +187,7 @@ export function useTogglePostSaveMutation() {
 
       await savePost(postId);
     },
+    onError: options.onError,
     onSuccess: async (_result, { postId }) => {
       await Promise.all([
         queryClient.invalidateQueries({

@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/ui/skeleton";
+﻿import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
   return (
@@ -101,7 +101,7 @@ export default function Loading() {
                 </section>
 
                 <aside className="border-t border-border py-6 xl:border-l xl:border-t-0 xl:pl-5">
-                  <div className="sticky top-20 space-y-8">
+                  <div className="sticky top-20 right-rail-scroll space-y-8">
                     <section className="border-b border-border pb-6">
                       <Skeleton className="h-4 w-24 rounded-none" />
                       <div className="mt-4 space-y-3">
@@ -132,3 +132,4 @@ export default function Loading() {
     </main>
   );
 }
+

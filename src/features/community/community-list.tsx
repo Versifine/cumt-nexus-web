@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { Hash } from "lucide-react";
@@ -205,7 +205,7 @@ function CommunityListRail({
 
   return (
     <aside className="border-t border-border px-0 py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 space-y-6">
+      <div className="sticky top-20 right-rail-scroll space-y-6">
         <section className="border-b border-border pb-5">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold">最近更新</h2>
@@ -354,3 +354,4 @@ function formatCommunityStatus(status: string) {
       return status;
   }
 }
+

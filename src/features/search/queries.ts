@@ -45,12 +45,20 @@ export function useInfiniteSearchQuery({
     enabled: enabled && normalizedQuery.length > 0,
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
+      const hasMoreUsers =
+        scope !== "communities" &&
+        scope !== "posts" &&
+        (lastPage.users ?? []).length >= lastPage.limit;
       const hasMoreCommunities =
-        scope !== "posts" && lastPage.communities.length >= lastPage.limit;
+        scope !== "posts" &&
+        scope !== "users" &&
+        lastPage.communities.length >= lastPage.limit;
       const hasMorePosts =
-        scope !== "communities" && lastPage.posts.length >= lastPage.limit;
+        scope !== "communities" &&
+        scope !== "users" &&
+        lastPage.posts.length >= lastPage.limit;
 
-      if (!hasMoreCommunities && !hasMorePosts) {
+      if (!hasMoreUsers && !hasMoreCommunities && !hasMorePosts) {
         return undefined;
       }
 

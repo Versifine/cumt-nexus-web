@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Bookmark } from "lucide-react";
+import { toast } from "sonner";
 
 import { useAuthSession } from "@/features/auth/auth-session";
 import { ApiError } from "@/lib/api/client";
@@ -26,7 +27,11 @@ export function PostSaveButton({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const mutation = useTogglePostSaveMutation();
+  const mutation = useTogglePostSaveMutation({
+    onError: (error) => {
+      toast.error(getSaveError(error));
+    },
+  });
   const canSave = isReady && Boolean(token);
   const isPending = mutation.isPending;
   const label = isSaved ? "取消收藏" : "收藏";

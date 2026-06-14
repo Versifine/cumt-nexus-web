@@ -11,15 +11,14 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
 import { StatusToken, type StatusTokenTone } from "@/components/ui/data-display";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { PostSortMenu } from "@/features/post/post-sort-menu";
 import { useCommunityPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
 import {
   formatPostSortFallbackNotice,
   formatPostSortLabel,
-  postSortItems,
 } from "@/features/post/sort";
 import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
@@ -121,7 +120,8 @@ export function CommunityDetail({
                 ) : null}
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <CommunityPostSortTabs
+                <PostSortMenu
+                  aria-label="选择社区帖子排序方式"
                   disabled={postsQuery.isFetching}
                   onSortChange={setSort}
                   sort={sort}
@@ -270,33 +270,6 @@ function CommunityIcon({ community }: { community: Community }) {
   );
 }
 
-function CommunityPostSortTabs({
-  disabled,
-  onSortChange,
-  sort,
-}: {
-  disabled: boolean;
-  onSortChange: (sort: PostSort) => void;
-  sort: PostSort;
-}) {
-  return (
-    <Tabs value={sort} onValueChange={(value) => onSortChange(value as PostSort)}>
-      <TabsList className="h-9 max-w-full justify-start overflow-x-auto">
-        {postSortItems.map((item) => (
-          <TabsTrigger
-            key={item.value}
-            value={item.value}
-            disabled={disabled}
-            className="h-9 px-2.5 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground"
-          >
-            {item.label}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
-  );
-}
-
 function CommunityRail({
   community,
   isAuthenticated,
@@ -316,7 +289,7 @@ function CommunityRail({
 
   return (
     <aside className="border-t border-border px-0 py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 space-y-6">
+      <div className="sticky top-20 right-rail-scroll space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">社区动态</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -537,3 +510,4 @@ function getStatusTone(status: string): StatusTokenTone {
       return "default";
   }
 }
+

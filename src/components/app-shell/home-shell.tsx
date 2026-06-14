@@ -11,7 +11,6 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import {
@@ -20,12 +19,12 @@ import {
   getFeedHref,
   getFeedReturnLabel,
 } from "@/features/feed/source";
+import { PostSortMenu } from "@/features/post/post-sort-menu";
 import { useLatestPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
 import {
   formatPostSortFallbackNotice,
   formatPostSortLabel,
-  postSortItems,
 } from "@/features/post/sort";
 import type {
   FeedSource,
@@ -92,7 +91,8 @@ export function HomeShell({
                 ) : null}
               </div>
               <div className="flex max-w-full sm:items-end">
-                <FeedSortTabs
+                <PostSortMenu
+                  aria-label="选择信息流排序方式"
                   disabled={!canReadLatestPosts || latestPostsQuery.isFetching}
                   onSortChange={(nextSort) => {
                     if (nextSort !== sort) {
@@ -229,40 +229,6 @@ export function HomeShell({
   );
 }
 
-function FeedSortTabs({
-  disabled,
-  onSortChange,
-  sort,
-}: {
-  disabled: boolean;
-  onSortChange: (sort: PostSort) => void;
-  sort: PostSort;
-}) {
-  return (
-    <Tabs value={sort} onValueChange={(value) => onSortChange(value as PostSort)}>
-      <TabsList className="h-8 max-w-full justify-start overflow-x-auto rounded-md border-0 bg-background-soft p-0.5">
-        <TabsTrigger
-          value="best"
-          disabled={disabled}
-          className="h-7 rounded px-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-        >
-          推荐
-        </TabsTrigger>
-        {postSortItems.slice(1).map((item) => (
-          <TabsTrigger
-            key={item.value}
-            value={item.value}
-            disabled={disabled}
-            className="h-7 rounded px-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-          >
-            {item.label}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
-  );
-}
-
 function getFeedIntroText(
   source: FeedSource,
   sort: PostSort,
@@ -301,7 +267,7 @@ function RightRail({
 
   return (
     <aside className="border-t border-border px-0 py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 space-y-6">
+      <div className="sticky top-20 right-rail-scroll space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">
             {formatFeedSourceLabel(feedSource)}信息流
@@ -431,3 +397,4 @@ function getErrorDescription(error: Error | null) {
 
   return "请求失败，请稍后重试。";
 }
+

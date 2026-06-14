@@ -1,6 +1,11 @@
 "use client";
 
-import type { FormEvent, MouseEvent, ReactNode } from "react";
+import type {
+  FormEvent,
+  MouseEvent,
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+} from "react";
 import {
   createContext,
   useCallback,
@@ -13,6 +18,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowUp,
   Bell,
   Bookmark,
   Check,
@@ -23,15 +29,30 @@ import {
   Home,
   LogOut,
   Menu,
-  Pencil,
+  Monitor,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
   Send,
+  Settings,
   ShieldAlert,
+  ShieldCheck,
+  Sun,
   User,
   Users,
   X,
 } from "lucide-react";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { TextAction } from "@/components/ui/text-action";
 import {
@@ -57,6 +78,7 @@ import {
 import { resolveNotificationTarget } from "@/features/notification/targets";
 import type { Notification } from "@/features/notification/types";
 import { usePublicUserQuery } from "@/features/profile/queries";
+import { useTheme, type ThemePreference } from "@/lib/theme/theme-provider";
 import { cn } from "@/lib/utils";
 
 import {
@@ -89,6 +111,7 @@ type AuthDialogState = {
 const AppShellBackActionContext = createContext<
   ((target: AppShellBackTarget | null) => void) | null
 >(null);
+const APP_LAYOUT_SYNC_EVENT = "cumt-nexus:app-layout-sync";
 
 const primaryNavItems = [
   { href: "/", icon: Home, label: "首页" },
@@ -117,13 +140,31 @@ export function useAppShellBackAction(target: AppShellBackTarget | null) {
   }, [href, label, setBackTarget]);
 }
 
+function requestAppLayoutSync() {
+  window.dispatchEvent(new Event(APP_LAYOUT_SYNC_EVENT));
+
+  window.requestAnimationFrame(() => {
+    window.dispatchEvent(new Event(APP_LAYOUT_SYNC_EVENT));
+  });
+
+  window.setTimeout(() => {
+    window.dispatchEvent(new Event(APP_LAYOUT_SYNC_EVENT));
+  }, 120);
+
+  window.setTimeout(() => {
+    window.dispatchEvent(new Event(APP_LAYOUT_SYNC_EVENT));
+  }, 240);
+}
+
 export function AppShell({
   backTarget = null,
   children,
   className,
   contextLabel,
 }: AppShellProps) {
+  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [authDialog, setAuthDialog] = useState<AuthDialogState | null>(null);
   const [recentCommunities, setRecentCommunities] = useState<RecentCommunity[]>([]);
   const [registeredBackTarget, setRegisteredBackTarget] =
@@ -218,16 +259,89 @@ export function AppShell({
     };
   }, []);
 
+  useEffect(() => {
+    let animationFrame = 0;
+
+    function updateBackToTopVisibility() {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(() => {
+        setShowBackToTop(window.scrollY > 640);
+      });
+    }
+
+    updateBackToTopVisibility();
+    window.addEventListener("scroll", updateBackToTopVisibility, {
+      passive: true,
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("scroll", updateBackToTopVisibility);
+    };
+  }, []);
+
   return (
     <AppShellBackActionContext.Provider value={setScopedBackTarget}>
       <main
         className="min-h-screen bg-background text-foreground"
         onClickCapture={handleAuthLinkClick}
       >
-        <div className="mx-auto grid min-h-screen w-full max-w-[1440px] grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)]">
-          <aside className="hidden border-r border-border bg-background px-5 py-5 lg:fixed lg:left-[max(0px,calc((100vw-1440px)/2))] lg:top-0 lg:z-30 lg:block lg:h-dvh lg:w-[248px] lg:overflow-y-auto">
-            <ShellBrand />
-            <ShellNav pathname={pathname} recentCommunities={recentCommunities} />
+        <div
+          className={cn(
+            "mx-auto grid min-h-screen w-full max-w-[1440px] grid-cols-1 transition-[grid-template-columns] duration-200 ease-out",
+            isDesktopSidebarCollapsed
+              ? "lg:grid-cols-[72px_minmax(0,1fr)]"
+              : "lg:grid-cols-[248px_minmax(0,1fr)]",
+          )}
+        >
+          <aside
+            className={cn(
+              "hidden border-r border-border bg-background transition-[width] duration-200 ease-out lg:fixed lg:left-[max(0px,calc((100vw-1440px)/2))] lg:top-0 lg:z-30 lg:block lg:h-dvh lg:overflow-visible",
+              isDesktopSidebarCollapsed ? "lg:w-[72px]" : "lg:w-[248px]",
+            )}
+          >
+            <div
+              className={cn(
+                "app-sidebar-scroll h-full overflow-y-auto py-5 transition-[padding] duration-200 ease-out",
+                isDesktopSidebarCollapsed ? "px-3" : "px-5",
+              )}
+            >
+              <div
+                className={cn(
+                  "border-b border-border pb-4",
+                  isDesktopSidebarCollapsed ? "text-center" : "",
+                )}
+              >
+                <ShellBrand
+                  collapsed={isDesktopSidebarCollapsed}
+                  withBorder={false}
+                />
+              </div>
+              <ShellNav
+                collapsed={isDesktopSidebarCollapsed}
+                pathname={pathname}
+                recentCommunities={recentCommunities}
+              />
+            </div>
+            <button
+              type="button"
+              className="absolute right-0 top-[88px] z-40 inline-flex size-7 translate-x-1/2 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-[0_10px_28px_rgb(0_0_0/0.32)] transition-colors hover:border-primary/50 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              aria-label={
+                isDesktopSidebarCollapsed ? "展开左侧栏" : "收起左侧栏"
+              }
+              aria-expanded={!isDesktopSidebarCollapsed}
+              onClick={() => {
+                setIsDesktopSidebarCollapsed((value) => !value);
+                requestAppLayoutSync();
+              }}
+              title={isDesktopSidebarCollapsed ? "展开左侧栏" : "收起左侧栏"}
+            >
+              {isDesktopSidebarCollapsed ? (
+                <PanelLeftOpen className="size-4" aria-hidden="true" />
+              ) : (
+                <PanelLeftClose className="size-4" aria-hidden="true" />
+              )}
+            </button>
           </aside>
 
           <section className="flex min-w-0 flex-col lg:col-start-2">
@@ -270,6 +384,19 @@ export function AppShell({
             </div>
           </section>
         </div>
+        <button
+          type="button"
+          className={cn(
+            "fixed bottom-5 right-4 z-40 inline-flex size-10 items-center justify-center rounded-md border border-border bg-background/95 text-muted-foreground shadow-[0_12px_36px_rgb(0_0_0/0.35)] backdrop-blur transition duration-150 ease-out hover:border-primary/50 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:right-6",
+            showBackToTop
+              ? "pointer-events-auto translate-y-0 opacity-100"
+              : "pointer-events-none translate-y-2 opacity-0",
+          )}
+          aria-label="返回顶部"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        >
+          <ArrowUp className="size-4" aria-hidden="true" />
+        </button>
         <AuthDialog
           mode={authDialog?.mode ?? "login"}
           nextPath={authDialog?.nextPath ?? currentPath}
@@ -322,29 +449,61 @@ function TopBackAction({
   );
 }
 
-function ShellBrand() {
+function ShellBrand({
+  collapsed = false,
+  withBorder = true,
+}: {
+  collapsed?: boolean;
+  withBorder?: boolean;
+}) {
   return (
-    <Link href="/" className="block border-b border-border pb-5">
+    <Link
+      href="/"
+      className={cn(
+        "block",
+        withBorder ? "border-b border-border pb-5" : "",
+        collapsed ? "text-center" : "",
+      )}
+      aria-label={collapsed ? "返回首页" : undefined}
+      title={collapsed ? "CUMT Nexus" : undefined}
+    >
       <div className="inline-flex size-9 items-center justify-center rounded-lg border border-border text-sm font-semibold text-primary transition-colors hover:border-primary/50">
         CN
       </div>
-      <div className="mt-4 text-sm font-semibold">CUMT Nexus</div>
-      <div className="mt-1 text-xs text-muted-foreground">校园社区</div>
+      <div className={cn("mt-4 text-sm font-semibold", collapsed ? "hidden" : "")}>
+        CUMT Nexus
+      </div>
+      <div
+        className={cn(
+          "mt-1 text-xs text-muted-foreground",
+          collapsed ? "hidden" : "",
+        )}
+      >
+        校园社区
+      </div>
     </Link>
   );
 }
 
 function ShellNav({
+  collapsed = false,
   pathname,
   recentCommunities,
   variant = "desktop",
 }: {
+  collapsed?: boolean;
   pathname: string;
   recentCommunities: RecentCommunity[];
   variant?: "desktop" | "mobile";
 }) {
+  const isCollapsedDesktop = variant === "desktop" && collapsed;
+
   return (
-    <div className={cn(variant === "desktop" ? "mt-6" : "space-y-5")}>
+    <div
+      className={cn(
+        variant === "desktop" ? (isCollapsedDesktop ? "mt-4" : "mt-6") : "space-y-5",
+      )}
+    >
       {variant === "mobile" ? <ShellBrand /> : null}
 
       <nav
@@ -358,34 +517,51 @@ function ShellNav({
             <Link
               key={item.href}
               href={item.href}
+              aria-label={isCollapsedDesktop ? item.label : undefined}
+              title={isCollapsedDesktop ? item.label : undefined}
               className={cn(
-                "group flex items-center justify-between py-3 text-sm transition-colors",
+                "group flex items-center py-3 text-sm transition-colors",
+                isCollapsedDesktop ? "justify-center" : "justify-between",
                 isActive
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="w-6 shrink-0 font-mono text-xs text-muted-foreground">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <item.icon className="size-4 shrink-0" aria-hidden="true" />
-                <span className="truncate">{item.label}</span>
-              </span>
               <span
                 className={cn(
-                  "h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
-                  isActive
-                    ? "bg-primary"
-                    : "bg-border group-hover:bg-muted-foreground",
+                  "flex min-w-0 items-center",
+                  isCollapsedDesktop ? "justify-center" : "gap-3",
                 )}
-              />
+              >
+                <span
+                  className={cn(
+                    "w-6 shrink-0 font-mono text-xs text-muted-foreground",
+                    isCollapsedDesktop ? "hidden" : "",
+                  )}
+                >
+                  {isCollapsedDesktop ? null : String(index + 1).padStart(2, "0")}
+                </span>
+                <item.icon className="size-4 shrink-0" aria-hidden="true" />
+                {isCollapsedDesktop ? null : (
+                  <span className="truncate">{item.label}</span>
+                )}
+              </span>
+              {isCollapsedDesktop ? null : (
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 shrink-0 rounded-full transition-colors",
+                    isActive
+                      ? "bg-primary"
+                      : "bg-border group-hover:bg-muted-foreground",
+                  )}
+                />
+              )}
             </Link>
           );
         })}
       </nav>
 
-      <section className="mt-6">
+      <section className={cn("mt-6", isCollapsedDesktop ? "hidden" : "")}>
         <div className="font-mono text-[11px] uppercase text-muted-foreground">
           最近访问
         </div>
@@ -426,7 +602,7 @@ function TopSearch() {
     const nextQuery = inputRef.current?.value.trim() ?? "";
     const scope =
       pathname === "/search" &&
-      (urlScope === "communities" || urlScope === "posts")
+      (urlScope === "communities" || urlScope === "posts" || urlScope === "users")
         ? urlScope
         : "all";
 
@@ -445,7 +621,7 @@ function TopSearch() {
 
   return (
     <form
-      className="min-w-0 flex-1 basis-0 max-w-[calc(100vw-152px)] sm:max-w-none"
+      className="min-w-0 flex-1 basis-0 max-w-[calc(100vw-188px)] sm:max-w-none"
       role="search"
       onSubmit={submitSearch}
     >
@@ -468,7 +644,7 @@ function TopSearch() {
               goToSearch();
             }
           }}
-          placeholder="搜索社区、帖子"
+          placeholder="搜索用户、社区、帖子"
           className="h-9 min-w-0 rounded-none border-x-0 border-t-0 bg-transparent pl-6 pr-0 text-sm focus-visible:ring-0 sm:h-10"
         />
       </div>
@@ -492,6 +668,7 @@ function TopActions() {
         <Send className="size-4" aria-hidden="true" />
         <span className="hidden text-sm font-medium sm:inline">发帖</span>
       </Link>
+      <HeaderThemeMenu />
       <HeaderNotificationMenu isReady={isReady} token={token} />
       {!isReady ? (
         <div
@@ -502,6 +679,72 @@ function TopActions() {
         <HeaderUserMenu />
       )}
     </div>
+  );
+}
+
+const themeOptions: Array<{
+  description: string;
+  icon: typeof Monitor;
+  label: string;
+  value: ThemePreference;
+}> = [
+  {
+    description: "按设备偏好自动切换",
+    icon: Monitor,
+    label: "跟随系统",
+    value: "system",
+  },
+  {
+    description: "适合白天和高亮环境",
+    icon: Sun,
+    label: "浅色",
+    value: "light",
+  },
+  {
+    description: "保持默认编辑感暗色界面",
+    icon: Moon,
+    label: "深色",
+    value: "dark",
+  },
+];
+
+function HeaderThemeMenu() {
+  const { resolvedTheme, setTheme, theme } = useTheme();
+  const TriggerIcon = resolvedTheme === "dark" ? Moon : Sun;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10"
+          aria-label="切换主题"
+          title="切换主题"
+        >
+          <TriggerIcon className="size-4" aria-hidden="true" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>界面主题</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuRadioGroup
+          value={theme}
+          onValueChange={(value) => setTheme(value as ThemePreference)}
+        >
+          {themeOptions.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value}>
+              <option.icon className="size-4 text-muted-foreground" aria-hidden="true" />
+              <span className="min-w-0">
+                <span className="block text-sm">{option.label}</span>
+                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                  {option.description}
+                </span>
+              </span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -551,26 +794,25 @@ function HeaderNotificationMenu({
   return (
     <div
       ref={menuRef}
-      className="group/notification-menu relative hidden sm:block"
+      className="relative hidden sm:block"
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {
           setIsMenuOpen(false);
         }
       }}
-      onFocusCapture={() => setIsMenuOpen(true)}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           setIsMenuOpen(false);
         }
       }}
-      onMouseEnter={() => setIsMenuOpen(true)}
-      onMouseLeave={() => setIsMenuOpen(false)}
     >
-      <Link
-        href={notificationHref}
+      <button
+        type="button"
         className="relative inline-flex size-10 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        aria-expanded={isMenuOpen}
+        aria-haspopup="menu"
         aria-label="消息中心"
-        onClick={() => setIsMenuOpen(false)}
+        onClick={() => setIsMenuOpen((value) => !value)}
       >
         <Bell className="size-4" aria-hidden="true" />
         {token && unreadCount > 0 ? (
@@ -581,16 +823,13 @@ function HeaderNotificationMenu({
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         ) : null}
-      </Link>
-
+      </button>
       <div
         className={cn(
-          "pointer-events-none absolute right-0 top-full z-50 mt-2 w-[360px] origin-top-right -translate-y-1 scale-[0.98] overflow-hidden rounded-lg border border-border bg-card text-card-foreground opacity-0 shadow-[0_18px_48px_rgb(0_0_0/0.38)] transition duration-150 ease-out",
-          "group-hover/notification-menu:pointer-events-auto group-hover/notification-menu:translate-y-0 group-hover/notification-menu:scale-100 group-hover/notification-menu:opacity-100",
-          "group-focus-within/notification-menu:pointer-events-auto group-focus-within/notification-menu:translate-y-0 group-focus-within/notification-menu:scale-100 group-focus-within/notification-menu:opacity-100",
+          "absolute right-0 top-full z-50 mt-2 w-72 origin-top-right overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_18px_48px_rgb(0_0_0/0.38)] transition duration-150 ease-out",
           isMenuOpen
             ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
-            : "",
+            : "pointer-events-none -translate-y-1 scale-[0.98] opacity-0",
         )}
       >
         <div className="border-b border-border bg-background p-3">
@@ -833,6 +1072,7 @@ function HeaderUserMenu() {
   const router = useRouter();
   const { clearSession, token } = useAuthSession();
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const currentUserQuery = useCurrentUserQuery();
   const username = currentUserQuery.data?.username ?? "";
@@ -840,8 +1080,46 @@ function HeaderUserMenu() {
   const avatarUrl = profileQuery.data?.user.avatar_url?.trim() ?? "";
   const displayName = profileQuery.data?.user.display_name?.trim() || username;
 
-  function signOut() {
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const closeMenu = useCallback(() => {
+    clearCloseTimer();
     setIsMenuOpen(false);
+  }, [clearCloseTimer]);
+
+  const openMenuOnHover = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.pointerType !== "mouse") {
+        return;
+      }
+
+      clearCloseTimer();
+      setIsMenuOpen(true);
+    },
+    [clearCloseTimer],
+  );
+
+  const scheduleCloseOnHoverLeave = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.pointerType !== "mouse") {
+        return;
+      }
+
+      clearCloseTimer();
+      closeTimerRef.current = setTimeout(() => {
+        setIsMenuOpen(false);
+      }, 220);
+    },
+    [clearCloseTimer],
+  );
+
+  function signOut() {
+    closeMenu();
     clearSession();
     router.refresh();
   }
@@ -858,13 +1136,15 @@ function HeaderUserMenu() {
         return;
       }
 
-      setIsMenuOpen(false);
+      closeMenu();
     }
 
     document.addEventListener("pointerdown", closeOnPointerDown);
 
     return () => document.removeEventListener("pointerdown", closeOnPointerDown);
-  }, [isMenuOpen]);
+  }, [closeMenu, isMenuOpen]);
+
+  useEffect(() => clearCloseTimer, [clearCloseTimer]);
 
   if (token && currentUserQuery.isLoading) {
     return (
@@ -901,26 +1181,30 @@ function HeaderUserMenu() {
   return (
     <div
       ref={menuRef}
-      className="group/user-menu relative"
+      className="relative"
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {
-          setIsMenuOpen(false);
+          closeMenu();
         }
       }}
-      onFocusCapture={() => setIsMenuOpen(true)}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
-          setIsMenuOpen(false);
+          closeMenu();
         }
       }}
-      onMouseEnter={() => setIsMenuOpen(true)}
-      onMouseLeave={() => setIsMenuOpen(false)}
+      onPointerEnter={openMenuOnHover}
+      onPointerLeave={scheduleCloseOnHoverLeave}
     >
       <Link
         href={profileHref}
-        className="group relative inline-flex size-9 items-center justify-center text-sm font-semibold text-primary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10"
+        className={cn(
+          "group relative z-[60] inline-flex size-9 origin-top items-center justify-center text-sm font-semibold text-primary transition duration-150 ease-out hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10",
+          isMenuOpen ? "-translate-y-0.5 scale-125 text-foreground" : "",
+        )}
+        aria-expanded={isMenuOpen}
+        aria-haspopup="menu"
         aria-label="进入个人主页"
-        onClick={() => setIsMenuOpen(false)}
+        onClick={closeMenu}
       >
         <HeaderAvatar
           avatarUrl={avatarUrl}
@@ -934,12 +1218,17 @@ function HeaderUserMenu() {
       </Link>
       <div
         className={cn(
-          "pointer-events-none absolute right-0 top-full z-50 mt-2 w-72 origin-top-right -translate-y-1 scale-[0.98] overflow-hidden rounded-lg border border-border bg-card text-card-foreground opacity-0 shadow-[0_18px_48px_rgb(0_0_0/0.38)] transition duration-150 ease-out",
-          "group-hover/user-menu:pointer-events-auto group-hover/user-menu:translate-y-0 group-hover/user-menu:scale-100 group-hover/user-menu:opacity-100",
-          "group-focus-within/user-menu:pointer-events-auto group-focus-within/user-menu:translate-y-0 group-focus-within/user-menu:scale-100 group-focus-within/user-menu:opacity-100",
+          "absolute right-0 top-full z-50 hidden h-2 w-72 sm:block",
+          isMenuOpen ? "pointer-events-auto" : "pointer-events-none",
+        )}
+        aria-hidden="true"
+      />
+      <div
+        className={cn(
+          "absolute right-0 top-full z-50 mt-2 w-72 origin-top-right overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_18px_48px_rgb(0_0_0/0.38)] transition duration-150 ease-out",
           isMenuOpen
             ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
-            : "",
+            : "pointer-events-none -translate-y-1 scale-[0.98] opacity-0",
         )}
       >
         <div className="border-b border-border bg-background-soft/80 p-3">
@@ -959,25 +1248,45 @@ function HeaderUserMenu() {
             </div>
           </div>
         </div>
-        <nav className="p-1" aria-label="账号操作">
+        <nav className="p-1" aria-label="账号菜单">
           <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-            账号
+            个人
           </div>
           <Link
-            href="/settings/profile"
+            href={profileHref}
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
-            onClick={() => setIsMenuOpen(false)}
+            onClick={closeMenu}
           >
-            <Pencil className="size-4" aria-hidden="true" />
-            编辑主页
+            <User className="size-4" aria-hidden="true" />
+            个人主页
           </Link>
           <Link
             href="/saved"
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
-            onClick={() => setIsMenuOpen(false)}
+            onClick={closeMenu}
           >
             <Bookmark className="size-4" aria-hidden="true" />
             我的收藏
+          </Link>
+          <div className="-mx-1 my-1 h-px bg-border" />
+          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+            设置
+          </div>
+          <Link
+            href="/settings/profile"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+            onClick={closeMenu}
+          >
+            <Settings className="size-4" aria-hidden="true" />
+            资料设置
+          </Link>
+          <Link
+            href="/settings/security"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+            onClick={closeMenu}
+          >
+            <ShieldCheck className="size-4" aria-hidden="true" />
+            账号安全
           </Link>
           {user.is_platform_staff ? (
             <>
@@ -988,7 +1297,7 @@ function HeaderUserMenu() {
               <Link
                 href="/moderation"
                 className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
-                onClick={() => setIsMenuOpen(false)}
+                onClick={closeMenu}
               >
                 <ShieldAlert className="size-4" aria-hidden="true" />
                 举报审核
@@ -996,7 +1305,7 @@ function HeaderUserMenu() {
               <Link
                 href="/community-applications/review"
                 className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
-                onClick={() => setIsMenuOpen(false)}
+                onClick={closeMenu}
               >
                 <ClipboardCheck className="size-4" aria-hidden="true" />
                 社区审批
@@ -1079,3 +1388,4 @@ function HeaderAvatar({
     </span>
   );
 }
+

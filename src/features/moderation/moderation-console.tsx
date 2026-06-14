@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -432,7 +432,7 @@ function ModerationRail({
 }) {
   return (
     <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 space-y-6">
+      <div className="sticky top-20 right-rail-scroll space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">审核上下文</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -649,6 +649,7 @@ function ReportDecisionPanel({
 }) {
   const dismissMutation = useDismissModerationReportMutation(report.id);
   const isPending = report.status === "pending";
+  const isTargetRemoved = report.target_preview?.status === "removed";
 
   async function dismissReport() {
     await dismissMutation.mutateAsync();
@@ -684,7 +685,7 @@ function ReportDecisionPanel({
           {dismissMutation.isPending ? "正在驳回..." : "驳回举报"}
         </button>
         <RemoveTargetDialog
-          disabled={!isPending}
+          disabled={!isPending || isTargetRemoved}
           onAfterAction={onAfterAction}
           report={report}
         />
@@ -703,7 +704,12 @@ function RemoveTargetDialog({
   report: ContentReport;
 }) {
   const [open, setOpen] = useState(false);
-  const mutation = useRemoveModerationReportTargetMutation(report.id);
+  const [hasRemoved, setHasRemoved] = useState(false);
+  const mutation = useRemoveModerationReportTargetMutation(report.id, {
+    postId: report.target_preview?.post_id,
+    targetType: report.target_type,
+  });
+  const isDisabled = disabled || hasRemoved;
   const form = useForm<RemoveTargetFormValues>({
     resolver: zodResolver(removeTargetSchema),
     defaultValues: {
@@ -713,6 +719,7 @@ function RemoveTargetDialog({
 
   async function submit(values: RemoveTargetFormValues) {
     await mutation.mutateAsync(values);
+    setHasRemoved(true);
     form.reset();
     setOpen(false);
     onAfterAction();
@@ -728,9 +735,9 @@ function RemoveTargetDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button type="button" variant="destructive" disabled={disabled}>
+        <Button type="button" variant="destructive" disabled={isDisabled}>
           <ShieldAlert className="size-4" aria-hidden="true" />
-          移除目标
+          {hasRemoved ? "已移除目标" : "移除目标"}
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -756,7 +763,7 @@ function RemoveTargetDialog({
             <Textarea
               id="remove-target-reason"
               aria-invalid={Boolean(form.formState.errors.reason)}
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || isDisabled}
               placeholder="写清移除依据，便于后续审计。"
               className="min-h-32"
               {...form.register("reason")}
@@ -781,8 +788,16 @@ function RemoveTargetDialog({
             >
               取消
             </Button>
-            <Button type="submit" variant="destructive" disabled={mutation.isPending}>
-              {mutation.isPending ? "正在移除..." : "确认移除"}
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={mutation.isPending || isDisabled}
+            >
+              {hasRemoved
+                ? "已移除"
+                : mutation.isPending
+                  ? "正在移除..."
+                  : "确认移除"}
             </Button>
           </DialogFooter>
         </form>
@@ -800,7 +815,7 @@ function ReportRail({
 }) {
   return (
     <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 space-y-6">
+      <div className="sticky top-20 right-rail-scroll space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">举报信息</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -932,3 +947,4 @@ function getErrorDescription(error: Error | null) {
 
   return "请求失败，请稍后重试。";
 }
+

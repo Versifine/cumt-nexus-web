@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -137,7 +137,7 @@ function SavedPostsRail({
 }) {
   return (
     <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 space-y-6">
+      <div className="sticky top-20 right-rail-scroll space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">收藏上下文</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -188,3 +188,4 @@ function getErrorDescription(error: Error | null) {
 
   return "请求失败，请稍后重试。";
 }
+

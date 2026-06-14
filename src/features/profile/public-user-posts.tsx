@@ -8,15 +8,14 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { SortMenu } from "@/components/ui/sort-menu";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { PostSortMenu } from "@/features/post/post-sort-menu";
 import { useUserPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
 import {
   formatPostSortFallbackNotice,
   formatPostSortLabel,
-  postSortItems,
 } from "@/features/post/sort";
 import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
@@ -134,7 +133,8 @@ export function PublicUserPosts({
               {sortFallbackNotice ? ` · ${sortFallbackNotice}` : ""}
             </p>
           </div>
-          <UserPostSortMenu
+          <PostSortMenu
+            aria-label="选择用户帖子排序方式"
             disabled={postsQuery.isFetching}
             onSortChange={setSort}
             sort={sort}
@@ -206,27 +206,6 @@ export function PublicUserPosts({
           : null}
       </section>
     </PublicUserLayout>
-  );
-}
-
-function UserPostSortMenu({
-  disabled,
-  onSortChange,
-  sort,
-}: {
-  disabled: boolean;
-  onSortChange: (sort: PostSort) => void;
-  sort: PostSort;
-}) {
-  return (
-    <SortMenu
-      align="start"
-      aria-label="选择用户帖子排序方式"
-      disabled={disabled}
-      items={postSortItems}
-      onValueChange={onSortChange}
-      value={sort}
-    />
   );
 }
 

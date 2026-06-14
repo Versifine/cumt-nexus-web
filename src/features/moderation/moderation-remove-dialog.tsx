@@ -36,19 +36,24 @@ type RemoveFormValues = z.infer<typeof removeSchema>;
 type ModerationRemoveDialogProps = {
   targetId: string;
   targetLabel: string;
+  targetPostId?: string;
+  targetStatus?: string;
   targetType: ModerationTargetType;
 };
 
 export function ModerationRemoveDialog({
   targetId,
   targetLabel,
+  targetPostId,
+  targetStatus,
   targetType,
 }: ModerationRemoveDialogProps) {
   const [open, setOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const postMutation = useRemovePostByModerationMutation(targetId);
-  const commentMutation = useRemoveCommentByModerationMutation(targetId);
+  const commentMutation = useRemoveCommentByModerationMutation(targetId, targetPostId);
   const mutation = targetType === "post" ? postMutation : commentMutation;
+  const isRemoved = targetStatus === "removed" || Boolean(successMessage);
   const form = useForm<RemoveFormValues>({
     resolver: zodResolver(removeSchema),
     defaultValues: {
@@ -74,9 +79,9 @@ export function ModerationRemoveDialog({
       }}
     >
       <DialogTrigger asChild>
-        <RemoveTrigger>
+        <RemoveTrigger disabled={isRemoved}>
           <ShieldAlert className="size-3.5" aria-hidden="true" />
-          平台移除
+          {isRemoved ? "已移除" : "平台移除"}
         </RemoveTrigger>
       </DialogTrigger>
       <DialogContent>
@@ -114,7 +119,7 @@ export function ModerationRemoveDialog({
             <Textarea
               id={`moderation-remove-${targetId}`}
               aria-invalid={Boolean(form.formState.errors.reason)}
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || isRemoved}
               placeholder="写清移除依据，便于后续审计。"
               className="min-h-32"
               {...form.register("reason")}
@@ -139,8 +144,16 @@ export function ModerationRemoveDialog({
             >
               取消
             </Button>
-            <Button type="submit" variant="destructive" disabled={mutation.isPending}>
-              {mutation.isPending ? "正在移除..." : "确认移除"}
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={mutation.isPending || isRemoved}
+            >
+              {isRemoved
+                ? "已移除"
+                : mutation.isPending
+                  ? "正在移除..."
+                  : "确认移除"}
             </Button>
           </DialogFooter>
         </form>

@@ -3,40 +3,23 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InlineFeedback } from "@/components/feedback/inline-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
-import { register } from "./api";
+import { registerWithEmail, sendRegisterEmailCode } from "./api";
+import { getAuthSubmitError } from "./auth-error";
 import { useAuthSession } from "./auth-session";
-import { authQueryKeys } from "./query-keys";
+import { EmailCodeField } from "./email-code-field";
+import { registerWithEmailSchema } from "./schemas";
+import { syncAuthenticatedSession } from "./session-sync";
 
-const USERNAME_PATTERN = /^[A-Za-z0-9_]+$/;
-const MAX_PASSWORD_BYTES = 256;
-
-const registerSchema = z.object({
-  username: z
-    .string()
-    .trim()
-    .min(3, "用户名至少 3 位。")
-    .max(32, "用户名最多 32 位。")
-    .regex(USERNAME_PATTERN, "用户名只能使用字母、数字和下划线。")
-    .transform((value) => value.toLowerCase()),
-  password: z
-    .string()
-    .min(8, "密码至少 8 位。")
-    .refine(
-      (value) => new TextEncoder().encode(value).length <= MAX_PASSWORD_BYTES,
-      "密码最多 256 bytes。",
-    ),
-});
-
-type RegisterFormValues = z.infer<typeof registerSchema>;
+type RegisterFormValues = z.infer<typeof registerWithEmailSchema>;
 
 type RegisterFormProps = {
   className?: string;
@@ -47,44 +30,135 @@ export function RegisterForm({ className, onSuccess }: RegisterFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { setToken } = useAuthSession();
+  const [resendAvailableAt, setResendAvailableAt] = useState<number | undefined>();
   const form = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(registerWithEmailSchema),
     defaultValues: {
-      username: "",
+      code: "",
+      confirm_password: "",
+      email: "",
       password: "",
+      username: "",
     },
   });
+  const email = useWatch({ control: form.control, name: "email" }) ?? "";
 
-  const registerMutation = useMutation({
-    mutationFn: register,
+  const sendCodeMutation = useMutation({
+    mutationFn: sendRegisterEmailCode,
     onSuccess: (result) => {
-      setToken(result.access_token);
-      queryClient.setQueryData(authQueryKeys.me(), result.user);
+      setResendAvailableAt(Date.now() + result.resend_after * 1000);
+    },
+  });
+  const registerMutation = useMutation({
+    mutationFn: (values: RegisterFormValues) =>
+      registerWithEmail({
+        code: values.code,
+        email: values.email,
+        password: values.password,
+        username: values.username,
+      }),
+    onSuccess: async (result) => {
+      await syncAuthenticatedSession({ queryClient, result, setToken });
       onSuccess?.();
       router.push("/settings/profile");
     },
   });
 
-  const submitError = getSubmitError(registerMutation.error);
-  const isLocked = registerMutation.isPending || registerMutation.isSuccess;
+  const sendError = getAuthSubmitError(sendCodeMutation.error);
+  const submitError = getAuthSubmitError(registerMutation.error, {
+    conflict: "用户名或邮箱已被占用，请换一个再试。",
+    unauthenticated: "验证码无效或已过期，请重新确认。",
+  });
+  const isLocked =
+    sendCodeMutation.isPending || registerMutation.isPending || registerMutation.isSuccess;
   const statusText = registerMutation.isSuccess
     ? "账号已创建，正在进入资料设置。"
     : form.formState.isDirty
-      ? "确认信息后创建账号。"
-      : "创建后先完善公开资料。";
+      ? "确认邮箱、验证码和账号信息后创建账号。"
+      : "使用矿大邮箱验证后创建账号。";
+
+  async function handleSendCode() {
+    const isValid = await form.trigger("email");
+
+    if (!isValid) {
+      return;
+    }
+
+    sendCodeMutation.reset();
+    sendCodeMutation.mutate({ email });
+  }
 
   return (
     <form
       className={cn("space-y-0", className)}
       method="post"
-      onSubmit={form.handleSubmit((values) => registerMutation.mutate(values))}
+      onChangeCapture={() => {
+        if (registerMutation.error) {
+          registerMutation.reset();
+        }
+
+        if (sendCodeMutation.error) {
+          sendCodeMutation.reset();
+        }
+      }}
+      onSubmit={form.handleSubmit((values) => {
+        if (registerMutation.error) {
+          registerMutation.reset();
+        }
+
+        registerMutation.mutate(values);
+      })}
     >
       {submitError ? (
-        <Alert variant="destructive" className="mb-5">
-          <AlertTitle>注册失败</AlertTitle>
-          <AlertDescription>{submitError}</AlertDescription>
-        </Alert>
+        <InlineFeedback
+          className="mb-5"
+          title="注册失败"
+          description={submitError}
+          onDismiss={() => registerMutation.reset()}
+        />
       ) : null}
+      {sendError ? (
+        <InlineFeedback
+          className="mb-5"
+          title="验证码发送失败"
+          description={sendError}
+          onDismiss={() => sendCodeMutation.reset()}
+        />
+      ) : null}
+
+      <div className="border-b border-border py-4">
+        <FieldLabel htmlFor="register-email" title="矿大邮箱" />
+        <div className="min-w-0 space-y-2">
+          <Input
+            id="register-email"
+            type="email"
+            autoComplete="email"
+            aria-invalid={Boolean(form.formState.errors.email)}
+            disabled={isLocked}
+            placeholder="student@cumt.edu.cn"
+            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
+            {...form.register("email")}
+          />
+          <FieldMeta
+            error={form.formState.errors.email?.message}
+            hint="验证码会发送到符合后端白名单的矿大邮箱。"
+          />
+        </div>
+      </div>
+
+      <EmailCodeField
+        email={email}
+        disabled={isLocked}
+        isSending={sendCodeMutation.isPending}
+        onSend={handleSendCode}
+        resendAvailableAt={resendAvailableAt}
+        error={form.formState.errors.code?.message}
+        codeInputProps={{
+          id: "register-email-code",
+          "aria-invalid": Boolean(form.formState.errors.code),
+          ...form.register("code"),
+        }}
+      />
 
       <div className="border-b border-border py-4">
         <FieldLabel htmlFor="register-username" title="用户名" />
@@ -100,7 +174,7 @@ export function RegisterForm({ className, onSuccess }: RegisterFormProps) {
           />
           <FieldMeta
             error={form.formState.errors.username?.message}
-            hint="3-32 位，支持字母、数字和下划线；注册时会统一转为小写。"
+            hint="3-32 位，只支持字母、数字和下划线；注册时会统一转为小写。"
           />
         </div>
       </div>
@@ -121,6 +195,26 @@ export function RegisterForm({ className, onSuccess }: RegisterFormProps) {
           <FieldMeta
             error={form.formState.errors.password?.message}
             hint="至少 8 位，最多 256 bytes；建议混合数字、字母和符号。"
+          />
+        </div>
+      </div>
+
+      <div className="border-b border-border py-4">
+        <FieldLabel htmlFor="register-confirm-password" title="确认密码" />
+        <div className="min-w-0 space-y-2">
+          <Input
+            id="register-confirm-password"
+            type="password"
+            autoComplete="new-password"
+            aria-invalid={Boolean(form.formState.errors.confirm_password)}
+            disabled={isLocked}
+            placeholder="再次输入密码"
+            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
+            {...form.register("confirm_password")}
+          />
+          <FieldMeta
+            error={form.formState.errors.confirm_password?.message}
+            hint="用于避免输错密码。"
           />
         </div>
       </div>
@@ -165,20 +259,4 @@ function FieldMeta({
       {error ?? hint}
     </p>
   );
-}
-
-function getSubmitError(error: Error | null) {
-  if (!error) {
-    return null;
-  }
-
-  if (error instanceof ApiError) {
-    if (error.status === 409) {
-      return "用户名已被占用，请换一个用户名。";
-    }
-
-    return error.message;
-  }
-
-  return "请求失败，请稍后重试。";
 }

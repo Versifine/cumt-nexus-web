@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -196,7 +196,7 @@ export function PublicUserRail({
 
   return (
     <aside className="hidden min-w-0 border-l border-border pl-5 xl:block">
-      <div className="sticky top-20 space-y-6">
+      <div className="sticky top-20 right-rail-scroll space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">公开资料</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -402,3 +402,4 @@ export function getProfileTabHref(
       return baseHref;
   }
 }
+

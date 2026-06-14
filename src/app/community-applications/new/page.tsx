@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 
 import { AppShell } from "@/components/app-shell/app-shell";
 import { TextAction } from "@/components/ui/text-action";
@@ -70,7 +70,7 @@ function ApplicationHeader() {
 function ApplicationRail() {
   return (
     <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 space-y-6">
+      <div className="sticky top-20 right-rail-scroll space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">申请上下文</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -109,3 +109,4 @@ function ApplicationRail() {
     </aside>
   );
 }
+

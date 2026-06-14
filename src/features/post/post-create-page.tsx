@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 
@@ -131,7 +131,7 @@ function PostCreateRail({
 
   return (
     <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 space-y-6">
+      <div className="sticky top-20 right-rail-scroll space-y-6">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">发布位置</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -226,3 +226,4 @@ function mergeSuggestedCommunities(
 
   return communities;
 }
+
