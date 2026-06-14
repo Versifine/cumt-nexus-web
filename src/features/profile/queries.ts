@@ -1,15 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getPublicUser, updateProfile } from "./api";
+import {
+  deleteUserFollow,
+  followUser,
+  getPublicUser,
+  listFollowedUsers,
+  updateProfile,
+} from "./api";
 import type {
   GetPublicUserResponse,
+  ListFollowedUsersInput,
   UpdateProfileInput,
   UpdateProfileResponse,
 } from "./types";
+import { postQueryKeys } from "@/features/post/queries";
 
 export const profileQueryKeys = {
   all: ["profile"] as const,
   detail: (username: string) => [...profileQueryKeys.all, username] as const,
+  followedUsers: (input: ListFollowedUsersInput) =>
+    ["me", "followed-users", input.limit ?? 20, input.offset ?? 0] as const,
+  followedUsersPrefix: () => ["me", "followed-users"] as const,
 };
 
 export function usePublicUserQuery(
@@ -35,6 +46,52 @@ export function useUpdateProfileMutation() {
       void queryClient.invalidateQueries({
         queryKey: profileQueryKeys.all,
       });
+    },
+  });
+}
+
+export function useFollowedUsersQuery(
+  input: ListFollowedUsersInput = {},
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: profileQueryKeys.followedUsers(input),
+    queryFn: () => listFollowedUsers(input),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useToggleUserFollowMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      isFollowing,
+      username,
+    }: {
+      isFollowing: boolean;
+      username: string;
+    }) => {
+      if (isFollowing) {
+        await deleteUserFollow(username);
+        return;
+      }
+
+      await followUser(username);
+    },
+    onSuccess: async (_result, { username }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: profileQueryKeys.detail(username),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: profileQueryKeys.followedUsersPrefix(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: postQueryKeys.latestPrefix(),
+        }),
+      ]);
     },
   });
 }

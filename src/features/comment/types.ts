@@ -1,4 +1,5 @@
 import type { MediaAttachment } from "@/features/media/types";
+import type { UserLevelSummary } from "@/features/profile/types";
 
 export type CommentSort = "best" | "top" | "new" | "old" | "controversial";
 
@@ -28,6 +29,7 @@ export type Comment = {
   created_at: string;
   updated_at: string;
   attachments?: MediaAttachment[];
+  effects?: CommentEffectSummary[];
 };
 
 export type CommentPostSummary = {
@@ -48,9 +50,23 @@ export type CommentAuthorSummary = {
   id: string;
   username: string;
   display_name: string;
+  display_title?: string | null;
   avatar_url: string;
   headline: string;
   badges: string[];
+  level?: UserLevelSummary | null;
+  progression?: UserLevelSummary | null;
+};
+
+export type CommentEffectSummary = {
+  id: string;
+  effect_id: string;
+  name: string;
+  asset_url: string;
+  animation_key: string;
+  applied_by_user: CommentAuthorSummary;
+  points_spent: number;
+  created_at: string;
 };
 
 export type CommentViewerPermissions = {

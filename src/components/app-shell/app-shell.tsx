@@ -24,6 +24,7 @@ import {
   Check,
   ClipboardCheck,
   CircleDot,
+  Coins,
   Globe2,
   Hash,
   Home,
@@ -60,8 +61,10 @@ import {
   type AuthDialogMode,
 } from "@/features/auth/auth-dialog";
 import { useAuthSession } from "@/features/auth/auth-session";
-import { useCurrentUserQuery } from "@/features/auth/queries";
+import { useCurrentUserQuery, useMyPointsQuery } from "@/features/auth/queries";
 import { getSafeAuthRedirectPath } from "@/features/auth/redirect";
+import { useFollowedCommunitiesQuery } from "@/features/community/queries";
+import type { Community } from "@/features/community/types";
 import {
   emptyUnreadSummary,
   formatNotificationCategory,
@@ -173,6 +176,12 @@ export function AppShell({
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
   const currentPath = `${pathname}${currentSearch ? `?${currentSearch}` : ""}`;
+  const { isReady: isAuthReady, token } = useAuthSession();
+  const followedCommunitiesQuery = useFollowedCommunitiesQuery(
+    { limit: 5, offset: 0 },
+    isAuthReady && Boolean(token),
+  );
+  const followedCommunities = followedCommunitiesQuery.data?.communities ?? [];
   const setScopedBackTarget = useCallback(
     (target: AppShellBackTarget | null) => {
       setRegisteredBackTarget({ pathname, target });
@@ -319,6 +328,9 @@ export function AppShell({
               </div>
               <ShellNav
                 collapsed={isDesktopSidebarCollapsed}
+                followedCommunities={followedCommunities}
+                isAuthenticated={Boolean(token)}
+                isFollowedCommunitiesLoading={followedCommunitiesQuery.isPending}
                 pathname={pathname}
                 recentCommunities={recentCommunities}
               />
@@ -369,6 +381,9 @@ export function AppShell({
               {isMobileNavOpen ? (
                 <div className="mt-3 max-h-[calc(100vh-72px)] overflow-y-auto border-t border-border pt-3 lg:hidden">
                   <ShellNav
+                    followedCommunities={followedCommunities}
+                    isAuthenticated={Boolean(token)}
+                    isFollowedCommunitiesLoading={followedCommunitiesQuery.isPending}
                     pathname={pathname}
                     recentCommunities={recentCommunities}
                     variant="mobile"
@@ -487,11 +502,17 @@ function ShellBrand({
 
 function ShellNav({
   collapsed = false,
+  followedCommunities,
+  isAuthenticated,
+  isFollowedCommunitiesLoading,
   pathname,
   recentCommunities,
   variant = "desktop",
 }: {
   collapsed?: boolean;
+  followedCommunities: Community[];
+  isAuthenticated: boolean;
+  isFollowedCommunitiesLoading: boolean;
   pathname: string;
   recentCommunities: RecentCommunity[];
   variant?: "desktop" | "mobile";
@@ -563,6 +584,19 @@ function ShellNav({
 
       <section className={cn("mt-6", isCollapsedDesktop ? "hidden" : "")}>
         <div className="font-mono text-[11px] uppercase text-muted-foreground">
+          关注社区
+        </div>
+        <div className="mt-3 divide-y divide-border border-t border-border">
+          <FollowedCommunitiesNav
+            communities={followedCommunities}
+            isAuthenticated={isAuthenticated}
+            isLoading={isFollowedCommunitiesLoading}
+          />
+        </div>
+      </section>
+
+      <section className={cn("mt-6", isCollapsedDesktop ? "hidden" : "")}>
+        <div className="font-mono text-[11px] uppercase text-muted-foreground">
           最近访问
         </div>
         <div className="mt-3 divide-y divide-border border-t border-border">
@@ -588,6 +622,53 @@ function ShellNav({
       </section>
     </div>
   );
+}
+
+function FollowedCommunitiesNav({
+  communities,
+  isAuthenticated,
+  isLoading,
+}: {
+  communities: Community[];
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}) {
+  if (!isAuthenticated) {
+    return (
+      <div className="py-3 text-sm leading-6 text-muted-foreground">
+        登录后同步关注社区。
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="py-3 text-sm leading-6 text-muted-foreground">
+        正在同步关注社区。
+      </div>
+    );
+  }
+
+  if (communities.length === 0) {
+    return (
+      <div className="py-3 text-sm leading-6 text-muted-foreground">
+        还没有关注社区。
+      </div>
+    );
+  }
+
+  return communities.map((community) => (
+    <Link
+      key={community.slug}
+      href={`/communities/${community.slug}`}
+      className="flex min-w-0 items-center justify-between gap-3 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <span className="truncate">{community.name}</span>
+      <span className="shrink-0 font-mono text-xs text-primary">
+        /{community.slug}
+      </span>
+    </Link>
+  ));
 }
 
 function TopSearch() {
@@ -1077,6 +1158,7 @@ function HeaderUserMenu() {
   const currentUserQuery = useCurrentUserQuery();
   const username = currentUserQuery.data?.username ?? "";
   const profileQuery = usePublicUserQuery(username, Boolean(token && username));
+  const pointsQuery = useMyPointsQuery(Boolean(token && currentUserQuery.data));
   const avatarUrl = profileQuery.data?.user.avatar_url?.trim() ?? "";
   const displayName = profileQuery.data?.user.display_name?.trim() || username;
 
@@ -1247,6 +1329,13 @@ function HeaderUserMenu() {
               </div>
             </div>
           </div>
+          <AccountPointsSummary
+            balance={pointsQuery.data?.points.balance}
+            isError={pointsQuery.isError}
+            isLoading={pointsQuery.isPending}
+            lifetimeEarned={pointsQuery.data?.points.lifetime_earned}
+            lifetimeSpent={pointsQuery.data?.points.lifetime_spent}
+          />
         </div>
         <nav className="p-1" aria-label="账号菜单">
           <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
@@ -1267,6 +1356,14 @@ function HeaderUserMenu() {
           >
             <Bookmark className="size-4" aria-hidden="true" />
             我的收藏
+          </Link>
+          <Link
+            href="/settings/progression"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+            onClick={closeMenu}
+          >
+            <Coins className="size-4" aria-hidden="true" />
+            成长与积分
           </Link>
           <div className="-mx-1 my-1 h-px bg-border" />
           <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
@@ -1310,6 +1407,14 @@ function HeaderUserMenu() {
                 <ClipboardCheck className="size-4" aria-hidden="true" />
                 社区审批
               </Link>
+              <Link
+                href="/admin/growth"
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+                onClick={closeMenu}
+              >
+                <Coins className="size-4" aria-hidden="true" />
+                成长管理
+              </Link>
             </>
           ) : null}
           <div className="-mx-1 my-1 h-px bg-border" />
@@ -1325,6 +1430,79 @@ function HeaderUserMenu() {
       </div>
     </div>
   );
+}
+
+function AccountPointsSummary({
+  balance,
+  isError,
+  isLoading,
+  lifetimeEarned,
+  lifetimeSpent,
+}: {
+  balance?: number;
+  isError: boolean;
+  isLoading: boolean;
+  lifetimeEarned?: number;
+  lifetimeSpent?: number;
+}) {
+  if (isError) {
+    return (
+      <div className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
+        积分暂时无法同步。
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3">
+      <AccountPointsMetric
+        icon={<Coins className="size-3.5" aria-hidden="true" />}
+        label="积分"
+        value={isLoading ? "同步中" : formatPointAmount(balance)}
+      />
+      <AccountPointsMetric
+        label="累计"
+        value={isLoading ? "同步中" : formatPointAmount(lifetimeEarned)}
+      />
+      <AccountPointsMetric
+        label="已用"
+        value={isLoading ? "同步中" : formatPointAmount(lifetimeSpent)}
+      />
+    </div>
+  );
+}
+
+function AccountPointsMetric({
+  icon,
+  label,
+  value,
+}: {
+  icon?: ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <div className="mt-1 truncate text-xs font-semibold text-foreground">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function formatPointAmount(value?: number) {
+  if (typeof value !== "number") {
+    return "暂无";
+  }
+
+  return new Intl.NumberFormat("zh-CN", {
+    maximumFractionDigits: 1,
+    notation: value >= 10000 ? "compact" : "standard",
+  }).format(value);
 }
 
 function isActivePath(pathname: string, href: string) {
@@ -1370,7 +1548,7 @@ function HeaderAvatar({
         alt={`${username} 的头像`}
         className={cn(
           sizeClass,
-          "shrink-0 rounded-full border border-border bg-secondary object-cover",
+          "shrink-0 rounded-full bg-secondary object-cover",
         )}
       />
     );
@@ -1381,7 +1559,7 @@ function HeaderAvatar({
       className={cn(
         sizeClass,
         textClass,
-        "flex shrink-0 items-center justify-center rounded-full border border-border bg-secondary font-semibold text-primary",
+        "flex shrink-0 items-center justify-center rounded-full bg-secondary font-semibold text-primary",
       )}
     >
       {getUserInitial(username)}

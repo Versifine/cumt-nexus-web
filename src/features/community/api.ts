@@ -64,6 +64,24 @@ export function listFollowedCommunities({
   );
 }
 
+export function followCommunity(slug: string) {
+  return apiRequest<void>(
+    `/api/v1/communities/${encodeURIComponent(slug)}/follow`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+export function deleteCommunityFollow(slug: string) {
+  return apiRequest<void>(
+    `/api/v1/communities/${encodeURIComponent(slug)}/follow`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
 export function getCommunity(slug: string, options: GetCommunityOptions = {}) {
   return apiRequest<GetCommunityResponse>(
     `/api/v1/communities/${encodeURIComponent(slug)}`,

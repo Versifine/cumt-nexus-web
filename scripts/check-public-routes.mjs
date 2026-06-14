@@ -92,6 +92,23 @@ const routes = [
     path: "/settings/profile",
   },
   {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fsettings%2Fprogression",
+      "/register?next=%2Fsettings%2Fprogression",
+    ],
+    markers: ["CUMT Nexus", "成长与积分", "登录后查看成长资料", "去登录"],
+    path: "/settings/progression",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Fgrowth",
+    ],
+    markers: ["CUMT Nexus", "成长系统管理", "登录后进入成长管理", "登录"],
+    path: "/admin/growth",
+  },
+  {
     hrefMarkers: ["/", "/login?next=%2Fcommunity-applications%2Fnew"],
     markers: ["CUMT Nexus", "创建账号", "先完善公开资料", "已有账号，去登录"],
     path: "/register?next=%2Fcommunity-applications%2Fnew",

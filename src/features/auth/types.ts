@@ -9,6 +9,18 @@ export type CurrentUser = {
   created_at: string;
 };
 
+export type PointAccount = {
+  user_id: string;
+  balance: number;
+  lifetime_earned: number;
+  lifetime_spent: number;
+  updated_at: string;
+};
+
+export type GetMyPointsResponse = {
+  points: PointAccount;
+};
+
 export type AuthResult = {
   access_token: string;
   token_type: "Bearer" | string;

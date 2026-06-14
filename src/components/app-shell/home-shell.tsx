@@ -53,16 +53,14 @@ export function HomeShell({
   const sort = initialSort;
   const requiresAuth = source === "following";
   const isFollowingFeed = source === "following";
-  const readableSource = isFollowingFeed ? "recommended" : source;
   const postSource = getHomePostSource(pathname, source, sort);
-  const canReadLatestPosts =
-    isReady && !isFollowingFeed && (!requiresAuth || Boolean(token));
+  const canReadLatestPosts = isReady && (!requiresAuth || Boolean(token));
   const latestPostsQuery = useLatestPostsQuery(
     20,
     0,
     canReadLatestPosts,
     sort,
-    readableSource,
+    source,
     initialPostsData,
   );
   const posts = canReadLatestPosts ? (latestPostsQuery.data?.posts ?? []) : [];
@@ -165,32 +163,17 @@ export function HomeShell({
             </div>
           ) : null}
 
-          {isReady && isFollowingFeed && token ? (
-            <div className="py-5">
-              <EmptyState
-                title="关注信息流暂未开放"
-                description="后端当前只确认推荐和全站信息流合同。关注入口先保留，避免把普通公开帖子误当成关注内容。"
-                action={
-                  <div className="flex flex-col items-stretch justify-center gap-2 sm:flex-row">
-                    <TextAction href="/all" tone="primary">
-                      浏览全站
-                    </TextAction>
-                    <TextAction href="/communities">
-                      浏览社区
-                    </TextAction>
-                  </div>
-                }
-              />
-            </div>
-          ) : null}
-
           {canReadLatestPosts &&
           latestPostsQuery.isSuccess &&
           posts.length === 0 ? (
             <div className="py-5">
               <EmptyState
-                title="还没有帖子"
-                description="公开社区开始发布内容后，最新帖子会出现在这里。"
+                title={isFollowingFeed ? "关注流还没有帖子" : "还没有帖子"}
+                description={
+                  isFollowingFeed
+                    ? "关注社区后，相关公开讨论会出现在这里。"
+                    : "公开社区开始发布内容后，最新帖子会出现在这里。"
+                }
                 action={<TextAction href="/communities">去社区看看</TextAction>}
               />
             </div>
@@ -234,8 +217,10 @@ function getFeedIntroText(
   sort: PostSort,
   hasToken: boolean,
 ) {
-  if (source === "following" && hasToken) {
-    return "关注流合同尚未确认，当前不会请求或展示普通公开帖子。";
+  if (source === "following") {
+    return hasToken
+      ? `只展示你关注社区中的公开讨论，当前按${formatPostSortLabel(sort)}排序。`
+      : "登录后查看你关注的社区入口。";
   }
 
   return `${formatFeedSourceDescription(source)}当前按${formatPostSortLabel(sort)}排序。`;
@@ -324,7 +309,7 @@ function getRailDescription(
   }
 
   if (source === "following") {
-    return "关注流入口已经保留；真实关注内容需要后端 source 合同确认后再接入。";
+    return "这里按关注社区聚合公开讨论，不混入普通全站帖子。";
   }
 
   return "这里按当前来源展示公开讨论。右侧只保留能继续浏览的社区入口。";
@@ -335,7 +320,7 @@ function getTopPostsEmptyText(
   canReadLatestPosts: boolean,
 ) {
   if (source === "following") {
-    return "关注流不会用普通公开帖子填充。";
+    return "关注社区并产生公开讨论后会出现在这里。";
   }
 
   return canReadLatestPosts ? "当前帖子还没有形成社区聚合。" : "正在准备公开帖子流。";

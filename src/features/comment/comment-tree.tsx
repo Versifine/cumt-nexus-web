@@ -4,6 +4,8 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronRight, CornerDownRight, User } from "lucide-react";
 
+import { CommentEffectSummary } from "@/features/comment/comment-effect-summary";
+import { CommentEffectMenu } from "@/features/comment/comment-effect-menu";
 import { CommentLifecycleControls } from "@/features/comment/comment-lifecycle-controls";
 import { CommentForm } from "@/features/comment/comment-form";
 import { ContentBody } from "@/features/content/content-body";
@@ -14,6 +16,7 @@ import {
   UserHoverPreview,
   type UserHoverIdentity,
 } from "@/features/profile/user-hover-card";
+import { UserIdentityMarks } from "@/features/profile/user-identity-marks";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { cn } from "@/lib/utils";
 
@@ -170,6 +173,16 @@ function CommentBranch({
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
               <CommentAuthorMeta comment={comment} />
+              <UserIdentityMarks
+                badges={comment.author?.badges?.filter(Boolean) ?? []}
+                displayTitle={
+                  comment.author?.progression?.active_title?.name ??
+                  comment.author?.display_title
+                }
+                level={comment.author?.progression ?? comment.author?.level}
+                maxItems={2}
+                size="sm"
+              />
               <span aria-hidden="true">·</span>
               <span>{formatDate(comment.created_at)}</span>
               {comment.status !== "visible" ? (
@@ -185,6 +198,8 @@ function CommentBranch({
               value={comment.body}
               className="mt-2 text-sm leading-7"
             />
+
+            <CommentEffectSummary effects={comment.effects} />
 
             <div className="mt-2 flex flex-wrap items-center gap-1 text-xs">
               <TextCommand
@@ -210,6 +225,12 @@ function CommentBranch({
               <CommentLifecycleControls
                 canManage={canManageComment}
                 comment={comment}
+                postId={postId}
+              />
+
+              <CommentEffectMenu
+                commentId={comment.id}
+                isAuthenticated={isAuthenticated}
                 postId={postId}
               />
 
@@ -495,14 +516,14 @@ function CommentAuthorAvatarVisual({
       <img
         src={avatarUrl}
         alt={`${name} 的头像`}
-        className="mt-0.5 size-8 shrink-0 rounded-full bg-secondary object-cover ring-1 ring-border/70"
+        className="mt-0.5 size-8 shrink-0 rounded-full bg-secondary object-cover"
       />
     );
   }
 
   return (
     <span
-      className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-primary ring-1 ring-border/70"
+      className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-primary"
       aria-label={`${name} 的头像占位`}
     >
       <User className="size-4" aria-hidden="true" />
@@ -528,8 +549,13 @@ function getCommentAuthorHoverIdentity(comment: Comment): UserHoverIdentity {
   return {
     avatarUrl: comment.author?.avatar_url?.trim() || "",
     badges: comment.author?.badges?.filter(Boolean) ?? [],
+    displayTitle:
+      comment.author?.progression?.active_title?.name?.trim() ||
+      comment.author?.display_title?.trim() ||
+      null,
     displayName: getCommentAuthorName(comment),
     headline: comment.author?.headline?.trim() || "",
+    level: comment.author?.progression ?? comment.author?.level ?? null,
     username: comment.author?.username?.trim() || "",
   };
 }

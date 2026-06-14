@@ -11,6 +11,8 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { CommentEffectMenu } from "@/features/comment/comment-effect-menu";
+import { CommentEffectSummary } from "@/features/comment/comment-effect-summary";
 import { useUserCommentsQuery } from "@/features/comment/queries";
 import type { Comment, ListCommentsResponse } from "@/features/comment/types";
 import {
@@ -52,7 +54,7 @@ export function PublicUserComments({
   initialProfileData,
   username,
 }: PublicUserCommentsProps) {
-  const { isReady } = useAuthSession();
+  const { isReady, token } = useAuthSession();
   const profileQuery = usePublicUserQuery(username, isReady, initialProfileData);
   const user = profileQuery.data?.user;
   const canRequestComments = isReady && profileQuery.isSuccess && Boolean(user);
@@ -173,7 +175,12 @@ export function PublicUserComments({
 
         {commentsQuery.isSuccess && comments.length > 0
           ? comments.map((comment) => (
-              <UserCommentRow key={comment.id} comment={comment} user={user} />
+              <UserCommentRow
+                key={comment.id}
+                comment={comment}
+                isAuthenticated={Boolean(token)}
+                user={user}
+              />
             ))
           : null}
       </section>
@@ -183,9 +190,11 @@ export function PublicUserComments({
 
 function UserCommentRow({
   comment,
+  isAuthenticated,
   user,
 }: {
   comment: Comment;
+  isAuthenticated: boolean;
   user: PublicUser;
 }) {
   const context = getCommentContext(comment);
@@ -265,6 +274,8 @@ function UserCommentRow({
             />
           </div>
 
+          <CommentEffectSummary effects={comment.effects} />
+
           <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
             <PostActionLink href={context.postHref} onClick={rememberSource}>
               <CornerDownRight className="size-4" aria-hidden="true" />
@@ -276,6 +287,12 @@ function UserCommentRow({
                 {replyCount} 条回复
               </span>
             ) : null}
+            <CommentEffectMenu
+              commentId={comment.id}
+              isAuthenticated={isAuthenticated}
+              postId={context.postId}
+              userCommentsUsername={user.username}
+            />
           </div>
         </div>
       </div>
@@ -369,14 +386,14 @@ function CommentAuthorAvatarVisual({
       <img
         src={avatarUrl}
         alt={`${name} 的头像`}
-        className="mt-0.5 size-8 shrink-0 rounded-full bg-secondary object-cover ring-1 ring-border/70"
+        className="mt-0.5 size-8 shrink-0 rounded-full bg-secondary object-cover"
       />
     );
   }
 
   return (
     <span
-      className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-primary ring-1 ring-border/70"
+      className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-primary"
       aria-label={`${name} 的头像占位`}
     >
       <UserIcon className="size-4" aria-hidden="true" />

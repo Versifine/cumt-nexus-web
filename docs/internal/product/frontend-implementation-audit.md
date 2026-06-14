@@ -40,7 +40,7 @@
 | 首页 / 社区 feed item | 列表项展示社区、作者、标题、摘要、分数、评论数、图片预览；没有图片时会从后端 `preview.link` 或正文首个安全 http/https 外链生成保守链接卡，显示域名、链接文字或后端标题，不抓取远端、不伪造元数据。 | 基础落地。 | 推荐 / 关注 feed 未证明；完整网页标题、描述、缩略图仍需要后端解析缓存。 |
 | 保存收藏 | `POST /api/v1/posts/:id/save`、`DELETE /api/v1/posts/:id/save` 和 `GET /api/v1/me/saved-posts` 已接入；列表项和详情 footer 显示收藏动作及公开计数；`/saved` 登录后读取真实收藏列表，未登录显示登录门禁；从收藏列表进入帖子详情会记录“返回收藏”。 | 基础落地。 | 仍需后端补更完整的个性化收藏排序、分页加载和收藏夹能力；当前不伪造这些扩展。 |
 | Feed sort | `PostSort = "best" | "hot" | "new" | "top" | "rising"`；路由已有 `/`、`/best`、`/hot`、`/new`、`/top`、`/rising`。2026-06-09 复核本地后端 API，`sort=best|hot|new|top|rising` 均返回 200；`check:main-path` 已把五种排序纳入严格验收。 | 前端 URL / UI 和后端排序运行态已对齐。 | `top` 的时间范围 `t=day|week|month|year|all` 仍是后续合同；前端不伪造时间窗口。 |
-| Feed source | `src/features/feed/source.ts` 已集中定义推荐 / 全站 / 关注信息源标签和 URL；左侧导航已有首页、全站、关注、社区；首页信息流可在 `/`、`/all`、`/following` 及各自排序子路径之间切换。`/following` 未登录时显示登录门禁，登录后显示“关注信息流暂未开放”，不会请求 `source=following` 或用普通公开帖子填充。`src/features/post/types.ts` 用 `ReadableFeedSource` 把真实帖子列表 API 限定为 `recommended | all`。 | 前端 URL / UI 基础落地，关注流不伪造。 | 仍需后端补齐或明确关注流合同；补齐前只保留入口和说明。 |
+| Feed source | `src/features/feed/source.ts` 已集中定义推荐 / 全站 / 关注信息源标签和 URL；左侧导航已有首页、全站、关注、社区；首页信息流可在 `/`、`/all`、`/following` 及各自排序子路径之间切换。`/following` 未登录时显示登录门禁，登录后通过 `GET /api/v1/posts?source=following` 读取真实关注社区帖子流，不再用普通公开帖子或关注社区入口冒充关注流。`src/features/post/types.ts` 允许 `ReadableFeedSource = FeedSource`。 | 前端 URL / UI 和后端关注流合同已对齐。 | 后续只需登录态真实数据量下复验关注流排序和空态。 |
 | 评论 sort | 帖子详情已支持 Reddit 式 `?sort=best|top|new|old|controversial`，评论区有排序 tabs，树状评论层级保持不变；2026-06-09 复核本地后端 API，五种评论排序均返回 200；同时兼容旧规划中的 `comment_sort` query。 | 前端 URL / UI 和后端排序运行态已对齐。 | 后续只保留浏览器 QA 和更复杂数据下的排序体验复验。 |
 | 评论投票 | `src/features/vote/api.ts` 已接入 `PUT /api/v1/comments/:id/vote` 和 `DELETE /api/v1/comments/:id/vote`；`CommentTree` 和用户评论列表每条评论都复用 `RedditVoteControl targetType="comment"`，成功后刷新当前帖子评论树和用户评论列表；失败时统一弹出可见 toast，不只写入 `sr-only`。 | 登录态投票 / 取消 / 反对、真实后端失败回滚和移动端触控已完成浏览器 QA。 | 当前不做积分特效；后续只保留完整浏览器 QA 和更复杂数据下的回归复验。 |
 | Markdown 阅读态 | `ContentBody` 使用 `react-markdown` + `remark-gfm`，`skipHtml`，安全 URL，帖子和评论复用；移动端已用真实帖子验证宽表格、长代码块、任务列表和外部 Markdown 图片提示不会撑破页面，表格和代码块只在自身容器内横向滚动。`check:content-boundary` 已固化阅读态移动端溢出边界。 | 基础落地，移动端关键边界已有浏览器 QA。 | 仍需继续做更完整的 Reddit parity 用例审计，例如更多边界语法、深层评论组合和复杂嵌套内容。 |
@@ -67,9 +67,8 @@
 - 发帖页剪贴板图片：登录测试账号后在 `/communities/public/new` 用系统剪贴板粘贴 PNG，写作器上传图片并在当前位置渲染图片节点；提交时仍序列化为 `nexus-attachment` Markdown marker 和 `attachment_ids`。
 - 评论区剪贴板图片：评论写作器同样支持粘贴 PNG，上传后在当前位置渲染图片节点；提交时仍序列化为 `nexus-attachment` Markdown marker 和 `attachment_ids`。
 - 本地运行时注意：后端源码和远端 `main` 已放行 CORS `PATCH`，但旧 Docker 容器曾返回 `GET, POST, PUT, DELETE, OPTIONS`，导致浏览器保存失败。重建 `cumt-nexus-api:local` 并按现有数据卷账号恢复 prod compose 后，`OPTIONS` 返回 `GET, POST, PUT, PATCH, DELETE, OPTIONS`，编辑保存通过。
-- 2026-06-08 Feed source UI 重测历史证据：桌面 `/`、`/all/hot`、`/following` 均显示首页 / 全站 / 关注 / 社区左侧导航和源 / 排序双 tabs；当时 `/following` 在登录态浏览器按关注源请求。2026-06-10 已调整为关注流合同未确认时不请求 `source=following`，登录后展示“关注信息流暂未开放”，无 token 的 `/following` 门禁仍由 `check:routes` 的服务端请求覆盖。
-- 2026-06-10 `/following` 浏览器复验：桌面未登录态显示“登录后查看关注信息流”和“关注流不会用普通公开帖子填充”，没有 `/api/v1/posts?source=following` 请求，`scrollWidth` 等于 `clientWidth`。390px 移动端用真实后端 smoke 账号从 `/login?next=%2Ffollowing` 登录后进入 `/following`，显示“关注信息流暂未开放”、浏览全站 / 浏览社区出口和“不展示普通公开帖子”说明，没有 `source=following` 请求、无横向溢出、控制台 error 数为 0。
-- 2026-06-10 Feed source 合同复核：`cumt-nexus-api` 当前源码 `PostFeedSource` 只定义 `all` 和 `recommended`，`normalizePostFeedSource` 会拒绝其他值；合同文档也写明 `GET /api/v1/posts` 的 `source=all|recommended`。当前本地运行后端实测 `source=recommended` 和 `source=all` 返回 200，`source=following` 也返回 200 且返回普通帖子流，说明运行态可能存在未重建或旧版本漂移，不能作为关注流已完成证据。前端继续保持 `/following` 占位，不请求 `source=following`。
+- 2026-06-14 Feed source 合同复核：`cumt-nexus-api` 当前源码 `PostFeedSource` 已包含 `following`，`GET /api/v1/posts?source=recommended|all|following` 为正式合同；`source=following` 需要 Bearer，只返回用户已关注公开社区内的 visible 帖子。前端已把 `ReadableFeedSource` 恢复为完整 `FeedSource`，`/following` 登录态会请求真实关注流，未登录态仍显示登录门禁。
+- 2026-06-14 `/following` 浏览器复验：桌面和 390px 移动端未登录态显示“登录后查看关注信息流”和“关注流只展示与你关注社区有关的内容”，无横向溢出，控制台 error 数为 0；`check:routes` 已覆盖未登录门禁，`check:api-boundary` 已固化 following feed 使用真实后端源。
 - 2026-06-10 通知中心浏览器 QA：用真实后端 QA 账号 `qa_notify_20260610210318` seed `post_reply`、`mention`、`post_like`、`system` 四类通知，API 直读 `unread-summary` 为 `total=4, replies=1, mentions=1, likes=1, system=1`。桌面 `/notifications` 显示 `全部 / 回复 / @ / 赞 / 系统` 分类 tabs、右栏“分类未读”和“全部标记已读”；逐个点击分类时每类只显示对应 1 条通知，`scrollWidth` 等于 `clientWidth`。390px 移动端同页显示 4 条通知、分类 tabs、分类未读和全部标记已读，无横向溢出，控制台 error 数为 0。点击“全部标记已读”后页面显示“没有未读通知”，分类未读全部归零，数据库中 4 条通知 `read_at` 均已写入。
 - 2026-06-10 通知分类 URL 回归：`/notifications/replies`、`/notifications/mentions`、`/notifications/likes`、`/notifications/system` 复用同一个 `NotificationCenter`，分别以回复、@、赞、系统作为初始分类；未登录态登录门禁会保留对应 `next` 回跳；`/notifications/unknown` 返回项目统一 404。`check:routes` 和 `check:api-boundary` 已把分类 URL、路由 guard 和 tab URL 同步纳入检查。桌面浏览器从 `/notifications/replies` 点击“赞”和“系统”后分别进入 `/notifications/likes`、`/notifications/system`，页面显示对应 `未读 / 赞`、`未读 / 系统`，无横向溢出且控制台 error 数为 0。390px 移动端直达 `/notifications/mentions` 显示 `未读 / @`、分类 tabs 和“分类未读”，`scrollWidth` 等于 `clientWidth`，控制台 error 数为 0。
 - 2026-06-10 通知来源解析代码回归：后端合同确认通知响应只有 `source_type` 和 `source_id`，没有 `target_url` 或评论所属帖子 ID。前端新增 `src/features/notification/targets.ts` 集中解析现有来源：`post`、`community`、`report/moderation_report` 生成可点击目标；`comment` 不再尝试伪造帖子链接，列表显示“等待评论上下文”和“后端尚未返回所属帖子 ID”。`check:api-boundary` 已固化 resolver、评论不误链和通知中心使用共享 resolver。
@@ -99,7 +98,7 @@
 
 以下不要直接改后端；需要进入后端文档或后端任务：
 
-- Feed source 合同：推荐、全站、关注、社区、用户、搜索结果之间的统一接口或明确拆分接口。当前前端只把真实帖子列表 API 限定为 `source=recommended|all`；`/following` 只保留入口和状态说明，等待后端关注流合同后再接入真实数据。2026-06-10 复核时发现本地运行态仍对 `source=following` 返回普通帖子流，需后端重建或修正运行版本后再确认。
+- Feed source 合同：推荐、全站、关注、社区、用户、搜索结果之间的基础读取合同已覆盖；`source=following` 已接入真实关注流。后续如继续扩展，只补个性化推荐解释、关注用户内容混排或时间窗口等新合同。
 - Feed sort 时间窗口：`best | hot | new | top | rising` 基础排序已通过本地运行态验收；`top` 的 `t=day|week|month|year|all` 时间范围仍需后端合同。
 - 个性化推荐和关注 feed：关注关系、推荐排序、登录 / 未登录降级策略。前端当前只做 URL / UI 和未登录门禁，不伪造关注结果。
 - 通知 target 精度：回复、@、赞、系统的后端分类、未读摘要和全部标记已读合同已经接入并通过浏览器 QA；前端已集中解析现有来源并避免评论通知误跳。仍需后端给评论类通知提供可跳到所属帖子 / 评论锚点的 target，并补齐审核、社区申请类通知的稳定类型和目标。
@@ -113,7 +112,7 @@
 不要再按“规划是否完成”讨论。后续按体验任务推进：
 
 1. 补一轮系统文件选择器的真实人工 QA；图片粘贴上传等待态已用浏览器 PNG 剪贴板验证，当前共享写作器已有最短可见上传中提示、上传中禁用和状态条，代码边界由 `check:content-boundary` 覆盖，数据绑定正确性已由 `check:v2-path` 覆盖。
-2. 推进后端 Feed source 运行态对齐：源码和合同只承认 `source=all|recommended`，但当前本地运行态仍对 `source=following` 返回普通帖子流；在后端重建或修正合同前，前端继续保持关注流占位。
+2. 关注流已接入真实 `source=following`；下一步只需用登录态真实关注数据补桌面 / 移动端端到端 QA，并观察排序和空态是否需要后端继续细化。
 3. 通知中心分类、未读摘要、全部标记已读和现有来源解析已完成接入，并已补桌面 / 移动端可视 QA；下一步只围绕后端评论 target、审核 / 社区申请事件覆盖和完整浏览器 QA 继续。
 4. 社区详情权限入口、管理读取、资料写操作和规则写操作已接入，并已补普通用户门禁、owner 桌面写操作和移动端写操作浏览器 QA；下一步如继续社区管理，应补成员编辑 / 邀请 / 角色调整和具体子页，并继续避免把后端未完成能力伪造成已完成。
 5. 做链接预览和 embed 后端合同接入：链接预览仍未实现；embed 前端 canonical 裸链接已可显示，下一步是接后端结构化 `embed.id`。

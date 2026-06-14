@@ -12,6 +12,8 @@
 - `product/v2-roadmap.md`：V2 后端能力全量前端接入路线图。
 - `product/frontend-experience-rebuild.md`：从真实页面体验反馈出发的前端重修拆分方案。
 - `product/post-media-profile-rebuild.md`：帖子媒体流、列表预览、详情页 lightbox 和公开用户主页重构计划。
+- `product/social-progression-design.md`：关注、头衔、经验等级、积分和消耗型特殊互动的产品/合同设计。
+- `product/platform-admin-design.md`：平台管理区的信息架构、路由拓扑、页面职责、接口边界和首版验收标准。
 - `architecture/content-system.md`：Reddit Markdown 正文、Reddit-style 评论树、图片和外链嵌入的产品/架构讨论稿。
 - `architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端合同核对文档。
 - `architecture/markdown-rendering.md`：Reddit Markdown renderer 选型、安全边界、组件组织和实施切片。

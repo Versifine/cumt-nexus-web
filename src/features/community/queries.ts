@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   approveCommunityApplication,
   createCommunityRule,
+  deleteCommunityFollow,
   deleteCommunityRule,
+  followCommunity,
   getCommunity,
   getCommunityApplication,
   getCommunityManageContext,
@@ -20,6 +22,7 @@ import {
   updateCommunityManageSettings,
   updateCommunityRule,
 } from "./api";
+import { postQueryKeys } from "@/features/post/queries";
 import type {
   CreateCommunityRuleInput,
   CommunityApplicationStatus,
@@ -129,6 +132,46 @@ export function useCommunityQuery(
       }),
     enabled,
     initialData,
+  });
+}
+
+export function useToggleCommunityFollowMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      isFollowing,
+      slug,
+    }: {
+      isFollowing: boolean;
+      slug: string;
+    }) => {
+      if (isFollowing) {
+        await deleteCommunityFollow(slug);
+        return;
+      }
+
+      await followCommunity(slug);
+    },
+    onSuccess: async (_result, { slug }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.all,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["me", "followed-communities"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.detail(slug, "viewer"),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: postQueryKeys.latestPrefix(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: postQueryKeys.communityPostsPrefix(slug),
+        }),
+      ]);
+    },
   });
 }
 

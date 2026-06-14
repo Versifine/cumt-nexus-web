@@ -1,6 +1,6 @@
 import type { CommentSort } from "./types";
 
-export const DEFAULT_COMMENT_SORT: CommentSort = "new";
+export const DEFAULT_COMMENT_SORT: CommentSort = "old";
 
 export const commentSortItems: Array<{
   description: string;
@@ -35,13 +35,13 @@ export const commentSortItems: Array<{
 ];
 
 export function formatCommentSortLabel(sort: CommentSort) {
-  return commentSortItems.find((item) => item.value === sort)?.label ?? "最新";
+  return commentSortItems.find((item) => item.value === sort)?.label ?? "最早";
 }
 
 export function formatCommentSortDescription(sort: CommentSort) {
   return (
     commentSortItems.find((item) => item.value === sort)?.description ??
-    "优先展示最新发布的评论。"
+    "优先展示最早发布的评论。"
   );
 }
 

@@ -16,6 +16,8 @@ import {
   UserHoverPreview,
   type UserHoverIdentity,
 } from "@/features/profile/user-hover-card";
+import { UserIdentityMarks } from "@/features/profile/user-identity-marks";
+import type { UserLevelSummary } from "@/features/profile/types";
 import { cn } from "@/lib/utils";
 
 import type { Post } from "./types";
@@ -43,7 +45,9 @@ export type PostIdentity = {
 type PostAuthorProfile = PostIdentity & {
   badges: string[];
   bannerUrl: string;
+  displayTitle?: string | null;
   headline: string;
+  level?: UserLevelSummary | null;
 };
 
 type PostCommunityProfile = PostIdentity &
@@ -158,19 +162,13 @@ export function PostAuthorIdentity({
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-5">
         <PostAuthorName author={author} />
 
-        {author.badges.length > 0 ? (
-          <span className="inline-flex min-w-0 flex-wrap items-center gap-1">
-            {author.badges.slice(0, 3).map((badge) => (
-              <StatusToken
-                key={badge}
-                className="px-1.5 py-0 text-[11px]"
-                tone="primary"
-              >
-                {badge}
-              </StatusToken>
-            ))}
-          </span>
-        ) : null}
+        <UserIdentityMarks
+          badges={author.badges}
+          displayTitle={author.displayTitle}
+          level={author.level}
+          maxItems={3}
+          size="sm"
+        />
       </div>
 
       {meta ? <div className="mt-0.5 min-w-0">{meta}</div> : null}
@@ -201,7 +199,7 @@ export function PostAuthorAvatar({
         alt={`${name} 的头像`}
         className={cn(
           sizeClass,
-          "shrink-0 rounded-full bg-secondary object-cover ring-1 ring-border/70",
+          "shrink-0 rounded-full bg-secondary object-cover",
           className,
         )}
       />
@@ -212,7 +210,7 @@ export function PostAuthorAvatar({
     <span
       className={cn(
         sizeClass,
-        "flex shrink-0 items-center justify-center rounded-full bg-secondary text-primary ring-1 ring-border/70",
+        "flex shrink-0 items-center justify-center rounded-full bg-secondary text-primary",
         className,
       )}
       aria-label={`${name} 的头像占位`}
@@ -295,7 +293,9 @@ function getPostAuthorHoverIdentity(
     badges: author.badges,
     bannerUrl: author.bannerUrl,
     displayName: author.name,
+    displayTitle: author.displayTitle,
     headline: author.headline,
+    level: author.level,
     username: author.slug,
   };
 }
@@ -443,7 +443,12 @@ function getPostAuthorProfile(
     ...identity,
     badges: post.author?.badges?.filter(Boolean) ?? [],
     bannerUrl: post.author?.banner_url?.trim() || "",
+    displayTitle:
+      post.author?.progression?.active_title?.name?.trim() ||
+      post.author?.display_title?.trim() ||
+      null,
     headline: post.author?.headline?.trim() || "",
+    level: post.author?.progression ?? post.author?.level ?? null,
   };
 }
 

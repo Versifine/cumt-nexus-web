@@ -402,6 +402,9 @@ function ProfileSettingsRail({
             <TextAction href="/saved" variant="bar">
               我的收藏
             </TextAction>
+            <TextAction href="/settings/progression" variant="bar">
+              成长与积分
+            </TextAction>
             <TextAction href="/settings/security#password" tone="primary" variant="bar">
               修改密码
             </TextAction>

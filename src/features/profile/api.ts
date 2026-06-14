@@ -2,6 +2,8 @@ import { apiRequest } from "@/lib/api/client";
 
 import type {
   GetPublicUserResponse,
+  ListFollowedUsersInput,
+  ListFollowedUsersResponse,
   UpdateProfileInput,
   UpdateProfileResponse,
 } from "./types";
@@ -28,4 +30,36 @@ export function updateProfile(input: UpdateProfileInput) {
     method: "PATCH",
     body: input,
   });
+}
+
+export function listFollowedUsers({
+  limit = 20,
+  offset = 0,
+}: ListFollowedUsersInput = {}) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+
+  return apiRequest<ListFollowedUsersResponse>(
+    `/api/v1/me/followed-users?${params.toString()}`,
+  );
+}
+
+export function followUser(username: string) {
+  return apiRequest<void>(
+    `/api/v1/users/${encodeURIComponent(username)}/follow`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+export function deleteUserFollow(username: string) {
+  return apiRequest<void>(
+    `/api/v1/users/${encodeURIComponent(username)}/follow`,
+    {
+      method: "DELETE",
+    },
+  );
 }

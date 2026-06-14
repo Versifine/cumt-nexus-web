@@ -6,6 +6,7 @@ import {
   listUserComments,
   updateComment,
 } from "./api";
+import { DEFAULT_COMMENT_SORT } from "./sort";
 import type {
   CommentSort,
   ListCommentsResponse,
@@ -34,7 +35,7 @@ export function usePostCommentsQuery(
   limit = 20,
   offset = 0,
   view: "flat" | "tree" = "tree",
-  sort: CommentSort = "new",
+  sort: CommentSort = DEFAULT_COMMENT_SORT,
   maxDepth = 6,
   enabled = true,
   initialData?: ListCommentsResponse,

@@ -1,7 +1,8 @@
 ﻿"use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { Hash } from "lucide-react";
+import { Hash, MessageSquare, Users } from "lucide-react";
 
 import { rememberRecentCommunity } from "@/components/app-shell/recent-communities";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -12,6 +13,7 @@ import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { ApiError } from "@/lib/api/client";
 
+import { CommunityFollowButton } from "./community-follow-button";
 import { useCommunitiesQuery } from "./queries";
 import type { Community } from "./types";
 
@@ -22,7 +24,7 @@ export function CommunityList() {
   const communities = communitiesQuery.data?.communities ?? [];
 
   return (
-    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px] xl:gap-8">
       <div className="min-w-0">
         <section className="bg-background">
           <div className="border-b border-border pb-4">
@@ -92,11 +94,13 @@ export function CommunityList() {
             </div>
           ) : null}
 
-          {communitiesQuery.isSuccess && communities.length > 0
-            ? communities.map((community) => (
-                <CommunityRow key={community.id} community={community} />
-              ))
-            : null}
+          {communitiesQuery.isSuccess && communities.length > 0 ? (
+            <div className="grid gap-3 border-b border-border py-3 lg:grid-cols-2">
+              {communities.map((community) => (
+                <CommunityCard key={community.id} community={community} />
+              ))}
+            </div>
+          ) : null}
         </section>
       </div>
 
@@ -146,44 +150,141 @@ function CommunityListHeader({
   );
 }
 
-function CommunityRow({ community }: { community: Community }) {
+function CommunityCard({ community }: { community: Community }) {
+  const href = `/communities/${encodeURIComponent(community.slug)}`;
+
   return (
-    <Link
-      href={`/communities/${encodeURIComponent(community.slug)}`}
-      onClick={() => rememberRecentCommunity(community)}
-      className="group grid grid-cols-[36px_minmax(0,1fr)] border-b border-border bg-background py-3 sm:grid-cols-[40px_minmax(0,1fr)]"
+    <article className="group grid h-[304px] overflow-hidden border border-border bg-background transition-colors hover:border-border-strong sm:h-[204px] sm:grid-cols-[112px_minmax(0,1fr)]">
+      <Link
+        href={href}
+        onClick={() => rememberRecentCommunity(community)}
+        className="relative min-h-24 overflow-hidden bg-background-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:min-h-full"
+      >
+        <CommunityBanner community={community} />
+        <div className="absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-background/95 via-background/72 to-transparent p-3">
+          <CommunityAvatar community={community} />
+        </div>
+      </Link>
+
+      <div className="flex min-h-0 min-w-0 flex-col px-3 py-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <Link
+            href={href}
+            onClick={() => rememberRecentCommunity(community)}
+            className="min-w-0 flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <div className="community-card-slug h-5 max-w-full truncate font-mono text-[11px] font-semibold leading-5 text-primary">
+              /{community.slug}
+            </div>
+            <div className="flex h-5 min-w-0 flex-wrap items-center overflow-hidden text-[11px] leading-5 text-muted-foreground">
+              <span>{formatCommunityKind(community.kind)}</span>
+              <span className="px-1.5" aria-hidden="true">
+                ·
+              </span>
+              <span>{formatCommunityVisibility(community.visibility)}</span>
+              <span className="px-1.5" aria-hidden="true">
+                ·
+              </span>
+              <span>{formatCommunityStatus(community.status)}</span>
+            </div>
+
+            <h2 className="community-card-title mt-1 h-6 max-w-full truncate text-base font-semibold leading-6 tracking-normal text-foreground transition-colors group-hover:text-primary">
+              {community.name}
+            </h2>
+            <p className="mt-1 line-clamp-2 h-10 text-sm leading-5 text-muted-foreground">
+              {community.description || "这个社区还没有填写描述。"}
+            </p>
+          </Link>
+          <CommunityFollowButton community={community} compact />
+        </div>
+
+        <div className="mt-auto grid grid-cols-3 gap-2 border-t border-border pt-2 text-xs text-muted-foreground">
+          <CommunityMetric
+            icon={<Users className="size-3.5" aria-hidden="true" />}
+            label="成员"
+            value={formatCompactCount(community.member_count)}
+          />
+          <CommunityMetric
+            icon={<MessageSquare className="size-3.5" aria-hidden="true" />}
+            label="帖子"
+            value={formatCompactCount(community.post_count)}
+          />
+          <div className="min-w-0">
+            <div className="font-mono text-[11px] text-muted-foreground">
+              更新
+            </div>
+            <div className="mt-0.5 truncate font-semibold text-foreground">
+              {formatShortDate(community.updated_at)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function CommunityBanner({ community }: { community: Community }) {
+  const bannerUrl = community.banner_url?.trim();
+
+  if (bannerUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={bannerUrl}
+        alt={`/${community.slug} 的社区背景`}
+        className="size-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.03]"
+      />
+    );
+  }
+
+  return (
+    <div className="flex size-full items-start justify-end bg-background-soft p-3 text-primary/45">
+      <Hash className="size-9" aria-hidden="true" />
+    </div>
+  );
+}
+
+function CommunityAvatar({ community }: { community: Community }) {
+  const avatarUrl = community.avatar_url?.trim();
+
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatarUrl}
+        alt={`/${community.slug} 的社区头像`}
+        className="size-10 shrink-0 rounded-lg bg-background-soft object-cover"
+      />
+    );
+  }
+
+  return (
+    <span
+      className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-background-soft text-primary"
+      aria-label={`/${community.slug} 的社区头像占位`}
     >
-      <div className="pt-1">
-        <div className="flex size-8 items-center justify-center text-primary">
-          <Hash className="size-4" aria-hidden="true" />
-        </div>
+      <Hash className="size-5" aria-hidden="true" />
+    </span>
+  );
+}
+
+function CommunityMetric({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+        {icon}
+        <span>{label}</span>
       </div>
-
-      <div className="min-w-0">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
-          <span className="font-semibold text-foreground">/{community.slug}</span>
-          <span aria-hidden="true">·</span>
-          <span>{formatCommunityKind(community.kind)}</span>
-          <span aria-hidden="true">·</span>
-          <span>{formatCommunityVisibility(community.visibility)}</span>
-          <span aria-hidden="true">·</span>
-          <span>{formatCommunityStatus(community.status)}</span>
-          <span aria-hidden="true">·</span>
-          <span>更新 {formatDate(community.updated_at)}</span>
-        </div>
-
-        <h2 className="mt-1 break-words text-base font-semibold leading-6 tracking-normal text-foreground transition-colors group-hover:text-primary sm:text-lg">
-          {community.name}
-        </h2>
-        <p className="mt-2 line-clamp-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          {community.description || "这个社区还没有填写描述。"}
-        </p>
-
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-5 text-muted-foreground">
-          <span>创建 {formatDate(community.created_at)}</span>
-        </div>
-      </div>
-    </Link>
+      <div className="mt-0.5 truncate font-semibold text-foreground">{value}</div>
+    </div>
   );
 }
 
@@ -293,6 +394,24 @@ function formatDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function formatShortDate(value: string) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    day: "numeric",
+    month: "short",
+  }).format(new Date(value));
+}
+
+function formatCompactCount(value: number | undefined) {
+  if (typeof value !== "number") {
+    return "暂无";
+  }
+
+  return new Intl.NumberFormat("zh-CN", {
+    maximumFractionDigits: 1,
+    notation: value >= 10000 ? "compact" : "standard",
+  }).format(value);
 }
 
 function isUnauthenticated(error: Error | null) {

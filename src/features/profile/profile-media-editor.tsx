@@ -482,7 +482,7 @@ export function ProfileMediaEditor({
         <button
           type="button"
           className={cn(
-            "inline-flex size-9 items-center justify-center rounded-full bg-background text-foreground ring-2 ring-background transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            "inline-flex size-9 items-center justify-center rounded-full bg-background text-foreground transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
             className,
           )}
           aria-label={label}
@@ -535,14 +535,14 @@ function ProfileMediaAvatarPreview({ user }: { user: PublicUser }) {
       <img
         src={user.avatar_url}
         alt={`${getProfileMediaDisplayName(user)} 的头像`}
-        className="size-32 shrink-0 rounded-full object-cover ring-4 ring-background"
+        className="size-32 shrink-0 rounded-full object-cover"
       />
     );
   }
 
   return (
     <div
-      className="flex size-32 shrink-0 items-center justify-center rounded-full bg-secondary text-primary ring-4 ring-background"
+      className="flex size-32 shrink-0 items-center justify-center rounded-full bg-secondary text-primary"
       aria-label={`${getProfileMediaDisplayName(user)} 的头像占位`}
     >
       <User className="size-9" aria-hidden="true" />

@@ -391,14 +391,14 @@ function SearchUserAvatar({
       <img
         src={user.avatar_url}
         alt={`${displayName} 的头像`}
-        className="size-9 rounded-full border border-border bg-secondary object-cover"
+        className="size-9 rounded-full bg-secondary object-cover"
       />
     );
   }
 
   return (
     <span
-      className="flex size-9 items-center justify-center rounded-full border border-border bg-secondary text-primary"
+      className="flex size-9 items-center justify-center rounded-full bg-secondary text-primary"
       aria-label={`${displayName} 的头像占位`}
     >
       <UserRound className="size-4" aria-hidden="true" />

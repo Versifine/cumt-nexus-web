@@ -1,9 +1,10 @@
 import type { MediaAttachment } from "@/features/media/types";
+import type { UserLevelSummary } from "@/features/profile/types";
 
 export type PostSort = "best" | "hot" | "new" | "top" | "rising";
 
 export type FeedSource = "recommended" | "all" | "following";
-export type ReadableFeedSource = Exclude<FeedSource, "following">;
+export type ReadableFeedSource = FeedSource;
 
 export type PostViewerPermissions = {
   can_comment?: boolean;
@@ -18,10 +19,13 @@ export type PostAuthorSummary = {
   id: string;
   username: string;
   display_name: string;
+  display_title?: string | null;
   avatar_url: string;
   banner_url?: string;
   headline: string;
   badges: string[];
+  level?: UserLevelSummary | null;
+  progression?: UserLevelSummary | null;
 };
 
 export type PostCommunitySummary = {

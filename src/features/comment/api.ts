@@ -1,5 +1,6 @@
 import { ApiError, apiRequest } from "@/lib/api/client";
 
+import { DEFAULT_COMMENT_SORT } from "./sort";
 import type {
   CommentSort,
   ListCommentsResponse,
@@ -32,12 +33,12 @@ type ListUserCommentsInput = {
 };
 
 export function listPostComments({
-  fallbackSort = "new",
+  fallbackSort = DEFAULT_COMMENT_SORT,
   postId,
   limit = 20,
   offset = 0,
   view = "tree",
-  sort = "new",
+  sort = DEFAULT_COMMENT_SORT,
   maxDepth = 6,
   cache,
   timeoutMs,

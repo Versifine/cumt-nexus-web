@@ -4,17 +4,21 @@ import { useState, type ReactNode } from "react";
 import { User } from "lucide-react";
 
 import { HoverPreview } from "@/components/ui/hover-preview";
-import { StatusToken } from "@/components/ui/data-display";
 import { cn } from "@/lib/utils";
 
+import { getUserDisplayTitle, getUserProgression } from "./identity";
 import { usePublicUserQuery } from "./queries";
+import type { UserLevelSummary } from "./types";
+import { UserIdentityMarks } from "./user-identity-marks";
 
 export type UserHoverIdentity = {
   avatarUrl?: string;
   badges?: string[];
   bannerUrl?: string;
   displayName?: string;
+  displayTitle?: string | null;
   headline?: string;
+  level?: UserLevelSummary | null;
   username?: string;
 };
 
@@ -76,6 +80,8 @@ function UserHoverCard({
     profile?.badges && profile.badges.length > 0
       ? profile.badges
       : (user.badges ?? []);
+  const displayTitle = profile ? getUserDisplayTitle(profile) : (user.displayTitle ?? null);
+  const level = profile ? getUserProgression(profile) : (user.level ?? null);
   const headline = profile?.headline?.trim() || user.headline?.trim() || "";
   const name =
     profile?.display_name?.trim() ||
@@ -102,19 +108,14 @@ function UserHoverCard({
               这个用户还没有填写公开简介。
             </span>
           )}
-          {badges.length > 0 ? (
-            <span className="mt-1.5 flex flex-wrap gap-1.5">
-              {badges.slice(0, 3).map((badge) => (
-                <StatusToken
-                  key={badge}
-                  className="px-1.5 py-0 text-[11px]"
-                  tone="primary"
-                >
-                  {badge}
-                </StatusToken>
-              ))}
-            </span>
-          ) : null}
+          <UserIdentityMarks
+            badges={badges}
+            className="mt-1.5"
+            displayTitle={displayTitle}
+            level={level}
+            maxItems={3}
+            size="sm"
+          />
         </span>
       </span>
     </span>
@@ -134,14 +135,14 @@ function UserHoverAvatar({
       <img
         src={avatarUrl}
         alt={`${name} 的头像`}
-        className="relative z-10 size-10 shrink-0 rounded-full bg-secondary object-cover ring-2 ring-background"
+        className="relative z-10 size-10 shrink-0 rounded-full bg-secondary object-cover"
       />
     );
   }
 
   return (
     <span
-      className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary ring-2 ring-background"
+      className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-primary"
       aria-label={`${name} 的头像占位`}
     >
       <User className="size-5" aria-hidden="true" />

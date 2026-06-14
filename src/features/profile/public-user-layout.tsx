@@ -7,12 +7,18 @@ import {
   User,
 } from "lucide-react";
 
-import { StatusToken } from "@/components/ui/data-display";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { cn } from "@/lib/utils";
 
+import {
+  getUserDisplayTitle,
+  getUserProgression,
+  hasUserIdentityMarks,
+} from "./identity";
 import { ProfileMediaEditor } from "./profile-media-editor";
 import type { PublicUser } from "./types";
+import { UserFollowButton } from "./user-follow-button";
+import { UserIdentityMarks } from "./user-identity-marks";
 
 export type PublicUserProfileTab = "comments" | "posts";
 
@@ -60,10 +66,11 @@ export function PublicUserHeader({
   user: PublicUser;
 }) {
   const displayName = getDisplayName(user);
-  const publicIdentityItems = [...user.roles, ...user.badges];
   const currentUserQuery = useCurrentUserQuery();
   const isOwnProfile =
     currentUserQuery.data?.username?.toLowerCase() === user.username.toLowerCase();
+  const displayTitle = getUserDisplayTitle(user);
+  const progression = getUserProgression(user);
 
   return (
     <div>
@@ -101,7 +108,13 @@ export function PublicUserHeader({
               >
                 编辑文字资料 +
               </Link>
-            ) : null}
+            ) : (
+              <UserFollowButton
+                className="mb-2"
+                username={user.username}
+                viewerIsFollowing={user.viewer_is_following}
+              />
+            )}
           </div>
 
           <div className="mt-4 min-w-0">
@@ -124,17 +137,16 @@ export function PublicUserHeader({
             </p>
           </div>
 
-          {publicIdentityItems.length > 0 ? (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {publicIdentityItems.slice(0, 6).map((item) => (
-                <StatusToken key={item} tone="primary">
-                  {item}
-                </StatusToken>
-              ))}
-            </div>
-          ) : null}
+          <UserIdentityMarks
+            badges={user.badges}
+            className="mt-4 gap-2"
+            displayTitle={displayTitle}
+            level={progression}
+            maxItems={6}
+            roles={user.roles}
+          />
 
-          <div className="mt-5 grid grid-cols-3 border-t border-border">
+          <div className="mt-5 grid grid-cols-2 border-t border-border sm:grid-cols-5">
             <ProfileMetric
               icon={<FileText className="size-4" aria-hidden="true" />}
               label="公开帖子"
@@ -144,6 +156,14 @@ export function PublicUserHeader({
               icon={<MessageSquare className="size-4" aria-hidden="true" />}
               label="公开评论"
               value={String(user.stats.comment_count)}
+            />
+            <ProfileMetric
+              label="关注者"
+              value={formatMetricCount(user.stats.follower_count)}
+            />
+            <ProfileMetric
+              label="正在关注"
+              value={formatMetricCount(user.stats.following_count)}
             />
             <ProfileMetric
               icon={<CalendarDays className="size-4" aria-hidden="true" />}
@@ -192,7 +212,9 @@ export function PublicUserRail({
   user: PublicUser;
 }) {
   const displayName = getDisplayName(user);
-  const identityItems = [...user.roles, ...user.badges];
+  const displayTitle = getUserDisplayTitle(user);
+  const progression = getUserProgression(user);
+  const hasIdentityMarks = hasUserIdentityMarks(user);
 
   return (
     <aside className="hidden min-w-0 border-l border-border pl-5 xl:block">
@@ -204,7 +226,11 @@ export function PublicUserRail({
             <span className="font-mono text-foreground">{user.stats.post_count}</span>{" "}
             篇帖子和{" "}
             <span className="font-mono text-foreground">{user.stats.comment_count}</span>{" "}
-            条评论。
+            条评论，关注者{" "}
+            <span className="font-mono text-foreground">
+              {formatMetricCount(user.stats.follower_count)}
+            </span>
+            。
           </p>
         </section>
 
@@ -226,16 +252,16 @@ export function PublicUserRail({
           </div>
         </section>
 
-        {identityItems.length > 0 ? (
+        {hasIdentityMarks ? (
           <section className="border-b border-border pb-5">
             <h2 className="text-sm font-semibold">身份和徽章</h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {identityItems.map((item) => (
-                <StatusToken key={item} tone="primary">
-                  {item}
-                </StatusToken>
-              ))}
-            </div>
+            <UserIdentityMarks
+              badges={user.badges}
+              className="mt-3 gap-2"
+              displayTitle={displayTitle}
+              level={progression}
+              roles={user.roles}
+            />
           </section>
         ) : null}
 
@@ -335,7 +361,6 @@ export function ProfileAvatar({
     size === "hero" ? "size-24 sm:size-32" : size === "large" ? "size-14" : "size-10";
   const iconClass =
     size === "hero" ? "size-9" : size === "large" ? "size-5" : "size-4";
-  const ringClass = size === "hero" ? "ring-4 ring-background" : "";
 
   if (user.avatar_url) {
     return (
@@ -345,7 +370,6 @@ export function ProfileAvatar({
         alt={`${getDisplayName(user)} 的头像`}
         className={cn(
           sizeClass,
-          ringClass,
           "shrink-0 rounded-full object-cover",
         )}
       />
@@ -356,7 +380,6 @@ export function ProfileAvatar({
     <div
       className={cn(
         sizeClass,
-        ringClass,
         "flex shrink-0 items-center justify-center rounded-full bg-secondary text-primary",
       )}
       aria-label={`${getDisplayName(user)} 的头像占位`}
@@ -368,6 +391,17 @@ export function ProfileAvatar({
 
 export function getDisplayName(user: PublicUser) {
   return user.display_name || user.username;
+}
+
+function formatMetricCount(value?: number) {
+  if (typeof value !== "number") {
+    return "暂无";
+  }
+
+  return new Intl.NumberFormat("zh-CN", {
+    maximumFractionDigits: 1,
+    notation: value >= 10000 ? "compact" : "standard",
+  }).format(value);
 }
 
 export function formatDate(value: string) {

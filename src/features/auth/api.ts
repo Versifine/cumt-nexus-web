@@ -12,6 +12,7 @@ import type {
   DeleteAccountInput,
   EmailCodeRequest,
   EmailCodeResult,
+  GetMyPointsResponse,
   LoginWithEmailCodeInput,
   PasswordLoginCredentials,
   PasswordResetInput,
@@ -100,6 +101,10 @@ export async function resetPassword(input: PasswordResetInput) {
 
 export function getCurrentUser() {
   return apiRequest<CurrentUser>("/api/v1/me");
+}
+
+export function getMyPoints() {
+  return apiRequest<GetMyPointsResponse>("/api/v1/me/points");
 }
 
 export function getAuthSecurity() {

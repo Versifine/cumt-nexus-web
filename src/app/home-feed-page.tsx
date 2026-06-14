@@ -37,16 +37,12 @@ async function getInitialLatestPosts(
   sort: PostSort,
   source: FeedSource,
 ): Promise<ListPostsResponse | undefined> {
-  if (source === "following") {
-    return undefined;
-  }
-
   try {
     return await listLatestPosts(20, 0, sort, {
       cache: "no-store",
       source,
       timeoutMs: SERVER_PREFETCH_API_TIMEOUT_MS,
-      token: null,
+      token: source === "following" ? undefined : null,
     });
   } catch {
     return undefined;

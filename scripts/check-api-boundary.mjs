@@ -187,14 +187,8 @@ function checkReadableFeedSourceBoundary() {
 
   if (!typesFile) {
     problems.push("src/features/post/types.ts is missing");
-  } else if (
-    !typesFile.content.includes(
-      'export type ReadableFeedSource = Exclude<FeedSource, "following">',
-    )
-  ) {
-    problems.push(
-      "post types must define ReadableFeedSource without following",
-    );
+  } else if (!typesFile.content.includes("export type ReadableFeedSource = FeedSource")) {
+    problems.push("post types must allow following as a readable feed source");
   }
 
   if (!apiFile) {
@@ -212,8 +206,8 @@ function checkReadableFeedSourceBoundary() {
       }
     }
 
-    if (/params\.set\(\s*["']source["']\s*,\s*["']following["']\s*\)/.test(apiFile.content)) {
-      problems.push("post API must not request source=following");
+    if (!apiFile.content.includes('params.set("source", source)')) {
+      problems.push("post API must pass the selected feed source to /api/v1/posts");
     }
   }
 
@@ -233,11 +227,6 @@ function checkReadableFeedSourceBoundary() {
 
   if (!homePageFile) {
     problems.push("src/app/home-feed-page.tsx is missing");
-  } else if (
-    !homePageFile.content.includes('if (source === "following")') ||
-    !homePageFile.content.includes("return undefined;")
-  ) {
-    problems.push("server feed prefetch must skip /following");
   }
 
   if (!homeShellFile) {
@@ -245,9 +234,10 @@ function checkReadableFeedSourceBoundary() {
   } else {
     for (const token of [
       "const isFollowingFeed = source === \"following\"",
-      "isReady && !isFollowingFeed",
-      "关注信息流暂未开放",
-      "关注流不会用普通公开帖子填充",
+      "const canReadLatestPosts = isReady && (!requiresAuth || Boolean(token))",
+      "source,",
+      "只展示你关注社区中的公开讨论",
+      "关注流还没有帖子",
     ]) {
       if (!homeShellFile.content.includes(token)) {
         problems.push(`following feed UI boundary missing ${token}`);
@@ -262,7 +252,7 @@ function checkReadableFeedSourceBoundary() {
 
   addPass(
     "readable feed source",
-    "latest post requests are limited to recommended/all while /following stays an explicit placeholder",
+    "latest post requests include recommended/all/following and /following uses the real backend feed",
   );
 }
 

@@ -23,6 +23,7 @@ import {
 import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 
+import { CommunityFollowButton } from "./community-follow-button";
 import { useCommunityQuery } from "./queries";
 import type { Community, GetCommunityResponse } from "./types";
 
@@ -72,7 +73,7 @@ export function CommunityDetail({
   }, [community]);
 
   return (
-    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px] xl:gap-8">
       <div className="min-w-0">
         <section className="bg-background">
           {!isReady || communityQuery.isPending ? (
@@ -232,28 +233,34 @@ function CommunityHeader({
 }) {
   return (
     <div className="border-b border-border py-4">
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-3">
-          <CommunityIcon community={community} />
-          <div className="min-w-0">
-            <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
-              {community.name}
-            </h1>
-            <p className="mt-1 truncate font-mono text-xs text-primary">
-              /{community.slug}
-            </p>
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-3">
+            <CommunityIcon community={community} />
+            <div className="min-w-0">
+              <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
+                {community.name}
+              </h1>
+              <p className="mt-1 truncate font-mono text-xs text-primary">
+                /{community.slug}
+              </p>
+            </div>
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <StatusToken>{formatCommunityKind(community.kind)}</StatusToken>
+            <StatusToken>{formatCommunityVisibility(community.visibility)}</StatusToken>
+            <StatusToken tone={getStatusTone(community.status)}>
+              {formatCommunityStatus(community.status)}
+            </StatusToken>
+          </div>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+            {community.description || "这个社区还没有填写描述。"}
+          </p>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <StatusToken>{formatCommunityKind(community.kind)}</StatusToken>
-          <StatusToken>{formatCommunityVisibility(community.visibility)}</StatusToken>
-          <StatusToken tone={getStatusTone(community.status)}>
-            {formatCommunityStatus(community.status)}
-          </StatusToken>
-        </div>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          {community.description || "这个社区还没有填写描述。"}
-        </p>
+        <CommunityFollowButton
+          className="shrink-0 sm:pt-1"
+          community={community}
+        />
       </div>
     </div>
   );
