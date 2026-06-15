@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { Check, Coins, ShieldCheck, Sparkles, Tags } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -13,11 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuthSession } from "@/features/auth/auth-session";
-import { useCurrentUserQuery } from "@/features/auth/queries";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
+import {
+  AdminQueueLayout,
+  AdminQueueToolbar,
+  AdminRailSection,
+} from "./admin-queue";
 import {
   useAdjustAdminUserPointsMutation,
   useAdminEffectsQuery,
@@ -40,85 +43,31 @@ const tabs: Array<{
   label: string;
   value: AdminGrowthTab;
 }> = [
-  { icon: <Sparkles className="size-4" aria-hidden="true" />, label: "效果", value: "effects" },
-  { icon: <Tags className="size-4" aria-hidden="true" />, label: "头衔", value: "titles" },
-  { icon: <ShieldCheck className="size-4" aria-hidden="true" />, label: "授予", value: "grants" },
-  { icon: <Coins className="size-4" aria-hidden="true" />, label: "积分", value: "points" },
+  {
+    icon: <Sparkles className="size-4" aria-hidden="true" />,
+    label: "效果",
+    value: "effects",
+  },
+  {
+    icon: <Tags className="size-4" aria-hidden="true" />,
+    label: "头衔",
+    value: "titles",
+  },
+  {
+    icon: <ShieldCheck className="size-4" aria-hidden="true" />,
+    label: "授予",
+    value: "grants",
+  },
+  {
+    icon: <Coins className="size-4" aria-hidden="true" />,
+    label: "积分",
+    value: "points",
+  },
 ];
 
 export function GrowthAdminPage() {
-  const { isReady, token } = useAuthSession();
-  const currentUserQuery = useCurrentUserQuery();
   const [tab, setTab] = useState<AdminGrowthTab>("effects");
-  const canLoad =
-    isReady && Boolean(token) && currentUserQuery.data?.is_platform_staff === true;
-  const loginHref = `/login?next=${encodeURIComponent("/admin/growth")}`;
-
-  if (!isReady || (token && currentUserQuery.isLoading)) {
-    return <GrowthAdminLayout activeTab={tab} body={<LoadingPanel />} onTabChange={setTab} />;
-  }
-
-  if (!token) {
-    return (
-      <GrowthAdminLayout
-        activeTab={tab}
-        body={
-          <StatePanel>
-            <EmptyState
-              title="登录后进入成长管理"
-              description="成长和积分管理需要平台 staff 身份。登录后会自动确认权限。"
-              action={
-                <TextAction href={loginHref} tone="primary">
-                  登录
-                </TextAction>
-              }
-            />
-          </StatePanel>
-        }
-        onTabChange={setTab}
-      />
-    );
-  }
-
-  if (currentUserQuery.isError) {
-    return (
-      <GrowthAdminLayout
-        activeTab={tab}
-        body={
-          <StatePanel>
-            <ErrorState
-              title="无法确认用户身份"
-              description={getErrorDescription(currentUserQuery.error)}
-              action={
-                <Button variant="ghost" size="sm" onClick={() => currentUserQuery.refetch()}>
-                  重试
-                </Button>
-              }
-            />
-          </StatePanel>
-        }
-        onTabChange={setTab}
-      />
-    );
-  }
-
-  if (!currentUserQuery.data?.is_platform_staff) {
-    return (
-      <GrowthAdminLayout
-        activeTab={tab}
-        body={
-          <StatePanel>
-            <EmptyState
-              title="需要平台权限"
-              description="当前账号不是平台 staff，不能查看或修改成长系统配置。"
-              action={<TextAction href="/">信息流首页</TextAction>}
-            />
-          </StatePanel>
-        }
-        onTabChange={setTab}
-      />
-    );
-  }
+  const canLoad = true;
 
   return (
     <GrowthAdminLayout
@@ -146,31 +95,49 @@ function GrowthAdminLayout({
   onTabChange: (tab: AdminGrowthTab) => void;
 }) {
   return (
-    <div className="grid w-full min-w-0 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
-      <section className="min-w-0">
-        <div className="border-b border-border pb-4">
-          <StatusToken tone="primary">平台工作台</StatusToken>
-          <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-2xl font-semibold leading-8 tracking-normal">
-                成长系统管理
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                管理评论效果、平台头衔、用户头衔授予和积分流水。
-              </p>
+    <AdminQueueLayout
+      rail={
+        <>
+          <AdminRailSection title="管理边界">
+            <dl className="divide-y divide-border border-t border-border">
+              <InfoRow label="头衔授予" value="平台权限" />
+              <InfoRow label="评论效果" value="启用 / 停用" />
+              <InfoRow label="积分调整" value="写入流水" />
+            </dl>
+          </AdminRailSection>
+          <AdminRailSection title="相关入口">
+            <div className="flex flex-col border-t border-border">
+              <TextAction href="/settings/progression" variant="bar">
+                我的成长
+              </TextAction>
+              <TextAction href="/admin/community-applications" variant="bar">
+                社区审批
+              </TextAction>
+              <TextAction href="/admin/audit-logs" variant="bar">
+                审计日志
+              </TextAction>
             </div>
-            <TextAction href="/moderation">举报审核</TextAction>
-          </div>
-        </div>
-
+          </AdminRailSection>
+        </>
+      }
+    >
+      <AdminQueueToolbar
+        description="管理评论效果、平台头衔、用户头衔授予和积分流水。"
+        actions={<TextAction href="/admin/reports">举报审核</TextAction>}
+        title="成长工具"
+      />
         <Tabs
           value={activeTab}
           onValueChange={(value) => onTabChange(value as AdminGrowthTab)}
-          className="border-b border-border pt-3"
+          className="border-b border-border py-3"
         >
-          <TabsList>
+          <TabsList className="h-9 flex-wrap justify-start gap-4 rounded-none bg-transparent p-0">
             {tabs.map((item) => (
-              <TabsTrigger key={item.value} value={item.value}>
+              <TabsTrigger
+                key={item.value}
+                value={item.value}
+                className="h-9 gap-2 rounded-none border-b border-transparent px-0 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
+              >
                 {item.icon}
                 {item.label}
               </TabsTrigger>
@@ -179,32 +146,85 @@ function GrowthAdminLayout({
         </Tabs>
 
         {body}
-      </section>
+    </AdminQueueLayout>
+  );
+}
 
-      <aside className="hidden min-w-0 border-l border-border pl-5 xl:block">
-        <div className="sticky top-20 right-rail-scroll space-y-6">
-          <section className="border-b border-border pb-5">
-            <h2 className="text-sm font-semibold">管理边界</h2>
-            <dl className="mt-3 divide-y divide-border border-t border-border">
-              <InfoRow label="头衔授予" value="平台 staff" />
-              <InfoRow label="评论效果" value="启用 / 停用" />
-              <InfoRow label="积分调整" value="写入流水" />
-            </dl>
-          </section>
-          <section>
-            <h2 className="text-sm font-semibold">相关入口</h2>
-            <div className="mt-3 flex flex-col border-t border-border">
-              <TextAction href="/settings/progression" variant="bar">
-                我的成长
-              </TextAction>
-              <TextAction href="/community-applications/review" variant="bar">
-                社区审批
-              </TextAction>
-            </div>
-          </section>
-        </div>
-      </aside>
+function AdminPanelHeader({
+  description,
+  eyebrow,
+  title,
+}: {
+  description: string;
+  eyebrow: string;
+  title: string;
+}) {
+  return (
+    <div className="border-b border-border py-4">
+      <StatusToken>{eyebrow}</StatusToken>
+      <h2 className="mt-3 text-base font-semibold leading-6 text-foreground">
+        {title}
+      </h2>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+        {description}
+      </p>
     </div>
+  );
+}
+
+function InlineActionButton({
+  children,
+  className,
+  tone = "primary",
+  ...props
+}: ComponentProps<"button"> & {
+  tone?: "danger" | "primary";
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "inline-flex min-h-9 items-center gap-2 px-1 text-sm font-semibold underline-offset-4 transition-colors hover:underline disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        tone === "primary" && "text-primary hover:text-foreground",
+        tone === "danger" && "text-destructive hover:text-foreground",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+function FieldLabel({
+  children,
+  htmlFor,
+}: {
+  children: ReactNode;
+  htmlFor?: string;
+}) {
+  return (
+    <label
+      className="font-mono text-[11px] uppercase text-muted-foreground"
+      htmlFor={htmlFor}
+    >
+      {children}
+    </label>
+  );
+}
+
+function NativeSelect({
+  className,
+  ...props
+}: ComponentProps<"select">) {
+  return (
+    <select
+      className={cn(
+        "h-10 rounded-lg border border-input bg-background-soft px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50",
+        className,
+      )}
+      {...props}
+    />
   );
 }
 
@@ -246,13 +266,18 @@ function EffectsAdminPanel({ enabled }: { enabled: boolean }) {
   }
 
   return (
-    <section className="py-5">
+    <section>
+      <AdminPanelHeader
+        eyebrow="评论效果"
+        title="启用状态"
+        description="这里只管理效果是否可购买；历史评论效果仍由后端保留展示。"
+      />
       <MutationAlerts message={message} error={error} />
-      <div className="divide-y divide-border border-t border-border">
+      <div className="divide-y divide-border border-b border-border">
         {effectsQuery.data.effects.map((effect) => (
           <div
             key={effect.id}
-            className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto]"
+            className="grid gap-3 px-3 py-4 transition-colors hover:bg-background-soft/50 sm:grid-cols-[minmax(0,1fr)_auto]"
           >
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
@@ -269,15 +294,12 @@ function EffectsAdminPanel({ enabled }: { enabled: boolean }) {
                 {effect.cost_points} 积分 · {effect.animation_key || "无动画键"}
               </div>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
+            <InlineActionButton
               disabled={mutation.isPending}
               onClick={() => toggleEffect(effect.id, effect.is_active, effect.name)}
             >
               {effect.is_active ? "停用" : "启用"}
-            </Button>
+            </InlineActionButton>
           </div>
         ))}
       </div>
@@ -359,39 +381,66 @@ function TitlesAdminPanel({ enabled }: { enabled: boolean }) {
   }
 
   return (
-    <section className="py-5">
+    <section>
+      <AdminPanelHeader
+        eyebrow="头衔目录"
+        title="平台可授予头衔"
+        description="创建和启停头衔目录。保留词、冒充权威和权限边界由后端校验。"
+      />
       <MutationAlerts message={message} error={error} />
-      <div className="grid gap-4 border-b border-border pb-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="grid gap-4 border-b border-border bg-background-soft/20 px-3 py-4 lg:grid-cols-[180px_minmax(0,1fr)]">
         <div>
           <StatusToken>创建头衔</StatusToken>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            保留词和权限边界由后端校验。
+            平台首版以 platform 头衔为主，社区授予不在当前前端展示。
           </p>
         </div>
         <div className="grid gap-3">
-          <Input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="头衔名称"
-          />
-          <Textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="头衔说明"
-          />
-          <div className="grid gap-3 sm:grid-cols-[160px_minmax(0,1fr)_auto]">
-            <Input
-              value={scopeType}
-              onChange={(event) => setScopeType(event.target.value)}
-              placeholder="platform"
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <FieldLabel htmlFor="admin-title-name">头衔名称</FieldLabel>
+              <Input
+                id="admin-title-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="例如：资料贡献者"
+              />
+            </div>
+            <div className="grid gap-2">
+              <FieldLabel htmlFor="admin-title-scope">作用范围</FieldLabel>
+              <NativeSelect
+                id="admin-title-scope"
+                value={scopeType}
+                onChange={(event) => setScopeType(event.target.value)}
+              >
+                <option value="platform">平台</option>
+                <option value="system">系统</option>
+                <option value="community">社区</option>
+              </NativeSelect>
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <FieldLabel htmlFor="admin-title-description">说明</FieldLabel>
+            <Textarea
+              id="admin-title-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="说明这个头衔为什么会被授予"
             />
-            <Input
-              value={scopeId}
-              onChange={(event) => setScopeId(event.target.value)}
-              placeholder="scope_id，可留空"
-            />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="grid gap-2">
+              <FieldLabel htmlFor="admin-title-scope-id">范围 ID</FieldLabel>
+              <Input
+                id="admin-title-scope-id"
+                value={scopeId}
+                onChange={(event) => setScopeId(event.target.value)}
+                placeholder="可留空"
+              />
+            </div>
             <Button
               type="button"
+              className="self-end"
               disabled={createMutation.isPending}
               onClick={createTitle}
             >
@@ -401,11 +450,11 @@ function TitlesAdminPanel({ enabled }: { enabled: boolean }) {
         </div>
       </div>
 
-      <div className="divide-y divide-border border-t border-border">
+      <div className="divide-y divide-border border-b border-border">
         {titlesQuery.data.titles.map((title) => (
           <div
             key={title.id}
-            className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto]"
+            className="grid gap-3 px-3 py-4 transition-colors hover:bg-background-soft/50 sm:grid-cols-[minmax(0,1fr)_auto]"
           >
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
@@ -419,15 +468,12 @@ function TitlesAdminPanel({ enabled }: { enabled: boolean }) {
                 {title.description || "暂无说明。"}
               </p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
+            <InlineActionButton
               disabled={updateMutation.isPending}
               onClick={() => toggleTitle(title.id, title.is_active, title.name)}
             >
               {title.is_active ? "停用" : "启用"}
-            </Button>
+            </InlineActionButton>
           </div>
         ))}
       </div>
@@ -520,17 +566,25 @@ function TitleGrantsAdminPanel({ enabled }: { enabled: boolean }) {
   }
 
   return (
-    <section className="py-5">
+    <section>
+      <AdminPanelHeader
+        eyebrow="头衔授予"
+        title="给用户授予或撤销头衔"
+        description="按用户 ID 操作真实授予记录；撤销后用户不能再选择该头衔展示。"
+      />
       <MutationAlerts message={message} error={error} />
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
-        <div className="border-b border-border pb-5 xl:border-b-0 xl:border-r xl:pr-5">
+      <div className="grid gap-0 xl:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
+        <div className="border-b border-border py-4 xl:border-b-0 xl:border-r xl:pr-5">
           <h2 className="text-sm font-semibold">选择用户</h2>
-          <Input
-            className="mt-3"
-            value={selectedUserId}
-            onChange={(event) => setSelectedUserId(event.target.value)}
-            placeholder="用户 ID"
-          />
+          <div className="mt-3 grid gap-2">
+            <FieldLabel htmlFor="admin-grant-user-id">用户 ID</FieldLabel>
+            <Input
+              id="admin-grant-user-id"
+              value={selectedUserId}
+              onChange={(event) => setSelectedUserId(event.target.value)}
+              placeholder="粘贴用户 ID，或从下方列表选择"
+            />
+          </div>
           <div className="mt-3 divide-y divide-border border-t border-border">
             {users.map((user) => (
               <UserPickRow
@@ -543,35 +597,42 @@ function TitleGrantsAdminPanel({ enabled }: { enabled: boolean }) {
           </div>
         </div>
 
-        <div className="min-w-0">
+        <div className="min-w-0 py-4 xl:pl-5">
           <h2 className="text-sm font-semibold">授予头衔</h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <select
-              className="h-10 rounded-lg border border-input bg-background-soft px-3 text-sm text-foreground outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30"
-              value={selectedTitleId}
-              onChange={(event) => setSelectedTitleId(event.target.value)}
-            >
-              <option value="">选择头衔</option>
-              {titles.map((title) => (
-                <option key={title.id} value={title.id}>
-                  {title.name}
-                </option>
-              ))}
-            </select>
+            <div className="grid gap-2">
+              <FieldLabel htmlFor="admin-grant-title">头衔</FieldLabel>
+              <NativeSelect
+                id="admin-grant-title"
+                value={selectedTitleId}
+                onChange={(event) => setSelectedTitleId(event.target.value)}
+              >
+                <option value="">选择头衔</option>
+                {titles.map((title) => (
+                  <option key={title.id} value={title.id}>
+                    {title.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
             <Button
               type="button"
+              className="self-end"
               disabled={grantMutation.isPending}
               onClick={grantTitle}
             >
               授予
             </Button>
           </div>
-          <Textarea
-            className="mt-3"
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder="授予原因"
-          />
+          <div className="mt-3 grid gap-2">
+            <FieldLabel htmlFor="admin-grant-reason">授予原因</FieldLabel>
+            <Textarea
+              id="admin-grant-reason"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="例如：长期维护资料索引"
+            />
+          </div>
 
           <div className="mt-5 border-t border-border">
             {!selectedUserId ? (
@@ -611,15 +672,13 @@ function TitleGrantsAdminPanel({ enabled }: { enabled: boolean }) {
                         {grant.reason || "暂无授予原因。"}
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
+                    <InlineActionButton
+                      tone="danger"
                       disabled={revokeMutation.isPending}
                       onClick={() => revokeGrant(grant.id)}
                     >
                       撤销
-                    </Button>
+                    </InlineActionButton>
                   </div>
                 ))}
               </div>
@@ -673,9 +732,14 @@ function PointsAdminPanel({ enabled }: { enabled: boolean }) {
   }
 
   return (
-    <section className="py-5">
+    <section>
+      <AdminPanelHeader
+        eyebrow="积分账户"
+        title="手工调整和流水"
+        description="按用户 ID 查看积分流水；手工调分必须写明原因并由后端写入审计。"
+      />
       <MutationAlerts message={message} error={error} />
-      <div className="grid gap-4 border-b border-border pb-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="grid gap-4 border-b border-border bg-background-soft/20 px-3 py-4 lg:grid-cols-[180px_minmax(0,1fr)]">
         <div>
           <StatusToken>手工调分</StatusToken>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -684,22 +748,34 @@ function PointsAdminPanel({ enabled }: { enabled: boolean }) {
         </div>
         <div className="grid gap-3">
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
-            <Input
-              value={userId}
-              onChange={(event) => setUserId(event.target.value)}
-              placeholder="用户 ID"
-            />
-            <Input
-              value={delta}
-              onChange={(event) => setDelta(event.target.value)}
-              placeholder="+10 或 -10"
+            <div className="grid gap-2">
+              <FieldLabel htmlFor="admin-points-user-id">用户 ID</FieldLabel>
+              <Input
+                id="admin-points-user-id"
+                value={userId}
+                onChange={(event) => setUserId(event.target.value)}
+                placeholder="用于过滤流水和调分"
+              />
+            </div>
+            <div className="grid gap-2">
+              <FieldLabel htmlFor="admin-points-delta">变化值</FieldLabel>
+              <Input
+                id="admin-points-delta"
+                value={delta}
+                onChange={(event) => setDelta(event.target.value)}
+                placeholder="+10 或 -10"
+              />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <FieldLabel htmlFor="admin-points-reason">调整原因</FieldLabel>
+            <Textarea
+              id="admin-points-reason"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="例如：活动奖励补发"
             />
           </div>
-          <Textarea
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder="调整原因"
-          />
           <div>
             <Button
               type="button"
@@ -734,11 +810,11 @@ function PointsAdminPanel({ enabled }: { enabled: boolean }) {
           />
         </StatePanel>
       ) : (
-        <div className="divide-y divide-border border-t border-border">
+        <div className="divide-y divide-border border-b border-border">
           {transactionsQuery.data.transactions.map((transaction) => (
             <div
               key={transaction.id}
-              className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto]"
+              className="grid gap-3 px-3 py-4 transition-colors hover:bg-background-soft/50 sm:grid-cols-[minmax(0,1fr)_auto]"
             >
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold">
@@ -805,26 +881,30 @@ function MutationAlerts({
   error: string | null;
   message: string | null;
 }) {
+  if (!error && !message) {
+    return null;
+  }
+
   return (
-    <>
+    <div className="border-b border-border p-4">
       {error ? (
-        <Alert variant="destructive" className="mb-4">
+        <Alert variant="destructive">
           <AlertTitle>操作失败</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
       {message ? (
-        <Alert variant="success" className="mb-4">
+        <Alert variant="success" className={error ? "mt-3" : undefined}>
           <AlertTitle>操作已提交</AlertTitle>
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       ) : null}
-    </>
+    </div>
   );
 }
 
 function StatePanel({ children }: { children: ReactNode }) {
-  return <div className="border-b border-border py-5">{children}</div>;
+  return <div className="border-b border-border p-4">{children}</div>;
 }
 
 function LoadingPanel() {

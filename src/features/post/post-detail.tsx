@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { SortMenu } from "@/components/ui/sort-menu";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { resolvePlatformRole } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { CommentForm } from "@/features/comment/comment-form";
 import { CommentTree } from "@/features/comment/comment-tree";
@@ -34,7 +35,8 @@ import {
   CommunityHoverAvatar,
   CommunityHoverPreview,
 } from "@/features/community/community-hover-card";
-import { ModerationRemoveDialog } from "@/features/moderation/moderation-remove-dialog";
+import { canAccessCommunityManagement } from "@/features/community/permissions";
+import { ModerationQuickActions } from "@/features/moderation/moderation-quick-actions";
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { ApiError } from "@/lib/api/client";
@@ -103,7 +105,15 @@ export function PostDetail({
   const comments = canRequestComments ? (commentsQuery.data?.comments ?? []) : [];
   const currentUserId = currentUserQuery.data?.id ?? null;
   const isAuthenticated = Boolean(token);
-  const canModerate = currentUserQuery.data?.is_platform_staff === true;
+  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const canModerate = Boolean(platformRole);
+  const postCommunitySlug = post ? getPostCommunitySlug(post) : null;
+  const canUseCommunityManage =
+    Boolean(post) &&
+    (post?.viewer_permissions?.can_moderate === true ||
+      post?.viewer_permissions?.can_manage === true ||
+      canAccessCommunityManagement(post?.community, platformRole) ||
+      (platformRole === "owner" && Boolean(postCommunitySlug)));
   const canManagePost =
     Boolean(post) &&
     currentUserQuery.isSuccess &&
@@ -268,6 +278,7 @@ export function PostDetail({
             <PostArticle
               canManage={canManagePost}
               canModerate={canModerate}
+              canUseCommunityManage={canUseCommunityManage}
               commentCount={commentCount}
               isAuthenticated={isAuthenticated}
               onCommentIntent={focusCommentComposer}
@@ -403,11 +414,15 @@ export function PostDetail({
 
               {commentsQuery.isSuccess && comments.length > 0 ? (
                 <CommentTree
-                  canModerate={canModerate}
+                  canModerate={canModerate || canUseCommunityManage}
                   comments={comments}
+                  communityModerationSlug={
+                    canUseCommunityManage ? (postCommunitySlug ?? undefined) : undefined
+                  }
                   currentUserId={currentUserId}
                   isAuthenticated={isAuthenticated}
                   maxDepth={6}
+                  platformAuditEnabled={canModerate}
                   postId={id}
                 />
               ) : null}
@@ -416,7 +431,12 @@ export function PostDetail({
         ) : null}
       </div>
 
-      {post ? <PostRail post={post} commentCount={commentCount} /> : null}
+      {post ? (
+        <PostRail
+          post={post}
+          commentCount={commentCount}
+        />
+      ) : null}
     </div>
   );
 }
@@ -491,6 +511,7 @@ function getCommentDockMetrics(column: HTMLElement) {
 function PostArticle({
   canManage,
   canModerate,
+  canUseCommunityManage,
   commentCount,
   isAuthenticated,
   onCommentIntent,
@@ -498,6 +519,7 @@ function PostArticle({
 }: {
   canManage: boolean;
   canModerate: boolean;
+  canUseCommunityManage: boolean;
   commentCount: number;
   isAuthenticated: boolean;
   onCommentIntent: () => void;
@@ -519,6 +541,14 @@ function PostArticle({
       window.setTimeout(() => setShareState("idle"), 1600);
     }
   }
+
+  const author = getPostAuthorIdentity(post);
+  const communitySlug = getPostCommunitySlug(post);
+  const communityManageHref = communitySlug
+    ? `/communities/${encodeURIComponent(communitySlug)}/manage`
+    : null;
+  const authorQuery = author.slug || post.author_id;
+  const canQuickModerate = canModerate || canUseCommunityManage;
 
   return (
     <article className="grid grid-cols-[42px_minmax(0,1fr)] border-t border-border bg-background sm:grid-cols-[52px_minmax(0,1fr)]">
@@ -584,12 +614,33 @@ function PostArticle({
               targetType="post"
             />
           ) : null}
-          {canModerate && post.status !== "removed" ? (
-            <ModerationRemoveDialog
+          {canQuickModerate ? (
+            <ModerationQuickActions
+              auditHref={
+                canModerate
+                  ? `/admin/audit-logs?target_type=post&target_id=${encodeURIComponent(post.id)}`
+                  : null
+              }
+              canRemove={canQuickModerate && post.status !== "removed"}
+              communityManageHref={communityManageHref}
+              communitySlug={canUseCommunityManage ? communitySlug : null}
               targetId={post.id}
+              targetAuthorId={post.author_id}
               targetLabel={post.title}
               targetStatus={post.status}
+              targetState={{
+                flairText: post.flair_text,
+                isLocked: post.is_locked,
+                isNsfw: post.is_nsfw,
+                isPinned: post.is_pinned,
+                isSpoiler: post.is_spoiler,
+              }}
               targetType="post"
+              userHref={
+                canModerate
+                  ? `/admin/users?q=${encodeURIComponent(authorQuery)}`
+                  : null
+              }
             />
           ) : null}
         </footer>
@@ -742,6 +793,10 @@ function formatDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function getPostCommunitySlug(post: Post) {
+  return post.community?.slug?.trim() || post.community_slug?.trim() || null;
 }
 
 function isUnauthenticated(error: Error | null) {

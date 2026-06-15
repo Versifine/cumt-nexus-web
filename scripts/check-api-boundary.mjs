@@ -285,12 +285,10 @@ function checkNotificationContractBoundary() {
   } else {
     for (const token of [
       "export type NotificationCategory",
-      '"replies"',
-      '"mentions"',
-      '"likes"',
+      '"interactions"',
       '"system"',
-      "UnreadSummaryResponse",
-      "MarkAllNotificationsReadResponse",
+      "next_offset",
+      "has_more",
     ]) {
       if (!typesFile.content.includes(token)) {
         problems.push(`notification types contract missing ${token}`);
@@ -302,10 +300,10 @@ function checkNotificationContractBoundary() {
     problems.push("src/features/notification/api.ts is missing");
   } else {
     for (const token of [
-      'category = "all"',
+      'category = "interactions"',
       "category,",
-      "/api/v1/notifications/unread-summary",
-      "/api/v1/notifications/read-all",
+      "limit: String(limit)",
+      "offset: String(offset)",
     ]) {
       if (!apiFile.content.includes(token)) {
         problems.push(`notification API contract missing ${token}`);
@@ -318,10 +316,9 @@ function checkNotificationContractBoundary() {
   } else {
     for (const token of [
       "NotificationCategory",
-      "notificationQueryKeys.list(category, status, limit, offset)",
-      "notificationQueryKeys.unreadSummary()",
-      "useUnreadSummaryQuery",
-      "useMarkAllNotificationsReadMutation",
+      "notificationQueryKeys.list(category, limit, offset)",
+      'category = "interactions"',
+      "listNotifications({ category, limit, offset })",
     ]) {
       if (!queriesFile.content.includes(token)) {
         problems.push(`notification query contract missing ${token}`);
@@ -356,9 +353,9 @@ function checkNotificationContractBoundary() {
       'case "comment"',
       'href: null',
       "等待评论上下文",
-      "后端尚未返回所属帖子 ID",
+      "后端尚未返回所属帖子，暂不能直达评论",
       'case "moderation_report"',
-      'href: `/moderation/reports/${encodeURIComponent(sourceId)}`',
+      'href: `/admin/reports/${encodeURIComponent(sourceId)}`',
     ]) {
       if (!targetsFile.content.includes(token)) {
         problems.push(`notification target resolver missing ${token}`);
@@ -372,13 +369,10 @@ function checkNotificationContractBoundary() {
     for (const token of [
       "initialCategory",
       "getNotificationCategoryHref",
-      "router.push(getNotificationCategoryHref(nextCategory))",
+      "NotificationCategoryNav",
       "notificationCategoryOptions",
-      "useUnreadSummaryQuery",
-      "分类未读",
-      "全部标记已读",
+      "formatNotificationMessage(notification)",
       "resolveNotificationTarget(notification)",
-      "NotificationTargetAction",
     ]) {
       if (!centerFile.content.includes(token)) {
         problems.push(`notification center contract missing ${token}`);
@@ -417,7 +411,7 @@ function checkNotificationContractBoundary() {
 
   addPass(
     "notification contract",
-    "notifications use backend category filters, unread summary and read-all contract",
+    "notifications use interactions/system category filters without read state UI",
   );
 }
 
@@ -484,7 +478,7 @@ function checkModerationStaffGateBoundary() {
 
   if (!consoleFile) {
     addFail(
-      "moderation staff gate",
+      "moderation platform role gate",
       "src/features/moderation/moderation-console.tsx is missing",
     );
     return;
@@ -492,17 +486,22 @@ function checkModerationStaffGateBoundary() {
 
   for (const token of [
     "useCurrentUserQuery",
-    "currentUserQuery.data?.is_platform_staff === true",
-    "const canLoadReports =",
-    "const canLoadReport =",
+    "resolvePlatformRole",
+    "const platformRole = resolvePlatformRole(currentUserQuery.data);",
+    "const canLoadReports = isReady && Boolean(token) && Boolean(platformRole);",
+    "const canLoadReport = isReady && Boolean(token) && Boolean(platformRole);",
     "需要平台权限",
-    "当前账号不是平台 staff，不能查看举报列表或执行审核处理。",
-    "当前账号不是平台 staff，不能查看举报详情或执行审核处理。",
+    "当前账号没有平台管理权限，不能查看举报列表或执行审核处理。",
+    "当前账号没有平台管理权限，不能查看举报详情或执行审核处理。",
     "无法确认用户身份",
   ]) {
     if (!consoleFile.content.includes(token)) {
       problems.push(`moderation console staff gate missing ${token}`);
     }
+  }
+
+  if (consoleFile.content.includes("currentUserQuery.data?.is_platform_staff === true")) {
+    problems.push("moderation report gate must use platform_role with legacy staff fallback");
   }
 
   if (/const canLoadReports\s*=\s*isReady\s*&&\s*Boolean\(token\)\s*;/.test(consoleFile.content)) {
@@ -514,13 +513,13 @@ function checkModerationStaffGateBoundary() {
   }
 
   if (problems.length > 0) {
-    addFail("moderation staff gate", problems.join("; "));
+    addFail("moderation platform role gate", problems.join("; "));
     return;
   }
 
   addPass(
-    "moderation staff gate",
-    "moderation list and detail confirm /me.is_platform_staff before loading protected report data",
+    "moderation platform role gate",
+    "moderation list and detail resolve platform_role before loading protected report data",
   );
 }
 
@@ -543,6 +542,36 @@ function checkCommunityManageBoundary() {
   const manageRouteFile = sourceFiles.find(
     (file) => file.path === "src/app/communities/[slug]/manage/page.tsx",
   );
+  const moderationApiFile = sourceFiles.find(
+    (file) => file.path === "src/features/moderation/api.ts",
+  );
+  const moderationQueriesFile = sourceFiles.find(
+    (file) => file.path === "src/features/moderation/queries.ts",
+  );
+  const quickActionsFile = sourceFiles.find(
+    (file) => file.path === "src/features/moderation/moderation-quick-actions.tsx",
+  );
+  const bulkActionsFile = sourceFiles.find(
+    (file) => file.path === "src/features/moderation/moderation-bulk-actions.tsx",
+  );
+  const removeDialogFile = sourceFiles.find(
+    (file) => file.path === "src/features/moderation/moderation-remove-dialog.tsx",
+  );
+  const postListItemFile = sourceFiles.find(
+    (file) => file.path === "src/features/post/reddit-post-list-item.tsx",
+  );
+  const hoverCardFile = sourceFiles.find(
+    (file) => file.path === "src/features/community/community-hover-card.tsx",
+  );
+  const communityPermissionsFile = sourceFiles.find(
+    (file) => file.path === "src/features/community/permissions.ts",
+  );
+  const adminReportsRouteFile = sourceFiles.find(
+    (file) => file.path === "src/app/admin/reports/page.tsx",
+  );
+  const adminModQueuePageFile = sourceFiles.find(
+    (file) => file.path === "src/features/admin/admin-mod-queue-page.tsx",
+  );
   const problems = [];
 
   if (!typesFile) {
@@ -554,11 +583,17 @@ function checkCommunityManageBoundary() {
       "can_post?: boolean",
       "can_manage?: boolean",
       "can_moderate?: boolean",
+      "platform_owner_override?: boolean",
       "GetCommunityManageContextResponse",
       "CommunityManagePost",
       "CommunityManageComment",
       "CommunityManageReport",
       "CommunityMember",
+      "ModerationUserProfile",
+      "ModeratorNote",
+      "GetCommunityModerationUserProfileResponse",
+      "ListCommunityModeratorNotesResponse",
+      "CreateCommunityModeratorNoteResponse",
       "CommunityManageSettings",
       "CommunityRule",
       "ListCommunityMembersResponse",
@@ -590,6 +625,18 @@ function checkCommunityManageBoundary() {
       "listCommunityMembers",
       "getCommunityManageSettings",
       "listCommunityRules",
+      "listCommunityModerationTemplates",
+      "createCommunityModerationTemplate",
+      "updateCommunityModerationTemplate",
+      "deleteCommunityModerationTemplate",
+      "listCommunityUserStates",
+      "upsertCommunityUserState",
+      "deleteCommunityUserState",
+      "listCommunityModLogs",
+      "getCommunityModerationUserProfile",
+      "listCommunityModeratorNotes",
+      "createCommunityModeratorNote",
+      "deleteCommunityModeratorNote",
       "updateCommunityManageSettings",
       "createCommunityRule",
       "updateCommunityRule",
@@ -597,6 +644,13 @@ function checkCommunityManageBoundary() {
       "/manage/members",
       "/manage/settings",
       "/manage/rules",
+      "getModerationTemplatePath",
+      "removal-reasons",
+      "saved-responses",
+      "getUserStatePath",
+      "/moderation/logs",
+      "/moderation/users/${encodeURIComponent(user_id)}/profile",
+      "/moderation/users/${encodeURIComponent(user_id)}/notes",
       "method: \"PATCH\"",
       "method: \"POST\"",
       "method: \"DELETE\"",
@@ -626,6 +680,18 @@ function checkCommunityManageBoundary() {
       "useCommunityMembersQuery",
       "useCommunityManageSettingsQuery",
       "useCommunityRulesQuery",
+      "useCommunityModerationTemplatesQuery",
+      "useCreateCommunityModerationTemplateMutation",
+      "useUpdateCommunityModerationTemplateMutation",
+      "useDeleteCommunityModerationTemplateMutation",
+      "useCommunityUserStatesQuery",
+      "useUpsertCommunityUserStateMutation",
+      "useDeleteCommunityUserStateMutation",
+      "useCommunityModLogsQuery",
+      "useCommunityModerationUserProfileQuery",
+      "useCommunityModeratorNotesQuery",
+      "useCreateCommunityModeratorNoteMutation",
+      "useDeleteCommunityModeratorNoteMutation",
       "useUpdateCommunityManageSettingsMutation",
       "useCreateCommunityRuleMutation",
       "useUpdateCommunityRuleMutation",
@@ -648,11 +714,10 @@ function checkCommunityManageBoundary() {
       'const communityQueryScope = isAuthenticated ? "viewer" : "public"',
       "isAuthenticated ? undefined : initialCommunityData",
       "community.viewer_permissions?.can_post !== false",
-      "community.viewer_permissions?.can_manage === true",
-      "community.viewer_permissions?.can_moderate === true",
-      "管理社区",
+      "canAccessCommunityManagement",
+      "canManageThisCommunity(community, platformRole)",
+      "canManageCommunity={canManageCommunity}",
       "`/communities/${encodeURIComponent(community.slug)}/manage`",
-      "申请社区",
     ]) {
       if (!detailFile.content.includes(token)) {
         problems.push(`community detail permission action missing ${token}`);
@@ -673,22 +738,35 @@ function checkCommunityManageBoundary() {
       "useCommunityMembersQuery",
       "useCommunityManageSettingsQuery",
       "useCommunityRulesQuery",
+      "useAppointCommunityModeratorMutation",
+      "useRemoveCommunityModeratorMutation",
+      "useCreateCommunityOwnerTransferMutation",
+      "useCommunityModQueueQuery",
+      "ModerationQuickActions",
+      "ModerationBulkActions",
+      "ManageUserStatesPanel",
+      "ManageUserProfilePanel",
+      "ModerationUserProfileBlock",
+      "ModeratorNotesList",
+      "ManageModerationTemplatePanel",
+      "ManageModLogPanel",
+      "CommunityToolsNav",
+      "CommunityQueueWorkspace",
+      "ModQueueItemList",
+      "isModToolsQueue",
       "const canManageCommunity =",
       "canLoadManage =",
       "communityQuery.isSuccess && canManageCommunity",
-      "登录后管理社区",
-      "需要社区权限",
-      "当前账号不是这个社区的 owner 或 moderator，不能查看社区管理。",
-      "维护资料与规则",
-      "资料和规则写操作走真实后端接口；成员管理仍保持只读。",
-      "ManageMemberList",
+      "ManageMemberGovernance",
       "ManageSettingsEditor",
       "ManageRuleManager",
       "CreateRuleForm",
       "RuleEditForm",
-      "保存资料",
-      "新增规则",
-      "确认删除",
+      "canAccessCommunityManagement(",
+      "viewerCommunity,",
+      "platformRole,",
+      "canEditCommunityConfiguration(community, platformRole)",
+      "canModerateCommunityContent(community, platformRole)",
     ]) {
       if (!managePageFile.content.includes(token)) {
         problems.push(`community manage page missing ${token}`);
@@ -697,6 +775,174 @@ function checkCommunityManageBoundary() {
 
     if (/const canLoadManage\s*=\s*isReady\s*&&\s*Boolean\(token\)\s*;/.test(managePageFile.content)) {
       problems.push("community manage page must not load protected manage data with token-only gate");
+    }
+  }
+
+  if (!moderationApiFile) {
+    problems.push("src/features/moderation/api.ts is missing");
+  } else {
+    for (const token of [
+      "listAdminModQueue",
+      "listCommunityModQueue",
+      "/api/v1/admin/mod-queues/actions",
+      "`/api/v1/communities/${encodeURIComponent(slug)}/mod-queues/actions`",
+      "applyAdminModQueueAction",
+      "applyCommunityModQueueAction",
+    ]) {
+      if (!moderationApiFile.content.includes(token)) {
+        problems.push(`moderation mod queue API contract missing ${token}`);
+      }
+    }
+  }
+
+  if (!moderationQueriesFile) {
+    problems.push("src/features/moderation/queries.ts is missing");
+  } else {
+    for (const token of [
+      "useCommunityModQueueQuery",
+      "useApplyCommunityModQueueActionMutation",
+      "useApplyAdminModQueueActionMutation",
+      "moderationQueryKeys.communityModQueues(slug)",
+    ]) {
+      if (!moderationQueriesFile.content.includes(token)) {
+        problems.push(`moderation mod queue query boundary missing ${token}`);
+      }
+    }
+  }
+
+  if (!adminReportsRouteFile) {
+    problems.push("src/app/admin/reports/page.tsx is missing");
+  } else if (!adminReportsRouteFile.content.includes("AdminModQueuePage")) {
+    problems.push("/admin/reports must render the real admin Mod Queue workspace");
+  }
+
+  if (!adminModQueuePageFile) {
+    problems.push("src/features/admin/admin-mod-queue-page.tsx is missing");
+  } else {
+    for (const token of [
+      "useAdminModQueueQuery",
+      "useAdminAuditLogsQuery",
+      "AdminQueueLayout",
+      "ModerationQuickActions",
+      "ModerationBulkActions",
+      "queueTabs",
+      "reports",
+      "spam",
+      "removed",
+      "edited",
+      "unmoderated",
+      "needs_review",
+    ]) {
+      if (!adminModQueuePageFile.content.includes(token)) {
+        problems.push(`admin mod queue workspace missing ${token}`);
+      }
+    }
+  }
+
+  if (!quickActionsFile) {
+    problems.push("src/features/moderation/moderation-quick-actions.tsx is missing");
+  } else {
+    for (const token of [
+      "useApplyCommunityModQueueActionMutation",
+      "useApplyAdminModQueueActionMutation",
+      "approve",
+      "spam",
+      "ignore_reports",
+      "lock",
+      "pin",
+      "mark_nsfw",
+      "mark_spoiler",
+      "set_flair",
+      "communityManageHref",
+      "targetAuthorId",
+      "useUpsertCommunityUserStateMutation",
+      "useCommunityModerationUserProfileQuery",
+      "useCreateCommunityModeratorNoteMutation",
+      "查看用户画像 / Mod Note",
+      "封禁作者",
+      "禁言作者",
+      "completedActions",
+      "ModerationActionButton",
+    ]) {
+      if (!quickActionsFile.content.includes(token)) {
+        problems.push(`moderation quick actions boundary missing ${token}`);
+      }
+    }
+  }
+
+  if (!bulkActionsFile) {
+    problems.push("src/features/moderation/moderation-bulk-actions.tsx is missing");
+  } else {
+    for (const token of [
+      "useApplyAdminModQueueActionMutation",
+      "useApplyCommunityModQueueActionMutation",
+      "targets: selectedTargets.map",
+      "reasonRequired",
+      "批量处理原因",
+      "onCompleted",
+    ]) {
+      if (!bulkActionsFile.content.includes(token)) {
+        problems.push(`moderation bulk actions boundary missing ${token}`);
+      }
+    }
+  }
+
+  if (!removeDialogFile) {
+    problems.push("src/features/moderation/moderation-remove-dialog.tsx is missing");
+  } else {
+    for (const token of [
+      "useCommunityModerationTemplatesQuery",
+      "removal_reason_id",
+      "notify_author",
+      "移除原因模板",
+      "通知作者本次移除原因",
+    ]) {
+      if (!removeDialogFile.content.includes(token)) {
+        problems.push(`moderation remove reason boundary missing ${token}`);
+      }
+    }
+  }
+
+  if (!postListItemFile) {
+    problems.push("src/features/post/reddit-post-list-item.tsx is missing");
+  } else {
+    for (const token of [
+      "canUsePostCommunityManage",
+      "canAccessCommunityManagement(post.community, platformRole)",
+      "ModerationQuickActions",
+      "targetAuthorId={post.author_id}",
+    ]) {
+      if (!postListItemFile.content.includes(token)) {
+        problems.push(`post list item must expose quick management shortcut ${token}`);
+      }
+    }
+  }
+
+  if (!hoverCardFile) {
+    problems.push("src/features/community/community-hover-card.tsx is missing");
+  } else {
+    for (const token of [
+      "canAccessCommunityManagement(profile, platformRole)",
+      "`/communities/${encodeURIComponent(liveSlug)}/manage`",
+    ]) {
+      if (!hoverCardFile.content.includes(token)) {
+        problems.push(`community hover card manage shortcut missing ${token}`);
+      }
+    }
+  }
+
+  if (!communityPermissionsFile) {
+    problems.push("src/features/community/permissions.ts is missing");
+  } else {
+    for (const token of [
+      "canAccessCommunityManagement",
+      "canEditCommunityConfiguration",
+      "canModerateCommunityContent",
+      "permissions?.platform_owner_override === true",
+    ]) {
+      if (!communityPermissionsFile.content.includes(token)) {
+        problems.push(`community permission helper missing ${token}`);
+      }
     }
   }
 
@@ -721,7 +967,7 @@ function checkCommunityManageBoundary() {
 
   addPass(
     "community manage boundary",
-    "community detail uses viewer permissions, manage page gates protected reads, and settings/rules writes use real backend contracts",
+    "community management has visible entrypoints, protected gates, shared quick actions, and real mod queue contracts",
   );
 }
 

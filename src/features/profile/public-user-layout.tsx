@@ -7,7 +7,8 @@ import {
   User,
 } from "lucide-react";
 
-import { useCurrentUserQuery } from "@/features/auth/queries";
+import { useCurrentUserQuery, useMyPointsQuery } from "@/features/auth/queries";
+import type { PointAccount } from "@/features/auth/types";
 import { cn } from "@/lib/utils";
 
 import {
@@ -18,7 +19,12 @@ import {
 import { ProfileMediaEditor } from "./profile-media-editor";
 import type { PublicUser } from "./types";
 import { UserFollowButton } from "./user-follow-button";
-import { UserIdentityMarks } from "./user-identity-marks";
+import {
+  getUserLevelTone,
+  UserIdentityMarks,
+  UserLevelBadge,
+  UserLevelProgress,
+} from "./user-identity-marks";
 
 export type PublicUserProfileTab = "comments" | "posts";
 
@@ -69,6 +75,7 @@ export function PublicUserHeader({
   const currentUserQuery = useCurrentUserQuery();
   const isOwnProfile =
     currentUserQuery.data?.username?.toLowerCase() === user.username.toLowerCase();
+  const pointsQuery = useMyPointsQuery(isOwnProfile);
   const displayTitle = getUserDisplayTitle(user);
   const progression = getUserProgression(user);
 
@@ -118,13 +125,16 @@ export function PublicUserHeader({
           </div>
 
           <div className="mt-4 min-w-0">
-            <div className="flex min-w-0 flex-wrap items-end gap-x-3 gap-y-2">
-              <h1 className="break-words text-2xl font-semibold leading-8 tracking-normal text-foreground sm:text-3xl sm:leading-10">
-                {displayName}
-              </h1>
-              <p className="pb-1 font-mono text-xs text-primary">
-                @{user.username}
-              </p>
+            <div className="flex min-w-0 flex-wrap items-end gap-x-3 gap-y-1.5">
+              <div className="flex min-w-0 flex-wrap items-end gap-x-3 gap-y-1.5">
+                <h1 className="break-words text-2xl font-semibold leading-8 tracking-normal text-foreground sm:text-3xl sm:leading-10">
+                  {displayName}
+                </h1>
+                <p className="pb-1 font-mono text-xs text-primary">
+                  @{user.username}
+                </p>
+              </div>
+              <ProfileSocialInline className="pb-1.5" user={user} />
             </div>
 
             {user.headline ? (
@@ -141,12 +151,20 @@ export function PublicUserHeader({
             badges={user.badges}
             className="mt-4 gap-2"
             displayTitle={displayTitle}
-            level={progression}
+            level={null}
             maxItems={6}
             roles={user.roles}
           />
 
-          <div className="mt-5 grid grid-cols-2 border-t border-border sm:grid-cols-5">
+          <ProfileGrowthStrip
+            isOwnProfile={isOwnProfile}
+            points={pointsQuery.data?.points}
+            pointsError={pointsQuery.isError}
+            pointsLoading={isOwnProfile && pointsQuery.isPending}
+            progression={progression}
+          />
+
+          <div className="mt-5 grid grid-cols-2 border-t border-border sm:grid-cols-3">
             <ProfileMetric
               icon={<FileText className="size-4" aria-hidden="true" />}
               label="公开帖子"
@@ -156,14 +174,6 @@ export function PublicUserHeader({
               icon={<MessageSquare className="size-4" aria-hidden="true" />}
               label="公开评论"
               value={String(user.stats.comment_count)}
-            />
-            <ProfileMetric
-              label="关注者"
-              value={formatMetricCount(user.stats.follower_count)}
-            />
-            <ProfileMetric
-              label="正在关注"
-              value={formatMetricCount(user.stats.following_count)}
             />
             <ProfileMetric
               icon={<CalendarDays className="size-4" aria-hidden="true" />}
@@ -268,6 +278,108 @@ export function PublicUserRail({
         {children}
       </div>
     </aside>
+  );
+}
+
+function ProfileSocialInline({
+  className,
+  user,
+}: {
+  className?: string;
+  user: PublicUser;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 items-center gap-3 whitespace-nowrap text-xs leading-5 text-muted-foreground sm:gap-4 sm:text-[13px]",
+        className,
+      )}
+    >
+      <span>
+        关注者{" "}
+        <span className="font-mono text-foreground">
+          {formatMetricCount(user.stats.follower_count)}
+        </span>
+      </span>
+      <span>
+        正在关注{" "}
+        <span className="font-mono text-foreground">
+          {formatMetricCount(user.stats.following_count)}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function ProfileGrowthStrip({
+  isOwnProfile,
+  points,
+  pointsError,
+  pointsLoading,
+  progression,
+}: {
+  isOwnProfile: boolean;
+  points?: PointAccount;
+  pointsError: boolean;
+  pointsLoading: boolean;
+  progression: ReturnType<typeof getUserProgression>;
+}) {
+  const levelTone = getUserLevelTone(progression?.level);
+
+  return (
+    <div className="mt-4 max-w-3xl">
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+        {progression ? (
+          <UserLevelBadge level={progression} size="md" />
+        ) : (
+          <span className="font-mono text-base font-semibold text-muted-foreground">
+            Lv.-
+          </span>
+        )}
+        <span className="text-sm font-semibold text-foreground">
+          {progression?.level_name || "暂无等级资料"}
+        </span>
+        <span className={cn("font-mono text-[11px]", levelTone.textClassName)}>
+          {levelTone.label}
+        </span>
+        {progression?.active_title ? (
+          <span className="truncate text-sm font-semibold text-foreground">
+            {progression.active_title.name}
+          </span>
+        ) : null}
+      </div>
+
+      {isOwnProfile ? (
+        <UserLevelProgress className="mt-2 max-w-xl" level={progression} showLabel />
+      ) : null}
+
+      {isOwnProfile ? (
+        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span>
+            积分余额{" "}
+            <span className="font-mono text-foreground">
+              {getPointsDisplay(points, pointsLoading, pointsError)}
+            </span>
+          </span>
+          {points ? (
+            <>
+              <span>
+                累计获得{" "}
+                <span className="font-mono text-foreground">
+                  {formatMetricCount(points.lifetime_earned)}
+                </span>
+              </span>
+              <span>
+                已消费{" "}
+                <span className="font-mono text-foreground">
+                  {formatMetricCount(points.lifetime_spent)}
+                </span>
+              </span>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -402,6 +514,22 @@ function formatMetricCount(value?: number) {
     maximumFractionDigits: 1,
     notation: value >= 10000 ? "compact" : "standard",
   }).format(value);
+}
+
+function getPointsDisplay(
+  points: PointAccount | undefined,
+  loading: boolean,
+  error: boolean,
+) {
+  if (loading) {
+    return "同步中";
+  }
+
+  if (error) {
+    return "稍后重试";
+  }
+
+  return formatMetricCount(points?.balance);
 }
 
 export function formatDate(value: string) {

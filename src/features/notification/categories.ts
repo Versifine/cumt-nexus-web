@@ -4,19 +4,21 @@ export const notificationCategoryOptions: Array<{
   label: string;
   value: NotificationCategory;
 }> = [
-  { label: "全部", value: "all" },
-  { label: "回复", value: "replies" },
-  { label: "@", value: "mentions" },
-  { label: "赞", value: "likes" },
-  { label: "系统", value: "system" },
+  { label: "互动消息", value: "interactions" },
+  { label: "系统通知", value: "system" },
 ];
 
 export const notificationCategorySegments = [
+  "system",
+] as const satisfies ReadonlyArray<Exclude<NotificationCategory, "interactions">>;
+
+export const legacyNotificationCategorySegments = [
+  "all",
+  "interactions",
   "replies",
   "mentions",
   "likes",
-  "system",
-] as const satisfies ReadonlyArray<Exclude<NotificationCategory, "all">>;
+] as const;
 
 export type NotificationCategorySegment =
   (typeof notificationCategorySegments)[number];
@@ -30,5 +32,5 @@ export function isNotificationCategorySegment(
 }
 
 export function getNotificationCategoryHref(category: NotificationCategory) {
-  return category === "all" ? "/notifications" : `/notifications/${category}`;
+  return category === "interactions" ? "/notifications" : `/notifications/${category}`;
 }

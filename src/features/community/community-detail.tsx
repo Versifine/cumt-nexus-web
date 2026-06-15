@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { StatusToken, type StatusTokenTone } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { resolvePlatformRole, type PlatformRole } from "@/features/auth/platform-role";
+import { useCurrentUserQuery } from "@/features/auth/queries";
 import { PostSortMenu } from "@/features/post/post-sort-menu";
 import { useCommunityPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
@@ -24,6 +26,7 @@ import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
 
 import { CommunityFollowButton } from "./community-follow-button";
+import { canAccessCommunityManagement } from "./permissions";
 import { useCommunityQuery } from "./queries";
 import type { Community, GetCommunityResponse } from "./types";
 
@@ -39,8 +42,13 @@ export function CommunityDetail({
   slug,
 }: CommunityDetailProps) {
   const { isReady, token } = useAuthSession();
+  const currentUserQuery = useCurrentUserQuery();
   const [sort, setSort] = useState<PostSort>("new");
   const isAuthenticated = Boolean(token);
+  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const platformRoleIsInferred =
+    currentUserQuery.data?.is_platform_staff === true &&
+    !currentUserQuery.data?.platform_role;
   const communityQueryScope = isAuthenticated ? "viewer" : "public";
   const communityQuery = useCommunityQuery(
     slug,
@@ -50,6 +58,7 @@ export function CommunityDetail({
   );
   const community = communityQuery.data?.community;
   const canPostInCommunity = canPostToCommunity(community, isAuthenticated);
+  const canManageCommunity = canManageThisCommunity(community, platformRole);
   const canShowCommunityContent =
     isReady && communityQuery.isSuccess && Boolean(community);
   const postsQuery = useCommunityPostsQuery(
@@ -104,7 +113,11 @@ export function CommunityDetail({
               />
             </div>
           ) : community ? (
-            <CommunityHeader community={community} />
+            <CommunityHeader
+              canManageCommunity={canManageCommunity}
+              community={community}
+              isAuthenticated={isAuthenticated}
+            />
           ) : null}
           {community ? (
             <div>
@@ -219,6 +232,8 @@ export function CommunityDetail({
           community={community}
           isAuthenticated={isAuthenticated}
           isPostsLoading={postsQuery.isPending}
+          platformRole={platformRole}
+          platformRoleIsInferred={platformRoleIsInferred}
           posts={posts}
         />
       ) : null}
@@ -227,10 +242,19 @@ export function CommunityDetail({
 }
 
 function CommunityHeader({
+  canManageCommunity,
   community,
+  isAuthenticated,
 }: {
+  canManageCommunity: boolean;
   community: Community;
+  isAuthenticated: boolean;
 }) {
+  const managePath = `/communities/${encodeURIComponent(community.slug)}/manage`;
+  const manageHref = isAuthenticated
+    ? managePath
+    : `/login?next=${encodeURIComponent(managePath)}`;
+
   return (
     <div className="border-b border-border py-4">
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -257,10 +281,12 @@ function CommunityHeader({
             {community.description || "这个社区还没有填写描述。"}
           </p>
         </div>
-        <CommunityFollowButton
-          className="shrink-0 sm:pt-1"
-          community={community}
-        />
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:pt-1">
+          <TextAction href={manageHref} tone="primary">
+            {isAuthenticated || canManageCommunity ? "管理社区" : "登录后管理"}
+          </TextAction>
+          <CommunityFollowButton community={community} />
+        </div>
       </div>
     </div>
   );
@@ -281,18 +307,27 @@ function CommunityRail({
   community,
   isAuthenticated,
   isPostsLoading,
+  platformRole,
+  platformRoleIsInferred,
   posts,
 }: {
   community: Community;
   isAuthenticated: boolean;
   isPostsLoading: boolean;
+  platformRole: PlatformRole | null;
+  platformRoleIsInferred: boolean;
   posts: Post[];
 }) {
   const topPosts = [...posts].sort((left, right) => right.score - left.score).slice(0, 3);
   const canPost = canPostToCommunity(community, isAuthenticated);
-  const canManage =
-    community.viewer_permissions?.can_manage === true ||
-    community.viewer_permissions?.can_moderate === true;
+  const canManage = canManageThisCommunity(community, platformRole);
+  const managePath = `/communities/${encodeURIComponent(community.slug)}/manage`;
+  const manageHref = isAuthenticated
+    ? managePath
+    : `/login?next=${encodeURIComponent(managePath)}`;
+  const hasPlatformOwnerOverride =
+    community.viewer_permissions?.platform_owner_override === true ||
+    platformRole === "owner";
 
   return (
     <aside className="border-t border-border px-0 py-5 xl:border-l xl:border-t-0 xl:pl-5">
@@ -371,15 +406,16 @@ function CommunityRail({
                 登录后参与
               </TextAction>
             )}
-            {canManage ? (
-              <TextAction
-                href={`/communities/${encodeURIComponent(community.slug)}/manage`}
-                variant="bar"
-              >
-                管理社区
-              </TextAction>
-            ) : null}
+            <TextAction href={manageHref} variant="bar">
+              {isAuthenticated || canManage ? "管理社区" : "登录后管理"}
+            </TextAction>
           </div>
+          {hasPlatformOwnerOverride ? (
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+              当前通过平台 owner 身份显示管理入口，真实社区角色仍为
+              {formatViewerRole(community.viewer_role)}。
+            </p>
+          ) : null}
           {isAuthenticated && !canPost ? (
             <p className="mt-3 text-xs leading-5 text-muted-foreground">
               当前账号暂不能在本社区发帖；如需创建新社区，可以提交社区申请。
@@ -388,6 +424,17 @@ function CommunityRail({
           {!isAuthenticated ? (
             <p className="mt-3 text-xs leading-5 text-muted-foreground">
               登录后会按后端 viewer 权限显示发帖和社区管理入口。
+            </p>
+          ) : null}
+          {isAuthenticated && platformRole && !canManage ? (
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+              平台身份为 {formatPlatformRole(platformRole)}
+              {platformRoleIsInferred
+                ? "，但当前用户接口未返回具体 platform_role，前端只能按平台工作人员识别"
+                : ""}
+              {platformRole === "owner"
+                ? "，但没有收到平台 owner 覆盖权限；请刷新登录状态或确认后端已部署新合同。"
+                : "，但平台 admin/staff 不自动获得社区管理权限。"}
             </p>
           ) : null}
         </section>
@@ -443,6 +490,43 @@ function canPostToCommunity(
   }
 
   return community.viewer_permissions?.can_post !== false;
+}
+
+function canManageThisCommunity(
+  community: Community | undefined,
+  platformRole?: PlatformRole | null,
+) {
+  return canAccessCommunityManagement(community, platformRole);
+}
+
+function formatPlatformRole(role: PlatformRole) {
+  switch (role) {
+    case "owner":
+      return "平台 owner";
+    case "admin":
+      return "平台 admin";
+    case "staff":
+      return "平台 staff";
+    default:
+      return role;
+  }
+}
+
+function formatViewerRole(role?: string) {
+  switch (role) {
+    case "owner":
+      return "版主";
+    case "moderator":
+      return "社区管理员";
+    case "member":
+      return "成员";
+    case "none":
+    case "":
+    case undefined:
+      return "访客";
+    default:
+      return role;
+  }
 }
 
 function getErrorTitle(error: Error | null, fallback: string) {

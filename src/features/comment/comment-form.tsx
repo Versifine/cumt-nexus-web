@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
@@ -8,7 +8,6 @@ import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { InlineFeedback } from "@/components/feedback/inline-feedback";
-import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { getReferencedAttachmentIdsForSubmit } from "@/features/content/attachment-markdown";
@@ -295,15 +294,46 @@ export function CommentForm({
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit" disabled={commentMutation.isPending || isUploadingImage}>
+        <CommentSubmitAction
+          type="submit"
+          disabled={commentMutation.isPending || isUploadingImage}
+        >
           {isUploadingImage
             ? "图片上传中..."
             : commentMutation.isPending
               ? "正在发布..."
               : (submitLabel ?? (parentId ? "发布回复" : "发表评论"))}
-        </Button>
+        </CommentSubmitAction>
       </div>
     </form>
+  );
+}
+
+function CommentSubmitAction({
+  children,
+  className,
+  ...props
+}: ComponentProps<"button">) {
+  return (
+    <button
+      className={[
+        "group inline-flex h-9 items-center gap-2 border-b border-transparent px-0.5 text-sm font-semibold text-primary transition-colors",
+        "hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "disabled:cursor-not-allowed disabled:border-transparent disabled:text-muted-foreground disabled:opacity-60",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      {...props}
+    >
+      <span>{children}</span>
+      <span
+        className="font-mono text-xs text-primary transition-colors group-disabled:text-muted-foreground"
+        aria-hidden="true"
+      >
+        +
+      </span>
+    </button>
   );
 }
 

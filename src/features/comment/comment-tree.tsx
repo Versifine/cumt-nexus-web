@@ -10,13 +10,13 @@ import { CommentLifecycleControls } from "@/features/comment/comment-lifecycle-c
 import { CommentForm } from "@/features/comment/comment-form";
 import { ContentBody } from "@/features/content/content-body";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
-import { ModerationRemoveDialog } from "@/features/moderation/moderation-remove-dialog";
+import { ModerationQuickActions } from "@/features/moderation/moderation-quick-actions";
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
 import {
   UserHoverPreview,
   type UserHoverIdentity,
 } from "@/features/profile/user-hover-card";
-import { UserIdentityMarks } from "@/features/profile/user-identity-marks";
+import { UserInlineIdentity } from "@/features/profile/user-identity-marks";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { cn } from "@/lib/utils";
 
@@ -25,9 +25,11 @@ import type { Comment } from "./types";
 type CommentTreeProps = {
   canModerate?: boolean;
   comments: Comment[];
+  communityModerationSlug?: string;
   currentUserId?: string | null;
   isAuthenticated?: boolean;
   maxDepth?: number;
+  platformAuditEnabled?: boolean;
   postId: string;
 };
 
@@ -40,9 +42,11 @@ type CommentTreeNode = {
 export function CommentTree({
   canModerate = false,
   comments,
+  communityModerationSlug,
   currentUserId = null,
   isAuthenticated = false,
   maxDepth = 6,
+  platformAuditEnabled = false,
   postId,
 }: CommentTreeProps) {
   const roots = useMemo(() => buildCommentTree(comments), [comments]);
@@ -77,6 +81,7 @@ export function CommentTree({
           key={node.comment.id}
           canModerate={canModerate}
           collapsedIds={collapsedIds}
+          communityModerationSlug={communityModerationSlug}
           currentUserId={currentUserId}
           expandedDepthIds={expandedDepthIds}
           isAuthenticated={isAuthenticated}
@@ -85,6 +90,7 @@ export function CommentTree({
           onExpandDepth={expandDepth}
           onReply={setReplyingTo}
           onToggleCollapsed={toggleCollapsed}
+          platformAuditEnabled={platformAuditEnabled}
           postId={postId}
           replyingTo={replyingTo}
           visualDepth={0}
@@ -97,6 +103,7 @@ export function CommentTree({
 function CommentBranch({
   canModerate,
   collapsedIds,
+  communityModerationSlug,
   currentUserId,
   expandedDepthIds,
   isAuthenticated,
@@ -105,12 +112,14 @@ function CommentBranch({
   onExpandDepth,
   onReply,
   onToggleCollapsed,
+  platformAuditEnabled,
   postId,
   replyingTo,
   visualDepth,
 }: {
   canModerate: boolean;
   collapsedIds: Set<string>;
+  communityModerationSlug?: string;
   currentUserId: string | null;
   expandedDepthIds: Set<string>;
   isAuthenticated: boolean;
@@ -119,6 +128,7 @@ function CommentBranch({
   onExpandDepth: (commentId: string) => void;
   onReply: (commentId: string | null) => void;
   onToggleCollapsed: (commentId: string) => void;
+  platformAuditEnabled: boolean;
   postId: string;
   replyingTo: string | null;
   visualDepth: number;
@@ -173,15 +183,14 @@ function CommentBranch({
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
               <CommentAuthorMeta comment={comment} />
-              <UserIdentityMarks
-                badges={comment.author?.badges?.filter(Boolean) ?? []}
-                displayTitle={
+              <UserInlineIdentity
+                level={comment.author?.progression ?? comment.author?.level}
+                title={
                   comment.author?.progression?.active_title?.name ??
                   comment.author?.display_title
                 }
-                level={comment.author?.progression ?? comment.author?.level}
-                maxItems={2}
-                size="sm"
+                username={comment.author?.username}
+                size="xs"
               />
               <span aria-hidden="true">·</span>
               <span>{formatDate(comment.created_at)}</span>
@@ -244,12 +253,32 @@ function CommentBranch({
               ) : null}
 
               {canModerate && comment.status !== "removed" ? (
-                <ModerationRemoveDialog
+                <ModerationQuickActions
+                  auditHref={
+                    platformAuditEnabled
+                      ? `/admin/audit-logs?target_type=comment&target_id=${encodeURIComponent(comment.id)}`
+                      : null
+                  }
+                  canRemove={comment.status !== "removed"}
+                  communityManageHref={
+                    communityModerationSlug
+                      ? `/communities/${encodeURIComponent(communityModerationSlug)}/manage`
+                      : null
+                  }
+                  communitySlug={communityModerationSlug}
                   targetId={comment.id}
+                  targetAuthorId={comment.author_id}
                   targetLabel={commentTargetLabel || "评论"}
                   targetPostId={postId}
                   targetStatus={comment.status}
                   targetType="comment"
+                  userHref={
+                    platformAuditEnabled
+                      ? `/admin/users?q=${encodeURIComponent(
+                          comment.author?.username || comment.author_id,
+                        )}`
+                      : null
+                  }
                 />
               ) : null}
             </div>
@@ -293,6 +322,7 @@ function CommentBranch({
                 <CommentBranch
                   canModerate={canModerate}
                   collapsedIds={collapsedIds}
+                  communityModerationSlug={communityModerationSlug}
                   currentUserId={currentUserId}
                   expandedDepthIds={expandedDepthIds}
                   isAuthenticated={isAuthenticated}
@@ -301,6 +331,7 @@ function CommentBranch({
                   onExpandDepth={onExpandDepth}
                   onReply={onReply}
                   onToggleCollapsed={onToggleCollapsed}
+                  platformAuditEnabled={platformAuditEnabled}
                   postId={postId}
                   replyingTo={replyingTo}
                   visualDepth={visualDepth + 1}

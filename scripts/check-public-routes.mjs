@@ -105,8 +105,89 @@ const routes = [
       ...appShellHrefMarkers,
       "/login?next=%2Fadmin%2Fgrowth",
     ],
-    markers: ["CUMT Nexus", "成长系统管理", "登录后进入成长管理", "登录"],
+    markers: ["CUMT Nexus", "成长系统管理", "登录后进入平台管理", "登录"],
     path: "/admin/growth",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin",
+    ],
+    markers: ["CUMT Nexus", "平台管理", "登录后进入平台管理", "登录"],
+    path: "/admin",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Fusers",
+    ],
+    markers: ["CUMT Nexus", "用户管理", "登录后进入平台管理", "登录"],
+    path: "/admin/users",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Fcommunities",
+    ],
+    markers: ["CUMT Nexus", "平台社区治理", "登录后进入平台管理", "登录"],
+    path: "/admin/communities",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Fcommunity-applications",
+    ],
+    markers: ["CUMT Nexus", "社区申请", "登录后进入平台管理", "登录"],
+    path: "/admin/community-applications",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Freports",
+    ],
+    markers: ["CUMT Nexus", "全站举报", "登录后进入平台管理", "登录"],
+    path: "/admin/reports",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Freports%2Froute-smoke-report",
+    ],
+    markers: ["CUMT Nexus", "举报详情", "登录后进入平台管理", "登录"],
+    path: "/admin/reports/route-smoke-report",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Fsettings",
+    ],
+    markers: ["CUMT Nexus", "运行开关", "登录后进入平台管理", "登录"],
+    path: "/admin/settings",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Faudit-logs",
+    ],
+    markers: ["CUMT Nexus", "审计日志", "登录后进入平台管理", "登录"],
+    path: "/admin/audit-logs",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Fowner-transfer",
+    ],
+    markers: ["CUMT Nexus", "负责人交接", "登录后进入平台管理", "登录"],
+    path: "/admin/owner-transfer",
+  },
+  {
+    markers: [
+      "CUMT Nexus",
+      "负责人交接",
+      "缺少交接 ID",
+      "请从 owner 发出的交接链接进入接受页",
+    ],
+    path: "/owner-transfer/accept",
   },
   {
     hrefMarkers: ["/", "/login?next=%2Fcommunity-applications%2Fnew"],
@@ -205,9 +286,23 @@ const routes = [
       "社区管理",
       "管理概览",
       "登录后管理社区",
-      "社区管理需要 owner 或 moderator 权限",
+      "社区管理需要版主或社区管理员权限",
     ],
     path: "/communities/public/manage",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fcommunities%2Fpublic%2Fowner-transfer%2Froute-smoke-transfer%2Faccept",
+    ],
+    markers: [
+      "CUMT Nexus",
+      "版主交接",
+      "登录后接受社区版主交接",
+      "只有交接目标账号可以接受这次版主转让",
+      "登录",
+    ],
+    path: "/communities/public/owner-transfer/route-smoke-transfer/accept",
   },
   {
     hrefMarkers: [
@@ -221,33 +316,17 @@ const routes = [
   {
     hrefMarkers: [
       ...appShellHrefMarkers,
-      "/login?next=%2Fnotifications%2Freplies",
+      "/login?next=%2Fnotifications",
     ],
-    markers: ["CUMT Nexus", "回复通知", "通知列表", "未读 / 回复", "登录后查看通知"],
-    path: "/notifications/replies",
-  },
-  {
-    hrefMarkers: [
-      ...appShellHrefMarkers,
-      "/login?next=%2Fnotifications%2Fmentions",
-    ],
-    markers: ["CUMT Nexus", "@通知", "通知列表", "未读 / @", "登录后查看通知"],
-    path: "/notifications/mentions",
-  },
-  {
-    hrefMarkers: [
-      ...appShellHrefMarkers,
-      "/login?next=%2Fnotifications%2Flikes",
-    ],
-    markers: ["CUMT Nexus", "赞通知", "通知列表", "未读 / 赞", "登录后查看通知"],
-    path: "/notifications/likes",
+    markers: ["CUMT Nexus", "消息", "互动消息", "系统通知", "登录后查看消息"],
+    path: "/notifications",
   },
   {
     hrefMarkers: [
       ...appShellHrefMarkers,
       "/login?next=%2Fnotifications%2Fsystem",
     ],
-    markers: ["CUMT Nexus", "系统通知", "通知列表", "未读 / 系统", "登录后查看通知"],
+    markers: ["CUMT Nexus", "消息", "互动消息", "系统通知", "登录后查看消息"],
     path: "/notifications/system",
   },
   {

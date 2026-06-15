@@ -1,7 +1,10 @@
+import type { PlatformRole } from "./platform-role";
+
 export type CurrentUser = {
   id: string;
   username: string;
   status: string;
+  platform_role?: PlatformRole | null;
   is_platform_staff: boolean;
   email?: string;
   email_verified?: boolean;

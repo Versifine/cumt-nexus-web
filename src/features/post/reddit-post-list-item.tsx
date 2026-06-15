@@ -8,9 +8,12 @@ import {
   Link as LinkIcon,
   MessageSquare,
   Share2,
+  ShieldCheck,
 } from "lucide-react";
 
 import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
+import { resolvePlatformRole } from "@/features/auth/platform-role";
+import { useCurrentUserQuery } from "@/features/auth/queries";
 import {
   resolveLinkPreview,
   type ResolvedLinkPreview,
@@ -21,7 +24,9 @@ import {
   resolveFirstContentMediaBlock,
 } from "@/features/content/content-media";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
+import { canAccessCommunityManagement } from "@/features/community/permissions";
 import { MediaEmbedPlayer } from "@/features/content/media-embed-player";
+import { ModerationQuickActions } from "@/features/moderation/moderation-quick-actions";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +69,15 @@ export function RedditPostListItem({
   const mediaBlock = getPostMediaBlock(post);
   const linkPreview = mediaBlock ? null : getPostLinkPreview(post);
   const excerpt = getPostExcerpt(post);
+  const currentUserQuery = useCurrentUserQuery();
+  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const communitySlug =
+    post.community?.slug?.trim() || post.community_slug?.trim() || null;
+  const canUseCommunityManage = canUsePostCommunityManage(post, platformRole);
+  const communityManageHref =
+    communitySlug && canUseCommunityManage
+      ? `/communities/${encodeURIComponent(communitySlug)}/manage`
+      : null;
   const postUrl =
     typeof window === "undefined"
       ? postHref
@@ -188,6 +202,31 @@ export function RedditPostListItem({
             postId={post.id}
             saveCount={post.save_count}
           />
+          {communityManageHref ? (
+            <PostActionLink href={communityManageHref} onClick={() => undefined}>
+              <ShieldCheck className="size-3.5" aria-hidden="true" />
+              管理社区
+            </PostActionLink>
+          ) : null}
+          {communityManageHref && communitySlug ? (
+            <ModerationQuickActions
+              canRemove={post.status !== "removed"}
+              communityManageHref={communityManageHref}
+              communitySlug={communitySlug}
+              targetId={post.id}
+              targetAuthorId={post.author_id}
+              targetLabel={post.title}
+              targetStatus={post.status}
+              targetState={{
+                flairText: post.flair_text,
+                isLocked: post.is_locked,
+                isNsfw: post.is_nsfw,
+                isPinned: post.is_pinned,
+                isSpoiler: post.is_spoiler,
+              }}
+              targetType="post"
+            />
+          ) : null}
         </div>
       </PostPreviewAttribution>
     </article>
@@ -276,4 +315,18 @@ function getPostLinkPreview(post: Post) {
 
 function getPostPreviewUrl(post: Post) {
   return post.preview?.link?.url ?? post.preview?.url ?? null;
+}
+
+function canUsePostCommunityManage(
+  post: Post,
+  platformRole: ReturnType<typeof resolvePlatformRole>,
+) {
+  const slug = post.community?.slug?.trim() || post.community_slug?.trim();
+
+  return (
+    post.viewer_permissions?.can_manage === true ||
+    post.viewer_permissions?.can_moderate === true ||
+    canAccessCommunityManagement(post.community, platformRole) ||
+    (platformRole === "owner" && Boolean(slug))
+  );
 }

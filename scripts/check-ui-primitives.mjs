@@ -29,6 +29,7 @@ const sourceFiles = existsSync(sourceRoot)
 checkSourceRoot();
 checkDataDisplayPrimitiveDefinitions();
 checkGlobalStatusPages();
+checkManagementTextWrapping();
 
 for (const result of results) {
   console.log(`[${result.status.toUpperCase()}] ${result.name} - ${result.detail}`);
@@ -122,6 +123,38 @@ function checkGlobalStatusPages() {
   addPass(
     "global status pages",
     "error, 404 and loading pages use shared recoverable Chinese status patterns",
+  );
+}
+
+function checkManagementTextWrapping() {
+  const managePage = readSourceFile("src/features/community/community-manage-page.tsx");
+  const dataDisplay = readSourceFile("src/components/ui/data-display.tsx");
+  const problems = [];
+
+  if (/whitespace-nowrap/.test(managePage)) {
+    problems.push("community manage page must not force no-wrap labels or actions");
+  }
+
+  if (/sm:grid-cols-\[minmax\(0,1fr\)_auto\]/.test(managePage)) {
+    problems.push("community manage action rows must not switch to content+auto columns at sm width");
+  }
+
+  if (!dataDisplay.includes("wrap?: boolean")) {
+    problems.push("InfoRow and MetaCell must keep an explicit wrap mode for long IDs and URLs");
+  }
+
+  if (!dataDisplay.includes("[overflow-wrap:anywhere]")) {
+    problems.push("data display primitives must keep long-token wrapping safeguards");
+  }
+
+  if (problems.length > 0) {
+    addFail("management text wrapping", problems.join("; "));
+    return;
+  }
+
+  addPass(
+    "management text wrapping",
+    "community management rows and data display primitives preserve long-text safeguards",
   );
 }
 

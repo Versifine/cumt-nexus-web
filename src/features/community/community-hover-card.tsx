@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { Hash } from "lucide-react";
 
 import { HoverPreview } from "@/components/ui/hover-preview";
 import { StatusToken } from "@/components/ui/data-display";
+import { resolvePlatformRole } from "@/features/auth/platform-role";
+import { useCurrentUserQuery } from "@/features/auth/queries";
 import { cn } from "@/lib/utils";
 
+import { canAccessCommunityManagement } from "./permissions";
 import { useCommunityQuery } from "./queries";
 
 export type CommunityHoverIdentity = {
@@ -71,6 +75,8 @@ function CommunityHoverCard({
   loadCommunity: boolean;
 }) {
   const slug = community.slug?.trim() || "";
+  const currentUserQuery = useCurrentUserQuery();
+  const platformRole = resolvePlatformRole(currentUserQuery.data);
   const communityQuery = useCommunityQuery(slug, loadCommunity);
   const profile = communityQuery.data?.community;
   const liveSlug = profile?.slug?.trim() || slug;
@@ -90,6 +96,9 @@ function CommunityHoverCard({
   const postCount = profile?.post_count ?? community.postCount;
   const viewerIsFollowing =
     profile?.viewer_is_following ?? community.viewerIsFollowing;
+  const canManage =
+    canAccessCommunityManagement(profile, platformRole) ||
+    (platformRole === "owner" && Boolean(liveSlug));
 
   return (
     <span className="relative block min-h-44 overflow-hidden bg-background text-left shadow-[0_18px_48px_rgb(0_0_0/0.36)] ring-1 ring-border/70">
@@ -138,6 +147,14 @@ function CommunityHoverCard({
             label="成员"
             value={formatCompactNumber(memberCount)}
           />
+          {liveSlug && canManage ? (
+            <Link
+              href={`/communities/${encodeURIComponent(liveSlug)}/manage`}
+              className="ml-auto text-xs font-semibold text-primary transition-colors hover:text-foreground"
+            >
+              管理
+            </Link>
+          ) : null}
         </span>
       </span>
     </span>

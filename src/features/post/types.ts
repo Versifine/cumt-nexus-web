@@ -12,7 +12,9 @@ export type PostViewerPermissions = {
   can_report?: boolean;
   can_edit?: boolean;
   can_delete?: boolean;
+  can_manage?: boolean;
   can_moderate?: boolean;
+  platform_owner_override?: boolean;
 };
 
 export type PostAuthorSummary = {
@@ -85,6 +87,11 @@ export type Post = {
   body_excerpt?: string;
   body_format?: "markdown" | string;
   format?: string;
+  flair_text?: string;
+  is_locked?: boolean;
+  is_nsfw?: boolean;
+  is_pinned?: boolean;
+  is_spoiler?: boolean;
   status: "visible" | string;
   upvote_count: number;
   downvote_count: number;

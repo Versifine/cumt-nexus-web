@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Check, Coins, Sparkles, Trophy } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { InfoRow, StatusToken } from "@/components/ui/data-display";
+import { InfoRow, MetricBlock, StatusToken } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { AuthRequired } from "@/features/auth/auth-required";
 import { useCurrentUserQuery, useMyPointsQuery } from "@/features/auth/queries";
@@ -195,86 +195,29 @@ function ProgressionOverview({
           </div>
         </div>
 
-        <section className="border-b border-border py-5">
-          <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
-            <SectionIntro
-              eyebrow="全站等级"
-              title="等级进度"
-              description="经验不可消费，积分消费不会降低等级。"
-            />
-            <LevelPanel progression={progression} />
-          </div>
-        </section>
+        <AccountGrowthMasthead
+          points={points}
+          progression={progression}
+          user={user}
+        />
 
         <section className="border-b border-border py-5">
           <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
             <SectionIntro
-              eyebrow="积分账户"
-              title="可消费积分"
-              description="余额、累计获得和累计使用均以后端账户为准。"
+              eyebrow="头衔和身份"
+              title="公开展示"
+              description="选择一个已获得头衔，并预览它在主页上的身份标记。"
             />
-            <div className="grid border-t border-border sm:grid-cols-3">
-              <ProgressionMetric
-                icon={<Coins className="size-4" aria-hidden="true" />}
-                label="当前余额"
-                value={formatCount(points.balance)}
+            <div className="border-t border-border">
+              <PublicIdentityPreview progression={progression} user={user} />
+              <TitleSelector
+                activeGrantId={progression.active_title?.grant_id ?? null}
+                isError={Boolean(titlesError)}
+                isLoading={titlesLoading}
+                onRetry={onRefetchTitles}
+                titles={titles}
+                username={user.username}
               />
-              <ProgressionMetric
-                label="累计获得"
-                value={formatCount(points.lifetime_earned)}
-              />
-              <ProgressionMetric
-                label="累计使用"
-                value={formatCount(points.lifetime_spent)}
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="border-b border-border py-5">
-          <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
-            <SectionIntro
-              eyebrow="头衔"
-              title="展示头衔"
-              description="只能选择自己已获得且仍有效的头衔。"
-            />
-            <TitleSelector
-              activeGrantId={progression.active_title?.grant_id ?? null}
-              isError={Boolean(titlesError)}
-              isLoading={titlesLoading}
-              onRetry={onRefetchTitles}
-              titles={titles}
-              username={user.username}
-            />
-          </div>
-        </section>
-
-        <section className="border-b border-border py-5">
-          <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
-            <SectionIntro
-              eyebrow="公开身份"
-              title="主页标记"
-              description="公开身份由后端资料、等级和当前展示头衔共同决定。"
-            />
-            <div className="border-t border-border py-4">
-              <div className="text-sm font-semibold text-foreground">
-                {getDisplayName(user)}
-              </div>
-              <div className="mt-1 font-mono text-xs text-primary">
-                @{user.username}
-              </div>
-              <UserIdentityMarks
-                badges={user.badges}
-                className="mt-4 gap-2"
-                displayTitle={progression.active_title?.name ?? getUserDisplayTitle(user)}
-                level={progression}
-                roles={user.roles}
-              />
-              {hasUserIdentityMarks(user) || progression.active_title ? null : (
-                <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                  当前还没有公开头衔或徽章。
-                </p>
-              )}
             </div>
           </div>
         </section>
@@ -343,38 +286,121 @@ function SectionIntro({
   );
 }
 
-function LevelPanel({ progression }: { progression: ProgressionSummary }) {
+function AccountGrowthMasthead({
+  points,
+  progression,
+  user,
+}: {
+  points: PointAccount;
+  progression: ProgressionSummary;
+  user: PublicUser;
+}) {
   const progress = clampPercent(progression.level_progress ?? 0);
+  const levelXp = getLevelXpProgress(progression);
 
   return (
-    <div className="border-t border-border py-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="font-mono text-2xl font-semibold text-foreground">
-            Lv.{progression.level}
+    <section className="border-b border-border py-5">
+      <div className="grid gap-0 border-y border-border lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="min-w-0 px-4 py-5 sm:px-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusToken tone="primary">Lv.{progression.level}</StatusToken>
+                <StatusToken>{progression.level_name || "全站等级"}</StatusToken>
+                {progression.active_title ? (
+                  <StatusToken tone="success">{progression.active_title.name}</StatusToken>
+                ) : null}
+              </div>
+              <h2 className="mt-4 break-words text-xl font-semibold leading-8 text-foreground sm:text-2xl">
+                {getDisplayName(user)} 的成长账户
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                等级按全站经验累计，积分独立入账并用于评论互动和身份表达。
+              </p>
+            </div>
+            <div className="text-left sm:text-right">
+              <div className="font-mono text-3xl font-semibold leading-none text-foreground">
+                {formatCount(progression.xp_total)}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">累计 XP</div>
+            </div>
           </div>
-          <div className="mt-1 text-sm text-muted-foreground">
-            {progression.level_name || "全站等级"}
+
+          <div className="mt-5">
+            <div className="h-2 bg-background-soft">
+              <div
+                className="h-full bg-primary"
+                style={{ width: `${progress}%` }}
+                aria-hidden="true"
+              />
+            </div>
+            <div className="mt-2 flex justify-between gap-4 text-xs text-muted-foreground">
+              <span>{formatCount(levelXp.earned)} XP</span>
+              <span>
+                {levelXp.isMaxLevel
+                  ? "已满级"
+                  : `${formatCount(levelXp.required)} XP`}
+              </span>
+            </div>
           </div>
         </div>
-        <div className="text-right font-mono text-xs text-muted-foreground">
-          {formatCount(progression.xp_total)} XP
+
+        <div className="grid border-t border-border sm:grid-cols-3 lg:grid-cols-1 lg:border-l lg:border-t-0">
+          <MetricBlock
+            className="border-b border-r-0 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 lg:border-b lg:border-r-0 lg:last:border-b-0"
+            label={
+              <span className="inline-flex items-center gap-2">
+                <Coins className="size-4 text-primary" aria-hidden="true" />
+                积分余额
+              </span>
+            }
+            value={formatCount(points.balance)}
+          />
+          <MetricBlock
+            className="border-b border-r-0 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 lg:border-b lg:border-r-0 lg:last:border-b-0"
+            label="累计获得"
+            value={formatCount(points.lifetime_earned)}
+          />
+          <MetricBlock
+            className="border-b border-r-0 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 lg:border-b lg:border-r-0 lg:last:border-b-0"
+            label="累计使用"
+            value={formatCount(points.lifetime_spent)}
+          />
         </div>
       </div>
-      <div className="mt-4 h-2 bg-background-soft">
-        <div
-          className="h-full bg-primary"
-          style={{ width: `${progress}%` }}
-          aria-hidden="true"
+    </section>
+  );
+}
+
+function PublicIdentityPreview({
+  progression,
+  user,
+}: {
+  progression: ProgressionSummary;
+  user: PublicUser;
+}) {
+  return (
+    <div className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-foreground">
+          {getDisplayName(user)}
+        </div>
+        <div className="mt-1 font-mono text-xs text-primary">@{user.username}</div>
+        <UserIdentityMarks
+          badges={user.badges}
+          className="mt-3 gap-2"
+          displayTitle={progression.active_title?.name ?? getUserDisplayTitle(user)}
+          level={progression}
+          roles={user.roles}
         />
+        {hasUserIdentityMarks(user) || progression.active_title ? null : (
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            当前还没有公开头衔或徽章。
+          </p>
+        )}
       </div>
-      <div className="mt-2 flex justify-between gap-4 text-xs text-muted-foreground">
-        <span>{formatCount(progression.current_level_xp)} XP</span>
-        <span>
-          {progression.next_level_xp === null
-            ? "已满级"
-            : `${formatCount(progression.next_level_xp)} XP`}
-        </span>
+      <div className="self-start font-mono text-xs text-muted-foreground">
+        {progression.titles_count} 个头衔
       </div>
     </div>
   );
@@ -487,7 +513,7 @@ function TitleOption({
   return (
     <button
       type="button"
-      className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-4 py-4 text-left transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+      className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-4 px-3 py-4 text-left transition-colors hover:bg-background-soft/50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
       disabled={disabled}
       onClick={onClick}
     >
@@ -565,7 +591,7 @@ function EffectsCatalogPanel({
         .map((effect) => (
           <div
             key={effect.id}
-            className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto]"
+            className="grid gap-3 px-3 py-4 transition-colors hover:bg-background-soft/50 sm:grid-cols-[minmax(0,1fr)_auto]"
           >
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
@@ -665,7 +691,7 @@ function LedgerRow({
       : (item as XPEvent).xp_total_after;
 
   return (
-    <div className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="grid gap-3 py-3 transition-colors hover:text-primary sm:grid-cols-[minmax(0,1fr)_auto]">
       <div className="min-w-0">
         <div className="truncate text-sm font-semibold text-foreground">
           {formatLedgerReason(item.reason, item.source_type)}
@@ -681,28 +707,6 @@ function LedgerRow({
         <div className="mt-1 text-xs text-muted-foreground">
           结余 {formatCount(after)}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function ProgressionMetric({
-  icon,
-  label,
-  value,
-}: {
-  icon?: ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="min-w-0 border-b border-border px-3 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        {icon ? <span className="text-primary">{icon}</span> : null}
-        <span>{label}</span>
-      </div>
-      <div className="mt-2 truncate font-mono text-xl font-semibold leading-none text-foreground">
-        {value}
       </div>
     </div>
   );
@@ -776,6 +780,30 @@ function clampPercent(value: number) {
   }
 
   return Math.max(0, Math.min(100, value * 100));
+}
+
+function getLevelXpProgress(progression: ProgressionSummary) {
+  if (progression.next_level_xp === null) {
+    return {
+      earned: Math.max(0, progression.xp_total - progression.current_level_xp),
+      isMaxLevel: true,
+      required: 0,
+    };
+  }
+
+  const currentLevelXp = Math.max(0, progression.current_level_xp);
+  const nextLevelXp = Math.max(currentLevelXp, progression.next_level_xp);
+  const required = Math.max(0, nextLevelXp - currentLevelXp);
+  const earned = Math.max(
+    0,
+    Math.min(progression.xp_total - currentLevelXp, required),
+  );
+
+  return {
+    earned,
+    isMaxLevel: false,
+    required,
+  };
 }
 
 function formatScopeType(value: string) {

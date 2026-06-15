@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell/app-shell";
 import {
   isNotificationCategorySegment,
+  legacyNotificationCategorySegments,
   notificationCategoryOptions,
   notificationCategorySegments,
   type NotificationCategorySegment,
@@ -19,7 +20,10 @@ type NotificationCategoryRouteProps = {
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  return notificationCategorySegments.map((category) => ({ category }));
+  return [
+    ...notificationCategorySegments,
+    ...legacyNotificationCategorySegments,
+  ].map((category) => ({ category }));
 }
 
 export async function generateMetadata({
@@ -27,17 +31,24 @@ export async function generateMetadata({
 }: NotificationCategoryRouteProps): Promise<Metadata> {
   const category = await resolveNotificationCategory(params);
 
+  if (category === "legacy") {
+    return {
+      title: "消息 | CUMT Nexus",
+      description: "查看 CUMT Nexus 的互动消息和系统通知。",
+    };
+  }
+
   if (!category) {
     return {
-      title: "通知 | CUMT Nexus",
+      title: "消息 | CUMT Nexus",
     };
   }
 
   const label = formatNotificationCategorySegment(category);
 
   return {
-    title: `${label}通知 | CUMT Nexus`,
-    description: `查看 CUMT Nexus 的${label}通知、未读状态并标记已读。`,
+    title: `${label}消息 | CUMT Nexus`,
+    description: `查看 CUMT Nexus 的${label}。`,
   };
 }
 
@@ -46,6 +57,10 @@ export default async function NotificationCategoryRoute({
 }: NotificationCategoryRouteProps) {
   const category = await resolveNotificationCategory(params);
 
+  if (category === "legacy") {
+    redirect("/notifications");
+  }
+
   if (!category) {
     notFound();
   }
@@ -53,7 +68,7 @@ export default async function NotificationCategoryRoute({
   const label = formatNotificationCategorySegment(category);
 
   return (
-    <AppShell contextLabel={`${label}通知`}>
+    <AppShell contextLabel={`${label}消息`}>
       <NotificationCenter initialCategory={category} />
     </AppShell>
   );
@@ -64,7 +79,19 @@ async function resolveNotificationCategory(
 ) {
   const { category } = await params;
 
-  return isNotificationCategorySegment(category) ? category : null;
+  if (isNotificationCategorySegment(category)) {
+    return category;
+  }
+
+  if (
+    legacyNotificationCategorySegments.includes(
+      category as (typeof legacyNotificationCategorySegments)[number],
+    )
+  ) {
+    return "legacy";
+  }
+
+  return null;
 }
 
 function formatNotificationCategorySegment(

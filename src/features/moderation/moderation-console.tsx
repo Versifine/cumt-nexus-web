@@ -32,6 +32,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { resolvePlatformRole } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { ApiError } from "@/lib/api/client";
@@ -66,14 +67,14 @@ export function ModerationConsole() {
   const { isReady, token } = useAuthSession();
   const currentUserQuery = useCurrentUserQuery();
   const [status, setStatus] = useState<ReportStatusFilter>("pending");
-  const canLoadReports =
-    isReady && Boolean(token) && currentUserQuery.data?.is_platform_staff === true;
+  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const canLoadReports = isReady && Boolean(token) && Boolean(platformRole);
   const reportsQuery = useModerationReportsQuery(
     { limit: 20, offset: 0, status },
     canLoadReports,
   );
   const reports = reportsQuery.data?.reports ?? [];
-  const loginHref = `/login?next=${encodeURIComponent("/moderation")}`;
+  const loginHref = `/login?next=${encodeURIComponent("/admin/reports")}`;
 
   return (
     <ModerationLayout
@@ -95,7 +96,7 @@ export function ModerationConsole() {
             <StatePanel>
               <EmptyState
                 title="登录后进入举报审核"
-                description="举报审核需要平台 staff 身份。登录后会自动确认权限。"
+                description="举报审核需要平台管理权限。登录后会自动确认权限。"
                 action={
                   <TextAction href={loginHref} tone="primary">
                     登录
@@ -127,11 +128,11 @@ export function ModerationConsole() {
           token &&
           !currentUserQuery.isLoading &&
           !currentUserQuery.isError &&
-          !currentUserQuery.data?.is_platform_staff ? (
+          !platformRole ? (
             <StatePanel>
               <EmptyState
                 title="需要平台权限"
-                description="当前账号不是平台 staff，不能查看举报列表或执行审核处理。"
+                description="当前账号没有平台管理权限，不能查看举报列表或执行审核处理。"
                 action={<TextAction href="/">信息流首页</TextAction>}
               />
             </StatePanel>
@@ -184,7 +185,9 @@ export function ModerationConsole() {
       }
       isFetching={canLoadReports && reportsQuery.isFetching}
       offset={reportsQuery.data?.offset ?? 0}
-      onRefresh={() => reportsQuery.refetch()}
+      onRefresh={() => {
+        void reportsQuery.refetch({ cancelRefetch: false });
+      }}
       onStatusChange={setStatus}
       reportCount={reports.length}
       status={status}
@@ -195,11 +198,11 @@ export function ModerationConsole() {
 export function ModerationReportDetail({ id }: { id: string }) {
   const { isReady, token } = useAuthSession();
   const currentUserQuery = useCurrentUserQuery();
-  const canLoadReport =
-    isReady && Boolean(token) && currentUserQuery.data?.is_platform_staff === true;
+  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const canLoadReport = isReady && Boolean(token) && Boolean(platformRole);
   const reportQuery = useModerationReportQuery(id, canLoadReport);
   const report = reportQuery.data?.report;
-  const loginHref = `/login?next=${encodeURIComponent(`/moderation/reports/${id}`)}`;
+  const loginHref = `/login?next=${encodeURIComponent(`/admin/reports/${id}`)}`;
 
   return (
     <ReportDetailLayout
@@ -221,7 +224,7 @@ export function ModerationReportDetail({ id }: { id: string }) {
             <StatePanel>
               <EmptyState
                 title="登录后查看举报详情"
-                description="举报详情需要平台 staff 身份。登录后会自动确认权限。"
+                description="举报详情需要平台管理权限。登录后会自动确认权限。"
                 action={
                   <TextAction href={loginHref} tone="primary">
                     登录
@@ -253,11 +256,11 @@ export function ModerationReportDetail({ id }: { id: string }) {
           token &&
           !currentUserQuery.isLoading &&
           !currentUserQuery.isError &&
-          !currentUserQuery.data?.is_platform_staff ? (
+          !platformRole ? (
             <StatePanel>
               <EmptyState
                 title="需要平台权限"
-                description="当前账号不是平台 staff，不能查看举报详情或执行审核处理。"
+                description="当前账号没有平台管理权限，不能查看举报详情或执行审核处理。"
                 action={<TextAction href="/">信息流首页</TextAction>}
               />
             </StatePanel>
@@ -375,7 +378,7 @@ function ModerationHeader({
           举报审核
         </h1>
         <p className="mt-1 truncate font-mono text-xs text-primary">
-          /moderation
+          /admin/reports
         </p>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
           当前查看{formatReportStatus(status)}举报，本页 {reportCount} 条，偏移 {offset}。
@@ -415,9 +418,18 @@ function ModerationToolbar({
           ))}
         </TabsList>
       </Tabs>
-      <Button variant="ghost" size="sm" disabled={disabled} onClick={onRefresh}>
-        <RefreshCw className="size-4" aria-hidden="true" />
-        刷新
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        disabled={disabled}
+        onClick={onRefresh}
+      >
+        <RefreshCw
+          className={disabled ? "size-4 animate-spin" : "size-4"}
+          aria-hidden="true"
+        />
+        {disabled ? "刷新中" : "刷新"}
       </Button>
     </div>
   );
@@ -436,7 +448,7 @@ function ModerationRail({
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">审核上下文</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            当前从用户菜单进入举报审核，正在查看{formatReportStatus(status)}
+            当前从平台管理进入举报审核，正在查看{formatReportStatus(status)}
             举报，本页 {reportCount} 条。
           </p>
         </section>
@@ -446,14 +458,14 @@ function ModerationRail({
           <ol className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
             <li><span className="font-mono text-primary">01</span> 详情页以目标预览和举报理由共同判断。</li>
             <li><span className="font-mono text-primary">02</span> 驳回和移除目标都会记录审核动作。</li>
-            <li><span className="font-mono text-primary">03</span> 入口显隐不替代后端 staff 权限校验。</li>
+            <li><span className="font-mono text-primary">03</span> 入口显隐不替代后端平台权限校验。</li>
           </ol>
         </section>
 
         <section>
           <h2 className="text-sm font-semibold">其他入口</h2>
           <div className="mt-3 flex flex-col border-t border-border">
-            <TextAction href="/community-applications/review" variant="bar">
+            <TextAction href="/admin/community-applications" variant="bar">
               社区审批
             </TextAction>
             <TextAction href="/" variant="bar">
@@ -484,7 +496,7 @@ function ReportRow({ index, report }: { index: number; report: ContentReport }) 
 
   return (
     <Link
-      href={`/moderation/reports/${report.id}`}
+      href={`/admin/reports/${report.id}`}
       className="group grid grid-cols-[40px_minmax(0,1fr)] gap-3 border-b border-border px-3 py-3 last:border-b-0 sm:px-4"
     >
       <span className="font-mono text-xs text-muted-foreground">
@@ -559,7 +571,7 @@ function ReportHeader({
           举报 {shortId}
         </h1>
         <p className="mt-1 truncate font-mono text-xs text-primary">
-          /moderation/reports/{shortId}
+          /admin/reports/{shortId}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {report ? (
@@ -841,7 +853,7 @@ function ReportRail({
         <section>
           <h2 className="text-sm font-semibold">稳定出口</h2>
           <div className="mt-3 flex flex-col border-t border-border">
-            <TextAction href="/moderation" variant="bar">
+            <TextAction href="/admin/reports" variant="bar">
               举报审核
             </TextAction>
             <TextAction href="/" variant="bar">

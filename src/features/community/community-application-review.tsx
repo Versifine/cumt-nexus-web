@@ -23,6 +23,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { resolvePlatformRole } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -60,8 +61,8 @@ export function CommunityApplicationReview() {
   const [rejectReason, setRejectReason] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [lastReviewMessage, setLastReviewMessage] = useState<string | null>(null);
-  const canReview =
-    isReady && Boolean(token) && currentUserQuery.data?.is_platform_staff === true;
+  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const canReview = isReady && Boolean(token) && Boolean(platformRole);
   const applicationsQuery = useCommunityApplicationsQuery(
     {
       status,
@@ -82,7 +83,7 @@ export function CommunityApplicationReview() {
   const isReviewing = approveMutation.isPending || rejectMutation.isPending;
   const submitError = getSubmitError(approveMutation.error ?? rejectMutation.error);
   const loginHref = `/login?next=${encodeURIComponent(
-    "/community-applications/review",
+    "/admin/community-applications",
   )}`;
 
   async function approveSelectedApplication() {
@@ -160,7 +161,7 @@ export function CommunityApplicationReview() {
           <StatePanel>
             <EmptyState
               title="登录后审核社区申请"
-              description="社区申请审核需要平台 staff 身份。登录后会自动确认权限。"
+              description="社区申请审核需要平台管理权限。登录后会自动确认权限。"
               action={
                 <TextAction href={loginHref} tone="primary">
                   登录
@@ -200,7 +201,7 @@ export function CommunityApplicationReview() {
     );
   }
 
-  if (!currentUserQuery.data?.is_platform_staff) {
+  if (!platformRole) {
     return (
       <ReviewLayout
         applicationsCount={0}
@@ -208,7 +209,7 @@ export function CommunityApplicationReview() {
           <StatePanel>
             <EmptyState
               title="需要平台权限"
-              description="当前账号不是平台 staff，不能查看社区申请列表或执行审批。"
+              description="当前账号没有平台管理权限，不能查看社区申请列表或执行审批。"
               action={<TextAction href="/">信息流首页</TextAction>}
             />
           </StatePanel>
@@ -223,13 +224,15 @@ export function CommunityApplicationReview() {
   return (
     <ReviewLayout
       applicationsCount={applications.length}
-      currentUserState="staff"
+      currentUserState={formatReviewerRole(platformRole)}
       offset={offset}
       status={status}
       toolbar={
         <ReviewToolbar
           isFetching={applicationsQuery.isFetching}
-          onRefresh={() => applicationsQuery.refetch()}
+          onRefresh={() => {
+            void applicationsQuery.refetch({ cancelRefetch: false });
+          }}
           onStatusChange={changeStatus}
           status={status}
         />
@@ -363,7 +366,7 @@ function ReviewHeader({
           社区审批
         </h1>
         <p className="mt-1 truncate font-mono text-xs text-primary">
-          /community-applications/review
+          /admin/community-applications
         </p>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
           当前查看{formatApplicationStatus(status)}申请，本页 {applicationsCount} 条
@@ -403,13 +406,17 @@ function ReviewToolbar({
         </TabsList>
       </Tabs>
       <Button
+        type="button"
         variant="ghost"
         size="sm"
         disabled={isFetching}
         onClick={onRefresh}
       >
-        <RefreshCw className="size-4" aria-hidden="true" />
-        刷新
+        <RefreshCw
+          className={isFetching ? "size-4 animate-spin" : "size-4"}
+          aria-hidden="true"
+        />
+        {isFetching ? "刷新中" : "刷新"}
       </Button>
     </div>
   );
@@ -440,7 +447,7 @@ function ReviewRail({
           <ol className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
             <li><span className="font-mono text-primary">01</span> 审批前以详情内容为准。</li>
             <li><span className="font-mono text-primary">02</span> 拒绝申请必须填写原因。</li>
-            <li><span className="font-mono text-primary">03</span> 通过和拒绝都由后端校验 staff 权限。</li>
+            <li><span className="font-mono text-primary">03</span> 通过和拒绝都由后端校验平台权限。</li>
           </ol>
         </section>
 
@@ -833,6 +840,19 @@ function formatApplicationStatus(status: string) {
       return "已取消";
     default:
       return status;
+  }
+}
+
+function formatReviewerRole(role: ReturnType<typeof resolvePlatformRole>) {
+  switch (role) {
+    case "owner":
+      return "站点负责人";
+    case "admin":
+      return "平台管理员";
+    case "staff":
+      return "平台审核员";
+    default:
+      return "平台权限";
   }
 }
 

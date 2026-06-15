@@ -14,6 +14,7 @@
 - `product/post-media-profile-rebuild.md`：帖子媒体流、列表预览、详情页 lightbox 和公开用户主页重构计划。
 - `product/social-progression-design.md`：关注、头衔、经验等级、积分和消耗型特殊互动的产品/合同设计。
 - `product/platform-admin-design.md`：平台管理区的信息架构、路由拓扑、页面职责、接口边界和首版验收标准。
+- `product/platform-admin-frontend-plan.md`：平台管理前端实施阶段、文件范围、接口接入顺序和验收计划。
 - `architecture/content-system.md`：Reddit Markdown 正文、Reddit-style 评论树、图片和外链嵌入的产品/架构讨论稿。
 - `architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端合同核对文档。
 - `architecture/markdown-rendering.md`：Reddit Markdown renderer 选型、安全边界、组件组织和实施切片。

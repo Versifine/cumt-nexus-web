@@ -21,9 +21,6 @@ import {
   ArrowUp,
   Bell,
   Bookmark,
-  Check,
-  ClipboardCheck,
-  CircleDot,
   Coins,
   Globe2,
   Hash,
@@ -39,6 +36,7 @@ import {
   Settings,
   ShieldAlert,
   ShieldCheck,
+  SlidersHorizontal,
   Sun,
   User,
   Users,
@@ -61,26 +59,38 @@ import {
   type AuthDialogMode,
 } from "@/features/auth/auth-dialog";
 import { useAuthSession } from "@/features/auth/auth-session";
+import {
+  hasLegacyPlatformStaffOnly,
+  resolvePlatformRole,
+} from "@/features/auth/platform-role";
 import { useCurrentUserQuery, useMyPointsQuery } from "@/features/auth/queries";
 import { getSafeAuthRedirectPath } from "@/features/auth/redirect";
 import { useFollowedCommunitiesQuery } from "@/features/community/queries";
 import type { Community } from "@/features/community/types";
 import {
-  emptyUnreadSummary,
-  formatNotificationCategory,
+  getNotificationCategoryHref,
+  notificationCategoryOptions,
+} from "@/features/notification/categories";
+import {
   formatNotificationDate,
   formatNotificationType,
-  getNotificationCategory,
-  renderNotificationCategoryIcon,
 } from "@/features/notification/display";
 import {
-  useMarkAllNotificationsReadMutation,
-  useNotificationsQuery,
-  useUnreadSummaryQuery,
-} from "@/features/notification/queries";
+  formatNotificationMessage,
+  getNotificationActor,
+  mergeLikeNotifications,
+  type DisplayNotification,
+  type NotificationActorView,
+} from "@/features/notification/grouping";
+import { useNotificationsQuery } from "@/features/notification/queries";
 import { resolveNotificationTarget } from "@/features/notification/targets";
-import type { Notification } from "@/features/notification/types";
+import { useMyProgressionQuery } from "@/features/progression/queries";
+import type { ProgressionSummary } from "@/features/progression/types";
 import { usePublicUserQuery } from "@/features/profile/queries";
+import {
+  UserLevelBadge,
+  UserLevelProgress,
+} from "@/features/profile/user-identity-marks";
 import { useTheme, type ThemePreference } from "@/lib/theme/theme-provider";
 import { cn } from "@/lib/utils";
 
@@ -177,6 +187,8 @@ export function AppShell({
   const currentSearch = searchParams.toString();
   const currentPath = `${pathname}${currentSearch ? `?${currentSearch}` : ""}`;
   const { isReady: isAuthReady, token } = useAuthSession();
+  const currentUserQuery = useCurrentUserQuery();
+  const platformRole = resolvePlatformRole(currentUserQuery.data);
   const followedCommunitiesQuery = useFollowedCommunitiesQuery(
     { limit: 5, offset: 0 },
     isAuthReady && Boolean(token),
@@ -332,6 +344,7 @@ export function AppShell({
                 isAuthenticated={Boolean(token)}
                 isFollowedCommunitiesLoading={followedCommunitiesQuery.isPending}
                 pathname={pathname}
+                platformRole={platformRole}
                 recentCommunities={recentCommunities}
               />
             </div>
@@ -385,6 +398,7 @@ export function AppShell({
                     isAuthenticated={Boolean(token)}
                     isFollowedCommunitiesLoading={followedCommunitiesQuery.isPending}
                     pathname={pathname}
+                    platformRole={platformRole}
                     recentCommunities={recentCommunities}
                     variant="mobile"
                   />
@@ -506,6 +520,7 @@ function ShellNav({
   isAuthenticated,
   isFollowedCommunitiesLoading,
   pathname,
+  platformRole,
   recentCommunities,
   variant = "desktop",
 }: {
@@ -514,6 +529,7 @@ function ShellNav({
   isAuthenticated: boolean;
   isFollowedCommunitiesLoading: boolean;
   pathname: string;
+  platformRole: ReturnType<typeof resolvePlatformRole>;
   recentCommunities: RecentCommunity[];
   variant?: "desktop" | "mobile";
 }) {
@@ -582,6 +598,17 @@ function ShellNav({
         })}
       </nav>
 
+      {isAuthenticated && platformRole ? (
+        <section className={cn("mt-6", isCollapsedDesktop ? "hidden" : "")}>
+          <div className="font-mono text-[11px] uppercase text-muted-foreground">
+            管理
+          </div>
+          <div className="mt-3 divide-y divide-border border-t border-border">
+            <ShellNavLink href="/admin" icon={ShieldAlert} label="平台管理" />
+          </div>
+        </section>
+      ) : null}
+
       <section className={cn("mt-6", isCollapsedDesktop ? "hidden" : "")}>
         <div className="font-mono text-[11px] uppercase text-muted-foreground">
           关注社区
@@ -621,6 +648,29 @@ function ShellNav({
         </div>
       </section>
     </div>
+  );
+}
+
+function ShellNavLink({
+  href,
+  icon: Icon,
+  label,
+}: {
+  href: string;
+  icon: typeof Home;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex min-w-0 items-center justify-between gap-3 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <span className="inline-flex min-w-0 items-center gap-3">
+        <Icon className="size-4 shrink-0" aria-hidden="true" />
+        <span className="truncate">{label}</span>
+      </span>
+      <span className="shrink-0 font-mono text-xs text-primary">进入</span>
+    </Link>
   );
 }
 
@@ -843,14 +893,12 @@ function HeaderNotificationMenu({
     ? "/notifications"
     : `/login?next=${encodeURIComponent("/notifications")}`;
   const notificationsQuery = useNotificationsQuery(
-    { category: "all", limit: 5, offset: 0, status: "unread" },
+    { category: "interactions", limit: 5, offset: 0 },
     canLoadNotifications,
   );
-  const unreadSummaryQuery = useUnreadSummaryQuery(canLoadNotifications);
-  const markAllReadMutation = useMarkAllNotificationsReadMutation();
-  const unreadSummary = unreadSummaryQuery.data ?? emptyUnreadSummary;
-  const notifications = notificationsQuery.data?.notifications ?? [];
-  const unreadCount = unreadSummary.total;
+  const notifications = mergeLikeNotifications(
+    notificationsQuery.data?.notifications ?? [],
+  );
 
   useEffect(() => {
     if (!isMenuOpen) {
@@ -896,18 +944,10 @@ function HeaderNotificationMenu({
         onClick={() => setIsMenuOpen((value) => !value)}
       >
         <Bell className="size-4" aria-hidden="true" />
-        {token && unreadCount > 0 ? (
-          <span
-            className="absolute right-1.5 top-1.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-[10px] font-semibold leading-4 text-primary-foreground"
-            aria-label={`${unreadCount} 条未读消息`}
-          >
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        ) : null}
       </button>
       <div
         className={cn(
-          "absolute right-0 top-full z-50 mt-2 w-72 origin-top-right overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_18px_48px_rgb(0_0_0/0.38)] transition duration-150 ease-out",
+          "absolute right-0 top-full z-50 mt-2 w-80 origin-top-right overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_18px_48px_rgb(0_0_0/0.38)] transition duration-150 ease-out",
           isMenuOpen
             ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
             : "pointer-events-none -translate-y-1 scale-[0.98] opacity-0",
@@ -923,11 +963,7 @@ function HeaderNotificationMenu({
                 </h2>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {formatNotificationPanelSummary(
-                  canLoadNotifications,
-                  unreadSummaryQuery.isPending,
-                  unreadCount,
-                )}
+                互动消息和系统通知
               </p>
             </div>
             <Link
@@ -943,14 +979,11 @@ function HeaderNotificationMenu({
         <NotificationMenuBody
           canLoadNotifications={canLoadNotifications}
           isReady={isReady}
-          isMarkingAllRead={markAllReadMutation.isPending}
           notifications={notifications}
           notificationsError={notificationsQuery.isError}
           notificationsPending={notificationsQuery.isPending}
           notificationHref={notificationHref}
           onClose={() => setIsMenuOpen(false)}
-          onMarkAllRead={() => markAllReadMutation.mutate()}
-          unreadCount={unreadCount}
         />
 
       </div>
@@ -960,26 +993,20 @@ function HeaderNotificationMenu({
 
 function NotificationMenuBody({
   canLoadNotifications,
-  isMarkingAllRead,
   isReady,
   notifications,
   notificationsError,
   notificationsPending,
   notificationHref,
   onClose,
-  onMarkAllRead,
-  unreadCount,
 }: {
   canLoadNotifications: boolean;
-  isMarkingAllRead: boolean;
   isReady: boolean;
-  notifications: Notification[];
+  notifications: DisplayNotification[];
   notificationsError: boolean;
   notificationsPending: boolean;
   notificationHref: string;
   onClose: () => void;
-  onMarkAllRead: () => void;
-  unreadCount: number;
 }) {
   if (!isReady) {
     return (
@@ -1036,8 +1063,9 @@ function NotificationMenuBody({
   if (notifications.length === 0) {
     return (
       <div className="p-3">
+        <NotificationCategorySummary onClose={onClose} />
         <div className="border-l border-border px-3 py-2">
-          <h3 className="text-sm font-semibold text-foreground">没有未读消息</h3>
+          <h3 className="text-sm font-semibold text-foreground">暂时没有消息</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             有新的回复、@、赞或系统消息时，会显示在这里。
           </p>
@@ -1048,22 +1076,12 @@ function NotificationMenuBody({
 
   return (
     <div>
-      {unreadCount > 0 ? (
-        <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
-          <p className="text-xs text-muted-foreground">
-            还有 {unreadCount} 条未读消息
-          </p>
-          <button
-            type="button"
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 px-1 text-xs font-semibold text-primary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isMarkingAllRead}
-            onClick={onMarkAllRead}
-          >
-            <Check className="size-3.5" aria-hidden="true" />
-            {isMarkingAllRead ? "处理中" : "全部已读"}
-          </button>
-        </div>
-      ) : null}
+      <div className="p-3">
+        <NotificationCategorySummary onClose={onClose} />
+      </div>
+      <div className="border-b border-border px-3 py-2">
+        <p className="text-xs font-semibold text-foreground">最新消息</p>
+      </div>
       <div className="max-h-[360px] overflow-y-auto">
         {notifications.map((notification) => (
           <NotificationMenuItem
@@ -1077,46 +1095,70 @@ function NotificationMenuBody({
   );
 }
 
+function NotificationCategorySummary({
+  onClose,
+}: {
+  onClose: () => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 border border-border">
+      {notificationCategoryOptions.map((option) => {
+        return (
+          <Link
+            key={option.value}
+            href={getNotificationCategoryHref(option.value)}
+            className="min-w-0 border-b border-r border-border px-3 py-2 text-left transition-colors odd:border-r even:border-r-0 last:border-b-0 hover:bg-muted/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={onClose}
+          >
+            <span className="block truncate text-xs text-muted-foreground">
+              {option.label}
+            </span>
+            <span className="mt-1 block text-sm font-semibold text-foreground">
+              查看
+            </span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 function NotificationMenuItem({
   notification,
   onClose,
 }: {
-  notification: Notification;
+  notification: DisplayNotification;
   onClose: () => void;
 }) {
-  const category = getNotificationCategory(notification);
   const target = resolveNotificationTarget(notification);
+  const actor = getNotificationActor(notification);
+  const message = formatNotificationMessage(notification);
   const content = (
     <>
-      <div className="flex size-8 shrink-0 items-center justify-center border border-primary/40 bg-primary/10 text-primary">
-        {renderNotificationCategoryIcon(category)}
-      </div>
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
-          <span className="font-semibold text-foreground">
-            {formatNotificationCategory(category)}
+          <span className="truncate font-semibold text-foreground">
+            {actor.displayName}
           </span>
-          <span aria-hidden="true">·</span>
-          <span className="truncate">{formatNotificationType(notification.type)}</span>
           <span aria-hidden="true">·</span>
           <span className="shrink-0">
             {formatNotificationDate(notification.created_at)}
           </span>
-          <CircleDot className="size-3 shrink-0 text-primary" aria-hidden="true" />
         </div>
         <h3 className="mt-1 line-clamp-1 text-sm font-semibold text-foreground">
-          {notification.title}
+          {message}
         </h3>
-        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-          {notification.body || target.summary}
+        <p className="mt-1 line-clamp-1 text-xs leading-5 text-muted-foreground">
+          {formatNotificationType(notification.type)}
         </p>
       </div>
+      <NotificationMenuAvatar actor={actor} />
     </>
   );
 
   if (!target.href) {
     return (
-      <div className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 border-b border-border px-3 py-3 last:border-b-0">
+      <div className="grid grid-cols-[minmax(0,1fr)_32px] gap-3 border-b border-border px-3 py-3 last:border-b-0">
         {content}
       </div>
     );
@@ -1125,7 +1167,7 @@ function NotificationMenuItem({
   return (
     <Link
       href={target.href}
-      className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 border-b border-border px-3 py-3 transition-colors last:border-b-0 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="grid grid-cols-[minmax(0,1fr)_32px] gap-3 border-b border-border px-3 py-3 transition-colors last:border-b-0 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={onClose}
     >
       {content}
@@ -1133,20 +1175,23 @@ function NotificationMenuItem({
   );
 }
 
-function formatNotificationPanelSummary(
-  canLoadNotifications: boolean,
-  isPending: boolean,
-  unreadCount: number,
-) {
-  if (!canLoadNotifications) {
-    return "登录后同步账号消息";
+function NotificationMenuAvatar({ actor }: { actor: NotificationActorView }) {
+  if (actor.avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={actor.avatarUrl}
+        alt={`${actor.displayName}头像`}
+        className="size-8 shrink-0 rounded-full border border-primary/40 object-cover"
+      />
+    );
   }
 
-  if (isPending) {
-    return "正在同步未读状态";
-  }
-
-  return unreadCount > 0 ? `${unreadCount} 条未读消息` : "没有未读消息";
+  return (
+    <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-[11px] font-semibold text-primary">
+      {actor.initial}
+    </div>
+  );
 }
 
 function HeaderUserMenu() {
@@ -1159,8 +1204,17 @@ function HeaderUserMenu() {
   const username = currentUserQuery.data?.username ?? "";
   const profileQuery = usePublicUserQuery(username, Boolean(token && username));
   const pointsQuery = useMyPointsQuery(Boolean(token && currentUserQuery.data));
+  const progressionQuery = useMyProgressionQuery(Boolean(token && currentUserQuery.data));
   const avatarUrl = profileQuery.data?.user.avatar_url?.trim() ?? "";
   const displayName = profileQuery.data?.user.display_name?.trim() || username;
+  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const hasOnlyLegacyStaffFlag = hasLegacyPlatformStaffOnly(
+    currentUserQuery.data,
+  );
+  const canSeePlatformGovernanceEntry =
+    platformRole === "owner" ||
+    platformRole === "admin" ||
+    hasOnlyLegacyStaffFlag;
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {
@@ -1293,10 +1347,6 @@ function HeaderUserMenu() {
           size="trigger"
           username={user.username}
         />
-        <span
-          className="absolute bottom-1.5 right-1.5 size-2 rounded-full border border-background bg-primary"
-          aria-hidden="true"
-        />
       </Link>
       <div
         className={cn(
@@ -1329,6 +1379,11 @@ function HeaderUserMenu() {
               </div>
             </div>
           </div>
+          <AccountProgressionSummary
+            isError={progressionQuery.isError}
+            isLoading={progressionQuery.isPending}
+            progression={progressionQuery.data?.progression}
+          />
           <AccountPointsSummary
             balance={pointsQuery.data?.points.balance}
             isError={pointsQuery.isError}
@@ -1385,37 +1440,37 @@ function HeaderUserMenu() {
             <ShieldCheck className="size-4" aria-hidden="true" />
             账号安全
           </Link>
-          {user.is_platform_staff ? (
-            <>
-              <div className="-mx-1 my-1 h-px bg-border" />
-              <div className="px-2 py-1.5 text-xs font-normal text-muted-foreground">
-                平台工作台
-              </div>
-              <Link
-                href="/moderation"
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
-                onClick={closeMenu}
-              >
-                <ShieldAlert className="size-4" aria-hidden="true" />
-                举报审核
-              </Link>
-              <Link
-                href="/community-applications/review"
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
-                onClick={closeMenu}
-              >
-                <ClipboardCheck className="size-4" aria-hidden="true" />
-                社区审批
-              </Link>
-              <Link
-                href="/admin/growth"
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
-                onClick={closeMenu}
-              >
-                <Coins className="size-4" aria-hidden="true" />
-                成长管理
-              </Link>
-            </>
+          <div className="-mx-1 my-1 h-px bg-border" />
+          <div className="px-2 py-1.5 text-xs font-normal text-muted-foreground">
+            管理入口
+          </div>
+          {platformRole ? (
+            <Link
+              href="/admin"
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+              onClick={closeMenu}
+            >
+              <ShieldAlert className="size-4" aria-hidden="true" />
+              平台管理
+            </Link>
+          ) : null}
+          <Link
+            href="/communities"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+            onClick={closeMenu}
+          >
+            <ShieldCheck className="size-4" aria-hidden="true" />
+            社区管理
+          </Link>
+          {canSeePlatformGovernanceEntry ? (
+            <Link
+              href="/admin/communities"
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+              onClick={closeMenu}
+            >
+              <SlidersHorizontal className="size-4" aria-hidden="true" />
+              平台社区治理
+            </Link>
           ) : null}
           <div className="-mx-1 my-1 h-px bg-border" />
           <button
@@ -1428,6 +1483,49 @@ function HeaderUserMenu() {
           </button>
         </nav>
       </div>
+    </div>
+  );
+}
+
+function AccountProgressionSummary({
+  isError,
+  isLoading,
+  progression,
+}: {
+  isError: boolean;
+  isLoading: boolean;
+  progression?: ProgressionSummary;
+}) {
+  if (isError) {
+    return (
+      <div className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
+        等级暂时无法同步。
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="mt-3 border-t border-border pt-3">
+        <div className="h-4 w-28 animate-pulse bg-muted" />
+        <div className="mt-2 h-[3px] animate-pulse bg-muted" />
+      </div>
+    );
+  }
+
+  if (!progression) {
+    return null;
+  }
+
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <div className="flex min-w-0 items-center gap-2">
+        <UserLevelBadge level={progression} size="sm" />
+        <span className="min-w-0 truncate text-xs font-semibold text-foreground">
+          {progression.level_name || "全站等级"}
+        </span>
+      </div>
+      <UserLevelProgress className="mt-2" level={progression} showLabel />
     </div>
   );
 }

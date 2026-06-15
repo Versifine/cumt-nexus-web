@@ -4,13 +4,13 @@ import { AppShell } from "@/components/app-shell/app-shell";
 import { NotificationCenter } from "@/features/notification/notification-center";
 
 export const metadata: Metadata = {
-  title: "通知 | CUMT Nexus",
-  description: "查看 CUMT Nexus 的账号通知、未读状态并标记已读。",
+  title: "消息 | CUMT Nexus",
+  description: "查看 CUMT Nexus 的互动消息和系统通知。",
 };
 
 export default function NotificationsRoute() {
   return (
-    <AppShell contextLabel="通知">
+    <AppShell contextLabel="消息">
       <NotificationCenter />
     </AppShell>
   );

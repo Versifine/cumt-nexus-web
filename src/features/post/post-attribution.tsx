@@ -16,7 +16,7 @@ import {
   UserHoverPreview,
   type UserHoverIdentity,
 } from "@/features/profile/user-hover-card";
-import { UserIdentityMarks } from "@/features/profile/user-identity-marks";
+import { UserInlineIdentity } from "@/features/profile/user-identity-marks";
 import type { UserLevelSummary } from "@/features/profile/types";
 import { cn } from "@/lib/utils";
 
@@ -162,11 +162,10 @@ export function PostAuthorIdentity({
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm leading-5">
         <PostAuthorName author={author} />
 
-        <UserIdentityMarks
-          badges={author.badges}
-          displayTitle={author.displayTitle}
+        <UserInlineIdentity
           level={author.level}
-          maxItems={3}
+          title={author.displayTitle}
+          username={author.slug}
           size="sm"
         />
       </div>

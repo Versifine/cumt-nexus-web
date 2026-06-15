@@ -25,6 +25,7 @@ import {
   UserHoverPreview,
   type UserHoverIdentity,
 } from "@/features/profile/user-hover-card";
+import { UserInlineIdentity } from "@/features/profile/user-identity-marks";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { ApiError } from "@/lib/api/client";
 
@@ -235,6 +236,15 @@ function UserCommentRow({
         <div className="min-w-0">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
             <CommentAuthorName comment={comment} user={user} />
+            <UserInlineIdentity
+              level={comment.author?.progression ?? comment.author?.level}
+              title={
+                comment.author?.progression?.active_title?.name ??
+                comment.author?.display_title
+              }
+              username={comment.author?.username ?? user.username}
+              size="xs"
+            />
             <span aria-hidden="true">·</span>
             <span>{formatDate(comment.created_at)}</span>
             {comment.status !== "visible" ? (
@@ -602,6 +612,7 @@ function getAuthorHoverIdentity(
   const author = comment.author;
   const username = author?.username?.trim() || user.username?.trim() || "";
   const isPublicUser = username === user.username?.trim();
+  const userProgression = user.progression ?? user.level ?? null;
 
   return {
     avatarUrl: author?.avatar_url?.trim() || user.avatar_url?.trim() || "",
@@ -610,8 +621,19 @@ function getAuthorHoverIdentity(
         ? author.badges.filter(Boolean)
         : user.badges,
     bannerUrl: isPublicUser ? user.banner_url?.trim() || "" : "",
+    displayTitle:
+      author?.progression?.active_title?.name?.trim() ||
+      author?.display_title?.trim() ||
+      (isPublicUser
+        ? userProgression?.active_title?.name?.trim() ||
+          user.display_title?.trim() ||
+          null
+        : null),
     displayName: getAuthorLabel(comment, user),
+    followerCount: isPublicUser ? user.stats.follower_count : undefined,
+    followingCount: isPublicUser ? user.stats.following_count : undefined,
     headline: author?.headline?.trim() || user.headline?.trim() || "",
+    level: author?.progression ?? author?.level ?? (isPublicUser ? userProgression : null),
     username,
   };
 }

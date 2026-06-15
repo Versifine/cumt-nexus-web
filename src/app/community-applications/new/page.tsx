@@ -35,7 +35,7 @@ export default function NewCommunityApplicationPage() {
             <div>
               <AuthRequired
                 title="登录后申请新社区"
-                description="社区申请会绑定到当前账号，用于审核、后续维护和负责人设置。登录后会回到本页继续填写申请。"
+                description="社区申请会绑定到当前账号，用于审核、后续维护和版主设置。登录后会回到本页继续填写申请。"
               >
                 <CommunityApplicationForm />
               </AuthRequired>
@@ -74,7 +74,7 @@ function ApplicationRail() {
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">申请上下文</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            申请会绑定当前账号。通过审核后，系统才会创建社区并设置负责人关系。
+            申请会绑定当前账号。通过审核后，系统才会创建社区并设置版主关系。
           </p>
         </section>
 

@@ -1,42 +1,80 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  acceptCommunityOwnerTransfer,
+  appointCommunityModerator,
   approveCommunityApplication,
+  cancelCommunityOwnerTransfer,
   createCommunityRule,
+  createCommunityModerationTemplate,
+  createCommunityModeratorNote,
+  createCommunityOwnerTransfer,
   deleteCommunityFollow,
+  deleteCommunityModerationTemplate,
+  deleteCommunityModeratorNote,
   deleteCommunityRule,
+  deleteCommunityUserState,
   followCommunity,
   getCommunity,
   getCommunityApplication,
   getCommunityManageContext,
   getCommunityManageSettings,
+  getCommunityModerationUserProfile,
+  getCommunityOwnerTransfer,
+  getCommunityOwnerTransferById,
+  listCommunityModLogs,
+  listCommunityModeratorNotes,
   listFollowedCommunities,
   listCommunityMembers,
   listCommunityManageComments,
   listCommunityManagePosts,
   listCommunityManageReports,
+  listCommunityModerationTemplates,
   listCommunityRules,
+  listCommunityUserStates,
   listCommunityApplications,
   listCommunities,
   rejectCommunityApplication,
+  removeCommunityModerator,
+  updateCommunityModerationTemplate,
   updateCommunityManageSettings,
   updateCommunityRule,
+  upsertCommunityUserState,
 } from "./api";
 import { postQueryKeys } from "@/features/post/queries";
 import type {
+  AcceptCommunityOwnerTransferInput,
+  AppointCommunityModeratorInput,
+  CancelCommunityOwnerTransferInput,
+  CreateCommunityModerationTemplateInput,
+  CreateCommunityModeratorNoteInput,
   CreateCommunityRuleInput,
+  CreateCommunityOwnerTransferInput,
   CommunityApplicationStatus,
+  DeleteCommunityModerationTemplateInput,
+  DeleteCommunityModeratorNoteInput,
   DeleteCommunityRuleInput,
+  DeleteCommunityUserStateInput,
+  GetCommunityModerationUserProfileInput,
   GetCommunityResponse,
+  GetCommunityOwnerTransferByIdInput,
+  GetCommunityOwnerTransferInput,
+  ListCommunityModLogsInput,
   ListFollowedCommunitiesInput,
   ListCommunityMembersInput,
   ListCommunityManageCommentsInput,
   ListCommunityManagePostsInput,
   ListCommunityManageReportsInput,
+  ListCommunityModerationTemplatesInput,
+  ListCommunityModeratorNotesInput,
+  ListCommunityUserStatesInput,
   ListCommunityApplicationsInput,
   RejectCommunityApplicationInput,
+  RemoveCommunityModeratorInput,
+  UpdateCommunityModerationTemplateInput,
   UpdateCommunityManageSettingsInput,
   UpdateCommunityRuleInput,
+  UpsertCommunityUserStateInput,
 } from "./types";
 
 type CommunityQueryScope = "public" | "viewer";
@@ -58,7 +96,65 @@ export const communityQueryKeys = {
       input.offset ?? 0,
     ] as const,
   manageSettings: (slug: string) => ["community", slug, "manage", "settings"] as const,
+  ownerTransfer: (input: GetCommunityOwnerTransferInput) =>
+    ["community", input.slug, "manage", "owner-transfer"] as const,
+  ownerTransferById: (input: GetCommunityOwnerTransferByIdInput) =>
+    ["community", input.slug, "owner-transfer", input.transfer_id] as const,
   manageRules: (slug: string) => ["community", slug, "manage", "rules"] as const,
+  moderationTemplates: (input: ListCommunityModerationTemplatesInput) =>
+    [
+      "community",
+      input.slug,
+      "moderation",
+      input.kind,
+    ] as const,
+  userStates: (input: ListCommunityUserStatesInput) =>
+    [
+      "community",
+      input.slug,
+      "manage",
+      "user-states",
+      input.kind,
+      input.limit ?? 20,
+      input.offset ?? 0,
+    ] as const,
+  userStatesAll: (slug: string) => ["community", slug, "manage", "user-states"] as const,
+  modLogs: (input: ListCommunityModLogsInput) =>
+    [
+      "community",
+      input.slug,
+      "moderation",
+      "logs",
+      input.action ?? "",
+      input.actor_id ?? "",
+      input.target_type ?? "",
+      input.target_id ?? "",
+      input.limit ?? 20,
+      input.offset ?? 0,
+    ] as const,
+  modLogsAll: (slug: string) => ["community", slug, "moderation", "logs"] as const,
+  moderationUserProfile: (input: GetCommunityModerationUserProfileInput) =>
+    [
+      "community",
+      input.slug,
+      "moderation",
+      "users",
+      input.user_id,
+      "profile",
+    ] as const,
+  moderatorNotes: (input: ListCommunityModeratorNotesInput) =>
+    [
+      "community",
+      input.slug,
+      "moderation",
+      "users",
+      input.user_id,
+      "notes",
+      input.limit ?? 20,
+      input.offset ?? 0,
+    ] as const,
+  moderatorNotesAll: (slug: string, userId: string) =>
+    ["community", slug, "moderation", "users", userId, "notes"] as const,
   managePosts: (input: ListCommunityManagePostsInput) =>
     [
       "community",
@@ -194,6 +290,182 @@ export function useCommunityMembersQuery(
   });
 }
 
+export function useAppointCommunityModeratorMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: AppointCommunityModeratorInput) =>
+      appointCommunityModerator(input),
+    onSuccess: (result) => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.manageMembers({
+            slug: result.community.slug,
+          }),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.manageContext(result.community.slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.detail(result.community.slug),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useRemoveCommunityModeratorMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: RemoveCommunityModeratorInput) =>
+      removeCommunityModerator(input),
+    onSuccess: (result, variables) => {
+      const slug = result.community.slug || variables.slug;
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.manageMembers({ slug }),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.manageContext(slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.detail(slug),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useCreateCommunityOwnerTransferMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateCommunityOwnerTransferInput) =>
+      createCommunityOwnerTransfer(input),
+    onSuccess: (result, variables) => {
+      const slug = result.community.slug || variables.slug;
+
+      queryClient.setQueryData(communityQueryKeys.ownerTransfer({ slug }), {
+        community: result.community,
+        transfer: result.transfer,
+      });
+      queryClient.setQueryData(
+        communityQueryKeys.ownerTransferById({
+          slug,
+          transfer_id: result.transfer.id,
+        }),
+        {
+          community: result.community,
+          transfer: result.transfer,
+        },
+      );
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.manageContext(slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.manageMembers({ slug }),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useCommunityOwnerTransferQuery(
+  input: GetCommunityOwnerTransferInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.ownerTransfer(input),
+    queryFn: () => getCommunityOwnerTransfer(input),
+    enabled: enabled && Boolean(input.slug.trim()),
+  });
+}
+
+export function useCommunityOwnerTransferByIdQuery(
+  input: GetCommunityOwnerTransferByIdInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.ownerTransferById(input),
+    queryFn: () => getCommunityOwnerTransferById(input),
+    enabled: enabled && Boolean(input.slug.trim() && input.transfer_id.trim()),
+  });
+}
+
+export function useAcceptCommunityOwnerTransferMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: AcceptCommunityOwnerTransferInput) =>
+      acceptCommunityOwnerTransfer(input),
+    onSuccess: (result, variables) => {
+      const slug = result.community.slug || variables.slug;
+
+      queryClient.setQueryData(
+        communityQueryKeys.ownerTransferById({
+          slug,
+          transfer_id: result.transfer.id,
+        }),
+        {
+          community: result.community,
+          transfer: result.transfer,
+        },
+      );
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.ownerTransfer({ slug }),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.manageContext(slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.detail(slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.manageMembers({ slug }),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useCancelCommunityOwnerTransferMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CancelCommunityOwnerTransferInput) =>
+      cancelCommunityOwnerTransfer(input),
+    onSuccess: (result, variables) => {
+      const slug = result.community.slug || variables.slug;
+
+      queryClient.setQueryData(communityQueryKeys.ownerTransfer({ slug }), {
+        community: result.community,
+        transfer: null,
+      });
+      queryClient.setQueryData(
+        communityQueryKeys.ownerTransferById({
+          slug,
+          transfer_id: result.transfer.id,
+        }),
+        {
+          community: result.community,
+          transfer: result.transfer,
+        },
+      );
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.manageContext(slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.manageMembers({ slug }),
+        }),
+      ]);
+    },
+  });
+}
+
 export function useCommunityManageSettingsQuery(slug: string, enabled = true) {
   return useQuery({
     queryKey: communityQueryKeys.manageSettings(slug),
@@ -206,6 +478,17 @@ export function useCommunityRulesQuery(slug: string, enabled = true) {
   return useQuery({
     queryKey: communityQueryKeys.manageRules(slug),
     queryFn: () => listCommunityRules(slug),
+    enabled,
+  });
+}
+
+export function useCommunityModerationTemplatesQuery(
+  input: ListCommunityModerationTemplatesInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.moderationTemplates(input),
+    queryFn: () => listCommunityModerationTemplates(input),
     enabled,
   });
 }
@@ -226,6 +509,9 @@ export function useUpdateCommunityManageSettingsMutation() {
       });
       queryClient.setQueryData(communityQueryKeys.manageContext(result.community.slug), {
         community: result.community,
+      });
+      void queryClient.invalidateQueries({
+        queryKey: communityQueryKeys.all,
       });
     },
   });
@@ -269,6 +555,227 @@ export function useDeleteCommunityRuleMutation() {
       void queryClient.invalidateQueries({
         queryKey: communityQueryKeys.manageRules(variables.slug),
       });
+    },
+  });
+}
+
+export function useCreateCommunityModerationTemplateMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateCommunityModerationTemplateInput) =>
+      createCommunityModerationTemplate(input),
+    onSuccess: (_result, variables) => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.moderationTemplates(variables),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.modLogsAll(variables.slug),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useUpdateCommunityModerationTemplateMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateCommunityModerationTemplateInput) =>
+      updateCommunityModerationTemplate(input),
+    onSuccess: (_result, variables) => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.moderationTemplates(variables),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.modLogsAll(variables.slug),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useDeleteCommunityModerationTemplateMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: DeleteCommunityModerationTemplateInput) =>
+      deleteCommunityModerationTemplate(input),
+    onSuccess: (_result, variables) => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.moderationTemplates(variables),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.modLogsAll(variables.slug),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useCommunityUserStatesQuery(
+  input: ListCommunityUserStatesInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.userStates(input),
+    queryFn: () => listCommunityUserStates(input),
+    enabled,
+  });
+}
+
+export function useUpsertCommunityUserStateMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpsertCommunityUserStateInput) =>
+      upsertCommunityUserState(input),
+    onSuccess: (_result, variables) => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.userStatesAll(variables.slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.modLogsAll(variables.slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.manageMembers({ slug: variables.slug }),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.detail(variables.slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.moderationUserProfile({
+            slug: variables.slug,
+            user_id: variables.user_id,
+          }),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useDeleteCommunityUserStateMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: DeleteCommunityUserStateInput) =>
+      deleteCommunityUserState(input),
+    onSuccess: (_result, variables) => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.userStatesAll(variables.slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.modLogsAll(variables.slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.manageMembers({ slug: variables.slug }),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.detail(variables.slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.moderationUserProfile({
+            slug: variables.slug,
+            user_id: variables.user_id,
+          }),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useCommunityModLogsQuery(
+  input: ListCommunityModLogsInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.modLogs(input),
+    queryFn: () => listCommunityModLogs(input),
+    enabled,
+  });
+}
+
+export function useCommunityModerationUserProfileQuery(
+  input: GetCommunityModerationUserProfileInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.moderationUserProfile(input),
+    queryFn: () => getCommunityModerationUserProfile(input),
+    enabled:
+      enabled && Boolean(input.slug.trim()) && Boolean(input.user_id.trim()),
+  });
+}
+
+export function useCommunityModeratorNotesQuery(
+  input: ListCommunityModeratorNotesInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.moderatorNotes(input),
+    queryFn: () => listCommunityModeratorNotes(input),
+    enabled:
+      enabled && Boolean(input.slug.trim()) && Boolean(input.user_id.trim()),
+  });
+}
+
+export function useCreateCommunityModeratorNoteMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateCommunityModeratorNoteInput) =>
+      createCommunityModeratorNote(input),
+    onSuccess: (_result, variables) => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.moderatorNotesAll(
+            variables.slug,
+            variables.user_id,
+          ),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.moderationUserProfile({
+            slug: variables.slug,
+            user_id: variables.user_id,
+          }),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.modLogsAll(variables.slug),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useDeleteCommunityModeratorNoteMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: DeleteCommunityModeratorNoteInput) =>
+      deleteCommunityModeratorNote(input),
+    onSuccess: (_result, variables) => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.moderatorNotesAll(
+            variables.slug,
+            variables.user_id,
+          ),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.moderationUserProfile({
+            slug: variables.slug,
+            user_id: variables.user_id,
+          }),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.modLogsAll(variables.slug),
+        }),
+      ]);
     },
   });
 }

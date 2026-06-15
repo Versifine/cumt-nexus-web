@@ -1,20 +1,8 @@
 "use client";
 
-import { AtSign, Bell, Heart, MessageSquare, Shield } from "lucide-react";
+import { Bell, MessageCircle, Shield } from "lucide-react";
 
-import type {
-  Notification,
-  NotificationCategory,
-  UnreadSummaryResponse,
-} from "./types";
-
-export const emptyUnreadSummary: UnreadSummaryResponse = {
-  likes: 0,
-  mentions: 0,
-  replies: 0,
-  system: 0,
-  total: 0,
-};
+import type { Notification, NotificationCategory } from "./types";
 
 export function getNotificationCategory(
   notification: Notification,
@@ -27,40 +15,19 @@ export function getNotificationCategory(
     .join(" ")
     .toLowerCase();
 
-  if (value.includes("mention") || value.includes("at_") || value.includes("@")) {
-    return "mentions";
-  }
-
-  if (
-    value.includes("like") ||
-    value.includes("upvote") ||
-    value.includes("vote") ||
-    value.includes("reaction") ||
-    value.includes("赞")
-  ) {
-    return "likes";
-  }
-
-  if (
-    value.includes("reply") ||
-    value.includes("comment") ||
-    value.includes("评论") ||
-    value.includes("回复")
-  ) {
-    return "replies";
-  }
-
-  return "system";
+  return value.includes("system") ||
+    value.includes("moderation") ||
+    value.includes("report") ||
+    value.includes("审核") ||
+    value.includes("系统")
+    ? "system"
+    : "interactions";
 }
 
 export function renderNotificationCategoryIcon(category: NotificationCategory) {
   switch (category) {
-    case "replies":
-      return <MessageSquare className="size-4" aria-hidden="true" />;
-    case "mentions":
-      return <AtSign className="size-4" aria-hidden="true" />;
-    case "likes":
-      return <Heart className="size-4" aria-hidden="true" />;
+    case "interactions":
+      return <MessageCircle className="size-4" aria-hidden="true" />;
     case "system":
       return <Shield className="size-4" aria-hidden="true" />;
     default:
@@ -70,16 +37,12 @@ export function renderNotificationCategoryIcon(category: NotificationCategory) {
 
 export function formatNotificationCategory(category: NotificationCategory) {
   switch (category) {
-    case "replies":
-      return "回复";
-    case "mentions":
-      return "@";
-    case "likes":
-      return "赞";
+    case "interactions":
+      return "互动消息";
     case "system":
-      return "系统";
+      return "系统通知";
     default:
-      return "全部";
+      return "消息";
   }
 }
 
@@ -118,14 +81,4 @@ export function formatNotificationDate(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
-}
-
-export function getNotificationCategoryCounts(summary: UnreadSummaryResponse) {
-  return {
-    all: summary.total,
-    likes: summary.likes,
-    mentions: summary.mentions,
-    replies: summary.replies,
-    system: summary.system,
-  } satisfies Record<NotificationCategory, number>;
 }
