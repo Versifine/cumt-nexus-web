@@ -16,7 +16,7 @@ export async function generateMetadata({
 
   return {
     title: `/${slug} 管理 | CUMT Nexus`,
-    description: `查看 /${slug} 社区的管理概览、内容状态和待处理举报。`,
+    description: `查看 /${slug} 社区的管理总览，并进入队列、内容、用户、规则、设置和日志工作区。`,
   };
 }
 

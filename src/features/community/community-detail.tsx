@@ -15,6 +15,7 @@ import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { resolvePlatformRole, type PlatformRole } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
+import { DisabledMessageShareAction } from "@/features/message/disabled-share-action";
 import { PostSortMenu } from "@/features/post/post-sort-menu";
 import { useCommunityPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
@@ -116,7 +117,6 @@ export function CommunityDetail({
             <CommunityHeader
               canManageCommunity={canManageCommunity}
               community={community}
-              isAuthenticated={isAuthenticated}
             />
           ) : null}
           {community ? (
@@ -244,16 +244,11 @@ export function CommunityDetail({
 function CommunityHeader({
   canManageCommunity,
   community,
-  isAuthenticated,
 }: {
   canManageCommunity: boolean;
   community: Community;
-  isAuthenticated: boolean;
 }) {
   const managePath = `/communities/${encodeURIComponent(community.slug)}/manage`;
-  const manageHref = isAuthenticated
-    ? managePath
-    : `/login?next=${encodeURIComponent(managePath)}`;
 
   return (
     <div className="border-b border-border py-4">
@@ -282,9 +277,16 @@ function CommunityHeader({
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2 sm:pt-1">
-          <TextAction href={manageHref} tone="primary">
-            {isAuthenticated || canManageCommunity ? "管理社区" : "登录后管理"}
-          </TextAction>
+          {canManageCommunity ? (
+            <TextAction href={managePath} tone="primary">
+              管理社区
+            </TextAction>
+          ) : null}
+          <DisabledMessageShareAction
+            className="h-9 text-sm font-semibold"
+            iconClassName="size-4"
+            label="发送给好友"
+          />
           <CommunityFollowButton community={community} />
         </div>
       </div>
@@ -321,10 +323,6 @@ function CommunityRail({
   const topPosts = [...posts].sort((left, right) => right.score - left.score).slice(0, 3);
   const canPost = canPostToCommunity(community, isAuthenticated);
   const canManage = canManageThisCommunity(community, platformRole);
-  const managePath = `/communities/${encodeURIComponent(community.slug)}/manage`;
-  const manageHref = isAuthenticated
-    ? managePath
-    : `/login?next=${encodeURIComponent(managePath)}`;
   const hasPlatformOwnerOverride =
     community.viewer_permissions?.platform_owner_override === true ||
     platformRole === "owner";
@@ -406,9 +404,19 @@ function CommunityRail({
                 登录后参与
               </TextAction>
             )}
-            <TextAction href={manageHref} variant="bar">
-              {isAuthenticated || canManage ? "管理社区" : "登录后管理"}
-            </TextAction>
+            {canManage ? (
+              <TextAction
+                href={`/communities/${encodeURIComponent(community.slug)}/manage`}
+                variant="bar"
+              >
+                管理社区
+              </TextAction>
+            ) : null}
+            <DisabledMessageShareAction
+              className="h-auto justify-start border-b border-border px-3 py-3 text-sm font-semibold"
+              iconClassName="size-4"
+              label="发送给好友（待接入）"
+            />
           </div>
           {hasPlatformOwnerOverride ? (
             <p className="mt-3 text-xs leading-5 text-muted-foreground">
@@ -423,7 +431,7 @@ function CommunityRail({
           ) : null}
           {!isAuthenticated ? (
             <p className="mt-3 text-xs leading-5 text-muted-foreground">
-              登录后会按后端 viewer 权限显示发帖和社区管理入口。
+              登录后会按后端 viewer 权限显示发帖入口；社区管理入口只在具备权限时显示。
             </p>
           ) : null}
           {isAuthenticated && platformRole && !canManage ? (

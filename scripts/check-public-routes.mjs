@@ -18,7 +18,7 @@ const frontendUrl = normalizeUrl(
     "http://localhost:3000",
 );
 
-const appShellHrefMarkers = ["/", "/all", "/following", "/communities"];
+const appShellHrefMarkers = ["/", "/all", "/following", "/communities", "/messages"];
 
 const routes = [
   {
@@ -99,6 +99,20 @@ const routes = [
     ],
     markers: ["CUMT Nexus", "成长与积分", "登录后查看成长资料", "去登录"],
     path: "/settings/progression",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/messages",
+      "/settings/profile",
+    ],
+    markers: [
+      "CUMT Nexus",
+      "隐私与私信",
+      "私信权限待接入",
+      "后端未提供",
+    ],
+    path: "/settings/privacy",
   },
   {
     hrefMarkers: [
@@ -307,6 +321,20 @@ const routes = [
   {
     hrefMarkers: [
       ...appShellHrefMarkers,
+      "/login?next=%2Fcommunities%2Fowner-transfers",
+    ],
+    markers: [
+      "CUMT Nexus",
+      "版主交接",
+      "登录后查看版主交接",
+      "如果某个社区把版主交接给你",
+      "登录",
+    ],
+    path: "/communities/owner-transfers",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
       "/login?next=%2Fcommunity-applications%2Fnew",
       "/register?next=%2Fcommunity-applications%2Fnew",
     ],
@@ -320,6 +348,37 @@ const routes = [
     ],
     markers: ["CUMT Nexus", "消息", "互动消息", "系统通知", "登录后查看消息"],
     path: "/notifications",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/settings/privacy",
+      "/notifications",
+    ],
+    markers: [
+      "CUMT Nexus",
+      "私信",
+      "后端待接入",
+      "不显示已读",
+      "分享卡片设计",
+    ],
+    path: "/messages",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/settings/privacy",
+      "/notifications",
+    ],
+    markers: [
+      "CUMT Nexus",
+      "私信",
+      "私信会话",
+      "请求的会话 ID：",
+      "route-smoke",
+      "后端待接入",
+    ],
+    path: "/messages/route-smoke",
   },
   {
     hrefMarkers: [

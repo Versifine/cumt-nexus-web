@@ -180,7 +180,7 @@ export function AdminResourceRow({
       <span className="min-w-0">
         <span className="flex min-w-0 flex-wrap items-center gap-2">
           {icon ? <span className="text-primary">{icon}</span> : null}
-          <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+          <span className="min-w-0 break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
             {title}
           </span>
           {tokens}
@@ -227,9 +227,9 @@ export function AdminResourceRow({
       ) : null}
       {content}
       {actions ? (
-        <span className="flex items-start justify-start gap-2 sm:justify-end">
-          {actions}
-        </span>
+          <span className="flex min-w-0 flex-wrap items-start justify-start gap-2 sm:justify-end">
+            {actions}
+          </span>
       ) : null}
     </div>
   );

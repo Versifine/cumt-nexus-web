@@ -287,6 +287,9 @@ export function CommunityOwnerTransferAcceptPage({
               <TextAction href="/communities" variant="bar">
                 浏览社区
               </TextAction>
+              <TextAction href="/communities/owner-transfers" variant="bar">
+                待接受交接
+              </TextAction>
               <button
                 type="button"
                 className="flex min-h-10 items-center gap-2 border-b border-border py-2 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"

@@ -36,6 +36,7 @@ import {
   CommunityHoverPreview,
 } from "@/features/community/community-hover-card";
 import { canAccessCommunityManagement } from "@/features/community/permissions";
+import { DisabledMessageShareAction } from "@/features/message/disabled-share-action";
 import { ModerationQuickActions } from "@/features/moderation/moderation-quick-actions";
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
@@ -544,7 +545,7 @@ function PostArticle({
 
   const author = getPostAuthorIdentity(post);
   const communitySlug = getPostCommunitySlug(post);
-  const communityManageHref = communitySlug
+  const communityManageHref = canUseCommunityManage && communitySlug
     ? `/communities/${encodeURIComponent(communitySlug)}/manage`
     : null;
   const authorQuery = author.slug || post.author_id;
@@ -600,6 +601,11 @@ function PostArticle({
                 ? "复制失败"
                 : "分享"}
           </button>
+          <DisabledMessageShareAction
+            className="h-8 font-semibold"
+            iconClassName="size-4"
+            label="发送给好友"
+          />
           <PostSaveButton
             className="h-8 text-xs"
             isSaved={post.is_saved}

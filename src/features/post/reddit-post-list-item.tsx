@@ -26,6 +26,7 @@ import {
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { canAccessCommunityManagement } from "@/features/community/permissions";
 import { MediaEmbedPlayer } from "@/features/content/media-embed-player";
+import { DisabledMessageShareAction } from "@/features/message/disabled-share-action";
 import { ModerationQuickActions } from "@/features/moderation/moderation-quick-actions";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { cn } from "@/lib/utils";
@@ -196,6 +197,7 @@ export function RedditPostListItem({
                 ? "复制失败"
                 : "分享"}
           </button>
+          <DisabledMessageShareAction label="发送给好友" />
           <PostSaveButton
             className="h-7 text-xs"
             isSaved={post.is_saved}

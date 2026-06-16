@@ -130,6 +130,7 @@ export function AdminModQueuePage() {
     (platformRole !== "staff" ||
       hasLegacyPlatformStaffOnly(currentUserQuery.data)) &&
     Boolean(selectedItem && selectedTargetType);
+  const canOpenCommunityManagement = platformRole === "owner";
   const auditQuery = useAdminAuditLogsQuery(
     {
       limit: 5,
@@ -202,6 +203,7 @@ export function AdminModQueuePage() {
             },
           }}
           canLoadAudit={canLoadAudit}
+          canOpenCommunityManagement={canOpenCommunityManagement}
           item={selectedItem}
           platformRole={platformRole}
           queue={activeQueue}
@@ -361,6 +363,7 @@ export function AdminModQueuePage() {
 function AdminModQueueRail({
   auditQuery,
   canLoadAudit,
+  canOpenCommunityManagement,
   item,
   platformRole,
   queue,
@@ -379,6 +382,7 @@ function AdminModQueueRail({
     refetch: () => void;
   };
   canLoadAudit: boolean;
+  canOpenCommunityManagement: boolean;
   item: ModQueueItem | null;
   platformRole?: string | null;
   queue: AdminModQueueKind;
@@ -427,7 +431,11 @@ function AdminModQueueRail({
           <ModerationQuickActions
             auditHref={`/admin/audit-logs?target_type=${encodeURIComponent(targetType)}&target_id=${encodeURIComponent(item.target_id)}`}
             canRemove={item.status !== "removed"}
-            communityManageHref={`/communities/${encodeURIComponent(item.community_slug)}/manage`}
+            communityManageHref={
+              canOpenCommunityManagement
+                ? `/communities/${encodeURIComponent(item.community_slug)}/manage`
+                : null
+            }
             targetId={item.target_id}
             targetAuthorId={item.author_id}
             targetLabel={targetLabel}
@@ -446,12 +454,14 @@ function AdminModQueueRail({
       <AdminRailSection title="回看入口">
         {item ? (
           <div className="flex flex-col border-t border-border">
-            <TextAction
-              href={`/communities/${encodeURIComponent(item.community_slug)}/manage`}
-              variant="bar"
-            >
-              进入社区管理
-            </TextAction>
+            {canOpenCommunityManagement ? (
+              <TextAction
+                href={`/communities/${encodeURIComponent(item.community_slug)}/manage`}
+                variant="bar"
+              >
+                进入社区管理
+              </TextAction>
+            ) : null}
             <TextAction
               href={`/admin/users?q=${encodeURIComponent(item.author_id)}`}
               variant="bar"

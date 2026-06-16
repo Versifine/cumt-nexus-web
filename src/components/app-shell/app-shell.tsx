@@ -27,6 +27,7 @@ import {
   Home,
   LogOut,
   Menu,
+  MessageCircle,
   Monitor,
   Moon,
   PanelLeftClose,
@@ -36,7 +37,6 @@ import {
   Settings,
   ShieldAlert,
   ShieldCheck,
-  SlidersHorizontal,
   Sun,
   User,
   Users,
@@ -59,10 +59,7 @@ import {
   type AuthDialogMode,
 } from "@/features/auth/auth-dialog";
 import { useAuthSession } from "@/features/auth/auth-session";
-import {
-  hasLegacyPlatformStaffOnly,
-  resolvePlatformRole,
-} from "@/features/auth/platform-role";
+import { resolvePlatformRole } from "@/features/auth/platform-role";
 import { useCurrentUserQuery, useMyPointsQuery } from "@/features/auth/queries";
 import { getSafeAuthRedirectPath } from "@/features/auth/redirect";
 import { useFollowedCommunitiesQuery } from "@/features/community/queries";
@@ -800,6 +797,7 @@ function TopActions() {
         <span className="hidden text-sm font-medium sm:inline">发帖</span>
       </Link>
       <HeaderThemeMenu />
+      <HeaderMessageEntry />
       <HeaderNotificationMenu isReady={isReady} token={token} />
       {!isReady ? (
         <div
@@ -810,6 +808,22 @@ function TopActions() {
         <HeaderUserMenu />
       )}
     </div>
+  );
+}
+
+function HeaderMessageEntry() {
+  return (
+    <Link
+      href="/messages"
+      className="relative inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10"
+      aria-label="私信待接入"
+      title="私信后端待接入"
+    >
+      <MessageCircle className="size-4" aria-hidden="true" />
+      <span className="absolute right-0 top-0 hidden border border-background bg-primary px-1 font-mono text-[9px] font-semibold leading-4 text-primary-foreground sm:block">
+        待
+      </span>
+    </Link>
   );
 }
 
@@ -1208,13 +1222,6 @@ function HeaderUserMenu() {
   const avatarUrl = profileQuery.data?.user.avatar_url?.trim() ?? "";
   const displayName = profileQuery.data?.user.display_name?.trim() || username;
   const platformRole = resolvePlatformRole(currentUserQuery.data);
-  const hasOnlyLegacyStaffFlag = hasLegacyPlatformStaffOnly(
-    currentUserQuery.data,
-  );
-  const canSeePlatformGovernanceEntry =
-    platformRole === "owner" ||
-    platformRole === "admin" ||
-    hasOnlyLegacyStaffFlag;
 
   const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {
@@ -1433,6 +1440,14 @@ function HeaderUserMenu() {
             资料设置
           </Link>
           <Link
+            href="/settings/privacy"
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+            onClick={closeMenu}
+          >
+            <MessageCircle className="size-4" aria-hidden="true" />
+            隐私与私信
+          </Link>
+          <Link
             href="/settings/security"
             className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
             onClick={closeMenu}
@@ -1440,37 +1455,21 @@ function HeaderUserMenu() {
             <ShieldCheck className="size-4" aria-hidden="true" />
             账号安全
           </Link>
-          <div className="-mx-1 my-1 h-px bg-border" />
-          <div className="px-2 py-1.5 text-xs font-normal text-muted-foreground">
-            管理入口
-          </div>
           {platformRole ? (
-            <Link
-              href="/admin"
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
-              onClick={closeMenu}
-            >
-              <ShieldAlert className="size-4" aria-hidden="true" />
-              平台管理
-            </Link>
-          ) : null}
-          <Link
-            href="/communities"
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
-            onClick={closeMenu}
-          >
-            <ShieldCheck className="size-4" aria-hidden="true" />
-            社区管理
-          </Link>
-          {canSeePlatformGovernanceEntry ? (
-            <Link
-              href="/admin/communities"
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
-              onClick={closeMenu}
-            >
-              <SlidersHorizontal className="size-4" aria-hidden="true" />
-              平台社区治理
-            </Link>
+            <>
+              <div className="-mx-1 my-1 h-px bg-border" />
+              <div className="px-2 py-1.5 text-xs font-normal text-muted-foreground">
+                管理入口
+              </div>
+              <Link
+                href="/admin"
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+                onClick={closeMenu}
+              >
+                <ShieldAlert className="size-4" aria-hidden="true" />
+                平台管理
+              </Link>
+            </>
           ) : null}
           <div className="-mx-1 my-1 h-px bg-border" />
           <button

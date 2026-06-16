@@ -10,6 +10,7 @@ import { CommentLifecycleControls } from "@/features/comment/comment-lifecycle-c
 import { CommentForm } from "@/features/comment/comment-form";
 import { ContentBody } from "@/features/content/content-body";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
+import { DisabledMessageShareAction } from "@/features/message/disabled-share-action";
 import { ModerationQuickActions } from "@/features/moderation/moderation-quick-actions";
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
 import {
@@ -242,6 +243,8 @@ function CommentBranch({
                 isAuthenticated={isAuthenticated}
                 postId={postId}
               />
+
+              <DisabledMessageShareAction label="发送给好友" />
 
               {isAuthenticated &&
               comment.viewer_permissions?.can_report !== false ? (

@@ -53,6 +53,8 @@ import type {
   ListCommunityApplicationsInput,
   ListCommunityApplicationsResponse,
   ListCommunitiesResponse,
+  ListIncomingCommunityOwnerTransfersInput,
+  ListIncomingCommunityOwnerTransfersResponse,
   RejectCommunityApplicationInput,
   RejectCommunityApplicationResponse,
   RemoveCommunityModeratorInput,
@@ -96,6 +98,23 @@ export function listFollowedCommunities({
 
   return apiRequest<ListFollowedCommunitiesResponse>(
     `/api/v1/me/followed-communities?${searchParams.toString()}`,
+  );
+}
+
+export function listIncomingCommunityOwnerTransfers({
+  limit = 5,
+  offset = 0,
+  status = "pending",
+}: ListIncomingCommunityOwnerTransfersInput = {}) {
+  const searchParams = new URLSearchParams({
+    status,
+    limit: String(limit),
+    offset: String(offset),
+  });
+
+  return apiRequest<ListIncomingCommunityOwnerTransfersResponse>(
+    `/api/v1/me/community-owner-transfers?${searchParams.toString()}`,
+    { cache: "no-store" },
   );
 }
 

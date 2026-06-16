@@ -34,6 +34,7 @@ import {
   listCommunityUserStates,
   listCommunityApplications,
   listCommunities,
+  listIncomingCommunityOwnerTransfers,
   rejectCommunityApplication,
   removeCommunityModerator,
   updateCommunityModerationTemplate,
@@ -69,6 +70,7 @@ import type {
   ListCommunityModeratorNotesInput,
   ListCommunityUserStatesInput,
   ListCommunityApplicationsInput,
+  ListIncomingCommunityOwnerTransfersInput,
   RejectCommunityApplicationInput,
   RemoveCommunityModeratorInput,
   UpdateCommunityModerationTemplateInput,
@@ -83,6 +85,18 @@ export const communityQueryKeys = {
   all: ["communities"] as const,
   followed: (input: ListFollowedCommunitiesInput) =>
     ["me", "followed-communities", input.limit ?? 5, input.offset ?? 0] as const,
+  incomingOwnerTransfers: (
+    input: ListIncomingCommunityOwnerTransfersInput = {},
+  ) =>
+    [
+      "me",
+      "community-owner-transfers",
+      input.status ?? "pending",
+      input.limit ?? 5,
+      input.offset ?? 0,
+    ] as const,
+  incomingOwnerTransfersAll: () =>
+    ["me", "community-owner-transfers"] as const,
   detail: (slug: string, scope: CommunityQueryScope = "viewer") =>
     ["community", slug, scope] as const,
   manageContext: (slug: string) => ["community", slug, "manage"] as const,
@@ -209,6 +223,18 @@ export function useFollowedCommunitiesQuery(
   return useQuery({
     queryKey: communityQueryKeys.followed(input),
     queryFn: () => listFollowedCommunities(input),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useIncomingCommunityOwnerTransfersQuery(
+  input: ListIncomingCommunityOwnerTransfersInput = {},
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.incomingOwnerTransfers(input),
+    queryFn: () => listIncomingCommunityOwnerTransfers(input),
     enabled,
     staleTime: 30_000,
   });
@@ -362,6 +388,9 @@ export function useCreateCommunityOwnerTransferMutation() {
       );
       void Promise.all([
         queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.incomingOwnerTransfersAll(),
+        }),
+        queryClient.invalidateQueries({
           queryKey: communityQueryKeys.manageContext(slug),
         }),
         queryClient.invalidateQueries({
@@ -418,6 +447,9 @@ export function useAcceptCommunityOwnerTransferMutation() {
           queryKey: communityQueryKeys.ownerTransfer({ slug }),
         }),
         queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.incomingOwnerTransfersAll(),
+        }),
+        queryClient.invalidateQueries({
           queryKey: communityQueryKeys.manageContext(slug),
         }),
         queryClient.invalidateQueries({
@@ -455,6 +487,9 @@ export function useCancelCommunityOwnerTransferMutation() {
         },
       );
       void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.incomingOwnerTransfersAll(),
+        }),
         queryClient.invalidateQueries({
           queryKey: communityQueryKeys.manageContext(slug),
         }),

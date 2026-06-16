@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   CalendarDays,
   FileText,
+  MessageCircle,
   MessageSquare,
   User,
 } from "lucide-react";
@@ -116,11 +117,15 @@ export function PublicUserHeader({
                 编辑文字资料 +
               </Link>
             ) : (
-              <UserFollowButton
-                className="mb-2"
-                username={user.username}
-                viewerIsFollowing={user.viewer_is_following}
-              />
+              <div className="mb-2 flex shrink-0 flex-wrap items-center justify-end gap-2">
+                <UserFollowButton
+                  username={user.username}
+                  viewerIsFollowing={user.viewer_is_following}
+                />
+                <DisabledProfileMessageAction
+                  reason={user.dm_capability?.reason}
+                />
+              </div>
             )}
           </div>
 
@@ -209,6 +214,22 @@ export function PublicUserHeader({
         })}
       </nav>
     </div>
+  );
+}
+
+function DisabledProfileMessageAction({ reason }: { reason?: string | null }) {
+  const title =
+    reason?.trim() || "私信后端未接入，当前不能向该用户发送私信。";
+
+  return (
+    <span
+      aria-disabled="true"
+      className="inline-flex h-8 cursor-not-allowed items-center gap-1.5 border border-border bg-background/70 px-2 text-xs font-semibold text-muted-foreground/75"
+      title={title}
+    >
+      <MessageCircle className="size-3.5" aria-hidden="true" />
+      私信待接入
+    </span>
   );
 }
 

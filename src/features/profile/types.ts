@@ -1,3 +1,5 @@
+import type { DmCapability } from "@/features/message/types";
+
 export type PublicUserStats = {
   post_count: number;
   comment_count: number;
@@ -40,6 +42,7 @@ export type PublicUser = {
   status: "active" | string;
   stats: PublicUserStats;
   viewer_is_following?: boolean;
+  dm_capability?: DmCapability | null;
   created_at: string;
 };
 

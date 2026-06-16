@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   BarChart3,
@@ -137,19 +138,23 @@ type RuleFormValues = z.infer<typeof ruleSchema>;
 
 type CommunityManagePageProps = {
   slug: string;
+  tool?: CommunityManageTool;
 };
 
-type CommunityManageTool =
-  | "overview"
-  | "queues"
-  | "content"
-  | "users"
-  | "rules"
-  | "settings"
-  | "automations"
-  | "modmail"
-  | "log"
-  | "insights";
+export const communityManageToolValues = [
+  "overview",
+  "queues",
+  "content",
+  "users",
+  "rules",
+  "settings",
+  "automations",
+  "modmail",
+  "log",
+  "insights",
+] as const;
+
+export type CommunityManageTool = (typeof communityManageToolValues)[number];
 
 type CommunityQueueKind =
   | "reports"
@@ -178,7 +183,7 @@ const communityToolGroups: Array<{
       {
         description: "社区状态、待处理内容和真实可用入口。",
         icon: LayoutDashboard,
-        label: "总览",
+        label: "管理概览",
         value: "overview",
       },
       {
@@ -275,12 +280,15 @@ const communityQueueTabs: Array<{
 const COMMUNITY_MANAGE_REQUIRED_DESCRIPTION =
   "当前账号不是这个社区的版主或社区管理员，不能查看社区管理。";
 
-export function CommunityManagePage({ slug }: CommunityManagePageProps) {
-  const [activeTool, setActiveTool] = useState<CommunityManageTool>("queues");
+export function CommunityManagePage({
+  slug,
+  tool = "overview",
+}: CommunityManagePageProps) {
+  const activeTool = tool;
   const [activeQueue, setActiveQueue] = useState<CommunityQueueKind>("reports");
   const [postsOffset, setPostsOffset] = useState(0);
   const [commentsOffset, setCommentsOffset] = useState(0);
-  const [reportsOffset, setReportsOffset] = useState(0);
+  const reportsOffset = 0;
   const [membersOffset, setMembersOffset] = useState(0);
   const [modQueueOffset, setModQueueOffset] = useState(0);
   const [modLogOffset, setModLogOffset] = useState(0);
@@ -301,7 +309,7 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
   const currentUserQuery = useCurrentUserQuery();
   const isAuthenticated = Boolean(token);
   const loginHref = `/login?next=${encodeURIComponent(
-    `/communities/${slug}/manage`,
+    getCommunityManageToolHref(slug, activeTool),
   )}`;
   const communityQuery = useCommunityQuery(slug, isReady);
   const viewerCommunity = communityQuery.data?.community;
@@ -434,21 +442,7 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
   }
 
   return (
-    <div
-      className={`grid grid-cols-1 gap-0 py-3 ${
-        showToolNav
-          ? "xl:grid-cols-[260px_minmax(0,1fr)] xl:gap-8 2xl:grid-cols-[280px_minmax(0,1fr)]"
-          : ""
-      }`}
-    >
-      {showToolNav ? (
-        <CommunityToolsNav
-          activeTool={activeTool}
-          onToolChange={setActiveTool}
-        />
-      ) : null}
-
-      <div className="min-w-0">
+    <div className="min-w-0 py-3">
         <section className="bg-background">
           <ManageHeader
             canManageCommunity={canManageCommunity}
@@ -457,14 +451,21 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
             platformRole={platformRole}
             platformRoleIsInferred={platformRoleIsInferred}
             slug={slug}
+            tool={activeTool}
           />
         </section>
 
+        {showToolNav ? (
+          <CommunityToolsNav activeTool={activeTool} slug={slug} />
+        ) : null}
+
         <section className="bg-background">
           <div className="border-b border-border py-3">
-            <h2 className="text-sm font-semibold">管理概览</h2>
+            <h2 className="text-sm font-semibold">
+              {getCommunityToolMeta(activeTool).label}
+            </h2>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              集中查看本社区的内容状态和成员，并维护资料与规则；写操作按后端返回权限校验。
+              {getCommunityToolMeta(activeTool).description}
             </p>
           </div>
 
@@ -674,7 +675,6 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
               onModQueueOffsetChange={setModQueueOffset}
               onPostsOffsetChange={setPostsOffset}
               onQueueChange={changeQueue}
-              onReportsOffsetChange={setReportsOffset}
               onUserStateOffsetChange={changeUserStateOffset}
               posts={managedPosts}
               postsQuery={{
@@ -728,8 +728,6 @@ export function CommunityManagePage({ slug }: CommunityManagePageProps) {
           ) : null}
         </section>
       </div>
-
-    </div>
   );
 }
 
@@ -749,6 +747,12 @@ type ModLogFilters = {
   targetId: string;
   targetType: string;
 };
+
+function getCommunityManageToolHref(slug: string, tool: CommunityManageTool) {
+  const baseHref = `/communities/${encodeURIComponent(slug)}/manage`;
+
+  return tool === "overview" ? baseHref : `${baseHref}/${tool}`;
+}
 
 function ManagePagination({
   hasMore,
@@ -864,70 +868,67 @@ function ManageQueryPagination({
 
 function CommunityToolsNav({
   activeTool,
-  onToolChange,
+  slug,
 }: {
   activeTool: CommunityManageTool;
-  onToolChange: (tool: CommunityManageTool) => void;
+  slug: string;
 }) {
   return (
-    <aside className="border-b border-border pb-4 xl:border-b-0 xl:border-r xl:pb-0 xl:pr-6">
-      <div className="sticky top-20">
-        <div className="flex items-center gap-2">
-          <StatusToken tone="primary">Mod Tools</StatusToken>
-          <StatusToken>社区级</StatusToken>
-        </div>
-        <nav
-          aria-label="社区管理工具"
-          className="mt-4 flex gap-2 overflow-x-auto border-t border-border pb-2 xl:block xl:overflow-visible xl:pb-0"
-        >
-          {communityToolGroups.map((group, groupIndex) => (
-            <div
-              key={group.label}
-              className="min-w-[200px] shrink-0 border-r border-border pr-3 last:border-r-0 xl:min-w-0 xl:border-r-0 xl:pr-0"
-            >
-              <div className="hidden pb-2 pt-4 font-mono text-[11px] text-muted-foreground xl:block">
-                {String(groupIndex + 1).padStart(2, "0")} {group.label}
-              </div>
-              <div className="xl:border-t xl:border-border">
-                {group.items.map((item, itemIndex) => {
-                  const active = activeTool === item.value;
-
-                  return (
-                    <button
-                      key={item.value}
-                      type="button"
-                      className={`group flex min-h-12 w-full items-center justify-between gap-3 border-b border-border px-2 py-2 text-left text-sm transition-colors xl:px-2 ${
-                        active
-                          ? "text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                      onClick={() => onToolChange(item.value)}
-                    >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="hidden w-8 shrink-0 font-mono text-[11px] text-muted-foreground xl:inline">
-                          {groupIndex + 1}.{itemIndex + 1}
-                        </span>
-                        <item.icon className="size-4 shrink-0" aria-hidden="true" />
-                        <span className="min-w-0 break-words [overflow-wrap:anywhere]">
-                          {item.label}
-                        </span>
-                      </span>
-                      <span
-                        className={`size-1.5 shrink-0 rounded-full ${
-                          active
-                            ? "bg-primary"
-                            : "bg-border group-hover:bg-muted-foreground"
-                        }`}
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </nav>
+    <section className="border-b border-border py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusToken tone="primary">Mod Tools</StatusToken>
+        <StatusToken>社区级</StatusToken>
       </div>
-    </aside>
+      <nav
+        aria-label="社区管理工具"
+        className="mt-3 flex gap-3 overflow-x-auto pb-1 xl:grid xl:grid-cols-3 xl:overflow-visible xl:pb-0"
+      >
+        {communityToolGroups.map((group, groupIndex) => (
+          <div
+            key={group.label}
+            className="min-w-[220px] shrink-0 border-r border-border pr-3 last:border-r-0 xl:min-w-0"
+          >
+            <div className="pb-2 font-mono text-[11px] text-muted-foreground">
+              {String(groupIndex + 1).padStart(2, "0")} {group.label}
+            </div>
+            <div className="border-t border-border">
+              {group.items.map((item, itemIndex) => {
+                const active = activeTool === item.value;
+
+                return (
+                  <Link
+                    key={item.value}
+                    href={getCommunityManageToolHref(slug, item.value)}
+                    className={`group flex min-h-12 w-full items-center justify-between gap-3 border-b border-border px-2 py-2 text-left text-sm transition-colors xl:px-2 ${
+                      active
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="w-8 shrink-0 font-mono text-[11px] text-muted-foreground">
+                        {groupIndex + 1}.{itemIndex + 1}
+                      </span>
+                      <item.icon className="size-4 shrink-0" aria-hidden="true" />
+                      <span className="min-w-0 break-words [overflow-wrap:anywhere]">
+                        {item.label}
+                      </span>
+                    </span>
+                    <span
+                      className={`size-1.5 shrink-0 rounded-full ${
+                        active
+                          ? "bg-primary"
+                          : "bg-border group-hover:bg-muted-foreground"
+                      }`}
+                    />
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+    </section>
   );
 }
 
@@ -963,7 +964,6 @@ function CommunityModToolsWorkspace({
   onModQueueOffsetChange,
   onPostsOffsetChange,
   onQueueChange,
-  onReportsOffsetChange,
   onUserStateOffsetChange,
   posts,
   postsQuery,
@@ -1010,7 +1010,6 @@ function CommunityModToolsWorkspace({
   onModQueueOffsetChange: (offset: number) => void;
   onPostsOffsetChange: (offset: number) => void;
   onQueueChange: (queue: CommunityQueueKind) => void;
-  onReportsOffsetChange: (offset: number) => void;
   onUserStateOffsetChange: (
     kind: CommunityUserStateKind,
     offset: number,
@@ -1029,33 +1028,10 @@ function CommunityModToolsWorkspace({
   settingsQuery: QueryPreviewState;
   slug: string;
 }) {
-  const toolMeta = getCommunityToolMeta(activeTool);
-
   return (
     <>
-      <div className="border-b border-border py-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold">{toolMeta.label}</h2>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              {toolMeta.description}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusToken>{formatViewerRole(community.viewer_role)}</StatusToken>
-            {hasPlatformOwnerOverride ? (
-              <StatusToken tone="primary">平台 owner 覆盖</StatusToken>
-            ) : null}
-            <StatusToken tone={canModerateContent ? "success" : "default"}>
-              审核{formatPermission(canModerateContent)}
-            </StatusToken>
-          </div>
-        </div>
-      </div>
-
       {activeTool === "overview" ? (
         <CommunityOverviewWorkspace
-          canCreateOwnerTransfer={canCreateOwnerTransfer}
           canEditRules={canEditRules}
           canEditSettings={canEditSettings}
           canManageModerators={canManageModerators}
@@ -1066,10 +1042,6 @@ function CommunityModToolsWorkspace({
           hasPlatformOwnerOverride={hasPlatformOwnerOverride}
           members={members}
           membersQuery={membersQuery}
-          onCommentsOffsetChange={onCommentsOffsetChange}
-          onMembersOffsetChange={onMembersOffsetChange}
-          onPostsOffsetChange={onPostsOffsetChange}
-          onReportsOffsetChange={onReportsOffsetChange}
           posts={posts}
           postsQuery={postsQuery}
           reports={reports}
@@ -1101,7 +1073,7 @@ function CommunityModToolsWorkspace({
       ) : null}
 
       {activeTool === "content" ? (
-        <div className="grid grid-cols-1 border-b border-border xl:grid-cols-2">
+        <div className="border-b border-border">
           <ManagePreviewSection
             description="管理视角帖子列表，快捷管理支持批准、移除、垃圾、锁定、置顶、NSFW、剧透和 flair。"
             emptyText="暂无可管理帖子。"
@@ -1144,7 +1116,7 @@ function CommunityModToolsWorkspace({
       ) : null}
 
       {activeTool === "users" ? (
-        <div className="grid grid-cols-1 border-b border-border xl:grid-cols-2">
+        <div className="border-b border-border">
           <ManagePreviewSection
             description="社区版主和平台 owner 覆盖可任免社区管理员；版主转让仍要求真实社区版主。"
             emptyText="暂无成员记录。"
@@ -1204,7 +1176,7 @@ function CommunityModToolsWorkspace({
       ) : null}
 
       {activeTool === "rules" ? (
-        <div className="grid grid-cols-1 border-b border-border xl:grid-cols-2 2xl:grid-cols-3">
+        <div className="border-b border-border">
           <ManagePreviewSection
             description="社区规则已接入真实 CRUD。"
             emptyText="暂无社区规则。"
@@ -1238,7 +1210,7 @@ function CommunityModToolsWorkspace({
       ) : null}
 
       {activeTool === "settings" ? (
-        <div className="grid grid-cols-1 border-b border-border xl:grid-cols-2">
+        <div className="border-b border-border">
           <ManagePreviewSection
             description="基础名称、简介、头像和背景图按社区资料合同保存。"
             emptyText="暂无社区资料。"
@@ -1323,7 +1295,6 @@ function CommunityModToolsWorkspace({
 }
 
 function CommunityOverviewWorkspace({
-  canCreateOwnerTransfer,
   canEditRules,
   canEditSettings,
   canManageModerators,
@@ -1334,10 +1305,6 @@ function CommunityOverviewWorkspace({
   hasPlatformOwnerOverride,
   members,
   membersQuery,
-  onCommentsOffsetChange,
-  onMembersOffsetChange,
-  onPostsOffsetChange,
-  onReportsOffsetChange,
   posts,
   postsQuery,
   reports,
@@ -1348,7 +1315,6 @@ function CommunityOverviewWorkspace({
   settingsQuery,
   slug,
 }: {
-  canCreateOwnerTransfer: boolean;
   canEditRules: boolean;
   canEditSettings: boolean;
   canManageModerators: boolean;
@@ -1359,10 +1325,6 @@ function CommunityOverviewWorkspace({
   hasPlatformOwnerOverride: boolean;
   members: CommunityMember[];
   membersQuery: QueryPreviewState;
-  onCommentsOffsetChange: (offset: number) => void;
-  onMembersOffsetChange: (offset: number) => void;
-  onPostsOffsetChange: (offset: number) => void;
-  onReportsOffsetChange: (offset: number) => void;
   posts: CommunityManagePost[];
   postsQuery: QueryPreviewState;
   reports: CommunityManageReport[];
@@ -1373,140 +1335,243 @@ function CommunityOverviewWorkspace({
   settingsQuery: QueryPreviewState;
   slug: string;
 }) {
+  const toolRows: Array<{
+    description: string;
+    meta: string;
+    status: string;
+    tone?: StatusTokenTone;
+    tool: CommunityManageTool;
+  }> = [
+    {
+      description: "集中处理举报、待审核、垃圾、已移除和需要关注的内容。",
+      meta: reportsQuery.isLoading
+        ? "举报读取中"
+        : reportsQuery.isError
+          ? "举报读取失败"
+          : `当前待处理举报 ${reports.length}`,
+      status: reports.length > 0 ? "需要处理" : "正常",
+      tone: reports.length > 0 ? "warning" : "success",
+      tool: "queues",
+    },
+    {
+      description: "分开查看帖子和评论，避免在总览页堆满内容行。",
+      meta: postsQuery.isLoading || commentsQuery.isLoading
+        ? "内容读取中"
+        : postsQuery.isError || commentsQuery.isError
+          ? "内容读取失败"
+          : `帖子 ${posts.length} / 评论 ${comments.length}`,
+      status: "内容",
+      tool: "content",
+    },
+    {
+      description: "维护版主、社区管理员、封禁/禁言/批准用户和用户画像。",
+      meta: membersQuery.isLoading
+        ? "成员读取中"
+        : membersQuery.isError
+          ? "成员读取失败"
+          : `成员 ${formatCount(community.member_count ?? members.length)}`,
+      status: canManageModerators ? "可任免" : "只读",
+      tone: canManageModerators ? "primary" : "default",
+      tool: "users",
+    },
+    {
+      description: "维护社区规则、移除原因和保存回复。",
+      meta: rulesQuery.isLoading
+        ? "规则读取中"
+        : rulesQuery.isError
+          ? "规则读取失败"
+          : `规则 ${rules.length}`,
+      status: canEditRules ? "可编辑" : "只读",
+      tone: canEditRules ? "primary" : "default",
+      tool: "rules",
+    },
+    {
+      description: "维护社区名称、简介、头像和背景图。",
+      meta: settingsQuery.isLoading
+        ? "资料读取中"
+        : settingsQuery.isError
+          ? "资料读取失败"
+          : settings
+            ? "资料已加载"
+            : "暂无资料",
+      status: canEditSettings ? "可编辑" : "只读",
+      tone: canEditSettings ? "primary" : "default",
+      tool: "settings",
+    },
+    {
+      description: "按动作、操作者和目标回看社区治理记录。",
+      meta: "独立日志工作区",
+      status: "审计",
+      tool: "log",
+    },
+  ];
+
+  const futureRows: Array<{
+    description: string;
+    tool: CommunityManageTool;
+  }> = [
+    { description: "Automod、关键词、测试和版本历史。", tool: "automations" },
+    { description: "管理团队收件箱、内部 note 和归档。", tool: "modmail" },
+    { description: "社区摘要、训练队列和趋势分析。", tool: "insights" },
+  ];
+
   return (
     <>
-      <div className="grid grid-cols-1 border-b border-border xl:grid-cols-2 2xl:grid-cols-3">
-        <ManagePreviewSection
-          description="最新管理视角帖子"
-          emptyText="暂无可管理帖子。"
-          isError={postsQuery.isError}
-          isEmpty={posts.length === 0 && (postsQuery.offset ?? 0) === 0}
-          isLoading={postsQuery.isLoading}
-          onRetry={postsQuery.refetch}
-          title="帖子"
-        >
-          <ManagePostList
-            canModerate={canModerateContent}
-            posts={posts}
-            slug={slug}
+      <section className="border-b border-border py-5">
+        <div className="grid grid-cols-1 border-y border-border sm:grid-cols-2 xl:grid-cols-4">
+          <OverviewStatusCell
+            label="待处理举报"
+            value={reportsQuery.isLoading ? "读取中" : String(reports.length)}
+            tone={reports.length > 0 ? "warning" : "success"}
           />
-          <ManageQueryPagination
-            onOffsetChange={onPostsOffsetChange}
-            query={postsQuery}
+          <OverviewStatusCell
+            label="内容索引"
+            value={
+              postsQuery.isLoading || commentsQuery.isLoading
+                ? "读取中"
+                : `${posts.length}/${comments.length}`
+            }
+            tone={postsQuery.isError || commentsQuery.isError ? "danger" : "default"}
           />
-        </ManagePreviewSection>
-
-        <ManagePreviewSection
-          description="最新评论片段"
-          emptyText="暂无可管理评论。"
-          isError={commentsQuery.isError}
-          isEmpty={comments.length === 0 && (commentsQuery.offset ?? 0) === 0}
-          isLoading={commentsQuery.isLoading}
-          onRetry={commentsQuery.refetch}
-          title="评论"
-        >
-          <ManageCommentList
-            canModerate={canModerateContent}
-            comments={comments}
-            slug={slug}
+          <OverviewStatusCell
+            label="成员"
+            value={formatCount(community.member_count ?? members.length)}
+            tone={membersQuery.isError ? "danger" : "default"}
           />
-          <ManageQueryPagination
-            onOffsetChange={onCommentsOffsetChange}
-            query={commentsQuery}
+          <OverviewStatusCell
+            label="当前权限"
+            value={canModerateContent ? "可审核" : "只读"}
+            tone={canModerateContent ? "primary" : "default"}
           />
-        </ManagePreviewSection>
-
-        <ManagePreviewSection
-          description="待处理社区举报"
-          emptyText="暂无待处理举报。"
-          isError={reportsQuery.isError}
-          isEmpty={reports.length === 0 && (reportsQuery.offset ?? 0) === 0}
-          isLoading={reportsQuery.isLoading}
-          onRetry={reportsQuery.refetch}
-          title="举报"
-        >
-          <ManageReportList
-            canModerate={canModerateContent}
-            reports={reports}
-            slug={slug}
-          />
-          <ManageQueryPagination
-            onOffsetChange={onReportsOffsetChange}
-            query={reportsQuery}
-          />
-        </ManagePreviewSection>
-      </div>
-
-      <div className="grid grid-cols-1 border-b border-border xl:grid-cols-2 2xl:grid-cols-3">
-        <ManagePreviewSection
-          description="真实社区版主可发起版主转让；平台 owner 覆盖可任免社区管理员"
-          emptyText="暂无成员记录。"
-          isError={membersQuery.isError}
-          isEmpty={false}
-          isLoading={membersQuery.isLoading}
-          onRetry={membersQuery.refetch}
-          title="成员"
-        >
-          <ManageMemberGovernance
-            canManageModerators={canManageModerators}
-            memberCount={community.member_count}
-            members={members}
-            slug={slug}
-          />
-          <ManageQueryPagination
-            onOffsetChange={onMembersOffsetChange}
-            query={membersQuery}
-          />
-        </ManagePreviewSection>
-
-        <ManagePreviewSection
-          description="版主转让和平台异常接管"
-          emptyText="暂无版主交接。"
-          isError={false}
-          isEmpty={false}
-          isLoading={false}
-          onRetry={membersQuery.refetch}
-          title="版主交接"
-        >
-          <ManageOwnerTransferPanel
-            canCreateOwnerTransfer={canCreateOwnerTransfer}
-            community={community}
-            hasPlatformOwnerOverride={hasPlatformOwnerOverride}
-            slug={slug}
-          />
-        </ManagePreviewSection>
-
-        <ManagePreviewSection
-          description="版主可维护社区名称、简介、头像和背景图"
-          emptyText="暂无社区资料。"
-          isError={settingsQuery.isError}
-          isEmpty={!settings}
-          isLoading={settingsQuery.isLoading}
-          onRetry={settingsQuery.refetch}
-          title="资料"
-        >
-          {settings ? (
-            <ManageSettingsEditor
-              canEdit={canEditSettings}
-              settings={settings}
-              slug={slug}
-            />
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <StatusToken>{formatViewerRole(community.viewer_role)}</StatusToken>
+          {hasPlatformOwnerOverride ? (
+            <StatusToken tone="primary">平台 owner 覆盖</StatusToken>
           ) : null}
-        </ManagePreviewSection>
+          <StatusToken tone={canEditSettings ? "success" : "default"}>
+            资料{formatPermission(canEditSettings)}
+          </StatusToken>
+          <StatusToken tone={canEditRules ? "success" : "default"}>
+            规则{formatPermission(canEditRules)}
+          </StatusToken>
+        </div>
+      </section>
 
-        <ManagePreviewSection
-          description="版主和社区管理员可维护规则"
-          emptyText="暂无社区规则。"
-          isError={rulesQuery.isError}
-          isEmpty={false}
-          isLoading={rulesQuery.isLoading}
-          onRetry={rulesQuery.refetch}
-          title="规则"
-        >
-          <ManageRuleManager canEdit={canEditRules} rules={rules} slug={slug} />
-        </ManagePreviewSection>
-      </div>
+      <section className="border-b border-border py-5">
+        <div className="max-w-3xl">
+          <h3 className="text-sm font-semibold">常用工作区</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            总览只保留状态和入口；具体处理放到独立页面，避免把管理表单和队列挤在同一屏。
+          </p>
+        </div>
+        <div className="mt-4 divide-y divide-border border-y border-border">
+          {toolRows.map((row, index) => (
+            <OverviewToolRow
+              description={row.description}
+              href={getCommunityManageToolHref(slug, row.tool)}
+              index={index + 1}
+              key={row.tool}
+              meta={row.meta}
+              status={row.status}
+              title={getCommunityToolMeta(row.tool).label}
+              tone={row.tone}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="border-b border-border py-5">
+        <h3 className="text-sm font-semibold">待接入工具位</h3>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          这些入口保留 Reddit 式信息架构，但不会伪造后端未完成的提交能力。
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {futureRows.map((row) => (
+            <Link
+              key={row.tool}
+              href={getCommunityManageToolHref(slug, row.tool)}
+              className="group min-w-0 border-y border-border py-3 text-sm transition-colors hover:text-primary"
+            >
+              <span className="flex min-w-0 items-center justify-between gap-3">
+                <span className="min-w-0 break-words font-semibold [overflow-wrap:anywhere]">
+                  {getCommunityToolMeta(row.tool).label}
+                </span>
+                <StatusToken>待接入</StatusToken>
+              </span>
+              <span className="mt-2 block text-xs leading-5 text-muted-foreground">
+                {row.description}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
     </>
+  );
+}
+
+function OverviewStatusCell({
+  label,
+  tone = "default",
+  value,
+}: {
+  label: string;
+  tone?: StatusTokenTone;
+  value: string;
+}) {
+  return (
+    <div className="min-w-0 border-b border-border px-3 py-4 last:border-b-0 sm:border-r sm:[&:nth-child(2n)]:border-r-0 xl:border-b-0 xl:[&:nth-child(2n)]:border-r xl:last:border-r-0">
+      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
+      <div className="mt-2 flex min-w-0 items-center justify-between gap-3">
+        <span className="min-w-0 break-words text-lg font-semibold [overflow-wrap:anywhere]">
+          {value}
+        </span>
+        <StatusToken tone={tone}>状态</StatusToken>
+      </div>
+    </div>
+  );
+}
+
+function OverviewToolRow({
+  description,
+  href,
+  index,
+  meta,
+  status,
+  title,
+  tone = "default",
+}: {
+  description: string;
+  href: string;
+  index: number;
+  meta: string;
+  status: string;
+  title: string;
+  tone?: StatusTokenTone;
+}) {
+  return (
+    <Link
+      href={href}
+      className="grid min-w-0 gap-3 px-1 py-4 text-sm transition-colors hover:bg-background-soft/35 sm:grid-cols-[40px_minmax(0,1fr)_auto]"
+    >
+      <span className="font-mono text-xs text-muted-foreground">
+        {String(index).padStart(2, "0")}
+      </span>
+      <span className="min-w-0">
+        <span className="block break-words font-semibold text-foreground [overflow-wrap:anywhere]">
+          {title}
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+          {description}
+        </span>
+        <span className="mt-2 block break-words font-mono text-[11px] text-primary [overflow-wrap:anywhere]">
+          {meta}
+        </span>
+      </span>
+      <span className="flex items-start sm:justify-end">
+        <StatusToken tone={tone}>{status}</StatusToken>
+      </span>
+    </Link>
   );
 }
 
@@ -1669,7 +1734,7 @@ function UnsupportedToolList({
   title: string;
 }) {
   return (
-    <section className="min-w-0 border-b border-border px-0 py-4 last:border-b-0 xl:border-b-0 xl:border-r xl:px-5 xl:first:pl-0 xl:last:border-r-0 xl:last:pr-0">
+    <section className="min-w-0 border-b border-border py-5 last:border-b-0">
       <div className="flex items-center gap-2">
         <Wand2 className="size-4 text-primary" aria-hidden="true" />
         <h3 className="text-sm font-semibold">{title}</h3>
@@ -1749,6 +1814,7 @@ function ManageHeader({
   platformRole,
   platformRoleIsInferred,
   slug,
+  tool,
 }: {
   canManageCommunity: boolean;
   community?: Community;
@@ -1756,6 +1822,7 @@ function ManageHeader({
   platformRole: PlatformRole | null;
   platformRoleIsInferred: boolean;
   slug: string;
+  tool: CommunityManageTool;
 }) {
   return (
     <div className="border-b border-border py-4">
@@ -1763,8 +1830,8 @@ function ManageHeader({
         <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
           社区管理
         </h1>
-        <p className="mt-1 truncate font-mono text-xs text-primary">
-          /{slug}/manage
+        <p className="mt-1 break-words font-mono text-xs text-primary [overflow-wrap:anywhere]">
+          {getCommunityManageToolHref(slug, tool)}
         </p>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
           {community && canManageCommunity
@@ -1805,7 +1872,7 @@ function ManagePreviewSection({
   title: string;
 }) {
   return (
-    <section className="min-w-0 border-b border-border px-0 py-4 last:border-b-0 lg:border-b-0 lg:border-r lg:px-4 lg:first:pl-0 lg:last:border-r-0 lg:last:pr-0">
+    <section className="min-w-0 border-b border-border py-5 last:border-b-0">
       <div className="min-w-0">
         <h3 className="text-sm font-semibold">{title}</h3>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -1919,60 +1986,6 @@ function ManageCommentList({
           text={`${formatContentStatus(comment.status)} / ${formatDate(comment.updated_at)}`}
         />
       ))}
-    </div>
-  );
-}
-
-function ManageReportList({
-  canModerate,
-  reports,
-  slug,
-}: {
-  canModerate: boolean;
-  reports: CommunityManageReport[];
-  slug: string;
-}) {
-  if (reports.length === 0) {
-    return null;
-  }
-
-  return (
-    <div>
-      {reports.map((report, index) => {
-        const targetType = normalizeReportTargetType(report.target_type);
-        const targetId =
-          targetType === "post" ? report.post_id : report.comment_id;
-        const postId =
-          targetType === "post" ? report.post_id : report.target_preview?.post_id;
-        const targetLabel =
-          report.target_preview?.title ||
-          report.target_preview?.body_excerpt ||
-          report.reason;
-
-        return (
-          <ManageContentRow
-            action={
-              canModerate && report.status === "pending" && targetId ? (
-                <ModerationQuickActions
-                  canRemove={(report.target_preview?.status ?? "visible") !== "removed"}
-                  communityManageHref={`/communities/${encodeURIComponent(slug)}/manage`}
-                  communitySlug={slug}
-                  targetId={targetId}
-                  targetAuthorId={report.target_preview?.author_id}
-                  targetLabel={targetLabel}
-                  targetPostId={postId}
-                  targetStatus={report.target_preview?.status ?? "visible"}
-                  targetType={targetType}
-                />
-              ) : null
-            }
-            key={report.id}
-            index={String(index + 1).padStart(2, "0")}
-            title={targetLabel}
-            text={`${formatReportTarget(report.target_type)} / ${formatReportStatus(report.status)}`}
-          />
-        );
-      })}
     </div>
   );
 }
@@ -2148,7 +2161,7 @@ function ManageUserStatesPanel({
   const activeQuery = queryByKind[activeKind];
 
   return (
-    <section className="min-w-0 border-b border-border px-0 py-4 last:border-b-0 lg:border-b-0 lg:px-4 lg:last:pr-0">
+    <section className="min-w-0 border-b border-border py-5 last:border-b-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-sm font-semibold">社区用户治理</h3>
@@ -2529,7 +2542,7 @@ function ManageUserProfilePanel({
   }
 
   return (
-    <section className="min-w-0 border-b border-border px-0 py-4 last:border-b-0 lg:col-span-2 lg:px-4">
+    <section className="min-w-0 border-b border-border py-5 last:border-b-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -2907,7 +2920,7 @@ function ManageModerationTemplatePanel({
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
-    <section className="min-w-0 border-b border-border px-0 py-4 last:border-b-0 lg:border-b-0 lg:border-l lg:px-4">
+    <section className="min-w-0 border-b border-border py-5 last:border-b-0">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold">{title}</h3>
@@ -3906,7 +3919,7 @@ function PlatformOwnerTakeoverPanel({ community }: { community: Community }) {
       setReason("");
       setConfirmed(false);
     } catch (caught) {
-      setFormError(caught instanceof Error ? caught.message : "平台接管失败。");
+      setFormError(getOwnerTakeoverErrorDescription(caught));
     }
   }
 
@@ -4896,6 +4909,18 @@ function getErrorDescription(error: Error | null) {
   return "请求失败，请稍后重试。";
 }
 
+function getOwnerTakeoverErrorDescription(error: unknown) {
+  if (error instanceof ApiError && error.code === "not_found") {
+    return "后端没有找到当前社区、目标用户或当前 active 版主。若这个社区本来就没有版主，当前后端接管接口仍要求先找到现任 active 版主，不能完成无版主社区接管；已记录为后端缺口。";
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "平台接管失败。";
+}
+
 function formatCommunityManageForbiddenDescription({
   community,
   platformRole,
@@ -5216,19 +5241,6 @@ function formatContentStatus(status: string) {
       return "已锁定";
     case "hidden":
       return "已隐藏";
-    default:
-      return status;
-  }
-}
-
-function formatReportStatus(status: string) {
-  switch (status) {
-    case "pending":
-      return "待处理";
-    case "resolved":
-      return "已处理";
-    case "dismissed":
-      return "已驳回";
     default:
       return status;
   }

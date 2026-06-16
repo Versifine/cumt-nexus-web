@@ -114,6 +114,28 @@ export type CommunityOwnerTransfer = {
   cancelled_at?: string | null;
 };
 
+export type IncomingCommunityOwnerTransfer = CommunityOwnerTransfer & {
+  community: Pick<
+    Community,
+    "id" | "slug" | "name" | "avatar_url" | "banner_url" | "status"
+  >;
+};
+
+export type ListIncomingCommunityOwnerTransfersInput = {
+  limit?: number;
+  offset?: number;
+  status?: "pending" | "accepted" | "cancelled" | "expired" | "all" | string;
+};
+
+export type ListIncomingCommunityOwnerTransfersResponse = {
+  transfers: IncomingCommunityOwnerTransfer[];
+  status: string;
+  limit: number;
+  offset: number;
+  next_offset: number;
+  has_more: boolean;
+};
+
 export type CreateCommunityOwnerTransferInput = {
   slug: string;
   username: string;

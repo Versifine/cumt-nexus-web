@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { User } from "lucide-react";
+import { MessageCircle, User } from "lucide-react";
 
 import { HoverPreview } from "@/components/ui/hover-preview";
 import { useCurrentUserQuery } from "@/features/auth/queries";
@@ -166,6 +166,19 @@ function UserHoverCard({
             maxItems={3}
             size="sm"
           />
+        ) : null}
+
+        {!isOwnPreview && username ? (
+          <span className="mt-3 flex border-t border-border pt-3">
+            <span
+              aria-disabled="true"
+              className="inline-flex cursor-not-allowed items-center gap-1.5 text-xs font-semibold text-muted-foreground/75"
+              title="私信后端未接入，当前不能向该用户发送私信。"
+            >
+              <MessageCircle className="size-3.5" aria-hidden="true" />
+              私信待接入
+            </span>
+          </span>
         ) : null}
       </span>
     </span>

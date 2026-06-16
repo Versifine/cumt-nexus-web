@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { InfoRow, StatusToken } from "@/components/ui/data-display";
 import { Input } from "@/components/ui/input";
 import { TextAction } from "@/components/ui/text-action";
+import { useCurrentUserQuery } from "@/features/auth/queries";
 import { ApiError } from "@/lib/api/client";
 
 import {
@@ -28,6 +29,7 @@ import {
   formatAdminCommunityStatus,
   formatDateTime,
   getAdminCommunityStatusTone,
+  resolvePlatformRole,
 } from "./display";
 import {
   useAdminCommunitiesQuery,
@@ -65,6 +67,9 @@ export function AdminCommunitiesPage() {
     q: query,
     status,
   });
+  const currentUserQuery = useCurrentUserQuery();
+  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const canOpenCommunityManagement = platformRole === "owner";
   const communities = communitiesQuery.data?.communities ?? [];
   const selectedCommunity =
     communities.find((community) => community.id === selectedCommunityId) ??
@@ -92,7 +97,14 @@ export function AdminCommunitiesPage() {
   }
 
   return (
-    <AdminQueueLayout rail={<CommunityDetailRail community={selectedCommunity} />}>
+    <AdminQueueLayout
+      rail={
+        <CommunityDetailRail
+          canOpenCommunityManagement={canOpenCommunityManagement}
+          community={selectedCommunity}
+        />
+      }
+    >
       <AdminQueueToolbar
         activeTab={status}
         description={`当前查看${formatAdminCommunityStatus(status)}社区。`}
@@ -164,12 +176,14 @@ export function AdminCommunitiesPage() {
                 description={community.description || "暂无简介。"}
                 meta={`${community.kind} · 创建 ${formatDateTime(community.created_at)} · 更新 ${formatDateTime(community.updated_at)}`}
                 actions={
-                  <TextAction
-                    href={`/communities/${encodeURIComponent(community.slug)}/manage`}
-                    tone="primary"
-                  >
-                    社区内管理
-                  </TextAction>
+                  canOpenCommunityManagement ? (
+                    <TextAction
+                      href={`/communities/${encodeURIComponent(community.slug)}/manage`}
+                      tone="primary"
+                    >
+                      社区内管理
+                    </TextAction>
+                  ) : null
                 }
               />
             ))}
@@ -198,7 +212,13 @@ export function AdminCommunitiesPage() {
   );
 }
 
-function CommunityDetailRail({ community }: { community: AdminCommunity | null }) {
+function CommunityDetailRail({
+  canOpenCommunityManagement,
+  community,
+}: {
+  canOpenCommunityManagement: boolean;
+  community: AdminCommunity | null;
+}) {
   return (
     <>
       <AdminDetailRail title="社区上下文" emptyTitle="选择社区">
@@ -256,12 +276,14 @@ function CommunityDetailRail({ community }: { community: AdminCommunity | null }
               >
                 打开社区
               </TextAction>
-              <TextAction
-                href={`/communities/${encodeURIComponent(community.slug)}/manage`}
-                variant="bar"
-              >
-                社区内管理
-              </TextAction>
+              {canOpenCommunityManagement ? (
+                <TextAction
+                  href={`/communities/${encodeURIComponent(community.slug)}/manage`}
+                  variant="bar"
+                >
+                  社区内管理
+                </TextAction>
+              ) : null}
             </>
           ) : null}
           <TextAction href="/admin/community-applications" variant="bar">

@@ -49,6 +49,9 @@ export function resolveNotificationTarget(
         label: "查看举报",
         summary: "点击查看相关举报",
       };
+    case "community_owner_transfer":
+    case "community_owner_transfers":
+      return resolveCommunityOwnerTransferTarget(sourceId);
     case "comment":
       return {
         href: null,
@@ -62,4 +65,22 @@ export function resolveNotificationTarget(
 
 function normalizeSourceType(value: string) {
   return value.trim().toLowerCase().replace(/[-\s]+/g, "_");
+}
+
+function resolveCommunityOwnerTransferTarget(sourceId: string): NotificationTarget {
+  const [slug, transferId] = sourceId.split(":");
+
+  if (!slug || !transferId) {
+    return {
+      href: "/communities/owner-transfers",
+      label: "查看版主交接",
+      summary: "打开待接受版主交接列表",
+    };
+  }
+
+  return {
+    href: `/communities/${encodeURIComponent(slug)}/owner-transfer/${encodeURIComponent(transferId)}/accept`,
+    label: "接受版主交接",
+    summary: "打开社区版主交接请求",
+  };
 }
