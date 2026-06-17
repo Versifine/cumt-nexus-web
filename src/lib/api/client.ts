@@ -17,12 +17,14 @@ type ApiRequestOptions = Omit<RequestInit, "body"> & {
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
+  readonly serverMessage: string;
 
   constructor(status: number, error: ApiErrorBody) {
     super(getClientErrorMessage(error));
     this.name = "ApiError";
     this.status = status;
     this.code = error.code;
+    this.serverMessage = error.message;
   }
 }
 

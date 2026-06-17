@@ -212,9 +212,11 @@ npm run check:v2-path
 按 `docs/design/DESIGN.md` 检查：
 
 - 整体仍是 `dark editorial product / magazine-grade campus community interface`。
+- 整体符合 Nexus Surface 第四版：面层优先、分割线克制、主色只用于主动作和当前态。
 - 不出现默认 SaaS 卡片堆叠。
 - 不出现大面积彩虹渐变、发光光斑、玻璃拟态和油腻光污染。
-- 次级跳转优先是文字动作、bar、色块或分割线。
+- 次级跳转优先是文字动作、bar 或克制色块，不靠 outline button 堆叠。
+- 页面层级不依赖大量 `border-b`、`divide-y` 或 `border-x`。
 - Button 只用于提交、确认、登录、注册等真正命令。
 - 页面之间风格一致，不像每页重新选了一套审美。
 - loading、empty、error、success、disabled 状态都使用中文。

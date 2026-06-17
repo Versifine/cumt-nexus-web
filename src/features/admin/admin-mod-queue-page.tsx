@@ -17,7 +17,6 @@ import {
   type StatusTokenTone,
 } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
-import { hasLegacyPlatformStaffOnly } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import {
   ModerationBulkActions,
@@ -43,8 +42,9 @@ import {
   AdminRailSection,
   AdminResourceRow,
 } from "./admin-queue";
-import { formatDateTime, formatShortId, resolvePlatformRole } from "./display";
+import { formatDateTime, formatShortId } from "./display";
 import { useAdminAuditLogsQuery } from "./queries";
+import { useEffectiveAdminPlatformRole } from "./use-effective-platform-role";
 
 const PAGE_SIZE = 20;
 
@@ -75,7 +75,7 @@ const queueTabs: Array<{
 
 export function AdminModQueuePage() {
   const currentUserQuery = useCurrentUserQuery();
-  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const { role: platformRole } = useEffectiveAdminPlatformRole(currentUserQuery.data);
   const [activeQueue, setActiveQueue] =
     useState<AdminModQueueKind>("reports");
   const [offset, setOffset] = useState(0);
@@ -127,8 +127,7 @@ export function AdminModQueuePage() {
     ? normalizeTargetType(selectedItem.target_type)
     : null;
   const canLoadAudit =
-    (platformRole !== "staff" ||
-      hasLegacyPlatformStaffOnly(currentUserQuery.data)) &&
+    (platformRole === "owner" || platformRole === "admin") &&
     Boolean(selectedItem && selectedTargetType);
   const canOpenCommunityManagement = platformRole === "owner";
   const auditQuery = useAdminAuditLogsQuery(
@@ -191,7 +190,7 @@ export function AdminModQueuePage() {
 
   return (
     <AdminQueueLayout
-      rail={
+      detail={
         <AdminModQueueRail
           auditQuery={{
             error: auditQuery.error,

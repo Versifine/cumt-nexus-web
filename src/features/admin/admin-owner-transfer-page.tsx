@@ -13,10 +13,10 @@ import { Input } from "@/components/ui/input";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthSession } from "@/features/auth/auth-session";
-import { resolvePlatformRole } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { ApiError } from "@/lib/api/client";
 
+import { AdminUserPicker } from "./admin-user-picker";
 import { formatDateTime, formatPlatformRole } from "./display";
 import {
   useAcceptOwnerTransferMutation,
@@ -25,7 +25,8 @@ import {
   useCreateAdminOwnerTransferMutation,
   useOwnerTransferQuery,
 } from "./queries";
-import type { AdminOwnerTransfer } from "./types";
+import type { AdminOwnerTransfer, AdminUser } from "./types";
+import { useEffectiveAdminPlatformRole } from "./use-effective-platform-role";
 
 type OwnerTransferAcceptPageProps = {
   transferId?: string;
@@ -35,7 +36,8 @@ export function AdminOwnerTransferPage() {
   const { isReady, token } = useAuthSession();
   const currentUserQuery = useCurrentUserQuery();
   const ownerTransferQuery = useAdminOwnerTransferQuery(isReady && Boolean(token));
-  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const effectivePlatformRole = useEffectiveAdminPlatformRole(currentUserQuery.data);
+  const platformRole = effectivePlatformRole.role;
   const transfer = ownerTransferQuery.data?.transfer ?? null;
   const isOwner = platformRole === "owner";
 
@@ -70,7 +72,9 @@ export function AdminOwnerTransferPage() {
         />
       ) : null}
 
-      {isReady && token && ownerTransferQuery.isPending ? (
+      {isReady &&
+      token &&
+      (ownerTransferQuery.isPending || effectivePlatformRole.isResolving) ? (
         <div className="border-b border-border py-4">
           <LoadingState rows={4} />
         </div>
@@ -93,11 +97,15 @@ export function AdminOwnerTransferPage() {
         />
       ) : null}
 
-      {ownerTransferQuery.isSuccess ? (
+      {ownerTransferQuery.isSuccess && !effectivePlatformRole.isResolving ? (
         <div className="grid gap-4 border-b border-border py-4">
           {transfer ? <OwnerTransferSummary transfer={transfer} /> : null}
           {transfer?.status === "pending" ? (
-            <CancelOwnerTransferPanel transfer={transfer} />
+            isOwner ? (
+              <CancelOwnerTransferPanel transfer={transfer} />
+            ) : (
+              <ReadOnlyOwnerTransferNotice />
+            )
           ) : isOwner ? (
             <CreateOwnerTransferForm />
           ) : (
@@ -119,6 +127,7 @@ export function OwnerTransferAcceptPage({
   transferId,
 }: OwnerTransferAcceptPageProps) {
   const { isReady, token } = useAuthSession();
+  const currentUserQuery = useCurrentUserQuery();
   const transferQuery = useOwnerTransferQuery(
     transferId ?? "",
     isReady && Boolean(token) && Boolean(transferId),
@@ -170,10 +179,29 @@ export function OwnerTransferAcceptPage({
         />
       ) : null}
 
-      {isReady && token && transferQuery.isPending ? (
+      {isReady &&
+      token &&
+      (transferQuery.isPending || currentUserQuery.isLoading) ? (
         <div className="border-b border-border py-4">
           <LoadingState rows={4} />
         </div>
+      ) : null}
+
+      {isReady && token && currentUserQuery.isError ? (
+        <ErrorState
+          title="无法确认当前账号"
+          description={getErrorDescription(currentUserQuery.error)}
+          action={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => currentUserQuery.refetch()}
+            >
+              重试
+            </Button>
+          }
+        />
       ) : null}
 
       {isReady && token && transferQuery.isError ? (
@@ -193,44 +221,71 @@ export function OwnerTransferAcceptPage({
         />
       ) : null}
 
-      {isReady && token && transferQuery.isSuccess && transfer ? (
-        <div className="grid gap-4 border-b border-border py-4">
-          <OwnerTransferSummary transfer={transfer} />
-          <AcceptOwnerTransferForm transfer={transfer} />
-        </div>
+      {isReady &&
+      token &&
+      transferQuery.isSuccess &&
+      !currentUserQuery.isError &&
+      transfer ? (
+        <OwnerTransferAcceptWorkArea
+          currentUser={currentUserQuery.data}
+          transfer={transfer}
+        />
       ) : null}
     </OwnerTransferLayout>
   );
 }
 
+function ReadOnlyOwnerTransferNotice() {
+  return (
+    <Alert>
+      <ShieldAlert className="size-4" aria-hidden="true" />
+      <AlertTitle>只能由当前 owner 取消</AlertTitle>
+      <AlertDescription>
+        平台 admin 可以查看交接上下文，但不能取消 pending 站点负责人交接。
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 function CreateOwnerTransferForm() {
   const mutation = useCreateAdminOwnerTransferMutation();
-  const [targetUserId, setTargetUserId] = useState("");
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [previousOwnerRole, setPreviousOwnerRole] = useState<"admin" | "none">(
     "admin",
   );
   const [reason, setReason] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
 
-    if (!targetUserId.trim() || !reason.trim() || !currentPassword) {
-      setFormError("请填写目标用户 ID、交接原因和当前密码。");
+    if (!selectedUser || !reason.trim() || !currentPassword) {
+      setFormError("请选择目标账号，并填写交接原因和当前密码。");
       return;
     }
 
-    await mutation.mutateAsync({
-      current_password: currentPassword,
-      previous_owner_role: previousOwnerRole === "admin" ? "admin" : null,
-      reason: reason.trim(),
-      target_user_id: targetUserId.trim(),
-    });
-    setTargetUserId("");
-    setReason("");
-    setCurrentPassword("");
+    if (!confirmed) {
+      setFormError("请先确认这会创建站点负责人交接请求。");
+      return;
+    }
+
+    try {
+      await mutation.mutateAsync({
+        current_password: currentPassword,
+        previous_owner_role: previousOwnerRole === "admin" ? "admin" : null,
+        reason: reason.trim(),
+        target_user_id: selectedUser.id,
+      });
+      setSelectedUser(null);
+      setReason("");
+      setCurrentPassword("");
+      setConfirmed(false);
+    } catch {
+      // mutation.error drives the visible error state.
+    }
   }
 
   return (
@@ -242,13 +297,15 @@ function CreateOwnerTransferForm() {
           交接。
         </p>
       </div>
-      <Input
-        value={targetUserId}
-        onChange={(event) => setTargetUserId(event.target.value)}
-        placeholder="目标用户 ID"
-        disabled={mutation.isPending}
-        aria-label="目标用户 ID"
-      />
+      <div className="grid gap-2">
+        <AdminUserPicker
+          disabled={mutation.isPending}
+          label="目标账号"
+          onChange={setSelectedUser}
+          placeholder="搜索目标账号的用户名或昵称"
+          value={selectedUser}
+        />
+      </div>
       <select
         className="h-10 rounded-lg border border-input bg-background-soft px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-50"
         value={previousOwnerRole}
@@ -278,6 +335,18 @@ function CreateOwnerTransferForm() {
         disabled={mutation.isPending}
         aria-label="当前 owner 密码"
       />
+      <label className="flex items-start gap-2 text-sm leading-6 text-muted-foreground">
+        <input
+          type="checkbox"
+          className="mt-1 size-4 accent-primary"
+          checked={confirmed}
+          disabled={mutation.isPending}
+          onChange={(event) => setConfirmed(event.target.checked)}
+        />
+        <span>
+          我确认这是站点负责人交接请求，目标账号接受后会成为唯一 active owner。
+        </span>
+      </label>
       {formError || mutation.error ? (
         <Alert variant="destructive">
           <AlertTitle>发起失败</AlertTitle>
@@ -286,7 +355,7 @@ function CreateOwnerTransferForm() {
           </AlertDescription>
         </Alert>
       ) : null}
-      <Button type="submit" disabled={mutation.isPending}>
+      <Button type="submit" disabled={mutation.isPending || !selectedUser}>
         {mutation.isPending ? "提交中..." : "发起负责人交接"}
       </Button>
     </form>
@@ -327,8 +396,10 @@ function CancelOwnerTransferPanel({
 }
 
 function AcceptOwnerTransferForm({
+  canAccept,
   transfer,
 }: {
+  canAccept: boolean;
   transfer: AdminOwnerTransfer;
 }) {
   const mutation = useAcceptOwnerTransferMutation();
@@ -345,11 +416,15 @@ function AcceptOwnerTransferForm({
       return;
     }
 
-    await mutation.mutateAsync({
-      transferId: transfer.id,
-      input: { current_password: currentPassword },
-    });
-    setCurrentPassword("");
+    try {
+      await mutation.mutateAsync({
+        transferId: transfer.id,
+        input: { current_password: currentPassword },
+      });
+      setCurrentPassword("");
+    } catch {
+      // mutation.error drives the visible error state.
+    }
   }
 
   return (
@@ -366,7 +441,7 @@ function AcceptOwnerTransferForm({
         onChange={(event) => setCurrentPassword(event.target.value)}
         placeholder="当前密码"
         autoComplete="current-password"
-        disabled={!isPendingTransfer || mutation.isPending}
+        disabled={!canAccept || !isPendingTransfer || mutation.isPending}
         aria-label="当前密码"
       />
       {formError || mutation.error ? (
@@ -383,10 +458,57 @@ function AcceptOwnerTransferForm({
           <AlertDescription>站点负责人权限已由后端完成切换。</AlertDescription>
         </Alert>
       ) : null}
-      <Button type="submit" disabled={!isPendingTransfer || mutation.isPending}>
+      {mutation.isSuccess ? (
+        <TextAction href="/admin" tone="primary">
+          进入平台管理
+        </TextAction>
+      ) : null}
+      <Button
+        type="submit"
+        disabled={!canAccept || !isPendingTransfer || mutation.isPending}
+      >
         {mutation.isPending ? "提交中..." : "接受交接"}
       </Button>
     </form>
+  );
+}
+
+function OwnerTransferAcceptWorkArea({
+  currentUser,
+  transfer,
+}: {
+  currentUser?: { id?: string; username?: string } | null;
+  transfer: AdminOwnerTransfer;
+}) {
+  const isPendingTransfer = transfer.status === "pending";
+  const isTargetUser =
+    currentUser?.id === transfer.target_user_id ||
+    currentUser?.username === transfer.target_username;
+  const canAccept = isPendingTransfer && isTargetUser;
+
+  return (
+    <div className="grid gap-4 border-b border-border py-4">
+      <OwnerTransferSummary transfer={transfer} />
+      {!isPendingTransfer ? (
+        <Alert>
+          <AlertTitle>交接不可接受</AlertTitle>
+          <AlertDescription>
+            当前交接状态为{formatOwnerTransferStatus(transfer.status)}，页面不再显示提交入口。
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {isPendingTransfer && !isTargetUser ? (
+        <Alert variant="destructive">
+          <AlertTitle>当前账号不是目标账号</AlertTitle>
+          <AlertDescription>
+            这次交接目标是 @{transfer.target_username}。请切换到目标账号后再接受。
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {canAccept ? (
+        <AcceptOwnerTransferForm canAccept={canAccept} transfer={transfer} />
+      ) : null}
+    </div>
   );
 }
 

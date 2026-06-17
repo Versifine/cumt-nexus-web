@@ -15,13 +15,12 @@ import {
 } from "lucide-react";
 
 import { StatusToken } from "@/components/ui/data-display";
-import { hasLegacyPlatformStaffOnly } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { cn } from "@/lib/utils";
 
-import { resolvePlatformRole } from "./display";
 import { AdminPermissionGate } from "./permission-gate";
 import type { PlatformRole } from "./types";
+import { useEffectiveAdminPlatformRole } from "./use-effective-platform-role";
 
 type AdminShellProps = {
   allowedRoles?: PlatformRole[];
@@ -109,16 +108,14 @@ export function AdminShell({
 }: AdminShellProps) {
   const pathname = usePathname();
   const currentUserQuery = useCurrentUserQuery();
-  const platformRole = resolvePlatformRole(currentUserQuery.data);
-  const hasOnlyLegacyStaffFlag = hasLegacyPlatformStaffOnly(
-    currentUserQuery.data,
-  );
+  const effectivePlatformRole = useEffectiveAdminPlatformRole(currentUserQuery.data);
+  const platformRole = effectivePlatformRole.role;
   const visibleNavGroups = adminNavGroups
     .map((group) => ({
       ...group,
-      items: platformRole && !hasOnlyLegacyStaffFlag
+      items: platformRole
         ? group.items.filter((item) => item.roles.includes(platformRole))
-        : group.items,
+        : [],
     }))
     .filter((group) => group.items.length > 0);
 
@@ -130,7 +127,7 @@ export function AdminShell({
             <StatusToken tone="primary">{eyebrow}</StatusToken>
             {platformRole ? (
               <StatusToken>
-                {hasOnlyLegacyStaffFlag
+                {effectivePlatformRole.source === "fallback"
                   ? "平台人员（待同步角色）"
                   : resolveAdminRoleLabel(platformRole)}
               </StatusToken>

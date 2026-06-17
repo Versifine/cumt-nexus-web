@@ -30,6 +30,7 @@ import {
   MessageCircle,
   Monitor,
   Moon,
+  Palette,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
@@ -79,6 +80,15 @@ import {
   type DisplayNotification,
   type NotificationActorView,
 } from "@/features/notification/grouping";
+import {
+  useMessageConversationsQuery,
+  useMessageSummaryQuery,
+} from "@/features/message/queries";
+import { useMessageRealtime } from "@/features/message/realtime";
+import type {
+  MessageConversation,
+  MessageUserSummary,
+} from "@/features/message/types";
 import { useNotificationsQuery } from "@/features/notification/queries";
 import { resolveNotificationTarget } from "@/features/notification/targets";
 import { useMyProgressionQuery } from "@/features/progression/queries";
@@ -595,13 +605,32 @@ function ShellNav({
         })}
       </nav>
 
+      <section className={cn("mt-6", isCollapsedDesktop ? "hidden" : "")}>
+        <div className="font-mono text-[11px] uppercase text-muted-foreground">
+          工具
+        </div>
+        <div className="mt-3 divide-y divide-border border-t border-border">
+          <ShellNavLink
+            active={isActivePath(pathname, "/style-guide")}
+            href="/style-guide"
+            icon={Palette}
+            label="组件台账"
+          />
+        </div>
+      </section>
+
       {isAuthenticated && platformRole ? (
         <section className={cn("mt-6", isCollapsedDesktop ? "hidden" : "")}>
           <div className="font-mono text-[11px] uppercase text-muted-foreground">
             管理
           </div>
           <div className="mt-3 divide-y divide-border border-t border-border">
-            <ShellNavLink href="/admin" icon={ShieldAlert} label="平台管理" />
+            <ShellNavLink
+              active={isActivePath(pathname, "/admin")}
+              href="/admin"
+              icon={ShieldAlert}
+              label="平台管理"
+            />
           </div>
         </section>
       ) : null}
@@ -649,10 +678,12 @@ function ShellNav({
 }
 
 function ShellNavLink({
+  active = false,
   href,
   icon: Icon,
   label,
 }: {
+  active?: boolean;
   href: string;
   icon: typeof Home;
   label: string;
@@ -660,13 +691,18 @@ function ShellNavLink({
   return (
     <Link
       href={href}
-      className="flex min-w-0 items-center justify-between gap-3 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      className={cn(
+        "flex min-w-0 items-center justify-between gap-3 py-3 text-sm transition-colors hover:text-foreground",
+        active ? "text-foreground" : "text-muted-foreground",
+      )}
     >
       <span className="inline-flex min-w-0 items-center gap-3">
         <Icon className="size-4 shrink-0" aria-hidden="true" />
         <span className="truncate">{label}</span>
       </span>
-      <span className="shrink-0 font-mono text-xs text-primary">进入</span>
+      <span className="shrink-0 font-mono text-xs text-primary">
+        {active ? "当前" : "进入"}
+      </span>
     </Link>
   );
 }
@@ -797,7 +833,7 @@ function TopActions() {
         <span className="hidden text-sm font-medium sm:inline">发帖</span>
       </Link>
       <HeaderThemeMenu />
-      <HeaderMessageEntry />
+      <HeaderMessageEntry isReady={isReady} token={token} />
       <HeaderNotificationMenu isReady={isReady} token={token} />
       {!isReady ? (
         <div
@@ -811,20 +847,330 @@ function TopActions() {
   );
 }
 
-function HeaderMessageEntry() {
+function HeaderMessageEntry({
+  isReady,
+  token,
+}: {
+  isReady: boolean;
+  token: string | null;
+}) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const canLoadMessages = isReady && Boolean(token);
+  const messageHref = "/messages";
+  const summaryQuery = useMessageSummaryQuery(canLoadMessages);
+  const conversationsQuery = useMessageConversationsQuery(
+    { box: "all", limit: 3, offset: 0 },
+    canLoadMessages && isMenuOpen,
+  );
+  const unreadTotal = summaryQuery.data?.unread_total ?? 0;
+
+  useMessageRealtime({ enabled: canLoadMessages });
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    function closeOnPointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (target instanceof Node && menuRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsMenuOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeOnPointerDown);
+
+    return () => document.removeEventListener("pointerdown", closeOnPointerDown);
+  }, [isMenuOpen]);
+
+  if (!canLoadMessages) {
+    return (
+      <Link
+        href={messageHref}
+        className="relative inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10"
+        aria-label="私信"
+        title="私信"
+      >
+        <MessageCircle className="size-4" aria-hidden="true" />
+      </Link>
+    );
+  }
+
+  return (
+    <>
+      <Link
+        href={messageHref}
+        className="relative inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:hidden"
+        aria-label="私信"
+        title="私信"
+      >
+        <MessageCircle className="size-4" aria-hidden="true" />
+        {unreadTotal > 0 ? (
+          <span className="absolute right-0 top-0 min-w-4 bg-primary px-1 font-mono text-[9px] font-semibold leading-4 text-primary-foreground">
+            {unreadTotal > 99 ? "99+" : unreadTotal}
+          </span>
+        ) : null}
+      </Link>
+    <div
+      ref={menuRef}
+      className="relative hidden sm:block"
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsMenuOpen(false);
+        }
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          setIsMenuOpen(false);
+        }
+      }}
+    >
+      <button
+        type="button"
+        className="relative inline-flex size-10 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        aria-expanded={isMenuOpen}
+        aria-haspopup="menu"
+        aria-label="私信"
+        onClick={() => setIsMenuOpen((value) => !value)}
+      >
+        <MessageCircle className="size-4" aria-hidden="true" />
+        {unreadTotal > 0 ? (
+          <span className="absolute right-0 top-0 min-w-4 bg-primary px-1 font-mono text-[9px] font-semibold leading-4 text-primary-foreground">
+            {unreadTotal > 99 ? "99+" : unreadTotal}
+          </span>
+        ) : null}
+      </button>
+      <div
+        className={cn(
+          "absolute right-0 top-full z-50 mt-2 w-80 origin-top-right overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_18px_48px_rgb(0_0_0/0.38)] transition duration-150 ease-out",
+          isMenuOpen
+            ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+            : "pointer-events-none -translate-y-1 scale-[0.98] opacity-0",
+        )}
+      >
+        <div className="border-b border-border bg-background p-3">
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="size-4 text-primary" aria-hidden="true" />
+                <h2 className="truncate text-sm font-semibold text-foreground">
+                  私信
+                </h2>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {summaryQuery.data?.request_count
+                  ? `${summaryQuery.data.request_count} 条陌生人请求`
+                  : "会话和陌生人请求"}
+              </p>
+            </div>
+            <Link
+              href={messageHref}
+              className="shrink-0 text-xs font-semibold text-primary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              查看全部
+            </Link>
+          </div>
+        </div>
+        <div className="divide-y divide-border">
+          {conversationsQuery.isPending ? (
+            <div className="space-y-2 p-3" aria-label="正在加载私信">
+              <div className="h-12 animate-pulse bg-muted" />
+              <div className="h-12 animate-pulse bg-muted" />
+            </div>
+          ) : conversationsQuery.data?.conversations.length ? (
+            conversationsQuery.data.conversations.map((conversation) => (
+              <HeaderMessageMenuItem
+                key={conversation.id}
+                conversation={conversation}
+                onClose={() => setIsMenuOpen(false)}
+              />
+            ))
+          ) : (
+            <div className="p-3 text-sm leading-6 text-muted-foreground">
+              暂无私信会话。
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+    </>
+  );
+}
+
+function HeaderMessageMenuItem({
+  conversation,
+  onClose,
+}: {
+  conversation: MessageConversation;
+  onClose: () => void;
+}) {
+  const displayName = getMessageParticipantName(conversation.participant);
+  const preview = formatHeaderMessagePreview(conversation);
+  const updatedAt = formatHeaderMessageTime(conversation.updated_at);
+
   return (
     <Link
-      href="/messages"
-      className="relative inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10"
-      aria-label="私信待接入"
-      title="私信后端待接入"
+      href={`/messages/${encodeURIComponent(conversation.id)}`}
+      className="grid grid-cols-[36px_minmax(0,1fr)_auto] gap-3 px-3 py-3 text-sm transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      onClick={onClose}
     >
-      <MessageCircle className="size-4" aria-hidden="true" />
-      <span className="absolute right-0 top-0 hidden border border-background bg-primary px-1 font-mono text-[9px] font-semibold leading-4 text-primary-foreground sm:block">
-        待
+      <HeaderMessageAvatar
+        online={conversation.peer_online}
+        onlineVisible={conversation.peer_online_status_visible}
+        user={conversation.participant}
+      />
+      <span className="min-w-0 self-center">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate font-semibold text-foreground">
+            {displayName}
+          </span>
+          {conversation.request_status === "pending" ? (
+            <span className="shrink-0 text-[11px] font-semibold text-primary">
+              等待
+            </span>
+          ) : null}
+        </span>
+        <span className="mt-1 block truncate text-xs leading-5 text-muted-foreground">
+          {preview}
+        </span>
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-2 pt-0.5">
+        {updatedAt ? (
+          <span className="font-mono text-[10px] leading-none text-muted-foreground">
+            {updatedAt}
+          </span>
+        ) : null}
+        {conversation.unread_count > 0 ? (
+          <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 font-mono text-[9px] font-semibold leading-4 text-primary-foreground">
+            {conversation.unread_count > 99
+              ? "99+"
+              : conversation.unread_count}
+          </span>
+        ) : null}
       </span>
     </Link>
   );
+}
+
+function HeaderMessageAvatar({
+  online,
+  onlineVisible,
+  user,
+}: {
+  online: boolean;
+  onlineVisible: boolean;
+  user: MessageUserSummary;
+}) {
+  const name = getMessageParticipantName(user);
+
+  return (
+    <span className="relative inline-flex size-9 shrink-0 self-center">
+      {user.avatar_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={user.avatar_url}
+          alt={`${name} 的头像`}
+          className="size-full rounded-full object-cover"
+        />
+      ) : (
+        <span className="flex size-full items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">
+          {name.slice(0, 1).toUpperCase()}
+        </span>
+      )}
+      {onlineVisible ? (
+        <span
+          className={cn(
+            "absolute bottom-0 right-0 size-2.5 rounded-full border border-card",
+            online ? "bg-success" : "bg-muted-foreground",
+          )}
+        />
+      ) : null}
+    </span>
+  );
+}
+
+function getMessageParticipantName(user: MessageUserSummary) {
+  return user.display_name?.trim() || user.username;
+}
+
+function formatHeaderMessagePreview(conversation: MessageConversation) {
+  if (conversation.blocked) {
+    return "无法继续发送消息";
+  }
+
+  if (conversation.request_status === "pending") {
+    if (conversation.request_direction === "incoming" || conversation.box === "requests") {
+      return "发来一条陌生人消息";
+    }
+
+    return "等待对方通过";
+  }
+
+  const message = conversation.last_message;
+
+  if (!message) {
+    return "暂无消息";
+  }
+
+  if (message.status === "recalled") {
+    return "撤回了一条消息";
+  }
+
+  if (message.status === "image_rejected") {
+    return "图片审核失败";
+  }
+
+  if (message.type === "image") {
+    return "[图片]";
+  }
+
+  if (message.type.startsWith("share_")) {
+    return message.text || formatHeaderShareMessageText(message.type);
+  }
+
+  return message.text || "消息";
+}
+
+function formatHeaderShareMessageText(type: string) {
+  switch (type) {
+    case "share_comment":
+      return "分享[评论]";
+    case "share_user":
+      return "分享[用户]";
+    case "share_community":
+      return "分享[社区]";
+    case "share_post":
+    default:
+      return "分享[帖子]";
+  }
+}
+
+function formatHeaderMessageTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+
+  if (sameDay) {
+    return new Intl.DateTimeFormat("zh-CN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    day: "2-digit",
+    month: "2-digit",
+  }).format(date);
 }
 
 const themeOptions: Array<{

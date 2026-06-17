@@ -5,7 +5,7 @@ import { MessagePrivacySettingsPage } from "@/features/message/message-privacy-s
 
 export const metadata: Metadata = {
   title: "隐私与私信 | CUMT Nexus",
-  description: "查看 CUMT Nexus 私信隐私设置的待接入边界。",
+  description: "维护 CUMT Nexus 的私信权限和在线状态设置。",
 };
 
 export default function SettingsPrivacyRoute() {

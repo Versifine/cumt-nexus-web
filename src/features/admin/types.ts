@@ -13,6 +13,8 @@ import type { Effect } from "@/features/effect/types";
 export type AdminUser = {
   id: string;
   username: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
   status: string;
   platform_role?: PlatformRole | null;
   is_platform_staff: boolean;

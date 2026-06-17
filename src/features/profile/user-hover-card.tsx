@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { MessageCircle, User } from "lucide-react";
 
 import { HoverPreview } from "@/components/ui/hover-preview";
 import { useCurrentUserQuery } from "@/features/auth/queries";
+import type { DmCapability } from "@/features/message/types";
 import { cn } from "@/lib/utils";
 
 import { getUserDisplayTitle, getUserProgression } from "./identity";
@@ -170,19 +172,91 @@ function UserHoverCard({
 
         {!isOwnPreview && username ? (
           <span className="mt-3 flex border-t border-border pt-3">
-            <span
-              aria-disabled="true"
-              className="inline-flex cursor-not-allowed items-center gap-1.5 text-xs font-semibold text-muted-foreground/75"
-              title="私信后端未接入，当前不能向该用户发送私信。"
-            >
-              <MessageCircle className="size-3.5" aria-hidden="true" />
-              私信待接入
-            </span>
+            <HoverCardMessageAction
+              capability={profile?.dm_capability}
+              username={username}
+            />
           </span>
         ) : null}
       </span>
     </span>
   );
+}
+
+function HoverCardMessageAction({
+  capability,
+  username,
+}: {
+  capability?: DmCapability | null;
+  username: string;
+}) {
+  const href = getDmActionHref(username, capability);
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <MessageCircle className="size-3.5" aria-hidden="true" />
+        私信
+      </Link>
+    );
+  }
+
+  return (
+    <span
+      aria-disabled="true"
+      className="inline-flex cursor-not-allowed items-center gap-1.5 text-xs font-semibold text-muted-foreground/75"
+      title={formatDmCapabilityReason(capability?.reason)}
+    >
+      <MessageCircle className="size-3.5" aria-hidden="true" />
+      {formatDmCapabilityReason(capability?.reason)}
+    </span>
+  );
+}
+
+function getDmActionHref(username: string, capability?: DmCapability | null) {
+  if (!capability) {
+    return `/messages?to=${encodeURIComponent(username)}`;
+  }
+
+  if (capability.viewer_relation === "self") {
+    return null;
+  }
+
+  if (capability.reason === "unauthenticated") {
+    return `/login?next=${encodeURIComponent(
+      `/messages?to=${encodeURIComponent(username)}`,
+    )}`;
+  }
+
+  if (!capability.can_start) {
+    return null;
+  }
+
+  if (capability.direct_conversation_id) {
+    return `/messages/${encodeURIComponent(capability.direct_conversation_id)}`;
+  }
+
+  return `/messages?to=${encodeURIComponent(username)}`;
+}
+
+function formatDmCapabilityReason(reason?: string | null) {
+  switch (reason) {
+    case "blocked":
+      return "已拉黑";
+    case "privacy":
+      return "对方限制私信";
+    case "self":
+      return "本人";
+    case "unavailable":
+      return "账号不可用";
+    case "unauthenticated":
+      return "登录后私信";
+    default:
+      return "暂不可私信";
+  }
 }
 
 function UserHoverAvatar({

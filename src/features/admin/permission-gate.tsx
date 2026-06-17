@@ -8,12 +8,12 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
-import { hasLegacyPlatformStaffOnly } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { ApiError } from "@/lib/api/client";
 
-import { formatPlatformRole, resolvePlatformRole } from "./display";
+import { formatPlatformRole } from "./display";
 import type { PlatformRole } from "./types";
+import { useEffectiveAdminPlatformRole } from "./use-effective-platform-role";
 
 export function AdminPermissionGate({
   allowedRoles,
@@ -26,9 +26,14 @@ export function AdminPermissionGate({
 }) {
   const { isReady, token } = useAuthSession();
   const currentUserQuery = useCurrentUserQuery();
+  const effectivePlatformRole = useEffectiveAdminPlatformRole(currentUserQuery.data);
   const loginHref = `/login?next=${encodeURIComponent(nextPath)}`;
 
-  if (!isReady || (token && currentUserQuery.isLoading)) {
+  if (
+    !isReady ||
+    (token && currentUserQuery.isLoading) ||
+    (token && effectivePlatformRole.isResolving)
+  ) {
     return (
       <div className="border-b border-border py-4">
         <LoadingState rows={5} />
@@ -72,10 +77,7 @@ export function AdminPermissionGate({
     );
   }
 
-  const platformRole = resolvePlatformRole(currentUserQuery.data);
-  const hasOnlyLegacyStaffFlag = hasLegacyPlatformStaffOnly(
-    currentUserQuery.data,
-  );
+  const platformRole = effectivePlatformRole.role;
 
   if (!platformRole) {
     return (
@@ -91,8 +93,7 @@ export function AdminPermissionGate({
 
   if (
     allowedRoles &&
-    !allowedRoles.includes(platformRole) &&
-    !hasOnlyLegacyStaffFlag
+    !allowedRoles.includes(platformRole)
   ) {
     return (
       <div className="border-b border-border py-4">

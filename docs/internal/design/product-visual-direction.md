@@ -14,6 +14,20 @@
 dark editorial product / magazine-grade campus community interface
 ```
 
+当前样张基准：
+
+```text
+Nexus Surface / 面层式暗色社区界面
+```
+
+执行口径：
+
+- 以背景深浅、间距、字重、编号和局部色块建立层级。
+- 分割线只用于 App Shell 边界、表格、密集数据和必须明确边界的区域。
+- 不再把 `border-b`、`divide-y` 或 `border-x` 当作普通 section 的默认结构。
+- 青绿色主色只用于主动作、当前态和少量关键状态。
+- 保留当前社区产品骨架，不把页面重做成营销站或展示稿。
+
 长期约束：
 
 - 深色模式优先。

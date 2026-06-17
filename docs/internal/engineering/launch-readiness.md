@@ -493,12 +493,14 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 页面上线前必须按 `docs/design/DESIGN.md` 检查：
 
 - 仍符合 `dark editorial product / magazine-grade campus community interface`。
+- 符合 Nexus Surface 第四版：面层优先、分割线克制、主色只用于主动作和当前态。
 - 没有回到默认 SaaS 卡片堆叠或大面积渐变。
 - 用户可见文案默认是简体中文。
 - loading、empty、error、success、disabled 状态完整。
 - 移动端不出现横向溢出。
 - 长标题、长 slug、长用户名和长正文不会挤压主要操作。
-- 次级跳转优先使用文字动作、bar、色块或分割线，不把页面堆成按钮集合。
+- 次级跳转优先使用文字动作、bar 或克制色块，不把页面堆成按钮集合。
+- 页面层级不依赖大量 `border-b`、`divide-y` 或 `border-x`。
 
 ## 后端联调要求
 

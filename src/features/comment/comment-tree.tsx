@@ -11,6 +11,7 @@ import { CommentForm } from "@/features/comment/comment-form";
 import { ContentBody } from "@/features/content/content-body";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { DisabledMessageShareAction } from "@/features/message/disabled-share-action";
+import { createMessageShareSnapshot } from "@/features/message/share";
 import { ModerationQuickActions } from "@/features/moderation/moderation-quick-actions";
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
 import {
@@ -146,6 +147,13 @@ function CommentBranch({
     0,
     80,
   );
+  const messageShare = createMessageShareSnapshot({
+    shareId: comment.id,
+    shareType: "comment",
+    summary: commentTargetLabel,
+    targetUrl: `/posts/${postId}?comment=${encodeURIComponent(comment.id)}`,
+    title: "评论分享",
+  });
   const score =
     typeof comment.score === "number"
       ? comment.score
@@ -244,7 +252,7 @@ function CommentBranch({
                 postId={postId}
               />
 
-              <DisabledMessageShareAction label="发送给好友" />
+              <DisabledMessageShareAction label="发送给好友" share={messageShare} />
 
               {isAuthenticated &&
               comment.viewer_permissions?.can_report !== false ? (

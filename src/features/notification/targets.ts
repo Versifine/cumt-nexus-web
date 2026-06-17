@@ -52,6 +52,15 @@ export function resolveNotificationTarget(
     case "community_owner_transfer":
     case "community_owner_transfers":
       return resolveCommunityOwnerTransferTarget(sourceId);
+    case "platform_owner_transfer":
+    case "platform_owner_transfers":
+    case "admin_owner_transfer":
+    case "admin_owner_transfers":
+      return {
+        href: `/owner-transfer/${encodeURIComponent(sourceId)}`,
+        label: "接受负责人交接",
+        summary: "打开站点负责人交接请求",
+      };
     case "comment":
       return {
         href: null,

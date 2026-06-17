@@ -27,6 +27,7 @@ import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary
 import { canAccessCommunityManagement } from "@/features/community/permissions";
 import { MediaEmbedPlayer } from "@/features/content/media-embed-player";
 import { DisabledMessageShareAction } from "@/features/message/disabled-share-action";
+import { createMessageShareSnapshot } from "@/features/message/share";
 import { ModerationQuickActions } from "@/features/moderation/moderation-quick-actions";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { cn } from "@/lib/utils";
@@ -83,6 +84,13 @@ export function RedditPostListItem({
     typeof window === "undefined"
       ? postHref
       : new URL(postHref, window.location.origin).toString();
+  const messageShare = createMessageShareSnapshot({
+    shareId: post.id,
+    shareType: "post",
+    summary: excerpt,
+    targetUrl: postHref,
+    title: post.title,
+  });
 
   function rememberSource() {
     if (onRememberSource) {
@@ -197,7 +205,7 @@ export function RedditPostListItem({
                 ? "复制失败"
                 : "分享"}
           </button>
-          <DisabledMessageShareAction label="发送给好友" />
+          <DisabledMessageShareAction label="发送给好友" share={messageShare} />
           <PostSaveButton
             className="h-7 text-xs"
             isSaved={post.is_saved}

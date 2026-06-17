@@ -20,23 +20,21 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
 import { StatusToken } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
-import { hasLegacyPlatformStaffOnly } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { useCommunityApplicationsQuery } from "@/features/community/queries";
 import { useModerationReportsQuery } from "@/features/moderation/queries";
 import { ApiError } from "@/lib/api/client";
 
-import {
-  formatDateTime,
-  resolvePlatformRole,
-} from "./display";
+import { formatDateTime } from "./display";
 import { useAdminSettingsQuery } from "./queries";
+import { useEffectiveAdminPlatformRole } from "./use-effective-platform-role";
 
 export function AdminDashboard() {
   const currentUserQuery = useCurrentUserQuery();
-  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const effectivePlatformRole = useEffectiveAdminPlatformRole(currentUserQuery.data);
+  const platformRole = effectivePlatformRole.role;
   const canViewOperationalAdmin =
-    platformRole !== "staff" || hasLegacyPlatformStaffOnly(currentUserQuery.data);
+    platformRole === "owner" || platformRole === "admin";
   const settingsQuery = useAdminSettingsQuery(canViewOperationalAdmin);
   const reportsQuery = useModerationReportsQuery({
     limit: 5,
@@ -57,7 +55,7 @@ export function AdminDashboard() {
     reportsQuery.error ??
     applicationsQuery.error;
 
-  if (isLoading) {
+  if (isLoading || effectivePlatformRole.isResolving) {
     return (
       <div className="border-b border-border py-4">
         <LoadingState rows={6} />

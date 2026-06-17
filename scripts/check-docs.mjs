@@ -11,6 +11,7 @@ const requiredRootDocs = [
   "AGENTS.md",
   "README.md",
   "tasks.md",
+  "docs/README.md",
   "docs/design/DESIGN.md",
   "docs/design/page-patterns.md",
   "docs/design/component-rules.md",
@@ -24,12 +25,18 @@ const requiredRootDocs = [
   "docs/internal/product/frontend-experience-rebuild.md",
   "docs/internal/product/post-media-profile-rebuild.md",
   "docs/internal/product/product-targets.md",
+  "docs/internal/product/social-progression-design.md",
+  "docs/internal/product/douyin-message-system-design.md",
+  "docs/internal/product/platform-admin-design.md",
+  "docs/internal/product/platform-admin-frontend-plan.md",
+  "docs/internal/product/platform-admin-repair-plan.md",
   "docs/internal/product/v2-roadmap.md",
   "docs/internal/architecture/frontend-v1.md",
   "docs/internal/architecture/content-system.md",
   "docs/internal/architecture/content-media-api-gaps.md",
   "docs/internal/architecture/markdown-rendering.md",
   "docs/internal/design/product-visual-direction.md",
+  "docs/internal/design/ui-visual-noise-audit.md",
   "docs/internal/engineering/workflow.md",
   "docs/internal/engineering/launch-readiness.md",
   "docs/internal/engineering/deployment.md",
@@ -38,27 +45,51 @@ const requiredRootDocs = [
 
 const readmeIndexedDocs = [
   "AGENTS.md",
+  "docs/README.md",
   "docs/design/DESIGN.md",
   "docs/design/page-patterns.md",
   "docs/design/component-rules.md",
   "docs/prompts/frontend-task-template.md",
   "docs/prompts/frontend-review-template.md",
   "docs/prompts/backend-content-media-target-template.md",
+  "docs/internal/README.md",
   "docs/internal/product/frontend-information-architecture.md",
   "docs/internal/product/frontend-planning-completion.md",
   "docs/internal/product/frontend-implementation-audit.md",
   "docs/internal/product/frontend-experience-rebuild.md",
   "docs/internal/product/post-media-profile-rebuild.md",
   "docs/internal/product/product-targets.md",
+  "docs/internal/product/social-progression-design.md",
+  "docs/internal/product/douyin-message-system-design.md",
+  "docs/internal/product/platform-admin-design.md",
+  "docs/internal/product/platform-admin-frontend-plan.md",
+  "docs/internal/product/platform-admin-repair-plan.md",
   "docs/internal/product/v2-roadmap.md",
   "docs/internal/architecture/frontend-v1.md",
   "docs/internal/architecture/content-system.md",
   "docs/internal/architecture/content-media-api-gaps.md",
   "docs/internal/architecture/markdown-rendering.md",
+  "docs/internal/design/product-visual-direction.md",
+  "docs/internal/design/ui-visual-noise-audit.md",
   "docs/internal/engineering/workflow.md",
   "docs/internal/engineering/launch-readiness.md",
   "docs/internal/engineering/deployment.md",
   "docs/internal/engineering/browser-qa.md",
+];
+
+const docsReadmeIndexedDocs = [
+  "../AGENTS.md",
+  "design/DESIGN.md",
+  "design/page-patterns.md",
+  "design/component-rules.md",
+  "prompts/frontend-task-template.md",
+  "prompts/frontend-review-template.md",
+  "prompts/backend-content-media-target-template.md",
+  "internal/README.md",
+  "internal/product/",
+  "internal/architecture/",
+  "internal/design/",
+  "internal/engineering/",
 ];
 
 const internalIndexedDocs = [
@@ -68,12 +99,18 @@ const internalIndexedDocs = [
   "product/frontend-experience-rebuild.md",
   "product/post-media-profile-rebuild.md",
   "product/product-targets.md",
+  "product/social-progression-design.md",
+  "product/douyin-message-system-design.md",
+  "product/platform-admin-design.md",
+  "product/platform-admin-frontend-plan.md",
+  "product/platform-admin-repair-plan.md",
   "product/v2-roadmap.md",
   "architecture/frontend-v1.md",
   "architecture/content-system.md",
   "architecture/content-media-api-gaps.md",
   "architecture/markdown-rendering.md",
   "design/product-visual-direction.md",
+  "design/ui-visual-noise-audit.md",
   "engineering/workflow.md",
   "engineering/launch-readiness.md",
   "engineering/deployment.md",
@@ -91,6 +128,7 @@ console.log("");
 
 checkRequiredDocs();
 checkReadmeIndex();
+checkDocsReadmeIndex();
 checkInternalIndex();
 checkPromptDocs();
 checkValidationCommandDocumented();
@@ -135,6 +173,23 @@ function checkReadmeIndex() {
   }
 
   addPass("README document index", `${readmeIndexedDocs.length} project document(s) indexed`);
+}
+
+function checkDocsReadmeIndex() {
+  const docsReadme = readTextFile("docs/README.md");
+
+  if (!docsReadme) {
+    return;
+  }
+
+  const missing = docsReadmeIndexedDocs.filter((path) => !docsReadme.includes(path));
+
+  if (missing.length > 0) {
+    addFail("docs README document index", `missing index entry for ${missing.join(", ")}`);
+    return;
+  }
+
+  addPass("docs README document index", `${docsReadmeIndexedDocs.length} documentation entry point(s) indexed`);
 }
 
 function checkInternalIndex() {

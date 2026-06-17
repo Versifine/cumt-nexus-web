@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
-import { AppShell } from "@/components/app-shell/app-shell";
-import { MessageUnavailablePage } from "@/features/message/message-unavailable-page";
+import { MessageThreadPage } from "@/features/message/message-thread-page";
 
 type MessageConversationRouteProps = {
   params: Promise<{
@@ -16,7 +15,7 @@ export async function generateMetadata({
 
   return {
     title: `私信会话 ${conversationId} | CUMT Nexus`,
-    description: "查看 CUMT Nexus 私信会话的待接入边界。",
+    description: "查看 CUMT Nexus 私信会话详情。",
   };
 }
 
@@ -25,9 +24,5 @@ export default async function MessageConversationRoute({
 }: MessageConversationRouteProps) {
   const { conversationId } = await params;
 
-  return (
-    <AppShell contextLabel="私信会话">
-      <MessageUnavailablePage conversationId={conversationId} />
-    </AppShell>
-  );
+  return <MessageThreadPage conversationId={conversationId} fullscreen />;
 }

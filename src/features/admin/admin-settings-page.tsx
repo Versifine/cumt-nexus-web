@@ -60,7 +60,7 @@ export function AdminSettingsPage() {
     null;
 
   return (
-    <AdminQueueLayout rail={<SettingDetailRail settingView={selectedSetting} />}>
+    <AdminQueueLayout detail={<SettingDetailRail settingView={selectedSetting} />}>
       <AdminQueueToolbar
         description="关闭开关会影响真实用户流程，必须二次确认。"
         isRefreshing={settingsQuery.isFetching}

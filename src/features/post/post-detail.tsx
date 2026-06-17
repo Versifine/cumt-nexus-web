@@ -31,12 +31,14 @@ import {
 } from "@/features/comment/sort";
 import type { CommentSort, ListCommentsResponse } from "@/features/comment/types";
 import { ContentBody } from "@/features/content/content-body";
+import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import {
   CommunityHoverAvatar,
   CommunityHoverPreview,
 } from "@/features/community/community-hover-card";
 import { canAccessCommunityManagement } from "@/features/community/permissions";
 import { DisabledMessageShareAction } from "@/features/message/disabled-share-action";
+import { createMessageShareSnapshot } from "@/features/message/share";
 import { ModerationQuickActions } from "@/features/moderation/moderation-quick-actions";
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
@@ -550,6 +552,13 @@ function PostArticle({
     : null;
   const authorQuery = author.slug || post.author_id;
   const canQuickModerate = canModerate || canUseCommunityManage;
+  const messageShare = createMessageShareSnapshot({
+    shareId: post.id,
+    shareType: "post",
+    summary: getMarkdownPlainTextSummary(post.body, ""),
+    targetUrl: `/posts/${post.id}`,
+    title: post.title,
+  });
 
   return (
     <article className="grid grid-cols-[42px_minmax(0,1fr)] border-t border-border bg-background sm:grid-cols-[52px_minmax(0,1fr)]">
@@ -605,6 +614,7 @@ function PostArticle({
             className="h-8 font-semibold"
             iconClassName="size-4"
             label="发送给好友"
+            share={messageShare}
           />
           <PostSaveButton
             className="h-8 text-xs"

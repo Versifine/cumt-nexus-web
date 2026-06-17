@@ -96,7 +96,7 @@ function GrowthAdminLayout({
 }) {
   return (
     <AdminQueueLayout
-      rail={
+      detail={
         <>
           <AdminRailSection title="管理边界">
             <dl className="divide-y divide-border border-t border-border">

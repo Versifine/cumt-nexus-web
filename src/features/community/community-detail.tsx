@@ -16,6 +16,7 @@ import { useAuthSession } from "@/features/auth/auth-session";
 import { resolvePlatformRole, type PlatformRole } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { DisabledMessageShareAction } from "@/features/message/disabled-share-action";
+import { createMessageShareSnapshot } from "@/features/message/share";
 import { PostSortMenu } from "@/features/post/post-sort-menu";
 import { useCommunityPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
@@ -249,6 +250,14 @@ function CommunityHeader({
   community: Community;
 }) {
   const managePath = `/communities/${encodeURIComponent(community.slug)}/manage`;
+  const messageShare = createMessageShareSnapshot({
+    shareId: community.slug,
+    shareType: "community",
+    summary: community.description,
+    targetUrl: `/communities/${encodeURIComponent(community.slug)}`,
+    thumbnailUrl: community.avatar_url,
+    title: community.name,
+  });
 
   return (
     <div className="border-b border-border py-4">
@@ -286,6 +295,7 @@ function CommunityHeader({
             className="h-9 text-sm font-semibold"
             iconClassName="size-4"
             label="发送给好友"
+            share={messageShare}
           />
           <CommunityFollowButton community={community} />
         </div>
@@ -323,6 +333,14 @@ function CommunityRail({
   const topPosts = [...posts].sort((left, right) => right.score - left.score).slice(0, 3);
   const canPost = canPostToCommunity(community, isAuthenticated);
   const canManage = canManageThisCommunity(community, platformRole);
+  const messageShare = createMessageShareSnapshot({
+    shareId: community.slug,
+    shareType: "community",
+    summary: community.description,
+    targetUrl: `/communities/${encodeURIComponent(community.slug)}`,
+    thumbnailUrl: community.avatar_url,
+    title: community.name,
+  });
   const hasPlatformOwnerOverride =
     community.viewer_permissions?.platform_owner_override === true ||
     platformRole === "owner";
@@ -415,7 +433,8 @@ function CommunityRail({
             <DisabledMessageShareAction
               className="h-auto justify-start border-b border-border px-3 py-3 text-sm font-semibold"
               iconClassName="size-4"
-              label="发送给好友（待接入）"
+              label="发送给好友"
+              share={messageShare}
             />
           </div>
           {hasPlatformOwnerOverride ? (

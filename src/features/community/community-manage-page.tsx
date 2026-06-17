@@ -47,8 +47,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
+import { AdminUserPicker } from "@/features/admin/admin-user-picker";
 import {
-  useAdminUsersQuery,
   useUpdateAdminCommunityOwnerMutation,
 } from "@/features/admin/queries";
 import type { AdminUser } from "@/features/admin/types";
@@ -3868,22 +3868,12 @@ function ManageOwnerTransferPanel({
 }
 
 function PlatformOwnerTakeoverPanel({ community }: { community: Community }) {
-  const [query, setQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [reason, setReason] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const usersQuery = useAdminUsersQuery(
-    {
-      limit: 5,
-      offset: 0,
-      q: query.trim(),
-    },
-    query.trim().length > 0,
-  );
   const takeoverMutation = useUpdateAdminCommunityOwnerMutation();
-  const users = usersQuery.data?.users ?? [];
 
   async function submitTakeover() {
     setMessage(null);
@@ -3915,7 +3905,6 @@ function PlatformOwnerTakeoverPanel({ community }: { community: Community }) {
 
       setMessage(`/${result.community.slug} 的版主已更新为 @${result.owner.username}。`);
       setSelectedUser(null);
-      setQuery("");
       setReason("");
       setConfirmed(false);
     } catch (caught) {
@@ -3946,60 +3935,13 @@ function PlatformOwnerTakeoverPanel({ community }: { community: Community }) {
         </Alert>
       ) : null}
 
-      <div className="space-y-2">
-        <label className="text-xs font-semibold text-foreground" htmlFor="owner-takeover-user">
-          搜索新版主
-        </label>
-        <Input
-          id="owner-takeover-user"
-          value={query}
-          disabled={takeoverMutation.isPending}
-          placeholder="输入用户名"
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setSelectedUser(null);
-          }}
-        />
-        {usersQuery.isFetching ? (
-          <p className="text-xs leading-5 text-muted-foreground">正在搜索用户...</p>
-        ) : null}
-        {usersQuery.isError ? (
-          <p className="text-xs leading-5 text-destructive">
-            {getErrorDescription(usersQuery.error)}
-          </p>
-        ) : null}
-        {users.length > 0 ? (
-          <div className="border-y border-border">
-            {users.map((user) => {
-              const active = selectedUser?.id === user.id;
-
-              return (
-                <button
-                  key={user.id}
-                  type="button"
-                  className={`grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 border-b border-border py-3 text-left text-sm last:border-b-0 ${
-                    active ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  disabled={takeoverMutation.isPending}
-                  onClick={() => setSelectedUser(user)}
-                >
-                  <span className="min-w-0">
-                    <span className="block break-words font-semibold text-foreground [overflow-wrap:anywhere]">
-                      @{user.username}
-                    </span>
-                    <span className="mt-1 block break-words font-mono text-xs [overflow-wrap:anywhere]">
-                      {user.id}
-                    </span>
-                  </span>
-                  <StatusToken tone={active ? "primary" : "default"}>
-                    {active ? "已选择" : formatPlatformStatus(user.status)}
-                  </StatusToken>
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-      </div>
+      <AdminUserPicker
+        disabled={takeoverMutation.isPending}
+        label="新版主账号"
+        onChange={setSelectedUser}
+        placeholder="搜索新版主的用户名或昵称"
+        value={selectedUser}
+      />
 
       <div className="space-y-2">
         <label className="text-xs font-semibold text-foreground" htmlFor="owner-takeover-reason">
@@ -4975,19 +4917,6 @@ function formatViewerRole(role?: string) {
       return "访客";
     default:
       return role;
-  }
-}
-
-function formatPlatformStatus(status: string) {
-  switch (status) {
-    case "active":
-      return "正常";
-    case "disabled":
-      return "已禁用";
-    case "deleted":
-      return "已删除";
-    default:
-      return status;
   }
 }
 

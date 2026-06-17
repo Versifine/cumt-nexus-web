@@ -73,7 +73,7 @@ export function AdminAuditLogsPage({
 
   return (
     <AdminQueueLayout
-      rail={
+      detail={
         <AuditDetailRail
           log={selectedLog}
           targetId={targetId}
@@ -258,9 +258,6 @@ function AuditDetailRail({
         <div className="flex flex-col border-t border-border">
           <TextAction href="/admin/users" variant="bar">
             用户管理
-          </TextAction>
-          <TextAction href="/admin/communities" variant="bar">
-            平台社区治理
           </TextAction>
         </div>
       </AdminRailSection>

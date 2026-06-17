@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import { Children, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, RefreshCw, Search, X } from "lucide-react";
 
@@ -25,11 +25,20 @@ import { cn } from "@/lib/utils";
 
 type AdminQueueLayoutProps = {
   children: ReactNode;
-  rail: ReactNode;
+  detail?: ReactNode;
 };
 
-export function AdminQueueLayout({ children }: AdminQueueLayoutProps) {
-  return <section className="min-w-0">{children}</section>;
+export function AdminQueueLayout({ children, detail }: AdminQueueLayoutProps) {
+  const childItems = Children.toArray(children);
+  const [toolbar, ...content] = childItems;
+
+  return (
+    <section className="min-w-0">
+      {toolbar}
+      {detail ? <div className="border-b border-border py-4">{detail}</div> : null}
+      {content}
+    </section>
+  );
 }
 
 type AdminQueueToolbarProps = {
@@ -308,8 +317,32 @@ export function AdminActionDialog({
   title,
   trigger,
 }: AdminActionDialogProps) {
+  const [localError, setLocalError] = useState<string | null>(null);
+  const visibleError = error ?? localError;
+
+  async function handleConfirm() {
+    setLocalError(null);
+
+    try {
+      await onConfirm();
+    } catch (caughtError) {
+      setLocalError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "请求失败，请稍后重试。",
+      );
+    }
+  }
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setLocalError(null);
+    }
+    onOpenChange(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       {trigger}
       <DialogContent>
         <DialogHeader>
@@ -317,10 +350,10 @@ export function AdminActionDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         {children}
-        {error ? (
+        {visibleError ? (
           <Alert variant="destructive">
             <AlertTitle>操作失败</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{visibleError}</AlertDescription>
           </Alert>
         ) : null}
         <DialogFooter>
@@ -328,7 +361,7 @@ export function AdminActionDialog({
             type="button"
             variant="ghost"
             disabled={isSubmitting}
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
           >
             {cancelLabel}
           </Button>
@@ -336,7 +369,7 @@ export function AdminActionDialog({
             type="button"
             variant={confirmVariant}
             disabled={isSubmitting || confirmDisabled}
-            onClick={onConfirm}
+            onClick={handleConfirm}
           >
             {isSubmitting ? "提交中..." : confirmLabel}
           </Button>

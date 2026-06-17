@@ -12,6 +12,7 @@ import { TextAction } from "@/components/ui/text-action";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { ApiError } from "@/lib/api/client";
 
+import { AdminUserPicker } from "./admin-user-picker";
 import {
   AdminActionDialog,
   AdminAuditLink,
@@ -29,14 +30,14 @@ import {
   formatAdminCommunityStatus,
   formatDateTime,
   getAdminCommunityStatusTone,
-  resolvePlatformRole,
 } from "./display";
 import {
   useAdminCommunitiesQuery,
   useUpdateAdminCommunityOwnerMutation,
   useUpdateAdminCommunityStatusMutation,
 } from "./queries";
-import type { AdminCommunity } from "./types";
+import type { AdminCommunity, AdminUser } from "./types";
+import { useEffectiveAdminPlatformRole } from "./use-effective-platform-role";
 
 const PAGE_SIZE = 20;
 
@@ -68,7 +69,9 @@ export function AdminCommunitiesPage() {
     status,
   });
   const currentUserQuery = useCurrentUserQuery();
-  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const { role: platformRole } = useEffectiveAdminPlatformRole(
+    currentUserQuery.data,
+  );
   const canOpenCommunityManagement = platformRole === "owner";
   const communities = communitiesQuery.data?.communities ?? [];
   const selectedCommunity =
@@ -98,7 +101,7 @@ export function AdminCommunitiesPage() {
 
   return (
     <AdminQueueLayout
-      rail={
+      detail={
         <CommunityDetailRail
           canOpenCommunityManagement={canOpenCommunityManagement}
           community={selectedCommunity}
@@ -302,7 +305,8 @@ function CommunityOwnerTakeoverAction({
   community: AdminCommunity;
 }) {
   const [open, setOpen] = useState(false);
-  const [targetUserId, setTargetUserId] = useState("");
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [reason, setReason] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -310,10 +314,14 @@ function CommunityOwnerTakeoverAction({
 
   async function submit() {
     setFormError(null);
-    const trimmedUserId = targetUserId.trim();
 
-    if (!trimmedUserId) {
-      setFormError("请输入新版主的用户 ID。");
+    if (!selectedUser) {
+      setFormError("请先搜索并选择新版主账号。");
+      return;
+    }
+
+    if (!reason.trim()) {
+      setFormError("请填写接管原因。");
       return;
     }
 
@@ -324,10 +332,14 @@ function CommunityOwnerTakeoverAction({
 
     const result = await mutation.mutateAsync({
       id: community.id,
-      input: { user_id: trimmedUserId },
+      input: {
+        reason: reason.trim(),
+        user_id: selectedUser.id,
+      },
     });
     setMessage(`/${community.slug} 的版主已更新为 @${result.owner.username}。`);
-    setTargetUserId("");
+    setSelectedUser(null);
+    setReason("");
     setConfirmed(false);
     setOpen(false);
   }
@@ -359,7 +371,8 @@ function CommunityOwnerTakeoverAction({
             onClick={() => {
               setFormError(null);
               setMessage(null);
-              setTargetUserId("");
+              setSelectedUser(null);
+              setReason("");
               setConfirmed(false);
               setOpen(true);
             }}
@@ -370,10 +383,17 @@ function CommunityOwnerTakeoverAction({
         }
       >
         <div className="grid gap-3">
+          <AdminUserPicker
+            disabled={mutation.isPending}
+            label="新版主账号"
+            onChange={setSelectedUser}
+            placeholder="搜索新版主的用户名或昵称"
+            value={selectedUser}
+          />
           <Input
-            value={targetUserId}
-            onChange={(event) => setTargetUserId(event.target.value)}
-            placeholder="新版主用户 ID"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="接管原因"
             disabled={mutation.isPending}
           />
           <label className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">

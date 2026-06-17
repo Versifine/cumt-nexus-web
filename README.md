@@ -5,7 +5,7 @@
 ## 当前状态
 
 - 技术栈：Next.js App Router + React + TypeScript + Tailwind CSS + shadcn/ui + Motion。
-- 视觉方向：dark editorial product / magazine-grade campus community interface。
+- 视觉方向：dark editorial product / magazine-grade campus community interface；当前样张基准为 Nexus Surface 第四版，面层优先、分割线克制、主色只用于主动作和当前态。
 - 界面语言：用户可见文案默认使用简体中文，品牌名、技术名、URL slug、API 字段和用户生成内容保留原文。
 - 当前分支：`stage/0-web-planning`。该分支名来自早期规划阶段，当前实际承载 V1 本地封版和 V2 本地产品化推进。
 - 前端规划部分已收口：页面拓扑、App Shell、权限边界、URL 规则、内容模型和后端需求完成证明见 `docs/internal/product/frontend-planning-completion.md`。
@@ -370,12 +370,14 @@ npm run check:readiness
 ## 项目文档
 
 - `AGENTS.md`：Codex 后续工作约束。
+- `docs/README.md`：前端文档总入口。
 - `docs/design/DESIGN.md`：长期 UI/UX 风格规范。
 - `docs/design/page-patterns.md`：常见页面结构规范。
 - `docs/design/component-rules.md`：组件使用规则。
 - `docs/prompts/frontend-task-template.md`：前端实现任务模板。
 - `docs/prompts/frontend-review-template.md`：前端审查任务模板。
 - `docs/prompts/backend-content-media-target-template.md`：后端内容媒体能力目标模式提示词。
+- `docs/internal/README.md`：内部文档索引。
 - `docs/internal/product/frontend-information-architecture.md`：前端信息架构、页面拓扑、URL、权限边界和后端目标合同蓝图。
 - `docs/internal/product/frontend-planning-completion.md`：前端规划收口证明，确认规划已完成并区分实现待办和后端缺口。
 - `docs/internal/product/frontend-implementation-audit.md`：前端规划落地摸排，区分已落地、部分落地和仍未实现的能力。
@@ -383,13 +385,20 @@ npm run check:readiness
 - `docs/internal/product/v2-roadmap.md`：V2 后端能力全量前端接入路线图。
 - `docs/internal/product/frontend-experience-rebuild.md`：从真实页面体验反馈出发的前端重修拆分方案。
 - `docs/internal/product/post-media-profile-rebuild.md`：帖子媒体流、列表预览、详情页 lightbox 和公开用户主页重构计划。
+- `docs/internal/product/social-progression-design.md`：关注、头衔、等级、积分和消耗型特殊互动的产品合同设计。
+- `docs/internal/product/douyin-message-system-design.md`：抖音式私信系统设计。
+- `docs/internal/product/platform-admin-design.md`：平台管理功能设计。
+- `docs/internal/product/platform-admin-frontend-plan.md`：平台管理前端实施计划。
+- `docs/internal/product/platform-admin-repair-plan.md`：平台管理权限与流程修复计划。
 - `docs/internal/architecture/frontend-v1.md`：前端 V1 架构、路由和 API 边界。
 - `docs/internal/architecture/content-system.md`：内容系统产品形态、评论树、图片和 embed 边界。
 - `docs/internal/architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端合同核对文档。
 - `docs/internal/architecture/markdown-rendering.md`：Reddit Markdown renderer 选型、安全边界和实施切片。
+- `docs/internal/design/product-visual-direction.md`：内部设计索引，指向 `docs/design/` 的权威规范。
+- `docs/internal/design/ui-visual-noise-audit.md`：视觉噪音排查与改进记录。
 - `docs/internal/engineering/workflow.md`：阶段推进、分支、文档和验证规则。
 - `docs/internal/engineering/launch-readiness.md`：上线前自检、阻塞项和人工 QA 范围。
 - `docs/internal/engineering/deployment.md`：生产部署、环境变量、CORS、发布后验证和回滚标准。
 - `docs/internal/engineering/browser-qa.md`：真实浏览器人工 QA 步骤、失败分级和记录模板。
 
-页面实现前必须先阅读 `AGENTS.md` 和 `docs/design/*`，并且每次只推进一个小的纵向切片。
+页面实现前必须先阅读 `AGENTS.md` 和 `docs/design/*`。新增、删除或重命名文档后，必须同步 `README.md`、`docs/README.md`、`docs/internal/README.md` 和 `scripts/check-docs.mjs`，再运行 `npm run check:docs`。

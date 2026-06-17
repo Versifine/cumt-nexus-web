@@ -10,6 +10,9 @@ import {
 
 import { useCurrentUserQuery, useMyPointsQuery } from "@/features/auth/queries";
 import type { PointAccount } from "@/features/auth/types";
+import { DisabledMessageShareAction } from "@/features/message/disabled-share-action";
+import { createMessageShareSnapshot } from "@/features/message/share";
+import type { DmCapability } from "@/features/message/types";
 import { cn } from "@/lib/utils";
 
 import {
@@ -79,6 +82,14 @@ export function PublicUserHeader({
   const pointsQuery = useMyPointsQuery(isOwnProfile);
   const displayTitle = getUserDisplayTitle(user);
   const progression = getUserProgression(user);
+  const userShare = createMessageShareSnapshot({
+    shareId: user.username,
+    shareType: "user",
+    summary: user.headline || user.bio,
+    targetUrl: `/users/${encodeURIComponent(user.username)}`,
+    thumbnailUrl: user.avatar_url,
+    title: displayName,
+  });
 
   return (
     <div>
@@ -123,7 +134,13 @@ export function PublicUserHeader({
                   viewerIsFollowing={user.viewer_is_following}
                 />
                 <DisabledProfileMessageAction
-                  reason={user.dm_capability?.reason}
+                  capability={user.dm_capability}
+                  username={user.username}
+                />
+                <DisabledMessageShareAction
+                  className="h-8 border border-border bg-background/70 px-2 text-xs font-semibold"
+                  label="分享"
+                  share={userShare}
                 />
               </div>
             )}
@@ -217,20 +234,80 @@ export function PublicUserHeader({
   );
 }
 
-function DisabledProfileMessageAction({ reason }: { reason?: string | null }) {
-  const title =
-    reason?.trim() || "私信后端未接入，当前不能向该用户发送私信。";
+function DisabledProfileMessageAction({
+  capability,
+  username,
+}: {
+  capability?: DmCapability | null;
+  username: string;
+}) {
+  const href = getDmActionHref(username, capability);
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="inline-flex h-8 items-center gap-1.5 border border-border bg-background/70 px-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
+        <MessageCircle className="size-3.5" aria-hidden="true" />
+        私信
+      </Link>
+    );
+  }
 
   return (
     <span
       aria-disabled="true"
       className="inline-flex h-8 cursor-not-allowed items-center gap-1.5 border border-border bg-background/70 px-2 text-xs font-semibold text-muted-foreground/75"
-      title={title}
+      title={formatDmCapabilityReason(capability?.reason)}
     >
       <MessageCircle className="size-3.5" aria-hidden="true" />
-      私信待接入
+      {formatDmCapabilityReason(capability?.reason)}
     </span>
   );
+}
+
+function getDmActionHref(username: string, capability?: DmCapability | null) {
+  if (!capability) {
+    return `/messages?to=${encodeURIComponent(username)}`;
+  }
+
+  if (capability.viewer_relation === "self") {
+    return null;
+  }
+
+  if (capability.reason === "unauthenticated") {
+    return `/login?next=${encodeURIComponent(
+      `/messages?to=${encodeURIComponent(username)}`,
+    )}`;
+  }
+
+  if (!capability.can_start) {
+    return null;
+  }
+
+  if (capability.direct_conversation_id) {
+    return `/messages/${encodeURIComponent(capability.direct_conversation_id)}`;
+  }
+
+  return `/messages?to=${encodeURIComponent(username)}`;
+}
+
+function formatDmCapabilityReason(reason?: string | null) {
+  switch (reason) {
+    case "blocked":
+      return "已拉黑";
+    case "privacy":
+      return "对方限制私信";
+    case "self":
+      return "本人";
+    case "unavailable":
+      return "账号不可用";
+    case "unauthenticated":
+      return "登录后私信";
+    default:
+      return "暂不可私信";
+  }
 }
 
 export function PublicUserRail({

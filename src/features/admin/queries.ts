@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 
 import { effectQueryKeys } from "@/features/effect/queries";
+import { notificationQueryKeys } from "@/features/notification/queries";
 import { progressionQueryKeys } from "@/features/progression/queries";
 import { authQueryKeys } from "@/features/auth/query-keys";
 
@@ -214,6 +215,7 @@ export function useUpdateAdminUserPlatformRoleMutation() {
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: adminQueryKeys.all }),
         queryClient.invalidateQueries({ queryKey: authQueryKeys.me() }),
+        queryClient.invalidateQueries({ queryKey: notificationQueryKeys.all }),
       ]);
     },
   });
@@ -263,6 +265,7 @@ export function useCancelAdminOwnerTransferMutation() {
         queryClient.invalidateQueries({
           queryKey: adminQueryKeys.ownerTransferById(transferId),
         }),
+        queryClient.invalidateQueries({ queryKey: notificationQueryKeys.all }),
       ]);
     },
   });
@@ -286,6 +289,7 @@ export function useAcceptOwnerTransferMutation() {
           queryKey: adminQueryKeys.ownerTransferById(transferId),
         }),
         queryClient.invalidateQueries({ queryKey: authQueryKeys.me() }),
+        queryClient.invalidateQueries({ queryKey: notificationQueryKeys.all }),
       ]);
     },
   });

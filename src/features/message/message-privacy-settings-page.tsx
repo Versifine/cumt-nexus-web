@@ -1,106 +1,381 @@
-import { EyeOff, MessageCircle, ShieldAlert, UserCheck } from "lucide-react";
+"use client";
 
+import { FormEvent, useState } from "react";
+import {
+  Check,
+  EyeOff,
+  MessageCircle,
+  Save,
+  ShieldAlert,
+  UserCheck,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+
+import { EmptyState } from "@/components/feedback/empty-state";
+import { ErrorState } from "@/components/feedback/error-state";
+import { LoadingState } from "@/components/feedback/loading-state";
+import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
+import { useAuthSession } from "@/features/auth/auth-session";
+import { ApiError } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 
-const settingRows = [
+import {
+  useMessagePrivacyMutation,
+  useMessagePrivacyQuery,
+} from "./queries";
+import type { MessagePrivacyAllow } from "./types";
+
+const allowOptions: Array<{
+  description: string;
+  icon: LucideIcon;
+  label: string;
+  value: MessagePrivacyAllow;
+}> = [
   {
-    checked: true,
+    description: "互关用户直接进入普通会话，非互关进入陌生人请求。",
+    icon: Users,
+    label: "所有人可发起",
+    value: "everyone",
+  },
+  {
+    description: "只有互关用户可以发起私信，其他用户会被隐私设置拦截。",
     icon: UserCheck,
-    label: "互关用户可直接发私信",
-    text: "后端接入后，互关用户进入普通会话；非互关进入陌生人请求。",
+    label: "仅互关",
+    value: "mutuals",
   },
   {
-    checked: true,
-    icon: ShieldAlert,
-    label: "陌生人请求箱",
-    text: "请求未接受前只能发送首条文字或分享卡片，不能连续追发。",
-  },
-  {
-    checked: false,
+    description: "不接收新的私信发起，已有会话是否可发由当前会话状态决定。",
     icon: EyeOff,
-    label: "展示在线状态",
-    text: "默认关闭；开启后仅互关可见。关闭后也不能查看对方在线状态。",
+    label: "不接收",
+    value: "none",
   },
 ];
 
 export function MessagePrivacySettingsPage() {
+  const { isReady, token } = useAuthSession();
+  const canLoad = isReady && Boolean(token);
+  const privacyQuery = useMessagePrivacyQuery(canLoad);
+  const privacyMutation = useMessagePrivacyMutation();
+  const [draftAllowMessages, setDraftAllowMessages] =
+    useState<MessagePrivacyAllow | null>(null);
+  const [draftOnlineStatusEnabled, setDraftOnlineStatusEnabled] =
+    useState<boolean | null>(null);
+  const allowMessages =
+    draftAllowMessages ?? privacyQuery.data?.allow_messages ?? "everyone";
+  const onlineStatusEnabled =
+    draftOnlineStatusEnabled ??
+    privacyQuery.data?.online_status_enabled ??
+    false;
+  const isDirty = Boolean(
+    privacyQuery.data &&
+      (allowMessages !== privacyQuery.data.allow_messages ||
+        onlineStatusEnabled !== privacyQuery.data.online_status_enabled),
+  );
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    privacyMutation.mutate({
+      allow_messages: allowMessages,
+      online_status_enabled: onlineStatusEnabled,
+    });
+  }
+
+  if (!isReady) {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-3 py-6 sm:px-4 lg:px-0">
+        <LoadingState rows={4} />
+      </div>
+    );
+  }
+
+  if (!token) {
+    return (
+      <div className="mx-auto w-full max-w-5xl px-3 py-6 sm:px-4 lg:px-0">
+        <EmptyState
+          title="登录后管理私信设置"
+          description="私信权限和在线状态设置需要登录后同步。"
+          action={
+            <TextAction href="/login?next=%2Fsettings%2Fprivacy">
+              去登录
+            </TextAction>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (privacyQuery.isPending) {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-3 py-6 sm:px-4 lg:px-0">
+        <LoadingState rows={5} />
+      </div>
+    );
+  }
+
+  if (privacyQuery.isError) {
+    return (
+      <div className="mx-auto w-full max-w-5xl px-3 py-6 sm:px-4 lg:px-0">
+        <ErrorState
+          title="隐私设置暂时无法加载"
+          description={getErrorMessage(privacyQuery.error)}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-4 lg:px-0">
-      <header className="border-b border-border pb-5">
-        <p className="font-mono text-xs font-semibold tracking-normal text-primary">
-          隐私设置
-        </p>
-        <div className="mt-2 flex min-w-0 flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold leading-8 tracking-normal text-foreground sm:text-3xl sm:leading-10">
-            隐私与私信
-          </h1>
-          <span className="inline-flex h-8 items-center border border-primary/40 bg-primary/10 px-2 font-mono text-[11px] font-semibold text-primary">
-            私信权限待接入
-          </span>
-        </div>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          当前页面只展示未来私信设置的合同边界。后端未提供私信隐私接口前，不能保存或读取真实设置。
-        </p>
-      </header>
+    <div className="mx-auto w-full max-w-6xl sm:px-4 sm:py-4 lg:px-0">
+      <div className="overflow-hidden border-border bg-background sm:border-x lg:border-y">
+        <div className="grid min-h-[calc(100vh-104px)] lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="border-b border-border bg-background px-4 py-5 lg:border-b-0 lg:border-r">
+            <TextAction href="/messages" direction="back">
+              私信
+            </TextAction>
+            <div className="mt-6">
+              <p className="font-mono text-xs font-semibold text-primary">
+                隐私设置
+              </p>
+              <h1 className="mt-2 text-2xl font-semibold leading-8 text-foreground">
+                隐私与私信
+              </h1>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                控制谁可以发起私信，以及互关会话是否展示在线状态。
+              </p>
+            </div>
 
-      <main className="grid min-w-0 gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <section className="min-w-0 border-y border-border">
-          {settingRows.map((row) => (
-            <div
-              key={row.label}
-              className="grid grid-cols-[24px_minmax(0,1fr)_48px] gap-3 border-b border-border py-4 last:border-b-0"
-            >
-              <row.icon
-                className="mt-1 size-4 text-primary"
-                aria-hidden="true"
+            <div className="mt-6 border-y border-border">
+              <SettingStat
+                label="私信权限"
+                value={formatAllowLabel(allowMessages)}
               />
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-foreground">
-                  {row.label}
-                </h2>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  {row.text}
-                </p>
-              </div>
-              <span
-                aria-disabled="true"
-                aria-label={row.checked ? "默认开启，暂不可修改" : "默认关闭，暂不可修改"}
-                className="mt-1 inline-flex h-6 w-11 items-center border border-border bg-background-soft px-0.5"
-              >
-                <span
-                  className={
-                    row.checked
-                      ? "ml-auto size-4 bg-primary"
-                      : "size-4 bg-muted-foreground/40"
-                  }
-                />
-              </span>
+              <SettingStat
+                label="在线状态"
+                value={onlineStatusEnabled ? "互关可见" : "关闭"}
+              />
             </div>
-          ))}
-        </section>
+          </aside>
 
-        <aside className="min-w-0">
-          <section className="border-y border-border py-4">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="size-4 text-primary" aria-hidden="true" />
-              <h2 className="text-sm font-semibold text-foreground">
-                前端处理
-              </h2>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              私信入口、用户主页动作和分享动作都会保持禁用态，直到后端合同、schema、错误码和 verifier 全部落地。
-            </p>
-            <div className="mt-4 flex flex-col border-t border-border">
-              <TextAction href="/messages" variant="bar">
-                查看私信边界
-              </TextAction>
-              <TextAction href="/settings/profile" variant="bar">
-                返回资料设置
-              </TextAction>
-            </div>
-          </section>
-        </aside>
-      </main>
+          <form className="flex min-w-0 flex-col" onSubmit={submit}>
+            <main className="min-w-0 flex-1 px-4 py-5 sm:px-6">
+              <SettingSection
+                description="陌生人请求未接受前不能连续追发，拉黑后双方不能继续发送。"
+                icon={ShieldAlert}
+                title="谁可以发起私信"
+              >
+                <div className="divide-y divide-border border-y border-border">
+                  {allowOptions.map((option) => (
+                    <PermissionOption
+                      key={option.value}
+                      checked={allowMessages === option.value}
+                      description={option.description}
+                      icon={option.icon}
+                      label={option.label}
+                      name="allow_messages"
+                      onChange={() => setDraftAllowMessages(option.value)}
+                      value={option.value}
+                    />
+                  ))}
+                </div>
+              </SettingSection>
+
+              <SettingSection
+                className="mt-8"
+                description="默认关闭。开启后也只对互关用户展示；关闭后你也不能查看对方在线状态。"
+                icon={MessageCircle}
+                title="在线状态"
+              >
+                <label className="flex cursor-pointer items-center justify-between gap-4 border-y border-border py-4">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-foreground">
+                      展示在线状态
+                    </span>
+                    <span className="mt-1 block text-sm leading-6 text-muted-foreground">
+                      仅在互关且双方允许时显示。
+                    </span>
+                  </span>
+                  <span
+                    className={cn(
+                      "inline-flex h-7 w-12 shrink-0 items-center rounded-full border border-border bg-background-soft p-0.5 transition-colors",
+                      onlineStatusEnabled ? "border-primary bg-primary/20" : "",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "size-5 rounded-full bg-muted-foreground/50 transition-transform",
+                        onlineStatusEnabled
+                          ? "translate-x-5 bg-primary"
+                          : "translate-x-0",
+                      )}
+                    />
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={onlineStatusEnabled}
+                      onChange={(event) =>
+                        setDraftOnlineStatusEnabled(event.target.checked)
+                      }
+                    />
+                  </span>
+                </label>
+              </SettingSection>
+            </main>
+
+            <footer className="border-t border-border bg-background px-4 py-4 sm:px-6">
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  {privacyMutation.isError ? (
+                    <p className="text-sm leading-6 text-destructive">
+                      {getErrorMessage(privacyMutation.error)}
+                    </p>
+                  ) : privacyMutation.isSuccess ? (
+                    <p className="inline-flex items-center gap-2 text-sm text-primary">
+                      <Check className="size-4" aria-hidden="true" />
+                      设置已保存
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      设置会影响新的会话发起和在线状态展示。
+                    </p>
+                  )}
+                </div>
+                <Button
+                  type="submit"
+                  disabled={privacyMutation.isPending || !isDirty}
+                >
+                  <Save className="size-4" aria-hidden="true" />
+                  保存
+                </Button>
+              </div>
+            </footer>
+          </form>
+        </div>
+      </div>
     </div>
   );
+}
+
+function PermissionOption({
+  checked,
+  description,
+  icon: Icon,
+  label,
+  name,
+  onChange,
+  value,
+}: {
+  checked: boolean;
+  description: string;
+  icon: LucideIcon;
+  label: string;
+  name: string;
+  onChange: () => void;
+  value: MessagePrivacyAllow;
+}) {
+  return (
+    <label
+      className={cn(
+        "grid cursor-pointer grid-cols-[32px_minmax(0,1fr)_24px] gap-3 py-4 transition-colors hover:bg-surface-hover/40 sm:px-3",
+        checked ? "bg-primary/10" : "",
+      )}
+    >
+      <span
+        className={cn(
+          "mt-0.5 inline-flex size-8 items-center justify-center rounded-full border",
+          checked
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-border bg-background-soft text-muted-foreground",
+        )}
+      >
+        <Icon className="size-4" aria-hidden="true" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-foreground">
+          {label}
+        </span>
+        <span className="mt-1 block text-sm leading-6 text-muted-foreground">
+          {description}
+        </span>
+      </span>
+      <span
+        className={cn(
+          "mt-1 flex size-5 items-center justify-center rounded-full border",
+          checked ? "border-primary bg-primary" : "border-border",
+        )}
+      >
+        {checked ? (
+          <Check className="size-3 text-primary-foreground" aria-hidden="true" />
+        ) : null}
+        <input
+          type="radio"
+          name={name}
+          value={value}
+          checked={checked}
+          onChange={onChange}
+          className="sr-only"
+        />
+      </span>
+    </label>
+  );
+}
+
+function SettingSection({
+  children,
+  className,
+  description,
+  icon: Icon,
+  title,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  description: string;
+  icon: LucideIcon;
+  title: string;
+}) {
+  return (
+    <section className={cn(className)}>
+      <div className="mb-3 flex items-start gap-3">
+        <span className="inline-flex size-9 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
+          <Icon className="size-4" aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-foreground">{title}</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {description}
+          </p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SettingStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border py-3 last:border-b-0">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-semibold text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function formatAllowLabel(value: MessagePrivacyAllow) {
+  switch (value) {
+    case "mutuals":
+      return "仅互关";
+    case "none":
+      return "不接收";
+    case "everyone":
+    default:
+      return "所有人";
+  }
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  return "请求失败，请稍后重试。";
 }

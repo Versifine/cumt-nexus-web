@@ -19,18 +19,16 @@ import { TextAction } from "@/components/ui/text-action";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { ApiError } from "@/lib/api/client";
 
+import { AdminUserIdentity, getAdminUserDisplayName } from "./admin-user-picker";
 import {
-  AdminActionDialog,
   AdminAuditLink,
-  AdminDetailRail,
+  AdminActionDialog,
   AdminEmptyPanel,
   AdminErrorPanel,
   AdminLoadingPanel,
   AdminPagination,
   AdminQueueLayout,
   AdminQueueToolbar,
-  AdminRailSection,
-  AdminResourceRow,
 } from "./admin-queue";
 import { AdminUserSanctionsAction } from "./admin-user-sanctions";
 import {
@@ -48,6 +46,7 @@ import {
   useUpdateAdminUserMutation,
 } from "./queries";
 import type { AdminUser, EditablePlatformRole, PlatformRole } from "./types";
+import { useEffectiveAdminPlatformRole } from "./use-effective-platform-role";
 
 const PAGE_SIZE = 20;
 
@@ -86,17 +85,18 @@ export function AdminUsersPage() {
   const [query, setQuery] = useState("");
   const [offset, setOffset] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const shouldLoadUsers = Boolean(query) || status !== "all";
   const usersQuery = useAdminUsersQuery({
     limit: PAGE_SIZE,
     offset,
     q: query,
     status,
-  });
+  }, shouldLoadUsers);
   const currentUserQuery = useCurrentUserQuery();
-  const users = usersQuery.data?.users ?? [];
+  const users = shouldLoadUsers ? (usersQuery.data?.users ?? []) : [];
   const selectedUser =
-    users.find((user) => user.id === selectedUserId) ?? users[0] ?? null;
-  const actorRole = resolvePlatformRole(currentUserQuery.data);
+    users.find((user) => user.id === selectedUserId) ?? null;
+  const { role: actorRole } = useEffectiveAdminPlatformRole(currentUserQuery.data);
   const canManagePlatformRoles = actorRole === "owner";
 
   function changeStatus(nextStatus: string) {
@@ -120,37 +120,44 @@ export function AdminUsersPage() {
   }
 
   return (
-    <AdminQueueLayout
-      rail={
-        <UserDetailRail
-          actorRole={actorRole}
-          canManagePlatformRoles={canManagePlatformRoles}
-          user={selectedUser}
-        />
-      }
-    >
+    <AdminQueueLayout>
       <AdminQueueToolbar
         activeTab={status}
-        description={`当前查看${formatAdminUserStatus(status)}用户，范围从 ${offset + 1} 开始。`}
+        description={
+          shouldLoadUsers
+            ? `当前查看${formatAdminUserStatus(status)}用户，范围从 ${offset + 1} 开始。`
+            : "输入用户名或昵称后搜索；不会默认铺开所有用户。"
+        }
         isRefreshing={usersQuery.isFetching}
-        onRefresh={() => {
-          void usersQuery.refetch();
-        }}
+        onRefresh={
+          shouldLoadUsers
+            ? () => {
+                void usersQuery.refetch();
+              }
+            : undefined
+        }
         onSearchClear={clearSearch}
         onSearchSubmit={submitSearch}
         onSearchValueChange={setQueryInput}
         onTabChange={changeStatus}
         searchAriaLabel="搜索用户"
-        searchDisabled={usersQuery.isPending}
-        searchPlaceholder="搜索用户名或 ID"
+        searchDisabled={usersQuery.isFetching}
+        searchPlaceholder="搜索用户名或昵称"
         searchValue={queryInput}
         tabs={statusTabs}
-        title="用户队列"
+        title="用户查找"
       />
 
-      {usersQuery.isPending ? <AdminLoadingPanel rows={6} /> : null}
+      {!shouldLoadUsers ? (
+        <AdminEmptyPanel
+          title="先搜索用户"
+          description="输入用户名或昵称，选择匹配用户后直接调整平台管理员、平台审核员、账号状态或处罚记录。"
+        />
+      ) : null}
 
-      {usersQuery.isError ? (
+      {shouldLoadUsers && usersQuery.isPending ? <AdminLoadingPanel rows={6} /> : null}
+
+      {shouldLoadUsers && usersQuery.isError ? (
         <AdminErrorPanel
           title="无法加载用户"
           description={getErrorDescription(usersQuery.error)}
@@ -162,45 +169,72 @@ export function AdminUsersPage() {
         />
       ) : null}
 
-      {usersQuery.isSuccess && users.length === 0 ? (
+      {shouldLoadUsers && usersQuery.isSuccess && users.length === 0 ? (
         <AdminEmptyPanel
           title="没有匹配用户"
           description={
-            query ? "换一个用户名、用户 ID 或切换状态后再试。" : "切换状态或稍后刷新。"
+            query ? "换一个用户名或昵称，或切换状态后再试。" : "切换状态或稍后刷新。"
           }
         />
       ) : null}
 
       {users.length > 0 ? (
         <>
-          <div className="border-b border-border">
+          <div className="divide-y divide-border border-b border-border">
             {users.map((user, index) => {
               const platformRole = resolvePlatformRole(user);
+              const isSelected = selectedUser?.id === user.id;
+              const displayName = getAdminUserDisplayName(user);
 
               return (
-                <AdminResourceRow
-                  key={user.id}
-                  index={offset + index}
-                  isSelected={selectedUser?.id === user.id}
-                  onSelect={() => setSelectedUserId(user.id)}
-                  icon={<UserCog className="size-4" aria-hidden="true" />}
-                  title={`@${user.username}`}
-                  tokens={
-                    <>
-                      <StatusToken tone={getAdminUserStatusTone(user.status)}>
-                        {formatAdminUserStatus(user.status)}
-                      </StatusToken>
-                      <StatusToken tone={getPlatformRoleTone(platformRole)}>
-                        {formatPlatformRole(platformRole)}
-                      </StatusToken>
-                      {!user.platform_role && user.is_platform_staff ? (
-                        <StatusToken>兼容权限</StatusToken>
-                      ) : null}
-                    </>
-                  }
-                  meta={`创建 ${formatDateTime(user.created_at)} · 更新 ${formatDateTime(user.updated_at)} · ${formatShortId(user.id)}`}
-                  actions={<StatusToken>详情</StatusToken>}
-                />
+                <section key={user.id} className={isSelected ? "bg-background-soft/35" : undefined}>
+                  <button
+                    type="button"
+                    className="grid w-full min-w-0 gap-3 border-l-2 border-l-transparent px-3 py-4 text-left transition-colors hover:bg-background-soft/35 data-[selected=true]:border-l-primary sm:grid-cols-[minmax(0,1fr)_auto]"
+                    data-selected={isSelected}
+                    onClick={() => setSelectedUserId(isSelected ? null : user.id)}
+                  >
+                    <span className="grid min-w-0 gap-3 sm:grid-cols-[40px_minmax(0,1fr)]">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {String(offset + index + 1).padStart(2, "0")}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="flex min-w-0 flex-wrap items-center gap-2">
+                          <UserCog className="size-4 text-primary" aria-hidden="true" />
+                          <span className="min-w-0 break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
+                            {displayName}
+                          </span>
+                          <span className="text-xs text-muted-foreground">@{user.username}</span>
+                          <StatusToken tone={getAdminUserStatusTone(user.status)}>
+                            {formatAdminUserStatus(user.status)}
+                          </StatusToken>
+                          <StatusToken tone={getPlatformRoleTone(platformRole)}>
+                            {formatPlatformRole(platformRole)}
+                          </StatusToken>
+                          {!user.platform_role && user.is_platform_staff ? (
+                            <StatusToken>兼容权限</StatusToken>
+                          ) : null}
+                        </span>
+                        <span className="mt-2 block text-xs leading-5 text-muted-foreground">
+                          创建 {formatDateTime(user.created_at)} · 更新{" "}
+                          {formatDateTime(user.updated_at)} · {formatShortId(user.id)}
+                        </span>
+                      </span>
+                    </span>
+                    <span className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      <span className="text-xs font-semibold text-primary">
+                        {isSelected ? "收起" : "管理"}
+                      </span>
+                    </span>
+                  </button>
+                  {isSelected ? (
+                    <UserManagementPanel
+                      actorRole={actorRole}
+                      canManagePlatformRoles={canManagePlatformRoles}
+                      user={user}
+                    />
+                  ) : null}
+                </section>
               );
             })}
           </div>
@@ -228,81 +262,60 @@ export function AdminUsersPage() {
   );
 }
 
-function UserDetailRail({
+function UserManagementPanel({
   actorRole,
   canManagePlatformRoles,
   user,
 }: {
   actorRole: PlatformRole | null;
   canManagePlatformRoles: boolean;
-  user: AdminUser | null;
+  user: AdminUser;
 }) {
   const platformRole = resolvePlatformRole(user);
 
   return (
-    <>
-      <AdminDetailRail title="用户上下文" emptyTitle="选择用户">
-        {user ? (
-          <div className="space-y-4">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusToken tone={getAdminUserStatusTone(user.status)}>
-                  {formatAdminUserStatus(user.status)}
-                </StatusToken>
-                <StatusToken tone={getPlatformRoleTone(platformRole)}>
-                  {formatPlatformRole(platformRole)}
-                </StatusToken>
-              </div>
-              <h3 className="mt-3 break-words text-lg font-semibold">
-                @{user.username}
-              </h3>
-              <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
-                {user.id}
-              </p>
-            </div>
-            <dl className="divide-y divide-border border-y border-border">
-              <InfoRow label="创建" value={formatDateTime(user.created_at)} />
-              <InfoRow label="更新" value={formatDateTime(user.updated_at)} />
-              <InfoRow
-                label="兼容 staff"
-                value={user.is_platform_staff ? "是" : "否"}
-              />
-            </dl>
-            <div className="grid gap-2">
-              <UserPlatformRoleAction
-                canManage={canManagePlatformRoles}
-                key={`${user.id}:${platformRole ?? "none"}`}
-                user={user}
-              />
-              <AdminUserSanctionsAction actorRole={actorRole} user={user} />
-              <UserStatusAction
-                actorRole={actorRole}
-                key={`${user.id}:${user.status}:${actorRole ?? "none"}`}
-                user={user}
-              />
-            </div>
-          </div>
-        ) : null}
-      </AdminDetailRail>
-
-      <AdminRailSection title="权限边界">
-        <p className="text-sm leading-6 text-muted-foreground">
-          只有站点负责人可以调整平台管理员和平台审核员。站点负责人本身不在这里提权或解除，需要单独所有权转移、部署初始化或离线恢复。
-        </p>
-      </AdminRailSection>
-
-      <AdminRailSection title="相关入口">
-        <div className="flex flex-col border-t border-border">
-          <TextAction href="/admin/growth" variant="bar">
-            积分与头衔
-          </TextAction>
-          <TextAction href="/admin/owner-transfer" variant="bar">
-            负责人交接
-          </TextAction>
-          <AdminAuditLink targetType="user" targetId={user?.id} />
+    <div className="border-t border-border px-3 py-4">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+        <div className="min-w-0 space-y-4">
+          <AdminUserIdentity user={user} />
+          <dl className="grid grid-cols-1 border-y border-border sm:grid-cols-3">
+            <InfoRow label="创建" value={formatDateTime(user.created_at)} />
+            <InfoRow label="更新" value={formatDateTime(user.updated_at)} />
+            <InfoRow
+              label="兼容 staff"
+              value={user.is_platform_staff ? "是" : "否"}
+            />
+          </dl>
+          <p className="text-xs leading-5 text-muted-foreground">
+            只有站点负责人可以调整平台管理员和平台审核员。站点负责人本身不在这里提权或解除，需要单独负责人交接、部署初始化或离线恢复。
+          </p>
         </div>
-      </AdminRailSection>
-    </>
+        <div className="min-w-0 space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <UserPlatformRoleAction
+              canManage={canManagePlatformRoles}
+              key={`${user.id}:${platformRole ?? "none"}`}
+              user={user}
+            />
+            <AdminUserSanctionsAction actorRole={actorRole} user={user} />
+            <UserStatusAction
+              actorRole={actorRole}
+              key={`${user.id}:${user.status}:${actorRole ?? "none"}`}
+              user={user}
+            />
+          </div>
+          <div className="flex flex-col border-t border-border">
+            <TextAction href="/admin/growth" variant="bar">
+              积分与头衔
+            </TextAction>
+            <TextAction href="/admin/owner-transfer" variant="bar">
+              负责人交接
+            </TextAction>
+            <AdminAuditLink targetType="user" targetId={user.id} />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

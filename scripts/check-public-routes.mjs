@@ -18,7 +18,14 @@ const frontendUrl = normalizeUrl(
     "http://localhost:3000",
 );
 
-const appShellHrefMarkers = ["/", "/all", "/following", "/communities", "/messages"];
+const appShellHrefMarkers = [
+  "/",
+  "/all",
+  "/following",
+  "/communities",
+  "/messages",
+  "/style-guide",
+];
 
 const routes = [
   {
@@ -50,6 +57,11 @@ const routes = [
     hrefMarkers: [...appShellHrefMarkers],
     markers: ["CUMT Nexus", "按全站源展示公开讨论", "热门"],
     path: "/all/hot",
+  },
+  {
+    hrefMarkers: [...appShellHrefMarkers, "#button", "#toast"],
+    markers: ["CUMT Nexus", "全量组件统一展示页", "所有 TSX 组件文件", "Button"],
+    path: "/style-guide",
   },
   {
     hrefMarkers: [
@@ -103,14 +115,13 @@ const routes = [
   {
     hrefMarkers: [
       ...appShellHrefMarkers,
-      "/messages",
-      "/settings/profile",
+      "/login?next=%2Fsettings%2Fprivacy",
     ],
     markers: [
       "CUMT Nexus",
       "隐私与私信",
-      "私信权限待接入",
-      "后端未提供",
+      "登录后管理私信设置",
+      "去登录",
     ],
     path: "/settings/privacy",
   },
@@ -350,33 +361,29 @@ const routes = [
     path: "/notifications",
   },
   {
-    hrefMarkers: [
-      ...appShellHrefMarkers,
-      "/settings/privacy",
-      "/notifications",
-    ],
+    hrefMarkers: ["/login?next=%2Fmessages"],
     markers: [
-      "CUMT Nexus",
       "私信",
-      "后端待接入",
-      "不显示已读",
-      "分享卡片设计",
+      "登录后查看私信",
+      "去登录",
     ],
     path: "/messages",
   },
   {
-    hrefMarkers: [
-      ...appShellHrefMarkers,
-      "/settings/privacy",
-      "/notifications",
-    ],
+    hrefMarkers: ["/login?next=%2Fmessages%2Frequests"],
     markers: [
-      "CUMT Nexus",
       "私信",
-      "私信会话",
-      "请求的会话 ID：",
-      "route-smoke",
-      "后端待接入",
+      "登录后查看私信",
+      "去登录",
+    ],
+    path: "/messages/requests",
+  },
+  {
+    hrefMarkers: ["/login?next=%2Fmessages%2Froute-smoke"],
+    markers: [
+      "私信",
+      "登录后查看私信",
+      "去登录",
     ],
     path: "/messages/route-smoke",
   },

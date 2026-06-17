@@ -20,7 +20,11 @@ import {
   sendLoginEmailCode,
   sendRegisterEmailCode,
 } from "./api";
-import { getAuthSubmitError } from "./auth-error";
+import {
+  emailCodeLoginAuthErrorOptions,
+  getAuthSubmitError,
+  passwordLoginAuthErrorOptions,
+} from "./auth-error";
 import { useAuthSession } from "./auth-session";
 import {
   emailCodeLoginSchema,
@@ -56,6 +60,7 @@ export function QuickPasswordLoginForm({ className, onSuccess }: QuickAuthFormPr
     },
   });
   const submitError = getAuthSubmitError(loginMutation.error, {
+    ...passwordLoginAuthErrorOptions,
     unauthenticated: "用户名、邮箱或密码不正确。",
   });
   const isLocked = loginMutation.isPending || loginMutation.isSuccess;
@@ -143,9 +148,10 @@ export function QuickEmailCodeLoginForm({ className, onSuccess }: QuickAuthFormP
     },
   });
   const submitError = getAuthSubmitError(loginMutation.error, {
+    ...emailCodeLoginAuthErrorOptions,
     unauthenticated: "验证码无效、已过期，或该邮箱尚未绑定账号。",
   });
-  const sendError = getAuthSubmitError(sendCodeMutation.error);
+  const sendError = getAuthSubmitError(sendCodeMutation.error, emailCodeLoginAuthErrorOptions);
   const isLocked =
     sendCodeMutation.isPending || loginMutation.isPending || loginMutation.isSuccess;
 
