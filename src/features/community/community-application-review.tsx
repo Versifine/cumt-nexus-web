@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   CheckCircle2,
   ChevronLeft,
@@ -10,23 +10,21 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { PageNav } from "@/components/app-shell/page-nav";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  InfoRow,
-  MetricBlock,
   StatusToken,
   type StatusTokenTone,
 } from "@/components/ui/data-display";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
-import { useCurrentUserQuery } from "@/features/auth/queries";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { resolvePlatformRole } from "@/features/auth/platform-role";
+import { useCurrentUserQuery } from "@/features/auth/queries";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -63,8 +61,8 @@ export function CommunityApplicationReview() {
   const [rejectReason, setRejectReason] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [lastReviewMessage, setLastReviewMessage] = useState<string | null>(null);
-  const canReview =
-    isReady && Boolean(token) && currentUserQuery.data?.is_platform_staff === true;
+  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const canReview = isReady && Boolean(token) && Boolean(platformRole);
   const applicationsQuery = useCommunityApplicationsQuery(
     {
       status,
@@ -84,28 +82,9 @@ export function CommunityApplicationReview() {
   const rejectMutation = useRejectCommunityApplicationMutation();
   const isReviewing = approveMutation.isPending || rejectMutation.isPending;
   const submitError = getSubmitError(approveMutation.error ?? rejectMutation.error);
-  const loginHref = `/login?next=${encodeURIComponent("/community-applications/review")}`;
-
-  const metrics = useMemo(
-    () => [
-      {
-        label: "当前视图",
-        value: formatApplicationStatus(status),
-      },
-      {
-        label: "本页数量",
-        value: String(applications.length),
-      },
-      {
-        label: "分页",
-        value:
-          applications.length > 0
-            ? `${offset + 1}-${offset + applications.length}`
-            : "0-0",
-      },
-    ],
-    [applications.length, offset, status],
-  );
+  const loginHref = `/login?next=${encodeURIComponent(
+    "/admin/community-applications",
+  )}`;
 
   async function approveSelectedApplication() {
     if (!selectedApplication) {
@@ -121,7 +100,7 @@ export function CommunityApplicationReview() {
         `已通过 /${result.application.requested_slug}，社区 ${result.community.name} 已创建。`,
       );
     } catch {
-      // TanStack Query exposes the mutation error through state for the page alert.
+      // Mutation state drives the visible error alert.
     }
   }
 
@@ -149,7 +128,7 @@ export function CommunityApplicationReview() {
       setRejectReason("");
       setLastReviewMessage(`已拒绝 /${result.application.requested_slug}。`);
     } catch {
-      // TanStack Query exposes the mutation error through state for the page alert.
+      // Mutation state drives the visible error alert.
     }
   }
 
@@ -163,34 +142,47 @@ export function CommunityApplicationReview() {
   }
 
   if (!isReady || (token && currentUserQuery.isLoading)) {
-    return <ReviewShell body={<LoadingPanel />} />;
+    return (
+      <ReviewLayout
+        applicationsCount={0}
+        body={<LoadingPanel />}
+        currentUserState="确认中"
+        offset={0}
+        status={status}
+      />
+    );
   }
 
   if (!token) {
     return (
-      <ReviewShell
+      <ReviewLayout
+        applicationsCount={0}
         body={
-          <div className="py-6">
+          <StatePanel>
             <EmptyState
               title="登录后审核社区申请"
-              description="社区申请审核需要平台 staff 身份。登录后会自动确认权限。"
+              description="社区申请审核需要平台管理权限。登录后会自动确认权限。"
               action={
                 <TextAction href={loginHref} tone="primary">
                   登录
                 </TextAction>
               }
             />
-          </div>
+          </StatePanel>
         }
+        currentUserState="未登录"
+        offset={0}
+        status={status}
       />
     );
   }
 
   if (currentUserQuery.isError) {
     return (
-      <ReviewShell
+      <ReviewLayout
+        applicationsCount={0}
         body={
-          <div className="py-6">
+          <StatePanel>
             <ErrorState
               title="无法确认用户身份"
               description={getErrorDescription(currentUserQuery.error)}
@@ -200,169 +192,288 @@ export function CommunityApplicationReview() {
                 </Button>
               }
             />
-          </div>
+          </StatePanel>
         }
+        currentUserState="验证失败"
+        offset={0}
+        status={status}
       />
     );
   }
 
-  if (!currentUserQuery.data?.is_platform_staff) {
+  if (!platformRole) {
     return (
-      <ReviewShell
+      <ReviewLayout
+        applicationsCount={0}
         body={
-          <div className="py-6">
+          <StatePanel>
             <EmptyState
               title="需要平台权限"
-              description="当前账号不是平台 staff，不能查看社区申请列表或执行审批。"
-              action={<TextAction href="/">返回最新讨论</TextAction>}
+              description="当前账号没有平台管理权限，不能查看社区申请列表或执行审批。"
+              action={<TextAction href="/">信息流首页</TextAction>}
             />
-          </div>
+          </StatePanel>
         }
+        currentUserState="无权限"
+        offset={0}
+        status={status}
       />
     );
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <PageNav backHref="/community-applications/new" backLabel="返回社区申请" />
+    <ReviewLayout
+      applicationsCount={applications.length}
+      currentUserState={formatReviewerRole(platformRole)}
+      offset={offset}
+      status={status}
+      toolbar={
+        <ReviewToolbar
+          isFetching={applicationsQuery.isFetching}
+          onRefresh={() => {
+            void applicationsQuery.refetch({ cancelRefetch: false });
+          }}
+          onStatusChange={changeStatus}
+          status={status}
+        />
+      }
+      body={
+        <>
+          {submitError ? (
+            <Alert variant="destructive" className="mx-3 mt-4 sm:mx-4">
+              <AlertTitle>审批失败</AlertTitle>
+              <AlertDescription>{submitError}</AlertDescription>
+            </Alert>
+          ) : null}
 
-        <header className="border-b border-border pb-6 pt-6">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-end">
-            <div className="min-w-0">
-              <div className="font-mono text-xs uppercase text-primary">
-                CUMT NEXUS / 社区申请审核
-              </div>
-              <h1 className="mt-4 text-5xl font-black leading-[0.95] tracking-normal text-foreground md:text-6xl">
-                审批社区申请
-              </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
-                读取后端待审列表和申请详情，平台 staff 可以在同一工作台完成通过或拒绝。
-              </p>
-            </div>
+          {lastReviewMessage ? (
+            <Alert variant="success" className="mx-3 mt-4 sm:mx-4">
+              <AlertTitle>审批已提交</AlertTitle>
+              <AlertDescription>{lastReviewMessage}</AlertDescription>
+            </Alert>
+          ) : null}
 
-            <div className="grid grid-cols-3 border border-border text-center">
-              {metrics.map((metric) => (
-                <MetricBlock
-                  key={metric.label}
-                  label={metric.label}
-                  value={metric.value}
-                />
-              ))}
-            </div>
-          </div>
-        </header>
+          <section className="grid gap-0 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+            <ApplicationListPanel
+              applications={applications}
+              applicationsQueryState={{
+                error: applicationsQuery.error,
+                isError: applicationsQuery.isError,
+                isFetching: applicationsQuery.isFetching,
+                isLoading: applicationsQuery.isLoading,
+                refetch: applicationsQuery.refetch,
+              }}
+              offset={offset}
+              onNextPage={() => {
+                setOffset(offset + PAGE_SIZE);
+                setSelectedApplicationId(null);
+              }}
+              onPreviousPage={() => {
+                setOffset(Math.max(0, offset - PAGE_SIZE));
+                setSelectedApplicationId(null);
+              }}
+              onSelect={setSelectedApplicationId}
+              selectedId={selectedId}
+            />
 
-        <section className="border-b border-border py-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <Tabs
-              value={status}
-              onValueChange={(value) =>
-                changeStatus(value as CommunityApplicationStatus)
-              }
-            >
-              <TabsList className="rounded-none border-border bg-background p-0">
-                {statusTabs.map((tab) => (
-                  <TabsTrigger
-                    key={tab.status}
-                    value={tab.status}
-                    className="rounded-none border-r border-border last:border-r-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                  >
-                    {tab.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={applicationsQuery.isFetching}
-                onClick={() => applicationsQuery.refetch()}
-              >
-                <RefreshCw className="size-4" aria-hidden="true" />
-                刷新
-              </Button>
-            </div>
-          </div>
-        </section>
-
-        {submitError ? (
-          <Alert variant="destructive" className="mt-5">
-            <AlertTitle>审批失败</AlertTitle>
-            <AlertDescription>{submitError}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        {lastReviewMessage ? (
-          <Alert variant="success" className="mt-5">
-            <AlertTitle>审批已提交</AlertTitle>
-            <AlertDescription>{lastReviewMessage}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <section className="grid gap-0 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
-          <ApplicationListPanel
-            applications={applications}
-            applicationsQueryState={{
-              error: applicationsQuery.error,
-              isError: applicationsQuery.isError,
-              isFetching: applicationsQuery.isFetching,
-              isLoading: applicationsQuery.isLoading,
-              refetch: applicationsQuery.refetch,
-            }}
-            offset={offset}
-            onNextPage={() => {
-              setOffset(offset + PAGE_SIZE);
-              setSelectedApplicationId(null);
-            }}
-            onPreviousPage={() => {
-              setOffset(Math.max(0, offset - PAGE_SIZE));
-              setSelectedApplicationId(null);
-            }}
-            onSelect={setSelectedApplicationId}
-            selectedId={selectedId}
-          />
-
-          <ApplicationDetailPanel
-            application={selectedApplication}
-            detailError={selectedQuery.error}
-            formError={formError}
-            isDetailError={selectedQuery.isError}
-            isDetailLoading={selectedQuery.isLoading && Boolean(selectedId)}
-            isReviewing={isReviewing}
-            onApprove={approveSelectedApplication}
-            onReject={rejectSelectedApplication}
-            onRejectReasonChange={(value) => {
-              setRejectReason(value);
-              if (formError) {
-                setFormError(null);
-              }
-            }}
-            onRetryDetail={() => selectedQuery.refetch()}
-            rejectReason={rejectReason}
-          />
-        </section>
-      </div>
-    </main>
+            <ApplicationDetailPanel
+              application={selectedApplication}
+              detailError={selectedQuery.error}
+              formError={formError}
+              isDetailError={selectedQuery.isError}
+              isDetailLoading={selectedQuery.isLoading && Boolean(selectedId)}
+              isReviewing={isReviewing}
+              onApprove={approveSelectedApplication}
+              onReject={rejectSelectedApplication}
+              onRejectReasonChange={(value) => {
+                setRejectReason(value);
+                if (formError) {
+                  setFormError(null);
+                }
+              }}
+              onRetryDetail={() => selectedQuery.refetch()}
+              rejectReason={rejectReason}
+            />
+          </section>
+        </>
+      }
+    />
   );
 }
 
-function ReviewShell({ body }: { body: React.ReactNode }) {
+function ReviewLayout({
+  applicationsCount,
+  body,
+  currentUserState,
+  offset,
+  status,
+  toolbar,
+}: {
+  applicationsCount: number;
+  body: ReactNode;
+  currentUserState: string;
+  offset: number;
+  status: CommunityApplicationStatus;
+  toolbar?: ReactNode;
+}) {
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[960px] px-4 py-6 md:px-6">
-        <PageNav backHref="/community-applications/new" backLabel="返回社区申请" />
-        {body}
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="min-w-0">
+        <section className="bg-background">
+          <ReviewHeader
+            applicationsCount={applicationsCount}
+            offset={offset}
+            status={status}
+          />
+        </section>
+
+        <section className="bg-background">
+          <div className="flex min-h-12 flex-col gap-3 border-b border-border py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold">申请审批</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                当前查看{formatApplicationStatus(status)}申请
+              </p>
+            </div>
+            {toolbar}
+          </div>
+          {body}
+        </section>
       </div>
-    </main>
+
+      <ReviewRail
+        applicationsCount={applicationsCount}
+        currentUserState={currentUserState}
+        status={status}
+      />
+    </div>
   );
+}
+
+function ReviewHeader({
+  applicationsCount,
+  offset,
+  status,
+}: {
+  applicationsCount: number;
+  offset: number;
+  status: CommunityApplicationStatus;
+}) {
+  return (
+    <div className="border-b border-border py-4">
+      <div className="min-w-0">
+        <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
+          社区审批
+        </h1>
+        <p className="mt-1 truncate font-mono text-xs text-primary">
+          /admin/community-applications
+        </p>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+          当前查看{formatApplicationStatus(status)}申请，本页 {applicationsCount} 条
+          {applicationsCount > 0
+            ? `，范围 ${offset + 1}-${offset + applicationsCount}。`
+            : "。"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ReviewToolbar({
+  isFetching,
+  onRefresh,
+  onStatusChange,
+  status,
+}: {
+  isFetching: boolean;
+  onRefresh: () => void;
+  onStatusChange: (status: CommunityApplicationStatus) => void;
+  status: CommunityApplicationStatus;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Tabs value={status} onValueChange={(value) => onStatusChange(value as CommunityApplicationStatus)}>
+        <TabsList className="h-9 rounded-none bg-transparent p-0">
+          {statusTabs.map((tab) => (
+            <TabsTrigger
+              key={tab.status}
+              value={tab.status}
+              className="h-9 rounded-none border-b border-transparent px-3 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
+            >
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        disabled={isFetching}
+        onClick={onRefresh}
+      >
+        <RefreshCw
+          className={isFetching ? "size-4 animate-spin" : "size-4"}
+          aria-hidden="true"
+        />
+        {isFetching ? "刷新中" : "刷新"}
+      </Button>
+    </div>
+  );
+}
+
+function ReviewRail({
+  applicationsCount,
+  currentUserState,
+  status,
+}: {
+  applicationsCount: number;
+  currentUserState: string;
+  status: CommunityApplicationStatus;
+}) {
+  return (
+    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
+      <div className="sticky top-20 right-rail-scroll space-y-6">
+        <section className="border-b border-border pb-5">
+          <h2 className="text-sm font-semibold">审批上下文</h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            当前身份为 {currentUserState}，正在查看{formatApplicationStatus(status)}
+            申请，本页 {applicationsCount} 条。
+          </p>
+        </section>
+
+        <section className="border-b border-border pb-5">
+          <h2 className="text-sm font-semibold">处理规则</h2>
+          <ol className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
+            <li><span className="font-mono text-primary">01</span> 审批前以详情内容为准。</li>
+            <li><span className="font-mono text-primary">02</span> 拒绝申请必须填写原因。</li>
+            <li><span className="font-mono text-primary">03</span> 通过和拒绝都由后端校验平台权限。</li>
+          </ol>
+        </section>
+
+        <section>
+          <h2 className="text-sm font-semibold">其他入口</h2>
+          <div className="mt-3 flex flex-col border-t border-border">
+            <TextAction href="/community-applications/new" variant="bar">
+              社区申请
+            </TextAction>
+            <TextAction href="/communities" variant="bar">
+              社区列表
+            </TextAction>
+          </div>
+        </section>
+      </div>
+    </aside>
+  );
+}
+
+function StatePanel({ children }: { children: ReactNode }) {
+  return <div className="border-b border-border py-4">{children}</div>;
 }
 
 function LoadingPanel() {
   return (
-    <div className="py-6">
+    <div className="border-b border-border py-4">
       <LoadingState rows={5} />
     </div>
   );
@@ -392,15 +503,17 @@ function ApplicationListPanel({
   selectedId: string | null;
 }) {
   return (
-    <aside className="border-b border-border py-5 lg:border-b-0 lg:border-r lg:pr-5">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
+    <aside className="border-b border-border py-4 xl:border-b-0 xl:border-r xl:pr-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold">申请列表</h2>
           <p className="mt-1 text-xs text-muted-foreground">
             按状态分页读取后端申请。
           </p>
         </div>
-        <StatusToken>{applicationsQueryState.isFetching ? "同步中" : "已同步"}</StatusToken>
+        <span className="font-mono text-xs text-muted-foreground">
+          {applicationsQueryState.isFetching ? "同步中" : "已同步"}
+        </span>
       </div>
 
       {applicationsQueryState.isLoading ? <LoadingState rows={5} /> : null}
@@ -427,14 +540,16 @@ function ApplicationListPanel({
       ) : null}
 
       {applications.length > 0 ? (
-        <div className="divide-y divide-border border-y border-border">
+        <div className="border-t border-border">
           {applications.map((application, index) => (
             <button
               key={application.id}
               type="button"
               className={cn(
-                "grid w-full grid-cols-[44px_minmax(0,1fr)] gap-3 py-4 text-left transition-colors hover:bg-background-soft/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                selectedId === application.id ? "bg-primary/10" : null,
+                "grid w-full grid-cols-[40px_minmax(0,1fr)] gap-3 border-b border-l-2 border-b-border py-3 pr-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                selectedId === application.id
+                  ? "border-l-primary text-primary"
+                  : "border-l-transparent hover:text-primary",
               )}
               onClick={() => onSelect(application.id)}
             >
@@ -462,8 +577,9 @@ function ApplicationListPanel({
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
+          className="px-1 hover:bg-transparent hover:text-primary"
           disabled={offset === 0 || applicationsQueryState.isFetching}
           onClick={onPreviousPage}
         >
@@ -474,8 +590,9 @@ function ApplicationListPanel({
           OFFSET {offset}
         </span>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
+          className="px-1 hover:bg-transparent hover:text-primary"
           disabled={applications.length < PAGE_SIZE || applicationsQueryState.isFetching}
           onClick={onNextPage}
         >
@@ -514,7 +631,7 @@ function ApplicationDetailPanel({
 }) {
   if (isDetailLoading) {
     return (
-      <section className="py-5 lg:pl-5">
+      <section className="py-4 xl:pl-4">
         <LoadingState rows={6} />
       </section>
     );
@@ -522,7 +639,7 @@ function ApplicationDetailPanel({
 
   if (isDetailError) {
     return (
-      <section className="py-5 lg:pl-5">
+      <section className="py-4 xl:pl-4">
         <ErrorState
           title="无法加载申请详情"
           description={getErrorDescription(detailError)}
@@ -538,10 +655,10 @@ function ApplicationDetailPanel({
 
   if (!application) {
     return (
-      <section className="py-5 lg:pl-5">
+      <section className="py-4 xl:pl-4">
         <EmptyState
           title="选择一条申请"
-          description="从左侧列表选择申请后，可以查看详情并执行审批动作。"
+          description="从申请列表选择项目后，可以查看详情并执行审批动作。"
           action={<ClipboardList className="size-5 text-primary" aria-hidden="true" />}
         />
       </section>
@@ -551,37 +668,45 @@ function ApplicationDetailPanel({
   const canReview = application.status === "pending";
 
   return (
-    <section className="py-5 lg:pl-5">
-      <div className="border-b border-border pb-5">
+    <section className="py-4 xl:pl-4">
+      <div className="border-b border-border pb-4">
         <div className="flex flex-wrap items-center gap-2">
           <ApplicationStatusToken status={application.status} />
           <span className="font-mono text-xs text-muted-foreground">
             {application.id}
           </span>
         </div>
-        <h2 className="mt-4 text-3xl font-black leading-tight tracking-normal text-foreground">
+        <h2 className="mt-3 break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
           {application.requested_name}
         </h2>
-        <p className="mt-2 font-mono text-sm text-primary">
+        <p className="mt-1 break-words font-mono text-xs text-primary">
           /{application.requested_slug}
         </p>
       </div>
 
-      <div className="divide-y divide-border border-b border-border">
-        <InfoRow label="申请人" value={formatShortId(application.applicant_id)} />
-        <InfoRow label="创建时间" value={formatDateTime(application.created_at)} />
-        <InfoRow label="更新时间" value={formatDateTime(application.updated_at)} />
-        <InfoRow
+      <div className="grid grid-cols-1 border-b border-border sm:grid-cols-2">
+        <ApplicationMeta label="申请人" value={formatShortId(application.applicant_id)} />
+        <ApplicationMeta label="创建时间" value={formatDateTime(application.created_at)} />
+        <ApplicationMeta label="更新时间" value={formatDateTime(application.updated_at)} />
+        <ApplicationMeta
           label="审核人"
-          value={application.reviewed_by ? formatShortId(application.reviewed_by) : "尚未审核"}
+          value={
+            application.reviewed_by
+              ? formatShortId(application.reviewed_by)
+              : "尚未审核"
+          }
         />
-        <InfoRow
+        <ApplicationMeta
           label="审核时间"
-          value={application.reviewed_at ? formatDateTime(application.reviewed_at) : "尚未审核"}
+          value={
+            application.reviewed_at
+              ? formatDateTime(application.reviewed_at)
+              : "尚未审核"
+          }
         />
       </div>
 
-      <section className="border-b border-border py-5">
+      <section className="border-b border-border py-4">
         <h3 className="text-sm font-semibold">申请理由</h3>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
           {application.reason}
@@ -589,7 +714,7 @@ function ApplicationDetailPanel({
       </section>
 
       {application.reject_reason ? (
-        <section className="border-b border-border py-5">
+        <section className="border-b border-border py-4">
           <h3 className="text-sm font-semibold text-destructive">拒绝原因</h3>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
             {application.reject_reason}
@@ -597,8 +722,8 @@ function ApplicationDetailPanel({
         </section>
       ) : null}
 
-      <section className="py-5">
-        <div className="mb-3 flex items-center justify-between">
+      <section className="py-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold">审核动作</h3>
           <StatusToken tone={canReview ? "primary" : "default"}>
             {canReview ? "可审核" : "已结束"}
@@ -615,7 +740,7 @@ function ApplicationDetailPanel({
               className="min-h-28 border-border bg-background text-sm leading-7"
               aria-invalid={Boolean(formError)}
             />
-            <div className="flex flex-col gap-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
               <p className={formError ? "text-destructive" : "text-muted-foreground"}>
                 {formError ?? "通过后后端会创建社区并建立 owner 成员关系。"}
               </p>
@@ -646,6 +771,23 @@ function ApplicationDetailPanel({
         )}
       </section>
     </section>
+  );
+}
+
+function ApplicationMeta({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-0 border-b border-border py-3 last:border-b-0 sm:border-r sm:px-3 sm:last:border-r-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
+      <div className="mt-1 break-words text-sm font-medium text-foreground">
+        {value}
+      </div>
+    </div>
   );
 }
 
@@ -701,6 +843,19 @@ function formatApplicationStatus(status: string) {
   }
 }
 
+function formatReviewerRole(role: ReturnType<typeof resolvePlatformRole>) {
+  switch (role) {
+    case "owner":
+      return "站点负责人";
+    case "admin":
+      return "平台管理员";
+    case "staff":
+      return "平台审核员";
+    default:
+      return "平台权限";
+  }
+}
+
 function formatShortId(value: string) {
   return value.slice(0, 8);
 }
@@ -711,3 +866,4 @@ function formatDateTime(value: string) {
     timeStyle: "short",
   }).format(new Date(value));
 }
+

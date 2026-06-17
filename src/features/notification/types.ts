@@ -1,4 +1,6 @@
-export type NotificationStatus = "unread" | "read" | "all";
+export type NotificationCategory =
+  | "interactions"
+  | "system";
 
 export type Notification = {
   id: string;
@@ -8,24 +10,33 @@ export type Notification = {
   body: string;
   source_type: string;
   source_id: string;
+  actor?: NotificationActor | null;
+  aggregate_count?: number;
+  last_actor?: NotificationActor | null;
+  last_actor_id?: string;
   read_at?: string | null;
   created_at: string;
   updated_at: string;
 };
 
+export type NotificationActor = {
+  id: string;
+  username: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
+};
+
 export type ListNotificationsInput = {
-  status?: NotificationStatus;
+  category?: NotificationCategory;
   limit?: number;
   offset?: number;
 };
 
 export type ListNotificationsResponse = {
   notifications: Notification[];
-  status: NotificationStatus | string;
+  category: NotificationCategory | string;
   limit: number;
   offset: number;
-};
-
-export type MarkNotificationReadResponse = {
-  notification: Notification;
+  next_offset: number;
+  has_more: boolean;
 };

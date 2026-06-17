@@ -51,11 +51,17 @@ if (backendReachable) {
   await checkCommunityPosts();
   await checkPublishPost();
   await checkLatestPosts();
+  await checkPostSorts();
   await checkPostDetail();
+  await checkSavePost();
+  await checkSavedPosts("saved posts after save", true);
+  await checkDeletePostSave();
+  await checkSavedPosts("saved posts after unsave", false);
   await checkListComments("initial comments");
   await checkPublishComment();
   await checkPublishChildComment();
   await checkListComments("created comment tree");
+  await checkCommentSorts();
   await checkSetVote("upvote", 1);
   await checkSetVote("downvote", -1);
   await checkDeleteVote();
@@ -296,6 +302,34 @@ async function checkLatestPosts() {
   addPass("latest posts", "created post appears in latest feed");
 }
 
+async function checkPostSorts() {
+  const sorts = ["best", "hot", "new", "top", "rising"];
+
+  for (const sort of sorts) {
+    const response = await request(
+      `/api/v1/posts?sort=${encodeURIComponent(sort)}&limit=5&offset=0`,
+      { token: null },
+    );
+
+    if (!expectOk(response, `post sort ${sort}`)) {
+      continue;
+    }
+
+    if (!Array.isArray(response.json?.posts)) {
+      addFail(
+        `post sort ${sort}`,
+        `unexpected response payload: ${preview(response.bodyText)}`,
+      );
+      continue;
+    }
+
+    addPass(
+      `post sort ${sort}`,
+      `sort=${sort} returned ${response.json.posts.length} public post item(s)`,
+    );
+  }
+}
+
 async function checkPostDetail() {
   const response = await request(`/api/v1/posts/${encodeURIComponent(postId)}`);
 
@@ -309,6 +343,64 @@ async function checkPostDetail() {
   }
 
   addPass("post detail", "created post detail is readable");
+}
+
+async function checkSavePost() {
+  const response = await request(`/api/v1/posts/${encodeURIComponent(postId)}/save`, {
+    allowEmptyBody: true,
+    method: "POST",
+  });
+
+  if (!expectOk(response, "save post")) {
+    return;
+  }
+
+  addPass("save post", "created post can be saved");
+}
+
+async function checkSavedPosts(name, shouldContainPost) {
+  const response = await request("/api/v1/me/saved-posts?limit=20&offset=0");
+
+  if (!expectOk(response, name)) {
+    return;
+  }
+
+  const posts = response.json?.posts;
+  if (!Array.isArray(posts)) {
+    addFail(name, `unexpected response payload: ${preview(response.bodyText)}`);
+    return;
+  }
+
+  const containsPost = posts.some((post) => post?.id === postId);
+  if (containsPost !== shouldContainPost) {
+    addFail(
+      name,
+      shouldContainPost
+        ? `created post ${postId} is missing from saved posts`
+        : `created post ${postId} is still present after unsave`,
+    );
+    return;
+  }
+
+  addPass(
+    name,
+    shouldContainPost
+      ? "saved posts include created post"
+      : "saved posts no longer include created post",
+  );
+}
+
+async function checkDeletePostSave() {
+  const response = await request(`/api/v1/posts/${encodeURIComponent(postId)}/save`, {
+    allowEmptyBody: true,
+    method: "DELETE",
+  });
+
+  if (!expectOk(response, "unsave post")) {
+    return;
+  }
+
+  addPass("unsave post", "created post save can be removed");
 }
 
 async function checkListComments(name) {
@@ -360,6 +452,52 @@ async function checkListComments(name) {
   }
 
   addPass(name, `${comments.length} comment item(s) returned`);
+}
+
+async function checkCommentSorts() {
+  const sorts = ["best", "top", "new", "old", "controversial"];
+
+  for (const sort of sorts) {
+    const response = await request(
+      `/api/v1/posts/${encodeURIComponent(postId)}/comments?view=tree&sort=${encodeURIComponent(sort)}&limit=20&offset=0&max_depth=6`,
+    );
+
+    if (!expectOk(response, `comment sort ${sort}`)) {
+      continue;
+    }
+
+    const comments = response.json?.comments;
+    if (!Array.isArray(comments)) {
+      addFail(
+        `comment sort ${sort}`,
+        `unexpected response payload: ${preview(response.bodyText)}`,
+      );
+      continue;
+    }
+
+    const rootComment = comments.find((comment) => comment?.id === commentId);
+    const childComment = comments.find((comment) => comment?.id === childCommentId);
+    if (!rootComment || !childComment) {
+      addFail(
+        `comment sort ${sort}`,
+        `expected root ${commentId} and child ${childCommentId} in sorted comment tree`,
+      );
+      continue;
+    }
+
+    if (childComment.parent_id !== commentId) {
+      addFail(
+        `comment sort ${sort}`,
+        `child comment parent_id mismatch: expected ${commentId}, received ${childComment.parent_id}`,
+      );
+      continue;
+    }
+
+    addPass(
+      `comment sort ${sort}`,
+      `sort=${sort} returned ${comments.length} comment tree item(s)`,
+    );
+  }
 }
 
 async function checkPublishComment() {

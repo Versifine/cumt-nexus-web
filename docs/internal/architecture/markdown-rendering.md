@@ -1,6 +1,6 @@
 # Reddit Markdown 渲染选型与安全边界
 
-本文定义 CUMT Nexus Web Reddit-style Markdown 正文渲染的实施方案和当前安全边界。`react-markdown` 与 `remark-gfm` 已作为 V2 依赖接入；后续新增 Markdown、HTML、embed 或 sanitize 相关依赖时，仍必须按 `AGENTS.md` 说明用途、替代方案和影响范围，并获得用户明确同意。
+本文定义 CUMT Nexus Web Reddit-style Markdown 正文渲染和写作器的实施方案与当前安全边界。阅读态使用 `react-markdown` + `remark-gfm`；写作态使用 Tiptap 单一实时渲染编辑面，提交和存储格式仍然是 Markdown。后续新增 Markdown、HTML、embed 或 sanitize 相关依赖时，仍必须说明用途、替代方案和影响范围，并获得用户明确同意。
 
 产品目标：
 
@@ -11,9 +11,9 @@ Reddit-style Markdown parity
 含义：
 
 - 帖子和评论正文能力对齐 Reddit Markdown。
-- 常用格式通过写作器工具动作承接。
-- 高级用户可以直接输入 Markdown。
-- 不强制编辑 / 预览双模式。
+- 常用格式通过写作器工具动作作用于当前选区或当前块。
+- 高级用户仍可以粘贴或输入 Markdown，由写作器解析成渲染后的编辑内容。
+- 写作器只有一个实时渲染编辑面，不默认暴露 Markdown 源码，也不做编辑 / 预览双模式。
 - 阅读态直接渲染最终内容。
 - 不存用户 HTML，不开放任意 iframe。
 
@@ -22,26 +22,35 @@ Reddit-style Markdown parity
 已实现：
 
 - 发帖、根评论、回复评论、帖子编辑和评论编辑使用单一写作面板。
-- 写作器提供加粗、斜体、引用、代码、链接和涂黑工具动作。
+- 写作器基于 Tiptap，提供加粗、斜体、标题、删除线、引用、无序列表、有序列表、行内代码、代码块、链接、涂黑、表格、图片和白名单媒体嵌入。
+- 写作器工具栏不再向 textarea 插入 Markdown 字符串，而是对当前选区或当前块执行 Tiptap command；`editor.getMarkdown()` 负责把编辑内容序列化为提交给后端的 Markdown。
 - 帖子正文和评论正文通过 `src/features/content/content-body.tsx` 渲染。
 - 当前渲染器使用 `react-markdown` + `remark-gfm`。
 - 支持 GFM 表格、任务列表、删除线、代码块、引用、列表、标题和链接。
 - 支持 `>! ... !<` spoiler / 涂黑语法。
 - 支持 Reddit-style 上标预处理。
+- Reddit-style spoiler 和上标预处理不会改写行内代码、fenced code block、Markdown 链接 / 图片语法。
+- 支持显式引用式链接 / 图片 `[文本][ref]`、`![图][ref]` + `[ref]: URL`，会在统一渲染入口内转换为安全普通链接 / 图片语法，并隐藏定义行。
+- 支持 `r/community` 和 `u/user` 自动链接到本项目社区与用户路由。
 - 链接只允许站内路径、锚点、`http`、`https` 和 `mailto`。
-- 不提供编辑 / 预览双模式，阅读态负责最终渲染。
+- 裸贴的 Bilibili、抖音、网易云音乐和 QQ 音乐白名单 URL 会在 `ContentBody` 内自动渲染为受控播放器；带自定义文字的 Markdown 链接仍按普通链接显示。
+- 写作器链接工具会识别选中的安全链接：选中 URL 时放入 href 并选中“链接文字”，选中普通文字时保留为链接文字并选中 URL 占位。
+- 评论树在移动端使用窄缩进，避免深层回复挤压 Markdown 正文、图片、表格和代码块。
+- 写作器编辑区直接显示排版后的内容；Markdown 源码只作为提交 / 存储格式存在，不作为默认 UI。
+- 写作器会识别外部 Markdown 图片语法，并提示作者这类图片不会作为正文图片保存；正文图片必须走上传、粘贴图片文件或拖拽图片文件入口。
+- UI smoke 已验证发帖、根评论、子评论回复、帖子编辑保存和评论编辑保存可以提交并在阅读态渲染 Markdown。
+- 发帖、根评论、回复评论、帖子编辑和评论编辑都已接入同一 Tiptap 写作器；图片入口只存在于工具栏、粘贴和拖拽，不再在编辑器外展示正文图片清单。
+- 当前后端 `PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 已接收可选 `attachment_ids`；编辑弹窗支持新增图片、粘贴图片和拖拽图片，保存时只提交正文实际引用到的图片 ID。
 - 不使用 `dangerouslySetInnerHTML`。
 - 不存用户 HTML。
 - 不使用 `rehype-raw`。
-- `npm run check:content-boundary` 已经固化当前安全边界：帖子详情和评论树必须复用 `ContentBody`，源码中不得出现 `dangerouslySetInnerHTML`、原始 HTML 写入、`rehype-raw` 或未批准 iframe/srcDoc。
+- `npm run check:content-boundary` 已经固化当前安全边界：帖子详情和评论树必须复用 `ContentBody`，写作器必须使用单一 Tiptap 渲染编辑面，工具栏必须保留当前选区命令，源码中不得出现 `dangerouslySetInnerHTML`、原始 HTML 写入、`rehype-raw` 或白名单播放器组件之外的 iframe/srcDoc。
 - `npm run check:content-segments` 已经固化当前 spoiler / 涂黑解析边界：普通文本、多段涂黑、未闭合涂黑、空涂黑和多行涂黑必须保持稳定。
 
 未实现：
 
 - 与 Reddit 细节完全一致的 Markdown 兼容性审查。
-- `r/community` 和 `u/user` 自动链接。
-- 引用式链接的产品化验证。
-- 白名单 embed。
+- 后端结构化 embed resolve 合同已补齐；前端发布 / 编辑 payload 仍待接入结构化 `embed.id`。
 
 ## Reddit Markdown 能力范围
 
@@ -85,12 +94,22 @@ remark-gfm
 - `remark-gfm` 覆盖删除线、自动链接、表格、任务列表等常见社区内容语法。
 - 这组依赖不引入第二套 UI 库，不改变 shadcn/ui 的主组件系统边界。
 - 当前通过 `skipHtml`、自定义组件和链接白名单保持安全边界，不启用 `rehype-raw`。
+- 图片不再由帖子或评论组件挂在正文外层；上传成功后写作器插入 `![说明](nexus-attachment:<attachment_id>)`，阅读态由 `ContentBody` 按后端返回的结构化 `attachments` 渲染对应图片。
+- 白名单媒体裸链接不接受用户 iframe HTML，而是由 `src/features/content/media-embed.ts` 识别 canonical URL，再由 `src/features/content/media-embed-player.tsx` 用固定 iframe wrapper 渲染。当前支持：
+  - Bilibili：`bilibili.com/video/BV...`、`av...` 和 `player.bilibili.com/player.html?...`。
+  - 抖音：`douyin.com/video/<id>`、`iesdouyin.com/share/video/<id>` 和 `open.douyin.com/player/video?vid=...`。
+  - 网易云音乐：`music.163.com/#/song?id=...`、`playlist`、`album` 和 `outchain/player?...`。
+  - QQ 音乐：`i.y.qq.com/v8/playsong.html?songid=...`、`y.qq.com/n/ryqq/songDetail/<songmid>` 和 `i.y.qq.com/n2/m/outchain/player/index.html?...`。
+- 当前前端只做明确白名单 canonical URL 的本地识别；`v.douyin.com`、`b23.tv`、分享短链、标题、封面、审核状态和持久化 `embed.id` 现已由后端 `/api/v1/embeds/resolve` 处理。
+- 支持在写作器中直接粘贴图片，也支持把图片文件拖到写作器区域；图片会上传为 attachment 并按当前光标位置插入正文。除浏览器直接提供的图片文件外，写作器也会识别剪贴板 HTML、纯文本或 Markdown 图片语法里的 `data:image/...;base64,...` 图片并转入同一上传流程；粘贴的纯文本片段如果同时包含文字和内联图片，会保留周边文字，只把图片源码替换成 `nexus-attachment` 正文图片引用。
+- 删除编辑器正文里的图片后，该图片不会随内容提交；新增图片必须重新通过工具栏、粘贴或拖拽进入当前正文位置。
+- 裸贴的 Bilibili、抖音、网易云音乐和 QQ 音乐白名单 URL 在写作器内会转换成 `mediaEmbed` 块并显示同一个受控播放器；序列化时仍输出原始裸链接，后端不接收 HTML 或 iframe。
+- 普通 `https://...` Markdown 图片不会直接渲染为远程图片，也不会作为正文图片保存；写作器会在编辑态提示用户必须走图片上传和后端 attachment 合同。本阶段不从远程 URL 抓图，只处理真实图片文件或剪贴板内联 `data:image`。
 
 后续可选评估：
 
 - 是否需要引入 `rehype-sanitize` 作为额外 AST 白名单防线。
-- `r/community` 和 `u/user` 自动链接是否要映射到本项目路由。
-- Reddit 引用式链接、转义、列表边界等细节是否需要更接近 Reddit。
+- Reddit 折叠引用式链接、转义、列表边界等细节是否需要更接近 Reddit。
 - 表格移动端是否需要更强的视觉处理。
 
 替代方案：
@@ -98,7 +117,7 @@ remark-gfm
 - `markdown-it`：成熟，但更偏字符串到 HTML，容易把后续实现推向 HTML sanitization 和 `dangerouslySetInnerHTML`，不作为首选。
 - `marked`：轻量，但同样偏 HTML 字符串输出，不符合当前 React 组件化边界。
 - 手写完整 Markdown parser：不做。Markdown 规则复杂，手写实现会增加安全和兼容风险。
-- HTML 富文本编辑器：不做。当前拒绝存用户 HTML，也不把 HTML 编辑器作为产品路线。
+- 任意 HTML 富文本编辑器：不做。当前写作器只用 Tiptap 作为 Markdown 编辑前端，不保存用户 HTML，也不允许用户提交 iframe。
 
 ## 安全规则
 
@@ -108,12 +127,13 @@ remark-gfm
 - 禁止启用 `rehype-raw`。
 - 禁止使用 `dangerouslySetInnerHTML` 渲染用户正文。
 - 禁止保存用户提交的 HTML。
-- 禁止任意 iframe。
+- 禁止任意 iframe；源码里只允许 `media-embed-player.tsx` 这一处受控白名单播放器 iframe。
 - 禁止绕过 `ContentBody` 直接在帖子详情或评论树中实现另一套用户内容渲染。
 - 禁止 `javascript:`、`data:` 等危险链接协议。
+- 禁止 `//example.com` 这类协议相对 URL；站内链接必须使用单斜杠路径，例如 `/communities/public`。
 - 外链必须加 `rel="nofollow ugc noopener noreferrer"`。
 - 外链是否新窗口打开由统一组件决定，不在页面里临时变化。
-- 图片和 embed 必须由后端返回结构化附件或白名单 provider，不能只靠 Markdown URL 放行。
+- 图片必须由后端返回结构化附件；白名单 embed 现已由后端 `/api/v1/embeds/resolve`、短链展开、元数据和 `embed.id` 持久化补齐，前端仍只渲染受控播放器。
 
 允许协议首版建议：
 
@@ -140,7 +160,7 @@ blob:
 建议：
 
 1. 先保留当前 spoiler 分段策略：按 `>! ... !<` 切分正文，非 spoiler 段交给 renderer，spoiler 段作为纯文本放进现有涂黑组件。
-2. 如果后续需要 spoiler 内部也支持 Markdown，再单独实现 remark/micromark 扩展，不在首版渲染切片里硬做。
+2. 如果后续需要 spoiler 内部也支持 Markdown，再单独实现 remark/micromark 扩展，不在首版渲染任务里硬做。
 
 这样做的边界更清楚：
 
@@ -155,7 +175,7 @@ blob:
 ```text
 src/features/content/
   content-body.tsx
-  markdown-toolbar.tsx
+  markdown-composer-field.tsx
   markdown-renderer.tsx
   markdown-link.tsx
   reddit-auto-link.tsx
@@ -165,10 +185,12 @@ src/features/content/
 规则：
 
 - `content-body.tsx` 保持为正文渲染入口，帖子和评论继续只依赖它。
+- `markdown-composer-field.tsx` 保持为唯一写作入口，内部 Tiptap 工具栏负责选区格式、图片插入和白名单媒体编辑态渲染。
 - `markdown-renderer.tsx` 封装第三方 Markdown renderer 和组件映射。
 - `markdown-link.tsx` 统一处理链接协议、rel、target 和样式。
 - `reddit-auto-link.tsx` 处理 `r/community` 和 `u/user` 类自动链接。
 - `spoiler-text.tsx` 承载涂黑展开 / 收起状态。
+- `attachment-markdown.ts` 统一正文内附件引用格式、引用提取和移除逻辑。
 - 页面组件不得直接 import 第三方 renderer，只能通过 `features/content` 的统一入口使用。
 
 ## 样式规则
@@ -186,9 +208,9 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 - 链接优先用文字颜色和下划线表达，不做 outline button。
 - spoiler 默认视觉隐藏，展开/收起动效克制。
 
-## 实施切片
+## 实施任务
 
-### Slice A：依赖批准与边界同步
+### Task A：依赖批准与边界同步
 
 交付：
 
@@ -204,7 +226,7 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 - `npm run lint`
 - `npm run typecheck`
 
-### Slice B：帖子正文 Reddit Markdown 渲染
+### Task B：帖子正文 Reddit Markdown 渲染
 
 交付：
 
@@ -219,7 +241,7 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 - 链接协议和 rel 符合安全规则。
 - 移动端代码块和表格不横向撑破页面。
 
-### Slice C：评论正文 Reddit Markdown 渲染
+### Task C：评论正文 Reddit Markdown 渲染
 
 交付：
 
@@ -233,13 +255,13 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 - 折叠分支不影响已展开 spoiler 状态的安全边界。
 - 移动端深层评论仍可读。
 
-### Slice D：写作器工具动作
+### Task D：写作器工具动作
 
 交付：
 
 - 发帖、根评论、回复评论提供同一套格式工具动作。
 - 工具动作插入或包裹 Reddit Markdown 语法。
-- 不强制编辑 / 预览双模式。
+- 预览不另造 renderer，必须和阅读态使用同一套 `ContentBody` 渲染入口。
 - 提交 payload 仍是后端当前支持的 `body` 字段。
 
 验证：
@@ -250,13 +272,13 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 
 ## 验收命令
 
-文档切片至少运行：
+文档任务至少运行：
 
 ```bash
 npm run check:docs
 ```
 
-实现切片至少运行：
+实现任务至少运行：
 
 ```bash
 npm run lint
@@ -278,7 +300,10 @@ npm run check:routes
 
 ```bash
 npm run check:main-path
+npm run check:v2-path
 ```
+
+`check:v2-path` 必须覆盖图片上传、`attachment_ids` 绑定、正文内 `nexus-attachment:<id>` marker 的提交和读取保留，防止图片再次退回“正文外外挂附件”的实现。
 
 涉及页面渲染时必须做浏览器烟测，至少覆盖：
 

@@ -18,85 +18,393 @@ const frontendUrl = normalizeUrl(
     "http://localhost:3000",
 );
 
-const pageExitHrefMarkers = ["/", "/communities", "/community-applications/new"];
+const appShellHrefMarkers = [
+  "/",
+  "/all",
+  "/following",
+  "/communities",
+  "/messages",
+  "/style-guide",
+];
 
 const routes = [
   {
-    absentMarkers: ["无法加载最新帖子", "需要登录"],
-    markers: ["CUMT Nexus", "最新讨论", "浏览社区", "登录后查看最新讨论", "待登录"],
+    absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "推荐讨论", "按推荐源展示公开讨论", "浏览社区"],
     path: "/",
   },
   {
-    markers: ["CUMT Nexus", "登录", "账号验证", "创建账号"],
+    absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "按推荐源展示公开讨论", "最新"],
+    path: "/new",
+  },
+  {
+    absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "按推荐源展示公开讨论", "热门"],
+    path: "/hot",
+  },
+  {
+    absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "按全站源展示公开讨论", "推荐"],
+    path: "/all",
+  },
+  {
+    absentMarkers: ["登录后查看最新讨论", "待登录", "需要登录"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "按全站源展示公开讨论", "热门"],
+    path: "/all/hot",
+  },
+  {
+    hrefMarkers: [...appShellHrefMarkers, "#button", "#toast"],
+    markers: ["CUMT Nexus", "全量组件统一展示页", "所有 TSX 组件文件", "Button"],
+    path: "/style-guide",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Ffollowing",
+      "/register?next=%2Ffollowing",
+    ],
+    markers: ["CUMT Nexus", "登录后查看关注信息流", "关注流只展示", "去登录"],
+    path: "/following",
+  },
+  {
+    markers: ["CUMT Nexus", "登录", "进入 CUMT Nexus", "没有账号，去注册"],
     path: "/login",
   },
   {
     hrefMarkers: ["/", "/register?next=%2Fcommunities%2Fpublic%2Fnew"],
-    markers: ["CUMT Nexus", "登录", "账号验证", "创建账号"],
+    markers: ["CUMT Nexus", "登录", "进入 CUMT Nexus", "没有账号，去注册"],
     path: "/login?next=%2Fcommunities%2Fpublic%2Fnew",
   },
   {
-    markers: ["CUMT Nexus", "注册账号", "账号创建", "去登录"],
+    markers: ["CUMT Nexus", "创建账号", "先完善公开资料", "已有账号，去登录"],
     path: "/register",
   },
   {
-    hrefMarkers: ["/", "/login?next=%2Fcommunity-applications%2Fnew"],
-    markers: ["CUMT Nexus", "注册账号", "账号创建", "去登录"],
-    path: "/register?next=%2Fcommunity-applications%2Fnew",
-  },
-  {
-    hrefMarkers: pageExitHrefMarkers,
-    markers: ["社区目录", "校园社区", "申请社区"],
-    path: "/communities",
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fsaved",
+      "/register?next=%2Fsaved",
+    ],
+    markers: ["CUMT Nexus", "我的收藏", "登录后查看收藏", "去登录"],
+    path: "/saved",
   },
   {
     hrefMarkers: [
-      ...pageExitHrefMarkers,
-      "/login?next=%2Fcommunities%2Fpublic",
+      ...appShellHrefMarkers,
+      "/login?next=%2Fsettings%2Fprofile",
+      "/register?next=%2Fsettings%2Fprofile",
+    ],
+    markers: ["CUMT Nexus", "编辑主页", "需要登录", "登录后编辑主页", "去登录"],
+    path: "/settings/profile",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fsettings%2Fprogression",
+      "/register?next=%2Fsettings%2Fprogression",
+    ],
+    markers: ["CUMT Nexus", "成长与积分", "登录后查看成长资料", "去登录"],
+    path: "/settings/progression",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fsettings%2Fprivacy",
     ],
     markers: [
-      "返回社区索引",
+      "CUMT Nexus",
+      "隐私与私信",
+      "登录后管理私信设置",
+      "去登录",
+    ],
+    path: "/settings/privacy",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Fgrowth",
+    ],
+    markers: ["CUMT Nexus", "成长系统管理", "登录后进入平台管理", "登录"],
+    path: "/admin/growth",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin",
+    ],
+    markers: ["CUMT Nexus", "平台管理", "登录后进入平台管理", "登录"],
+    path: "/admin",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Fusers",
+    ],
+    markers: ["CUMT Nexus", "用户管理", "登录后进入平台管理", "登录"],
+    path: "/admin/users",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Fcommunities",
+    ],
+    markers: ["CUMT Nexus", "平台社区治理", "登录后进入平台管理", "登录"],
+    path: "/admin/communities",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Fcommunity-applications",
+    ],
+    markers: ["CUMT Nexus", "社区申请", "登录后进入平台管理", "登录"],
+    path: "/admin/community-applications",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Freports",
+    ],
+    markers: ["CUMT Nexus", "全站举报", "登录后进入平台管理", "登录"],
+    path: "/admin/reports",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Freports%2Froute-smoke-report",
+    ],
+    markers: ["CUMT Nexus", "举报详情", "登录后进入平台管理", "登录"],
+    path: "/admin/reports/route-smoke-report",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Fsettings",
+    ],
+    markers: ["CUMT Nexus", "运行开关", "登录后进入平台管理", "登录"],
+    path: "/admin/settings",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Faudit-logs",
+    ],
+    markers: ["CUMT Nexus", "审计日志", "登录后进入平台管理", "登录"],
+    path: "/admin/audit-logs",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fadmin%2Fowner-transfer",
+    ],
+    markers: ["CUMT Nexus", "负责人交接", "登录后进入平台管理", "登录"],
+    path: "/admin/owner-transfer",
+  },
+  {
+    markers: [
+      "CUMT Nexus",
+      "负责人交接",
+      "缺少交接 ID",
+      "请从 owner 发出的交接链接进入接受页",
+    ],
+    path: "/owner-transfer/accept",
+  },
+  {
+    hrefMarkers: ["/", "/login?next=%2Fcommunity-applications%2Fnew"],
+    markers: ["CUMT Nexus", "创建账号", "先完善公开资料", "已有账号，去登录"],
+    path: "/register?next=%2Fcommunity-applications%2Fnew",
+  },
+  {
+    hrefMarkers: [...appShellHrefMarkers, "/login?next=%2Fcommunity-applications%2Fnew"],
+    markers: ["社区索引", "校园社区", "登录后申请"],
+    path: "/communities",
+  },
+  {
+    absentMarkers: [
+      "登录后使用搜索",
+      "搜索需要身份上下文",
+      "公开搜索暂不可用",
+      "当前服务还没有开放未登录搜索",
       "需要登录",
-      "请先登录后查看社区详情和帖子",
+    ],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "搜索：public", "顶部搜索框", "范围"],
+    path: "/search?q=public&scope=all",
+  },
+  {
+    absentMarkers: ["需要登录", "登录后查看"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "用户主页", "正在加载", "浏览社区"],
+    path: "/users/route-smoke",
+  },
+  {
+    absentMarkers: ["需要登录", "登录后查看"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "的帖子", "正在加载", "浏览社区"],
+    path: "/users/route-smoke/posts",
+  },
+  {
+    absentMarkers: ["需要登录", "登录后查看"],
+    hrefMarkers: [...appShellHrefMarkers],
+    markers: ["CUMT Nexus", "的评论", "正在加载", "浏览社区"],
+    path: "/users/route-smoke/comments",
+  },
+  {
+    absentMarkers: ["需要登录", "请先登录后查看社区详情和帖子"],
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+    ],
+    markers: [
+      "CUMT Nexus",
+      "首页",
+      "社区",
+      "正在加载",
+      "浏览社区",
     ],
     path: "/communities/public",
   },
   {
+    absentMarkers: ["需要登录", "请先登录后查看帖子详情、评论和投票"],
     hrefMarkers: [
-      ...pageExitHrefMarkers,
-      "/login?next=%2Fposts%2Froute-smoke",
+      ...appShellHrefMarkers,
     ],
     markers: [
       "CUMT Nexus",
-      "返回社区索引",
-      "需要登录",
-      "请先登录后查看帖子详情、评论和投票",
+      "帖子 route-sm",
+      "正在加载",
+      "浏览社区",
     ],
     path: "/posts/route-smoke",
   },
   {
     hrefMarkers: [
-      ...pageExitHrefMarkers,
+      ...appShellHrefMarkers,
+      "/login?next=%2Fposts%2Fnew%3Fcommunity%3Dpublic",
+      "/register?next=%2Fposts%2Fnew%3Fcommunity%3Dpublic",
+    ],
+    markers: ["CUMT Nexus", "发布帖子", "需要登录", "登录后发起讨论", "去登录"],
+    path: "/posts/new?community=public",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
       "/communities/public",
       "/login?next=%2Fcommunities%2Fpublic%2Fnew",
       "/register?next=%2Fcommunities%2Fpublic%2Fnew",
     ],
-    markers: ["CUMT Nexus", "发起讨论", "需要登录", "登录后发起讨论", "去登录"],
+    markers: ["CUMT Nexus", "发布帖子", "需要登录", "登录后发起讨论", "去登录"],
     path: "/communities/public/new",
   },
   {
     hrefMarkers: [
-      ...pageExitHrefMarkers,
+      ...appShellHrefMarkers,
+      "/communities/public",
+      "/login?next=%2Fcommunities%2Fpublic%2Fmanage",
+    ],
+    markers: [
+      "CUMT Nexus",
+      "社区管理",
+      "管理概览",
+      "登录后管理社区",
+      "社区管理需要版主或社区管理员权限",
+    ],
+    path: "/communities/public/manage",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fcommunities%2Fpublic%2Fowner-transfer%2Froute-smoke-transfer%2Faccept",
+    ],
+    markers: [
+      "CUMT Nexus",
+      "版主交接",
+      "登录后接受社区版主交接",
+      "只有交接目标账号可以接受这次版主转让",
+      "登录",
+    ],
+    path: "/communities/public/owner-transfer/route-smoke-transfer/accept",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fcommunities%2Fowner-transfers",
+    ],
+    markers: [
+      "CUMT Nexus",
+      "版主交接",
+      "登录后查看版主交接",
+      "如果某个社区把版主交接给你",
+      "登录",
+    ],
+    path: "/communities/owner-transfers",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
       "/login?next=%2Fcommunity-applications%2Fnew",
       "/register?next=%2Fcommunity-applications%2Fnew",
     ],
-    markers: ["CUMT Nexus", "申请新社区", "返回社区索引"],
+    markers: ["CUMT Nexus", "申请新社区", "浏览社区", "需要登录", "登录后申请新社区", "去登录"],
     path: "/community-applications/new",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fnotifications",
+    ],
+    markers: ["CUMT Nexus", "消息", "互动消息", "系统通知", "登录后查看消息"],
+    path: "/notifications",
+  },
+  {
+    hrefMarkers: ["/login?next=%2Fmessages"],
+    markers: [
+      "私信",
+      "登录后查看私信",
+      "去登录",
+    ],
+    path: "/messages",
+  },
+  {
+    hrefMarkers: ["/login?next=%2Fmessages%2Frequests"],
+    markers: [
+      "私信",
+      "登录后查看私信",
+      "去登录",
+    ],
+    path: "/messages/requests",
+  },
+  {
+    hrefMarkers: ["/login?next=%2Fmessages%2Froute-smoke"],
+    markers: [
+      "私信",
+      "登录后查看私信",
+      "去登录",
+    ],
+    path: "/messages/route-smoke",
+  },
+  {
+    hrefMarkers: [
+      ...appShellHrefMarkers,
+      "/login?next=%2Fnotifications%2Fsystem",
+    ],
+    markers: ["CUMT Nexus", "消息", "互动消息", "系统通知", "登录后查看消息"],
+    path: "/notifications/system",
   },
   {
     expectedStatus: 404,
     hrefMarkers: ["/", "/communities"],
-    markers: ["CUMT Nexus", "这个页面不存在或已经移动", "返回最新讨论", "浏览社区索引"],
+    markers: ["CUMT Nexus", "这个页面不存在或已经移动", "最新讨论", "浏览社区索引"],
+    path: "/notifications/unknown",
+  },
+  {
+    expectedStatus: 404,
+    hrefMarkers: ["/", "/communities"],
+    markers: ["CUMT Nexus", "这个页面不存在或已经移动", "最新讨论", "浏览社区索引"],
     path: "/route-smoke-not-found",
   },
 ];

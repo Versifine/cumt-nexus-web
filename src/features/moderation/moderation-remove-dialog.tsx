@@ -1,10 +1,14 @@
 "use client";
 
-import { forwardRef, useState, type ComponentProps, type ReactNode } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  forwardRef,
+  useState,
+  type ComponentProps,
+  type FormEvent,
+  type ReactNode,
+} from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ShieldAlert } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -18,51 +22,134 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { commentQueryKeys } from "@/features/comment/queries";
+import { useCommunityModerationTemplatesQuery } from "@/features/community/queries";
+import { postQueryKeys } from "@/features/post/queries";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 import {
-  useRemoveCommentByModerationMutation,
-  useRemovePostByModerationMutation,
+  useApplyAdminModQueueActionMutation,
+  useApplyCommunityModQueueActionMutation,
 } from "./queries";
-import type { ModerationTargetType } from "./types";
-
-const removeSchema = z.object({
-  reason: z.string().trim().min(1, "请输入移除原因。"),
-});
-
-type RemoveFormValues = z.infer<typeof removeSchema>;
+import type { ModerationBulkActionInput, ModerationTargetType } from "./types";
 
 type ModerationRemoveDialogProps = {
+  communitySlug?: string;
   targetId: string;
   targetLabel: string;
+  targetPostId?: string;
+  targetStatus?: string;
   targetType: ModerationTargetType;
 };
 
 export function ModerationRemoveDialog({
+  communitySlug,
   targetId,
   targetLabel,
+  targetPostId,
+  targetStatus,
   targetType,
 }: ModerationRemoveDialogProps) {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [removalReasonId, setRemovalReasonId] = useState("");
+  const [notifyAuthor, setNotifyAuthor] = useState(true);
+  const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const postMutation = useRemovePostByModerationMutation(targetId);
-  const commentMutation = useRemoveCommentByModerationMutation(targetId);
-  const mutation = targetType === "post" ? postMutation : commentMutation;
-  const form = useForm<RemoveFormValues>({
-    resolver: zodResolver(removeSchema),
-    defaultValues: {
-      reason: "",
-    },
-  });
+  const useCommunityScope = Boolean(communitySlug);
+  const removalReasonsQuery = useCommunityModerationTemplatesQuery(
+    { kind: "removal-reasons", slug: communitySlug ?? "" },
+    open && useCommunityScope,
+  );
+  const communityMutation = useApplyCommunityModQueueActionMutation();
+  const adminMutation = useApplyAdminModQueueActionMutation();
+  const mutation = useCommunityScope ? communityMutation : adminMutation;
+  const isRemoved = targetStatus === "removed" || Boolean(successMessage);
+  const scopeLabel = useCommunityScope ? "社区" : "平台";
+  const removalReasons = removalReasonsQuery.data?.items ?? [];
+  const selectedReason = removalReasons.find((item) => item.id === removalReasonId);
 
-  async function submitRemove(values: RemoveFormValues) {
-    const result = await mutation.mutateAsync(values);
-    setSuccessMessage(`内容已移除，操作编号 ${result.action.id.slice(0, 8)}。`);
-    form.reset();
+  async function submitRemove(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError(null);
+
+    const trimmedReason = reason.trim();
+    const resolvedReason = trimmedReason || selectedReason?.title || "";
+
+    if (!resolvedReason) {
+      setFormError("请选择移除原因或填写处理原因。");
+      return;
+    }
+
+    const input: ModerationBulkActionInput = {
+      action: "remove",
+      confirm: true,
+      notify_author: useCommunityScope ? notifyAuthor : undefined,
+      reason: resolvedReason,
+      removal_reason_id: removalReasonId || undefined,
+      target_ids: [targetId],
+      target_type: targetType,
+    };
+
+    const result = useCommunityScope
+      ? await communityMutation.mutateAsync({
+          input,
+          slug: communitySlug ?? "",
+        })
+      : await adminMutation.mutateAsync(input);
+    const failed = result.results.find((item) => !item.ok);
+
+    if (failed) {
+      setFormError(failed.error_message || "移除失败。");
+      return;
+    }
+
+    const actionId = result.results.find((item) => item.action)?.action?.id;
+    setSuccessMessage(
+      actionId
+        ? `${scopeLabel}已移除内容，操作编号 ${actionId.slice(0, 8)}。`
+        : `${scopeLabel}已移除内容。`,
+    );
+    setReason("");
+    setRemovalReasonId("");
+
+    void Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: postQueryKeys.latestPrefix(),
+      }),
+      targetType === "post"
+        ? queryClient.invalidateQueries({
+            queryKey: postQueryKeys.detail(targetId),
+          })
+        : Promise.resolve(),
+      targetPostId
+        ? queryClient.invalidateQueries({
+            queryKey: postQueryKeys.detail(targetPostId),
+          })
+        : Promise.resolve(),
+      targetPostId
+        ? queryClient.invalidateQueries({
+            queryKey: commentQueryKeys.postCommentsPrefix(targetPostId),
+          })
+        : Promise.resolve(),
+      queryClient.invalidateQueries({
+        queryKey: postQueryKeys.communityPostsAll(),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: postQueryKeys.userPostsAll(),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: postQueryKeys.savedPostsAll(),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: commentQueryKeys.userCommentsAll(),
+      }),
+    ]);
   }
 
-  const submitError = getSubmitError(mutation.error);
+  const submitError = formError ?? getSubmitError(mutation.error);
 
   return (
     <Dialog
@@ -74,16 +161,18 @@ export function ModerationRemoveDialog({
       }}
     >
       <DialogTrigger asChild>
-        <RemoveTrigger>
+        <RemoveTrigger disabled={isRemoved}>
           <ShieldAlert className="size-3.5" aria-hidden="true" />
-          平台移除
+          {isRemoved ? "已移除" : `${scopeLabel}移除`}
         </RemoveTrigger>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>平台移除{targetType === "post" ? "帖子" : "评论"}</DialogTitle>
+          <DialogTitle>
+            {scopeLabel}移除{targetType === "post" ? "帖子" : "评论"}
+          </DialogTitle>
           <DialogDescription>
-            这是审核操作。后端会校验平台权限，普通用户提交会返回权限错误。
+            这是审核操作。后端会校验{scopeLabel}权限，并把操作写入审核记录。
           </DialogDescription>
         </DialogHeader>
 
@@ -101,46 +190,93 @@ export function ModerationRemoveDialog({
           </Alert>
         ) : null}
 
-        <div className="border-y border-border py-3">
+        <div className="border-t border-border pt-3">
           <div className="font-mono text-xs text-muted-foreground">目标</div>
           <p className="mt-2 break-words text-sm font-semibold">{targetLabel}</p>
         </div>
 
-        <form className="space-y-4" onSubmit={form.handleSubmit(submitRemove)}>
+        <form className="space-y-4" onSubmit={submitRemove}>
+          {useCommunityScope ? (
+            <div className="space-y-2">
+              <label
+                htmlFor={`moderation-remove-template-${targetId}`}
+                className="text-sm font-semibold"
+              >
+                移除原因模板
+              </label>
+              <select
+                id={`moderation-remove-template-${targetId}`}
+                value={removalReasonId}
+                onChange={(event) => setRemovalReasonId(event.target.value)}
+                disabled={mutation.isPending || isRemoved}
+                className="flex min-h-10 w-full border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">不使用模板</option>
+                {removalReasons.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.title}
+                  </option>
+                ))}
+              </select>
+              {removalReasonsQuery.isError ? (
+                <p className="text-xs text-muted-foreground">
+                  移除原因模板暂时无法加载，可以继续手填原因。
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="space-y-2">
             <label htmlFor={`moderation-remove-${targetId}`} className="text-sm font-semibold">
               移除原因
             </label>
             <Textarea
               id={`moderation-remove-${targetId}`}
-              aria-invalid={Boolean(form.formState.errors.reason)}
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || isRemoved}
               placeholder="写清移除依据，便于后续审计。"
               className="min-h-32"
-              {...form.register("reason")}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
             />
-            {form.formState.errors.reason ? (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.reason.message}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                移除原因会记录到审核操作中。
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground">
+              {selectedReason
+                ? "不填写时会使用所选模板标题作为原因。"
+                : "移除原因会记录到审核操作中。"}
+            </p>
           </div>
+
+          {useCommunityScope ? (
+            <label className="flex items-start gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={notifyAuthor}
+                onChange={(event) => setNotifyAuthor(event.target.checked)}
+                disabled={mutation.isPending || isRemoved}
+                className="mt-1 size-4"
+              />
+              通知作者本次移除原因
+            </label>
+          ) : null}
 
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               disabled={mutation.isPending}
               onClick={() => setOpen(false)}
             >
               取消
             </Button>
-            <Button type="submit" variant="destructive" disabled={mutation.isPending}>
-              {mutation.isPending ? "正在移除..." : "确认移除"}
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={mutation.isPending || isRemoved}
+            >
+              {isRemoved
+                ? "已移除"
+                : mutation.isPending
+                  ? "正在移除..."
+                  : "确认移除"}
             </Button>
           </DialogFooter>
         </form>
@@ -164,7 +300,7 @@ const RemoveTrigger = forwardRef<HTMLButtonElement, RemoveTriggerProps>(
         type={type}
         {...props}
         className={cn(
-          "-mx-1 inline-flex min-h-10 items-center gap-1.5 px-1 py-2 text-xs text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40",
+          "inline-flex min-h-8 shrink-0 items-center gap-1.5 whitespace-nowrap px-1 py-1 text-xs text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40",
           className,
         )}
       >

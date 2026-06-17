@@ -59,7 +59,7 @@ export function CommunityApplicationForm({
 
   if (applicationMutation.isSuccess) {
     return (
-      <div className={cn("border-y border-border py-5", className)}>
+      <div className={cn("border-l border-border py-5 pl-4", className)}>
         <Alert variant="success">
           <AlertTitle>申请已提交</AlertTitle>
           <AlertDescription>
@@ -68,9 +68,9 @@ export function CommunityApplicationForm({
             。平台审核通过后才会创建社区。
           </AlertDescription>
         </Alert>
-        <div className="mt-5 border-y border-border">
+        <div className="mt-5 border-t border-border">
           <TextAction href="/communities" tone="primary" variant="bar">
-            返回社区索引
+            浏览社区
           </TextAction>
         </div>
       </div>
@@ -103,7 +103,7 @@ export function CommunityApplicationForm({
             aria-invalid={Boolean(form.formState.errors.requested_slug)}
             disabled={applicationMutation.isPending}
             placeholder="campus-life"
-            className="h-12 border-border bg-background text-base font-semibold"
+            className="h-12 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
             {...form.register("requested_slug")}
           />
           <FieldMeta
@@ -128,7 +128,7 @@ export function CommunityApplicationForm({
             aria-invalid={Boolean(form.formState.errors.requested_name)}
             disabled={applicationMutation.isPending}
             placeholder="校园生活"
-            className="h-12 border-border bg-background text-base font-semibold"
+            className="h-12 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
             {...form.register("requested_name")}
           />
           <FieldMeta
@@ -152,7 +152,7 @@ export function CommunityApplicationForm({
             aria-invalid={Boolean(form.formState.errors.reason)}
             disabled={applicationMutation.isPending}
             placeholder="说明谁会使用这个社区、为什么需要它、你准备如何维护讨论秩序。"
-            className="min-h-56 border-border bg-background text-base leading-7"
+            className="min-h-48 border-border bg-background text-base leading-7 sm:min-h-56"
             {...form.register("reason")}
           />
           <FieldMeta

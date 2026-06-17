@@ -1,6 +1,6 @@
 # Frontend Review Template
 
-复制下面模板给 Codex，用于审查已有页面、组件或切片。
+复制下面模板给 Codex，用于审查已有页面、组件或任务。
 
 ```text
 请先阅读：
@@ -9,7 +9,7 @@
 - docs/design/page-patterns.md
 - docs/design/component-rules.md
 
-现在审查：[页面/组件/切片名称]
+现在审查：[页面/组件/任务名称]
 
 审查范围：
 - [列出要审查的文件或目录]
@@ -18,12 +18,13 @@
 
 1. 风格统一性
 - 是否符合 dark editorial product / magazine-grade campus community interface 风格。
+- 是否符合 Nexus Surface 第四版基准：面层优先、分割线克制、主色只用于主动作和当前态。
 - 是否深色模式优先。
 - 是否出现每个页面一种风格的问题。
-- 是否有彩虹渐变、光污染、玻璃拟态泛滥、模板化 hero。
+- 是否有彩虹渐变、光污染、玻璃拟态泛滥、模板化 hero 或高频分割线堆叠。
 
 2. DESIGN.md 合规性
-- 颜色、间距、圆角、阴影、边框是否符合规范。
+- 颜色、间距、圆角、阴影、边框和面层层级是否符合规范。
 - 字体层级是否克制。
 - Motion 是否只用于克制动效。
 - 用户可见文案是否默认使用简体中文，是否有不必要的中英文混用。

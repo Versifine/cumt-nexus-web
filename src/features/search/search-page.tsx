@@ -1,167 +1,122 @@
-"use client";
+﻿"use client";
 
-import type { FormEvent, ReactNode } from "react";
-import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Hash, Search } from "lucide-react";
+import { FileText, Hash, UserRound } from "lucide-react";
 
-import { PageNav } from "@/components/app-shell/page-nav";
+import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { ApiError } from "@/lib/api/client";
 
-import { useSearchQuery } from "./queries";
+import { useInfiniteSearchQuery } from "./queries";
 import type {
   SearchCommunityResult,
   SearchPostResult,
   SearchScope,
+  SearchUserResult,
 } from "./types";
 
 const scopeOptions: Array<{ label: string; value: SearchScope }> = [
   { label: "全部", value: "all" },
+  { label: "用户", value: "users" },
   { label: "社区", value: "communities" },
   { label: "帖子", value: "posts" },
 ];
 
+type SearchQueryIssue = {
+  description: string;
+  title: string;
+};
+
 export function SearchPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isReady, token } = useAuthSession();
+  const { isReady } = useAuthSession();
   const query = searchParams.get("q")?.trim() ?? "";
   const scope = normalizeScope(searchParams.get("scope"));
-  const canSearch = isReady && Boolean(token);
-  const searchQuery = useSearchQuery(
-    { limit: 20, offset: 0, q: query, scope },
-    canSearch,
+  const queryIssue = getSearchQueryIssue(query);
+  const searchQuery = useInfiniteSearchQuery(
+    { limit: 20, q: query, scope },
+    isReady && !queryIssue,
   );
-
-  const communities = searchQuery.data?.communities ?? [];
-  const posts = searchQuery.data?.posts ?? [];
-  const resultCount = communities.length + posts.length;
-  const loginHref = `/login?next=${encodeURIComponent(
-    query ? `/search?q=${encodeURIComponent(query)}&scope=${scope}` : "/search",
-  )}`;
-
-  const metrics = useMemo(
-    () => [
-      { label: "社区", value: canSearch && query ? String(communities.length) : "--" },
-      { label: "帖子", value: canSearch && query ? String(posts.length) : "--" },
-      { label: "范围", value: formatScope(scope) },
-    ],
-    [canSearch, communities.length, posts.length, query, scope],
-  );
-
-  function submitSearch(nextQuery: string) {
-    if (!nextQuery) {
-      router.push("/search");
-      return;
-    }
-
-    router.push(`/search?q=${encodeURIComponent(nextQuery)}&scope=${scope}`);
-  }
+  const pages = searchQuery.data?.pages ?? [];
+  const users = pages.flatMap((page) => page.users ?? []);
+  const communities = pages.flatMap((page) => page.communities);
+  const posts = pages.flatMap((page) => page.posts);
+  const resultCount = users.length + communities.length + posts.length;
+  const loadedPages = pages.length;
+  const sourceHref = getSearchSourceHref(query, scope);
 
   function updateScope(nextScope: SearchScope) {
-    if (!query) {
-      router.replace(`/search?scope=${nextScope}`);
-      return;
-    }
-
-    router.replace(`/search?q=${encodeURIComponent(query)}&scope=${nextScope}`);
+    router.replace(getSearchSourceHref(query, nextScope));
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <PageNav backHref="/" backLabel="返回最新讨论" />
-
-        <header className="border-b border-border pb-6">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="min-w-0">
+        <section className="bg-background">
+          <div className="flex flex-col gap-3 border-b border-border py-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
-              <div className="font-mono text-xs uppercase text-primary">
-                CUMT NEXUS / 搜索
-              </div>
-              <h1 className="mt-4 text-5xl font-black leading-[0.95] tracking-normal text-foreground md:text-6xl">
-                搜索社区和帖子
+              <h1 className="text-xl font-semibold tracking-normal text-foreground">
+                {query ? `搜索：${query}` : "搜索"}
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
-                搜索关键词和范围会保留在 URL 中，方便返回、分享和复查。
+              <p className="mt-1 text-sm text-muted-foreground">
+                使用顶部搜索框输入关键词；这里切换搜索范围并查看结果。
               </p>
             </div>
-
-            <div className="grid grid-cols-3 border border-border text-center">
-              {metrics.map((metric) => (
-                <div key={metric.label} className="border-r border-border p-3 last:border-r-0">
-                  <div className="font-mono text-[11px] uppercase text-muted-foreground">
-                    {metric.label}
-                  </div>
-                  <div className="mt-2 truncate text-xl font-black">
-                    {metric.value}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ScopeTabs
+              disabled={!isReady || searchQuery.isFetching}
+              onScopeChange={updateScope}
+              scope={scope}
+            />
           </div>
+        </section>
 
-          <SearchControls
-            key={query}
-            initialQuery={query}
-            isFetching={searchQuery.isFetching}
-            isReady={isReady}
-            onScopeChange={updateScope}
-            onSubmitSearch={submitSearch}
-            scope={scope}
-          />
-        </header>
-
-        <section className="py-5">
+        <section className="bg-background">
           {!isReady ? (
-            <div className="border-b border-border pb-5">
+            <div className="border-b border-border p-4">
               <LoadingState rows={3} />
             </div>
           ) : null}
 
-          {isReady && !token ? (
-            <EmptyState
-              title="登录后使用搜索"
-              description="搜索需要身份上下文，登录后可以检索可见社区和帖子。"
-              action={
-                <TextAction href={loginHref} tone="primary">
-                  登录
-                </TextAction>
-              }
-            />
+          {isReady && !query ? (
+            <div className="border-b border-border p-4">
+              <EmptyState
+                title="输入关键词开始搜索"
+                description="可以搜索用户、社区、slug、帖子标题和正文；结果会按相关度和新鲜度综合排序。"
+              />
+            </div>
           ) : null}
 
-          {canSearch && !query ? (
-            <EmptyState
-              title="输入关键词开始搜索"
-              description="可以搜索社区名称、slug、帖子标题和正文摘要。"
-            />
+          {isReady && queryIssue ? (
+            <div className="border-b border-border p-4">
+              <ErrorState
+                title={queryIssue.title}
+                description={queryIssue.description}
+              />
+            </div>
           ) : null}
 
-          {canSearch && query && searchQuery.isPending ? (
-            <div className="border-b border-border pb-5">
+          {isReady && query && !queryIssue && searchQuery.isPending ? (
+            <div className="border-b border-border p-4">
               <LoadingState rows={5} />
             </div>
           ) : null}
 
-          {canSearch && query && searchQuery.isError ? (
-            <ErrorState
-              title={getErrorTitle(searchQuery.error)}
-              description={getErrorDescription(searchQuery.error)}
-              action={
-                isUnauthenticated(searchQuery.error) ? (
-                  <TextAction href={loginHref} tone="primary">
-                    登录
-                  </TextAction>
-                ) : (
+          {isReady && query && !queryIssue && searchQuery.isError ? (
+            <div className="border-b border-border p-4">
+              <ErrorState
+                title={getErrorTitle()}
+                description={getErrorDescription(searchQuery.error)}
+                action={
                   <Button
                     variant="outline"
                     size="sm"
@@ -169,93 +124,99 @@ export function SearchPage() {
                   >
                     重试
                   </Button>
-                )
-              }
-            />
-          ) : null}
-
-          {canSearch && query && searchQuery.isSuccess && resultCount === 0 ? (
-            <EmptyState
-              title="没有找到结果"
-              description="换一个关键词，或切换搜索范围再试。"
-            />
-          ) : null}
-
-          {canSearch && query && searchQuery.isSuccess && resultCount > 0 ? (
-            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-              <div className="min-w-0 space-y-8">
-                {scope !== "posts" ? (
-                  <ResultSection
-                    count={communities.length}
-                    label="COMMUNITIES"
-                    title="社区结果"
-                  >
-                    {communities.length > 0 ? (
-                      <div className="divide-y divide-border border-b border-border">
-                        {communities.map((community, index) => (
-                          <CommunityResultRow
-                            key={community.id}
-                            community={community}
-                            index={index}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="border-b border-border pb-4 text-sm text-muted-foreground">
-                        当前范围内没有社区结果。
-                      </p>
-                    )}
-                  </ResultSection>
-                ) : null}
-
-                {scope !== "communities" ? (
-                  <ResultSection count={posts.length} label="POSTS" title="帖子结果">
-                    {posts.length > 0 ? (
-                      <div className="divide-y divide-border border-b border-border">
-                        {posts.map((post, index) => (
-                          <PostResultRow key={post.id} index={index} post={post} />
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="border-b border-border pb-4 text-sm text-muted-foreground">
-                        当前范围内没有帖子结果。
-                      </p>
-                    )}
-                  </ResultSection>
-                ) : null}
-              </div>
-
-              <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-                <div className="sticky top-6 space-y-6">
-                  <section className="border-b border-border pb-6">
-                    <div className="font-mono text-xs uppercase text-muted-foreground">
-                      当前搜索
-                    </div>
-                    <h2 className="mt-3 break-words text-2xl font-black">
-                      {query}
-                    </h2>
-                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                      范围：{formatScope(scope)}。结果由后端搜索接口返回，前端不伪造高亮和排序。
-                    </p>
-                  </section>
-                  <section>
-                    <h2 className="text-sm font-semibold">下一步</h2>
-                    <div className="mt-3 flex flex-col border-y border-border">
-                      <TextAction href="/communities" variant="bar">
-                        浏览社区
-                      </TextAction>
-                      <TextAction href="/" variant="bar">
-                        返回信息流
-                      </TextAction>
-                    </div>
-                  </section>
-                </div>
-              </aside>
+                }
+              />
             </div>
+          ) : null}
+
+          {isReady && query && !queryIssue && searchQuery.isSuccess && resultCount === 0 ? (
+            <div className="border-b border-border p-4">
+              <EmptyState
+                title="没有找到结果"
+                description="换一个更完整的关键词，或直接搜索用户名、社区 slug、帖子标题里的核心词。"
+              />
+            </div>
+          ) : null}
+
+          {isReady && query && !queryIssue && searchQuery.isSuccess && resultCount > 0 ? (
+            <>
+              <SearchSummaryBar
+                hasMore={Boolean(searchQuery.hasNextPage)}
+                isRefreshing={searchQuery.isFetching && !searchQuery.isFetchingNextPage}
+                loadedPages={loadedPages}
+                resultCount={resultCount}
+                scope={scope}
+              />
+
+              {scope !== "communities" && scope !== "posts" ? (
+                <SearchResultSection count={users.length} title="用户">
+                  {users.length > 0 ? (
+                    users.map((user) => (
+                      <UserResultRow
+                        key={user.id}
+                        query={query}
+                        user={user}
+                      />
+                    ))
+                  ) : (
+                    <EmptyResultRow>当前范围内没有用户结果。</EmptyResultRow>
+                  )}
+                </SearchResultSection>
+              ) : null}
+
+              {scope !== "posts" && scope !== "users" ? (
+                <SearchResultSection count={communities.length} title="社区">
+                  {communities.length > 0 ? (
+                    communities.map((community) => (
+                      <CommunityResultRow
+                        key={community.id}
+                        community={community}
+                        query={query}
+                      />
+                    ))
+                  ) : (
+                    <EmptyResultRow>当前范围内没有社区结果。</EmptyResultRow>
+                  )}
+                </SearchResultSection>
+              ) : null}
+
+              {scope !== "communities" && scope !== "users" ? (
+                <SearchResultSection count={posts.length} title="帖子">
+                  {posts.length > 0 ? (
+                    posts.map((post) => (
+                      <PostResultRow
+                        key={post.id}
+                        post={post}
+                        query={query}
+                        sourceHref={sourceHref}
+                      />
+                    ))
+                  ) : (
+                    <EmptyResultRow>当前范围内没有帖子结果。</EmptyResultRow>
+                  )}
+                </SearchResultSection>
+              ) : null}
+
+              <LoadMoreResults
+                hasNextPage={Boolean(searchQuery.hasNextPage)}
+                isFetching={searchQuery.isFetchingNextPage}
+                onLoadMore={() => searchQuery.fetchNextPage()}
+              />
+            </>
           ) : null}
         </section>
       </div>
-    </main>
+
+      <SearchRail
+        communityCount={communities.length}
+        isSearching={searchQuery.isFetching}
+        postCount={posts.length}
+        query={query}
+        queryIssue={queryIssue}
+        scope={scope}
+        userCount={users.length}
+      />
+    </div>
   );
 }
 
@@ -270,13 +231,13 @@ function ScopeTabs({
 }) {
   return (
     <Tabs value={scope} onValueChange={(value) => onScopeChange(value as SearchScope)}>
-      <TabsList className="rounded-none border-border bg-background p-0">
-        {scopeOptions.map((option, index) => (
+      <TabsList className="rounded-none bg-transparent p-0">
+        {scopeOptions.map((option) => (
           <TabsTrigger
             key={option.value}
             value={option.value}
             disabled={disabled}
-            className={cnScopeTrigger(index)}
+            className={cnScopeTrigger()}
           >
             {option.label}
           </TabsTrigger>
@@ -286,171 +247,428 @@ function ScopeTabs({
   );
 }
 
-function SearchControls({
-  initialQuery,
-  isFetching,
-  isReady,
-  onScopeChange,
-  onSubmitSearch,
+function SearchSummaryBar({
+  hasMore,
+  isRefreshing,
+  loadedPages,
+  resultCount,
   scope,
 }: {
-  initialQuery: string;
-  isFetching: boolean;
-  isReady: boolean;
-  onScopeChange: (scope: SearchScope) => void;
-  onSubmitSearch: (query: string) => void;
+  hasMore: boolean;
+  isRefreshing: boolean;
+  loadedPages: number;
+  resultCount: number;
   scope: SearchScope;
 }) {
-  const [draft, setDraft] = useState(initialQuery);
-
-  function submitSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    onSubmitSearch(draft.trim());
-  }
-
   return (
-    <form
-      className="mt-5 grid gap-3 border-y border-border py-4 md:grid-cols-[minmax(0,1fr)_auto_auto]"
-      onSubmit={submitSearch}
-    >
-      <label className="sr-only" htmlFor="search-query">
-        搜索关键词
-      </label>
-      <div className="relative min-w-0">
-        <Search
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <Input
-          id="search-query"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder="输入社区名、slug、帖子标题或正文关键词"
-          className="rounded-none pl-9"
-          disabled={!isReady}
-        />
-      </div>
-      <ScopeTabs
-        disabled={!isReady || isFetching}
-        scope={scope}
-        onScopeChange={onScopeChange}
+    <div className="grid gap-0 border-b border-border bg-background md:grid-cols-4">
+      <SearchMetric label="范围" value={formatScope(scope)} />
+      <SearchMetric label="已加载" value={`${resultCount} 条`} />
+      <SearchMetric label="页数" value={`${Math.max(loadedPages, 1)} 页`} />
+      <SearchMetric
+        label="排序"
+        value={isRefreshing ? "刷新中" : hasMore ? "相关度优先" : "已到末尾"}
       />
-      <Button type="submit" disabled={!isReady || !draft.trim()}>
-        搜索
-      </Button>
-    </form>
+    </div>
   );
 }
 
-function ResultSection({
+function SearchMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-b border-border px-3 py-3 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0">
+      <div className="font-mono text-[11px] uppercase text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-semibold text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function HighlightedText({ query, text }: { query: string; text: string }) {
+  const needle = query.trim();
+
+  if (!needle) {
+    return <>{text}</>;
+  }
+
+  const index = text.toLowerCase().indexOf(needle.toLowerCase());
+
+  if (index < 0) {
+    return <>{text}</>;
+  }
+
+  const before = text.slice(0, index);
+  const match = text.slice(index, index + needle.length);
+  const after = text.slice(index + needle.length);
+
+  return (
+    <>
+      {before}
+      <mark className="bg-primary/20 px-0.5 text-primary">{match}</mark>
+      {after}
+    </>
+  );
+}
+
+function SearchResultSection({
   children,
   count,
-  label,
   title,
 }: {
   children: ReactNode;
   count: number;
-  label: string;
   title: string;
 }) {
   return (
     <section>
-      <div className="mb-2 flex items-end justify-between border-b border-border pb-3">
-        <div>
-          <div className="font-mono text-xs uppercase text-primary">{label}</div>
-          <h2 className="mt-1 text-xl font-black">{title}</h2>
-        </div>
-        <span className="border border-border px-2.5 py-1 font-mono text-xs">
-          {count}
-        </span>
+      <div className="flex items-center justify-between border-b border-border py-3 text-xs">
+        <h2 className="font-semibold text-foreground">{title}</h2>
+        <span className="font-mono text-muted-foreground">{count}</span>
       </div>
       {children}
     </section>
   );
 }
 
+function UserResultRow({
+  query,
+  user,
+}: {
+  query: string;
+  user: SearchUserResult;
+}) {
+  const displayName = user.display_name || user.username;
+  const headline = user.headline?.trim();
+  const bioExcerpt = user.bio_excerpt?.trim();
+
+  return (
+    <article className="grid grid-cols-[40px_minmax(0,1fr)] border-b border-border bg-background py-3">
+      <div className="flex items-start justify-center pt-1">
+        <SearchUserAvatar displayName={displayName} user={user} />
+      </div>
+      <Link
+        href={`/users/${encodeURIComponent(user.username)}`}
+        className="block min-w-0 pl-3"
+      >
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
+          <span className="font-semibold text-foreground">
+            @<HighlightedText query={query} text={user.username} />
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>{formatUserStatus(user.status)}</span>
+          <span aria-hidden="true">·</span>
+          <span>{formatDate(user.created_at)}</span>
+        </div>
+        <h3 className="mt-1 break-words text-base font-semibold leading-6 tracking-normal text-foreground sm:text-lg">
+          <HighlightedText query={query} text={displayName} />
+        </h3>
+        {headline ? (
+          <p className="mt-2 line-clamp-1 text-sm font-medium leading-6 text-foreground">
+            <HighlightedText query={query} text={headline} />
+          </p>
+        ) : null}
+        <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
+          <HighlightedText
+            query={query}
+            text={bioExcerpt || "这个用户还没有填写公开简介。"}
+          />
+        </p>
+      </Link>
+    </article>
+  );
+}
+
+function SearchUserAvatar({
+  displayName,
+  user,
+}: {
+  displayName: string;
+  user: SearchUserResult;
+}) {
+  if (user.avatar_url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={user.avatar_url}
+        alt={`${displayName} 的头像`}
+        className="size-9 rounded-full bg-secondary object-cover"
+      />
+    );
+  }
+
+  return (
+    <span
+      className="flex size-9 items-center justify-center rounded-full bg-secondary text-primary"
+      aria-label={`${displayName} 的头像占位`}
+    >
+      <UserRound className="size-4" aria-hidden="true" />
+    </span>
+  );
+}
+
 function CommunityResultRow({
   community,
-  index,
+  query,
 }: {
   community: SearchCommunityResult;
-  index: number;
+  query: string;
 }) {
   return (
-    <Link
-      href={`/communities/${community.slug}`}
-      className="group grid gap-4 py-5 transition-colors hover:bg-background-soft/70 md:grid-cols-[56px_minmax(0,1fr)_120px]"
-    >
-      <div className="flex items-center gap-3 md:block">
-        <div className="font-mono text-xs text-muted-foreground">
-          {String(index + 1).padStart(2, "0")}
-        </div>
-        <div className="mt-0 flex size-8 items-center justify-center border border-border text-primary md:mt-4">
-          <Hash className="size-4" aria-hidden="true" />
-        </div>
+    <article className="grid grid-cols-[32px_minmax(0,1fr)] border-b border-border bg-background py-3">
+      <div className="flex items-start justify-center pt-1 text-primary">
+        <Hash className="size-5" aria-hidden="true" />
       </div>
-      <div className="min-w-0">
-        <div className="font-mono text-xs text-primary">/{community.slug}</div>
-        <h3 className="mt-2 text-xl font-black group-hover:text-primary">
-          {community.name}
+      <Link
+        href={`/communities/${community.slug}`}
+        className="block min-w-0 pl-3"
+      >
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
+          <span className="font-semibold text-foreground">
+            /<HighlightedText query={query} text={community.slug} />
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>{formatCommunityStatus(community.status)}</span>
+          <span aria-hidden="true">·</span>
+          <span>{formatDate(community.created_at)}</span>
+        </div>
+        <h3 className="mt-1 break-words text-base font-semibold leading-6 tracking-normal text-foreground sm:text-lg">
+          <HighlightedText query={query} text={community.name} />
         </h3>
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
-          {community.description || "暂无描述。"}
+          <HighlightedText
+            query={query}
+            text={community.description || "暂无描述。"}
+          />
         </p>
-      </div>
-      <div className="flex items-center justify-end gap-2 text-sm font-semibold text-muted-foreground group-hover:text-primary">
-        打开
-        <ArrowRight
-          className="size-4 transition-transform group-hover:translate-x-1"
-          aria-hidden="true"
-        />
-      </div>
-    </Link>
+      </Link>
+    </article>
   );
 }
 
 function PostResultRow({
-  index,
   post,
+  query,
+  sourceHref,
 }: {
-  index: number;
   post: SearchPostResult;
+  query: string;
+  sourceHref: string;
 }) {
+  const postHref = `/posts/${post.id}`;
+  const excerpt = getMarkdownPlainTextSummary(post.body_excerpt);
+
+  function rememberSource() {
+    rememberPostNavigationSource({
+      href: sourceHref,
+      label: "返回搜索结果",
+      postId: post.id,
+    });
+  }
+
   return (
-    <Link
-      href={`/posts/${post.id}`}
-      className="group grid gap-4 py-5 transition-colors hover:bg-background-soft/70 md:grid-cols-[56px_minmax(0,1fr)_120px]"
-    >
-      <div className="font-mono text-xs text-muted-foreground">
-        {String(index + 1).padStart(2, "0")}
+    <article className="grid grid-cols-[32px_minmax(0,1fr)] border-b border-border bg-background py-3">
+      <div className="flex items-start justify-center pt-1 text-muted-foreground">
+        <FileText className="size-5" aria-hidden="true" />
       </div>
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="border border-border px-2 py-0.5 font-mono">
-            /{post.community_slug}
-          </span>
-          <span>发布于 {formatDate(post.created_at)}</span>
+      <div className="min-w-0 pl-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
+          <Link
+            href={`/communities/${encodeURIComponent(post.community_slug)}`}
+            className="font-semibold text-foreground hover:text-primary"
+          >
+            /<HighlightedText query={query} text={post.community_slug} />
+          </Link>
+          <span aria-hidden="true">·</span>
+          <span>{formatDate(post.created_at)}</span>
+          {post.status !== "visible" ? (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>{formatPostStatus(post.status)}</span>
+            </>
+          ) : null}
         </div>
-        <h3 className="mt-3 text-xl font-semibold leading-7 group-hover:text-primary">
-          {post.title}
+        <h3 className="mt-1 break-words text-base font-semibold leading-6 tracking-normal text-foreground sm:text-lg">
+          <Link href={postHref} onClick={rememberSource} className="hover:text-primary">
+            <HighlightedText query={query} text={post.title} />
+          </Link>
         </h3>
-        <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
-          {post.body_excerpt || "暂无摘要。"}
-        </p>
+        {excerpt ? (
+          <Link
+            href={postHref}
+            onClick={rememberSource}
+            className="mt-2 line-clamp-3 block text-sm leading-6 text-muted-foreground hover:text-foreground"
+          >
+            <HighlightedText query={query} text={excerpt} />
+          </Link>
+        ) : null}
       </div>
-      <div className="flex items-center justify-end gap-2 text-sm font-semibold text-muted-foreground group-hover:text-primary">
-        查看
-        <ArrowRight
-          className="size-4 transition-transform group-hover:translate-x-1"
-          aria-hidden="true"
-        />
-      </div>
-    </Link>
+    </article>
   );
 }
 
+function EmptyResultRow({ children }: { children: ReactNode }) {
+  return (
+    <p className="border-b border-border py-4 text-sm text-muted-foreground">
+      {children}
+    </p>
+  );
+}
+
+function LoadMoreResults({
+  hasNextPage,
+  isFetching,
+  onLoadMore,
+}: {
+  hasNextPage: boolean;
+  isFetching: boolean;
+  onLoadMore: () => void;
+}) {
+  if (!hasNextPage) {
+    return (
+      <div className="border-b border-border py-4 text-center text-sm text-muted-foreground">
+        已显示当前可加载的全部结果。
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-b border-border py-4 text-center">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={isFetching}
+        onClick={onLoadMore}
+      >
+        {isFetching ? "正在加载" : "加载更多结果"}
+      </Button>
+    </div>
+  );
+}
+
+function SearchRail({
+  communityCount,
+  isSearching,
+  postCount,
+  query,
+  queryIssue,
+  scope,
+  userCount,
+}: {
+  communityCount: number;
+  isSearching: boolean;
+  postCount: number;
+  query: string;
+  queryIssue: SearchQueryIssue | null;
+  scope: SearchScope;
+  userCount: number;
+}) {
+  return (
+    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
+      <div className="sticky top-20 right-rail-scroll space-y-6">
+        <section className="border-b border-border pb-5">
+          <h2 className="text-sm font-semibold">当前搜索</h2>
+          <p className="mt-3 break-words text-lg font-semibold tracking-normal">
+            {query || "未输入关键词"}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            范围：{formatScope(scope)}
+            {queryIssue
+              ? "，关键词需要调整。"
+              : isSearching
+                ? "，正在刷新结果。"
+                : "。"}
+          </p>
+        </section>
+
+        <section className="border-b border-border pb-5">
+          <h2 className="text-sm font-semibold">结果</h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            用户{" "}
+            <span className="font-mono text-foreground">
+              {query ? userCount : "--"}
+            </span>{" "}
+            个，社区{" "}
+            <span className="font-mono text-foreground">
+              {query ? communityCount : "--"}
+            </span>{" "}
+            个，帖子{" "}
+            <span className="font-mono text-foreground">
+              {query ? postCount : "--"}
+            </span>{" "}
+            篇。
+          </p>
+        </section>
+
+        <section className="border-b border-border pb-5 xl:hidden">
+          <h2 className="text-sm font-semibold">搜索能力</h2>
+          <div className="mt-3 divide-y divide-border border-y border-border">
+            <SearchHint label="用户" value="用户名、昵称、简介" />
+            <SearchHint label="社区" value="名称、描述、slug" />
+            <SearchHint label="帖子" value="标题、社区、正文摘要" />
+          </div>
+        </section>
+
+        <section className="hidden xl:block">
+          <h2 className="text-sm font-semibold">搜索能力</h2>
+          <div className="mt-3 divide-y divide-border border-y border-border">
+            <SearchHint label="排序" value="相关度优先，兼顾新鲜度" />
+            <SearchHint label="用户" value="用户名、昵称、简介" />
+            <SearchHint label="社区" value="名称、描述、slug" />
+            <SearchHint label="帖子" value="标题、社区、正文摘要" />
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-sm font-semibold">继续浏览</h2>
+          <div className="mt-3 flex flex-col border-t border-border">
+            <TextAction href="/communities" variant="bar">
+              浏览社区
+            </TextAction>
+            <TextAction href="/" variant="bar">
+              信息流首页
+            </TextAction>
+          </div>
+        </section>
+      </div>
+    </aside>
+  );
+}
+
+function SearchHint({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[56px_minmax(0,1fr)] gap-3 py-2 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function getSearchSourceHref(query: string, scope: SearchScope) {
+  if (!query) {
+    return `/search?scope=${scope}`;
+  }
+
+  return `/search?q=${encodeURIComponent(query)}&scope=${scope}`;
+}
+
+function getSearchQueryIssue(query: string): SearchQueryIssue | null {
+  if (!query) {
+    return null;
+  }
+
+  if ([...query].length > 100) {
+    return {
+      title: "关键词太长",
+      description: "请缩短关键词，保留用户名、社区名、slug 或帖子标题里的核心词。",
+    };
+  }
+
+  return null;
+}
+
 function normalizeScope(value: string | null): SearchScope {
-  if (value === "communities" || value === "posts") {
+  if (value === "communities" || value === "posts" || value === "users") {
     return value;
   }
 
@@ -463,15 +681,16 @@ function formatScope(scope: SearchScope) {
       return "社区";
     case "posts":
       return "帖子";
+    case "users":
+      return "用户";
     default:
       return "全部";
   }
 }
 
-function cnScopeTrigger(index: number) {
+function cnScopeTrigger() {
   return [
-    "rounded-none data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
-    index < scopeOptions.length - 1 ? "border-r border-border" : "",
+    "rounded-none border-b border-transparent px-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary",
   ].join(" ");
 }
 
@@ -483,15 +702,50 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function isUnauthenticated(error: Error | null) {
-  return error instanceof ApiError && error.code === "unauthenticated";
+function formatCommunityStatus(status: string) {
+  switch (status) {
+    case "active":
+      return "活跃";
+    case "archived":
+      return "已归档";
+    case "suspended":
+      return "已暂停";
+    default:
+      return status;
+  }
 }
 
-function getErrorTitle(error: Error | null) {
-  if (isUnauthenticated(error)) {
-    return "需要登录";
+function formatPostStatus(status: string) {
+  switch (status) {
+    case "visible":
+      return "可见";
+    case "archived":
+      return "已归档";
+    case "hidden":
+      return "已隐藏";
+    case "deleted":
+      return "已删除";
+    case "removed":
+      return "已移除";
+    default:
+      return status;
   }
+}
 
+function formatUserStatus(status: string) {
+  switch (status) {
+    case "active":
+      return "活跃";
+    case "suspended":
+      return "已暂停";
+    case "deleted":
+      return "已删除";
+    default:
+      return status;
+  }
+}
+
+function getErrorTitle() {
   return "无法完成搜索";
 }
 
@@ -502,3 +756,4 @@ function getErrorDescription(error: Error | null) {
 
   return "请求失败，请稍后重试。";
 }
+

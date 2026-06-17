@@ -95,7 +95,7 @@ export function VoteControl({
         </span>
       </div>
       {!token ? (
-        <div className="border-y border-border">
+        <div className="border-t border-border">
           <TextAction href={loginHref} tone="primary" variant="bar">
             登录后投票
           </TextAction>

@@ -40,6 +40,7 @@ pnpm-debug.log*
 
 # Hosting and tool output
 .vercel/
+.codex-qa/
 
 # OS files
 .DS_Store

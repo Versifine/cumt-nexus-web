@@ -49,7 +49,7 @@ export function MetricBlock({
       <div
         className={cn(
           variant === "default" &&
-            "mt-2 text-2xl font-black leading-none text-foreground",
+            "mt-2 text-xl font-semibold leading-none text-foreground",
           variant === "compact" &&
             "mt-2 text-sm font-semibold text-foreground",
           valueClassName,
@@ -69,6 +69,7 @@ type InfoRowProps = {
   labelClassName?: string;
   value: ReactNode;
   valueClassName?: string;
+  wrap?: boolean;
 };
 
 export function InfoRow({
@@ -79,22 +80,27 @@ export function InfoRow({
   labelClassName,
   value,
   valueClassName,
+  wrap = false,
 }: InfoRowProps) {
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-4 py-3 text-sm",
+        "flex min-w-0 items-center justify-between gap-4 py-3 text-sm",
+        wrap && "items-start",
         active ? "text-primary" : "text-muted-foreground",
         className,
       )}
     >
-      <span className={cn("inline-flex items-center gap-2", labelClassName)}>
+      <span className={cn("inline-flex min-w-0 items-center gap-2", labelClassName)}>
         {icon}
         {label}
       </span>
       <span
         className={cn(
-          "min-w-0 truncate text-right font-medium text-foreground",
+          "min-w-0 text-right font-medium text-foreground",
+          wrap
+            ? "break-words whitespace-normal [overflow-wrap:anywhere]"
+            : "truncate",
           valueClassName,
         )}
       >
@@ -125,9 +131,13 @@ export function IndexedInfoRow({
       )}
     >
       <div className="font-mono text-xs text-primary">{index}</div>
-      <div>
-        <div className="text-sm font-semibold text-foreground">{title}</div>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">{text}</p>
+      <div className="min-w-0">
+        <div className="break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
+          {title}
+        </div>
+        <p className="mt-1 break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
+          {text}
+        </p>
       </div>
     </div>
   );
@@ -137,15 +147,25 @@ type MetaCellProps = {
   className?: string;
   label: ReactNode;
   value: ReactNode;
+  wrap?: boolean;
 };
 
-export function MetaCell({ className, label, value }: MetaCellProps) {
+export function MetaCell({ className, label, value, wrap = false }: MetaCellProps) {
   return (
-    <div className={cn("px-3 py-2", className)}>
+    <div className={cn("min-w-0 px-3 py-2", className)}>
       <div className="font-mono text-[11px] text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 truncate text-xs text-foreground">{value}</div>
+      <div
+        className={cn(
+          "mt-1 text-xs text-foreground",
+          wrap
+            ? "break-words [overflow-wrap:anywhere]"
+            : "truncate",
+        )}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -164,7 +184,7 @@ export function StatusToken({
   return (
     <span
       className={cn(
-        "border px-2 py-0.5 text-xs font-medium",
+        "inline-flex max-w-full items-center border px-2 py-0.5 text-xs font-medium",
         tone === "default" &&
           "border-border bg-background text-muted-foreground",
         tone === "primary" && "border-primary/40 bg-primary/10 text-primary",

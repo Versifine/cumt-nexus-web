@@ -3,7 +3,9 @@
 import type { ReactNode } from "react";
 
 import { AuthSessionProvider } from "@/features/auth/auth-session";
+import { RouteMemory } from "@/lib/navigation/route-memory";
 import { QueryProvider } from "@/lib/query/query-provider";
+import { ThemeProvider } from "@/lib/theme/theme-provider";
 
 type ProvidersProps = {
   children: ReactNode;
@@ -11,8 +13,13 @@ type ProvidersProps = {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <QueryProvider>
-      <AuthSessionProvider>{children}</AuthSessionProvider>
-    </QueryProvider>
+    <ThemeProvider>
+      <QueryProvider>
+        <AuthSessionProvider>
+          <RouteMemory />
+          {children}
+        </AuthSessionProvider>
+      </QueryProvider>
+    </ThemeProvider>
   );
 }

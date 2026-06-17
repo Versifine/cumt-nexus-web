@@ -5,21 +5,24 @@
 ## 当前状态
 
 - 技术栈：Next.js App Router + React + TypeScript + Tailwind CSS + shadcn/ui + Motion。
-- 视觉方向：dark editorial product / magazine-grade campus community interface。
+- 视觉方向：dark editorial product / magazine-grade campus community interface；当前样张基准为 Nexus Surface 第四版，面层优先、分割线克制、主色只用于主动作和当前态。
 - 界面语言：用户可见文案默认使用简体中文，品牌名、技术名、URL slug、API 字段和用户生成内容保留原文。
 - 当前分支：`stage/0-web-planning`。该分支名来自早期规划阶段，当前实际承载 V1 本地封版和 V2 本地产品化推进。
+- 前端规划部分已收口：页面拓扑、App Shell、权限边界、URL 规则、内容模型和后端需求完成证明见 `docs/internal/product/frontend-planning-completion.md`。
 - 当前目标：V2 后端能力全量前端接入已完成本地初版收口；生产 HTTPS 域名、正式 API origin 和生产 CORS 在没有域名前保持 deferred。
 - 最新 V2 本地验收（2026-06-03）：`npm run check:static`、`npm run check:docs`、`npm run check:routes`、严格 `npm run check:readiness`、严格 `npm run check:main-path` 和 `npm run check:v2-path` 通过；后端补齐后已复跑 `lint`、`typecheck`、严格 `check:main-path` 和 `check:v2-path`。
 - 当前 V2.1 推进（2026-06-03）：后端已补齐社区申请列表 / 详情和 `/api/v1/me.is_platform_staff`，前端已接入完整申请审核台和 staff 入口显隐；生产配置仍保持 deferred。
-- 最新浏览器复验（2026-06-03）：帖子详情 Reddit Markdown、涂黑、评论 Markdown、评论树和附件路径已在桌面/移动端检查；`/search`、`/notifications`、`/moderation`、`/community-applications/review`、`/communities/public/new` 在桌面/移动端无横向溢出、无控制台 error；登录/注册表单原生降级不会把账号字段写入 URL；退出登录和 token 清空会清理 TanStack Query 缓存。
+- 当前 Post-V2 推进（2026-06-04）：图片附件产品化已接入上传前限制提示、失败重试、待提交附件移除提示和发帖 / 评论差异化数量上限；缩略图 URL、未绑定对象物理清理和失败对象回收仍以后端后续合同为准。
+- 当前公开阅读推进（2026-06-10）：首页、社区详情、帖子详情、评论读取和搜索页已按未登录公开阅读接入；后端 `GET /api/v1/search` 已按 public + optional Bearer 合同返回匿名真实结果，前端搜索请求按公开读取调用，不让本地旧 token 破坏游客搜索。
+- 最新搜索复验（2026-06-10）：匿名 `GET /api/v1/search?q=public&scope=all&limit=3&offset=0` 返回 `200`，包含 `/public` 社区和真实可见帖子；浏览器桌面和 `390px` 移动端打开 `/search?q=public&scope=all` 均显示公开社区和公开帖子真实结果，无旧搜索登录墙、无横向溢出、无控制台 error。帖子详情 Reddit Markdown、涂黑、评论 Markdown、评论树和附件路径此前已在桌面/移动端检查；`/notifications`、`/moderation`、`/community-applications/review`、`/communities/public/new` 在桌面/移动端无横向溢出、无控制台 error；登录/注册表单原生降级不会把账号字段写入 URL；退出登录和 token 清空会清理 TanStack Query 缓存。
 
 ## 已实现范围
 
 - 注册、登录、当前用户识别和本地 token 会话。
 - 全站帖子流，支持最新 / 热门切换。
-- 社区列表、社区详情和社区帖子列表。
+- 社区列表、社区详情和社区帖子列表公开可读。
 - 社区帖子流支持最新 / 热门切换。
-- 帖子详情、评论列表和评论发布。
+- 帖子详情和评论列表公开可读；评论发布需要登录。
 - 帖子 upvote / downvote 状态展示和操作。
 - 作者编辑和软删除自己的帖子、评论。
 - 在指定社区发布帖子。
@@ -27,14 +30,17 @@
 - 社区申请审核台：staff 可按状态查看申请列表、查看详情并 approve / reject。
 - Reddit Markdown 阅读态：帖子和评论正文通过 `react-markdown` + `remark-gfm` 安全渲染，支持 GFM、链接安全过滤、涂黑和上标扩展。
 - 单一写作面板：发帖、评论、回复和作者编辑都使用同一套格式工具条，不再提供编辑 / 预览双模式。
-- 图片上传和附件展示：发帖、评论可上传图片并提交 `attachment_ids`，帖子详情和评论树展示返回的图片附件。
-- 搜索页 `/search`：支持关键词、`all | communities | posts` scope、URL query、loading、empty 和 error。
+- 图片上传和附件展示：发帖、评论可上传图片并提交 `attachment_ids`，上传前按后端默认合同提示并拦截 JPEG / PNG / WebP、单图 5MB、发帖最多 9 张、评论最多 1 张，上传失败可重试，帖子详情和评论树展示返回的图片附件。
+- 搜索页 `/search`：支持关键词、`all | communities | posts` scope、URL query、loading、empty 和 error；未登录用户可以看到后端返回的公开社区和公开帖子真实结果。
+- 公开用户主页 `/users/:username`：未登录可读取公开资料、公开帖子/评论数量、徽章和角色；登录后用户菜单可进入自己的主页。
+- 用户公开帖子列表 `/users/:username/posts`：未登录可查看该用户在公开社区发布过的可见帖子，并支持最新 / 热门排序。
+- 用户公开评论列表 `/users/:username/comments`：未登录可查看该用户在公开帖子下留下的可见评论，并可跳转到原帖。
 - 通知中心 `/notifications`：支持全部 / 未读 / 已读、标记已读和保守跳转。
-- 举报入口：普通用户可举报帖子和评论。
+- 举报入口：登录用户可举报帖子和评论，未登录显示登录门禁。
 - 审核台 `/moderation` 和 `/moderation/reports/:id`：支持举报列表、举报详情、`target_preview`、dismiss、remove-target。
-- 内容审核移除：帖子和评论详情入口支持 moderation remove，权限由后端返回 `forbidden` 校验。
-- 受保护动作登录门禁：未登录访问发帖或社区申请时，引导登录/注册并保留 `next` 回跳。
-- 全局 404 和页面错误状态页。
+- 内容审核移除：staff 用户可从帖子和评论详情触发 moderation remove，普通用户和未登录用户不显示审核动作。
+- 受保护动作登录门禁：未登录发帖、评论、投票、举报或申请社区时，引导登录/注册并保留 `next` 回跳。
+- 全局 404、页面错误状态页和页面级 loading 骨架；错误页不暴露技术标识，404 保留首页和社区索引出口。
 - 页面级标题、描述、`robots.txt` 和 `sitemap.xml`。
 - 基础 favicon、Web App Manifest、Open Graph 和 Twitter 分享元信息。
 - 前端健康检查端点 `/healthz`。
@@ -45,8 +51,9 @@
 当前仍不做或等待后续产品合同：
 
 - 申请取消。
-- 个人资料编辑、头像、邮箱。
+- 个人资料编辑、头像上传、邮箱。
 - 评论投票、私信、实时能力和个性化推荐。
+- 图片缩略图 URL、未绑定对象物理删除 / TTL 和失败对象回收的后端合同。
 - Bilibili、网易云音乐等白名单 embed 和普通网页链接预览。
 
 ## V1 本地封版边界
@@ -89,6 +96,7 @@ V2 本地初版已收口，后续重点：
 
 - 保持静态、路由、readiness、main-path 和 V2 主链路验证持续通过。
 - 后续新增后端需求继续同步到 `backend-api-needs.md`。
+- 图片数量 / 类型 / 大小提示、失败重试和待提交附件移除提示已完成前端产品化；缩略图和对象物理清理继续以后端合同拆分。
 - 正式域名、生产 API origin、生产 CORS allowlist 和发布后验证继续保持 deferred。
 
 完整边界和暂停条件见 `docs/internal/product/v2-roadmap.md`。
@@ -276,7 +284,7 @@ npm run check:v2-path
 npm run check:routes
 ```
 
-该命令会检查 `/`、`/login`、带 `next` 的登录/注册页、`/communities`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/community-applications/new` 和 404 页面是否包含 `zh-CN` 语言标记和关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页还会检查未登录状态不回退到“无法加载最新帖子”或“需要登录”错误面板；社区列表、社区详情、帖子详情壳、发帖、社区申请和 404 页面会检查是否保留返回首页、社区索引和社区申请等稳定出口链接；社区详情壳、帖子详情壳、发帖和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它只证明公开页面、受保护入口和错误页壳能渲染，不替代真实后端主链路联调，也不替代浏览器水合后的动态状态 QA。
+该命令会检查 `/`、`/new`、`/hot`、`/all`、`/all/hot`、`/following`、`/saved`、`/login`、带 `next` 的登录/注册页、`/communities`、`/search?q=public&scope=all`、`/users/route-smoke`、`/users/route-smoke/posts`、`/users/route-smoke/comments`、`/communities/public`、`/posts/route-smoke`、`/communities/public/new`、`/communities/public/manage`、`/community-applications/new`、通知分类 URL 和 404 页面是否包含 `zh-CN` 语言标记和关键中文文案。除 404 页面预期返回 `404` 外，其他页面都必须返回 `200`。首页、`/new` 和 `/hot` 还会检查未登录状态不回退到旧的“登录后查看最新讨论”“待登录”登录墙或“需要登录”错误面板，并要求公开帖子流文案存在；搜索页壳会检查未登录状态不回退到旧的“登录后使用搜索”登录墙、旧身份上下文提示或“公开搜索暂不可用”面板；用户主页壳、用户帖子列表壳和用户评论列表壳会检查未登录状态不回退到登录墙；社区详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看社区详情和帖子”登录墙；帖子详情壳会检查未登录状态不回退到旧的“需要登录 / 请先登录后查看帖子详情、评论和投票”登录墙；社区列表、发帖、社区管理、社区申请、通知分类和 404 页面会检查是否保留稳定出口链接；发帖、社区管理和社区申请入口、登录/注册切换还会检查是否保留正确 `next` 回跳。它只证明公开页面、受保护入口和错误页壳能渲染，不替代真实后端主链路联调，也不替代浏览器水合后的动态状态 QA。
 
 当前如果只想在后端未启动时继续前端本地收口，可以使用宽松模式：
 
@@ -362,21 +370,35 @@ npm run check:readiness
 ## 项目文档
 
 - `AGENTS.md`：Codex 后续工作约束。
+- `docs/README.md`：前端文档总入口。
 - `docs/design/DESIGN.md`：长期 UI/UX 风格规范。
 - `docs/design/page-patterns.md`：常见页面结构规范。
 - `docs/design/component-rules.md`：组件使用规则。
 - `docs/prompts/frontend-task-template.md`：前端实现任务模板。
 - `docs/prompts/frontend-review-template.md`：前端审查任务模板。
 - `docs/prompts/backend-content-media-target-template.md`：后端内容媒体能力目标模式提示词。
+- `docs/internal/README.md`：内部文档索引。
+- `docs/internal/product/frontend-information-architecture.md`：前端信息架构、页面拓扑、URL、权限边界和后端目标合同蓝图。
+- `docs/internal/product/frontend-planning-completion.md`：前端规划收口证明，确认规划已完成并区分实现待办和后端缺口。
+- `docs/internal/product/frontend-implementation-audit.md`：前端规划落地摸排，区分已落地、部分落地和仍未实现的能力。
 - `docs/internal/product/product-targets.md`：产品目标总表，记录已实现能力、前端后续增强、后端缺口和派工顺序。
 - `docs/internal/product/v2-roadmap.md`：V2 后端能力全量前端接入路线图。
+- `docs/internal/product/frontend-experience-rebuild.md`：从真实页面体验反馈出发的前端重修拆分方案。
+- `docs/internal/product/post-media-profile-rebuild.md`：帖子媒体流、列表预览、详情页 lightbox 和公开用户主页重构计划。
+- `docs/internal/product/social-progression-design.md`：关注、头衔、等级、积分和消耗型特殊互动的产品合同设计。
+- `docs/internal/product/douyin-message-system-design.md`：抖音式私信系统设计。
+- `docs/internal/product/platform-admin-design.md`：平台管理功能设计。
+- `docs/internal/product/platform-admin-frontend-plan.md`：平台管理前端实施计划。
+- `docs/internal/product/platform-admin-repair-plan.md`：平台管理权限与流程修复计划。
 - `docs/internal/architecture/frontend-v1.md`：前端 V1 架构、路由和 API 边界。
 - `docs/internal/architecture/content-system.md`：内容系统产品形态、评论树、图片和 embed 边界。
 - `docs/internal/architecture/content-media-api-gaps.md`：图片、对象存储、链接预览和白名单 embed 的后端合同核对文档。
 - `docs/internal/architecture/markdown-rendering.md`：Reddit Markdown renderer 选型、安全边界和实施切片。
+- `docs/internal/design/product-visual-direction.md`：内部设计索引，指向 `docs/design/` 的权威规范。
+- `docs/internal/design/ui-visual-noise-audit.md`：视觉噪音排查与改进记录。
 - `docs/internal/engineering/workflow.md`：阶段推进、分支、文档和验证规则。
 - `docs/internal/engineering/launch-readiness.md`：上线前自检、阻塞项和人工 QA 范围。
 - `docs/internal/engineering/deployment.md`：生产部署、环境变量、CORS、发布后验证和回滚标准。
 - `docs/internal/engineering/browser-qa.md`：真实浏览器人工 QA 步骤、失败分级和记录模板。
 
-页面实现前必须先阅读 `AGENTS.md` 和 `docs/design/*`，并且每次只推进一个小的纵向切片。
+页面实现前必须先阅读 `AGENTS.md` 和 `docs/design/*`。新增、删除或重命名文档后，必须同步 `README.md`、`docs/README.md`、`docs/internal/README.md` 和 `scripts/check-docs.mjs`，再运行 `npm run check:docs`。

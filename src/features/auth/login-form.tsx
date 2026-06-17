@@ -2,108 +2,194 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InlineFeedback } from "@/components/feedback/inline-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
-import { login } from "./api";
+import {
+  loginWithEmailCode,
+  loginWithIdentifier,
+  sendLoginEmailCode,
+} from "./api";
+import {
+  emailCodeLoginAuthErrorOptions,
+  getAuthSubmitError,
+  passwordLoginAuthErrorOptions,
+} from "./auth-error";
 import { useAuthSession } from "./auth-session";
-import { authQueryKeys } from "./query-keys";
+import { EmailCodeField } from "./email-code-field";
 import { getSafeAuthRedirectPath } from "./redirect";
+import { emailCodeLoginSchema, passwordLoginSchema } from "./schemas";
+import { syncAuthenticatedSession } from "./session-sync";
 
-const loginSchema = z.object({
-  username: z.string().trim().min(1, "请输入用户名。"),
-  password: z.string().min(1, "请输入密码。"),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
+type PasswordLoginValues = z.infer<typeof passwordLoginSchema>;
+type EmailCodeLoginValues = z.infer<typeof emailCodeLoginSchema>;
 
 type LoginFormProps = {
   className?: string;
+  onSuccess?: () => void;
+  redirectTo?: string;
 };
 
-export function LoginForm({ className }: LoginFormProps) {
+export function LoginForm({ className, onSuccess, redirectTo }: LoginFormProps) {
+  const [activeTab, setActiveTab] = useState("password");
+
+  return (
+    <div className={cn("space-y-0", className)}>
+      <div className="flex border-b border-border" role="tablist" aria-label="登录方式">
+        <ModeButton
+          active={activeTab === "password"}
+          id="password"
+          label="密码登录"
+          onSelect={setActiveTab}
+        />
+        <ModeButton
+          active={activeTab === "email-code"}
+          id="email-code"
+          label="邮箱验证码"
+          onSelect={setActiveTab}
+        />
+      </div>
+      <div role="tabpanel" aria-label={activeTab === "password" ? "密码登录" : "邮箱验证码"}>
+        {activeTab === "password" ? (
+          <PasswordLoginForm onSuccess={onSuccess} redirectTo={redirectTo} />
+        ) : (
+          <EmailCodeLoginForm onSuccess={onSuccess} redirectTo={redirectTo} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ModeButton({
+  active,
+  id,
+  label,
+  onSelect,
+}: {
+  active: boolean;
+  id: string;
+  label: string;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      className={cn(
+        "h-9 border-b px-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+        active
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground",
+      )}
+      onClick={() => onSelect(id)}
+    >
+      {label}
+    </button>
+  );
+}
+
+function PasswordLoginForm({
+  onSuccess,
+  redirectTo,
+}: {
+  onSuccess?: () => void;
+  redirectTo?: string;
+}) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { setToken } = useAuthSession();
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+  const form = useForm<PasswordLoginValues>({
+    resolver: zodResolver(passwordLoginSchema),
     defaultValues: {
-      username: "",
+      identifier: "",
       password: "",
     },
   });
 
   const loginMutation = useMutation({
-    mutationFn: login,
-    onSuccess: (result) => {
-      setToken(result.access_token);
-      queryClient.setQueryData(authQueryKeys.me(), result.user);
-      router.push(getSafeNextPath());
+    mutationFn: loginWithIdentifier,
+    onSuccess: async (result) => {
+      await syncAuthenticatedSession({ queryClient, result, setToken });
+      onSuccess?.();
+      router.push(redirectTo ?? getSafeNextPath());
     },
   });
 
-  const usernameValue = useWatch({ control: form.control, name: "username" }) ?? "";
-  const passwordValue = useWatch({ control: form.control, name: "password" }) ?? "";
-  const submitError = getSubmitError(loginMutation.error);
+  const submitError = getAuthSubmitError(loginMutation.error, {
+    ...passwordLoginAuthErrorOptions,
+    unauthenticated: "用户名、邮箱或密码不正确，请检查后重试。",
+  });
   const isLocked = loginMutation.isPending || loginMutation.isSuccess;
   const statusText = loginMutation.isSuccess
-    ? "验证通过，正在进入首页。"
+    ? "验证通过，正在进入。"
     : form.formState.isDirty
-      ? "表单已修改，提交前会先校验。"
-      : "输入账号信息后即可登录。";
+      ? "确认信息后登录。"
+      : "输入用户名或矿大邮箱后登录。";
 
   return (
     <form
-      className={cn("space-y-0", className)}
+      className="space-y-0"
       method="post"
-      onSubmit={form.handleSubmit((values) => loginMutation.mutate(values))}
+      onChangeCapture={() => {
+        if (loginMutation.error) {
+          loginMutation.reset();
+        }
+      }}
+      onSubmit={form.handleSubmit((values) => {
+        if (loginMutation.error) {
+          loginMutation.reset();
+        }
+
+        loginMutation.mutate(values);
+      })}
     >
       {submitError ? (
-        <Alert variant="destructive" className="mb-5">
-          <AlertTitle>登录失败</AlertTitle>
-          <AlertDescription>{submitError}</AlertDescription>
-        </Alert>
+        <InlineFeedback
+          className="mb-5"
+          title="登录失败"
+          description={submitError}
+          onDismiss={() => loginMutation.reset()}
+        />
       ) : null}
 
-      <div className="grid gap-4 border-b border-border py-5 md:grid-cols-[128px_minmax(0,1fr)]">
-        <FieldLabel
-          description="使用注册时设置的用户名。"
-          htmlFor="login-username"
-          index="01"
-          title="用户名"
-        />
+      <div className="border-b border-border py-4">
+        <FieldLabel htmlFor="login-identifier" title="用户名或邮箱" />
         <div className="min-w-0 space-y-2">
           <Input
-            id="login-username"
+            id="login-identifier"
             autoComplete="username"
-            aria-invalid={Boolean(form.formState.errors.username)}
+            aria-invalid={Boolean(form.formState.errors.identifier)}
             disabled={isLocked}
-            placeholder="输入用户名"
-            className="h-12 border-border bg-background text-base font-semibold"
-            {...form.register("username")}
+            placeholder="用户名 / student@cumt.edu.cn"
+            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
+            {...form.register("identifier")}
           />
           <FieldMeta
-            detail={`已输入 ${usernameValue.trim().length} 字`}
-            error={form.formState.errors.username?.message}
-            hint="用户名区分你在社区中的身份。"
+            error={form.formState.errors.identifier?.message}
+            hint="支持用户名或已验证的矿大邮箱。"
           />
         </div>
       </div>
 
-      <div className="grid gap-4 border-b border-border py-5 md:grid-cols-[128px_minmax(0,1fr)]">
-        <FieldLabel
-          description="密码只用于本次验证，不会在页面中明文展示。"
-          htmlFor="login-password"
-          index="02"
-          title="密码"
-        />
+      <div className="border-b border-border py-4">
+        <div className="flex items-center justify-between gap-3">
+          <FieldLabel htmlFor="login-password" title="密码" />
+          <Link
+            href="/forgot-password"
+            className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+          >
+            找回密码
+          </Link>
+        </div>
         <div className="min-w-0 space-y-2">
           <Input
             id="login-password"
@@ -112,98 +198,225 @@ export function LoginForm({ className }: LoginFormProps) {
             aria-invalid={Boolean(form.formState.errors.password)}
             disabled={isLocked}
             placeholder="输入密码"
-            className="h-12 border-border bg-background text-base"
+            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
             {...form.register("password")}
           />
           <FieldMeta
-            detail={`已输入 ${passwordValue.length} 位`}
             error={form.formState.errors.password?.message}
-            hint="如果登录失败，请先检查用户名和密码。"
+            hint="密码不会在页面中明文展示。"
           />
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-muted-foreground">{statusText}</div>
-        <Button type="submit" disabled={isLocked}>
-          {loginMutation.isPending
-            ? "正在登录..."
-            : loginMutation.isSuccess
-              ? "正在进入..."
-              : "登录"}
-        </Button>
-      </div>
+      <SubmitBlock
+        disabled={isLocked}
+        isPending={loginMutation.isPending}
+        isSuccess={loginMutation.isSuccess}
+        pendingText="正在登录..."
+        successText="正在进入..."
+        submitText="登录"
+        statusText={statusText}
+      />
     </form>
   );
 }
 
+function EmailCodeLoginForm({
+  onSuccess,
+  redirectTo,
+}: {
+  onSuccess?: () => void;
+  redirectTo?: string;
+}) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { setToken } = useAuthSession();
+  const [resendAvailableAt, setResendAvailableAt] = useState<number | undefined>();
+  const form = useForm<EmailCodeLoginValues>({
+    resolver: zodResolver(emailCodeLoginSchema),
+    defaultValues: {
+      code: "",
+      email: "",
+    },
+  });
+  const email = useWatch({ control: form.control, name: "email" }) ?? "";
+
+  const sendCodeMutation = useMutation({
+    mutationFn: sendLoginEmailCode,
+    onSuccess: (result) => {
+      setResendAvailableAt(Date.now() + result.resend_after * 1000);
+    },
+  });
+  const loginMutation = useMutation({
+    mutationFn: loginWithEmailCode,
+    onSuccess: async (result) => {
+      await syncAuthenticatedSession({ queryClient, result, setToken });
+      onSuccess?.();
+      router.push(redirectTo ?? getSafeNextPath());
+    },
+  });
+
+  const sendError = getAuthSubmitError(sendCodeMutation.error, emailCodeLoginAuthErrorOptions);
+  const submitError = getAuthSubmitError(loginMutation.error, {
+    ...emailCodeLoginAuthErrorOptions,
+    unauthenticated: "验证码无效、已过期，或该邮箱尚未绑定账号。",
+  });
+  const isLocked =
+    sendCodeMutation.isPending || loginMutation.isPending || loginMutation.isSuccess;
+
+  async function handleSendCode() {
+    const isValid = await form.trigger("email");
+
+    if (!isValid) {
+      return;
+    }
+
+    sendCodeMutation.reset();
+    sendCodeMutation.mutate({ email });
+  }
+
+  return (
+    <form
+      className="space-y-0"
+      method="post"
+      onChangeCapture={() => {
+        if (loginMutation.error) {
+          loginMutation.reset();
+        }
+
+        if (sendCodeMutation.error) {
+          sendCodeMutation.reset();
+        }
+      }}
+      onSubmit={form.handleSubmit((values) => {
+        if (loginMutation.error) {
+          loginMutation.reset();
+        }
+
+        loginMutation.mutate(values);
+      })}
+    >
+      {submitError ? (
+        <InlineFeedback
+          className="mb-5"
+          title="登录失败"
+          description={submitError}
+          onDismiss={() => loginMutation.reset()}
+        />
+      ) : null}
+      {sendError ? (
+        <InlineFeedback
+          className="mb-5"
+          title="验证码发送失败"
+          description={sendError}
+          onDismiss={() => sendCodeMutation.reset()}
+        />
+      ) : null}
+
+      <div className="border-b border-border py-4">
+        <FieldLabel htmlFor="login-email" title="矿大邮箱" />
+        <div className="min-w-0 space-y-2">
+          <Input
+            id="login-email"
+            type="email"
+            autoComplete="email"
+            aria-invalid={Boolean(form.formState.errors.email)}
+            disabled={isLocked}
+            placeholder="student@cumt.edu.cn"
+            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
+            {...form.register("email")}
+          />
+          <FieldMeta
+            error={form.formState.errors.email?.message}
+            hint="验证码会发送到已绑定并验证的矿大邮箱。"
+          />
+        </div>
+      </div>
+
+      <EmailCodeField
+        email={email}
+        disabled={isLocked}
+        isSending={sendCodeMutation.isPending}
+        onSend={handleSendCode}
+        resendAvailableAt={resendAvailableAt}
+        error={form.formState.errors.code?.message}
+        codeInputProps={{
+          id: "login-email-code",
+          "aria-invalid": Boolean(form.formState.errors.code),
+          ...form.register("code"),
+        }}
+      />
+
+      <SubmitBlock
+        disabled={isLocked}
+        isPending={loginMutation.isPending}
+        isSuccess={loginMutation.isSuccess}
+        pendingText="正在登录..."
+        successText="正在进入..."
+        submitText="验证码登录"
+        statusText={
+          loginMutation.isSuccess
+            ? "验证通过，正在进入。"
+            : "邮箱验证码只用于本次登录。"
+        }
+      />
+    </form>
+  );
+}
+
+function SubmitBlock({
+  disabled,
+  isPending,
+  isSuccess,
+  pendingText,
+  statusText,
+  submitText,
+  successText,
+}: {
+  disabled: boolean;
+  isPending: boolean;
+  isSuccess: boolean;
+  pendingText: string;
+  statusText: string;
+  submitText: string;
+  successText: string;
+}) {
+  return (
+    <div className="space-y-3 py-4">
+      <Button type="submit" className="w-full" disabled={disabled}>
+        {isPending ? pendingText : isSuccess ? successText : submitText}
+      </Button>
+      <div className="text-center text-xs text-muted-foreground">{statusText}</div>
+    </div>
+  );
+}
+
 function FieldLabel({
-  description,
   htmlFor,
-  index,
   title,
 }: {
-  description: string;
   htmlFor: string;
-  index: string;
   title: string;
 }) {
   return (
-    <div>
-      <label
-        className="flex items-center gap-3 text-sm font-semibold text-foreground"
-        htmlFor={htmlFor}
-      >
-        <span className="font-mono text-xs text-primary">{index}</span>
-        {title}
-      </label>
-      <p className="mt-2 hidden text-sm leading-6 text-muted-foreground sm:block">
-        {description}
-      </p>
-    </div>
+    <label className="text-sm font-semibold text-foreground" htmlFor={htmlFor}>
+      {title}
+    </label>
   );
 }
 
 function FieldMeta({
-  detail,
   error,
   hint,
 }: {
-  detail: string;
   error?: string;
   hint: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
-      <p className={error ? "text-destructive" : "text-muted-foreground"}>
-        {error ?? hint}
-      </p>
-      <span
-        className={cn(
-          "hidden font-mono text-muted-foreground sm:inline",
-          error && "text-destructive",
-        )}
-      >
-        {detail}
-      </span>
-    </div>
+    <p className={cn("text-xs", error ? "text-destructive" : "text-muted-foreground")}>
+      {error ?? hint}
+    </p>
   );
-}
-
-function getSubmitError(error: Error | null) {
-  if (!error) {
-    return null;
-  }
-
-  if (error instanceof ApiError) {
-    if (error.status === 401) {
-      return "用户名或密码不正确，请检查后重试。";
-    }
-
-    return error.message;
-  }
-
-  return "请求失败，请稍后重试。";
 }
 
 function getSafeNextPath() {

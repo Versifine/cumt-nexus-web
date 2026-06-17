@@ -1,24 +1,26 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { InlineFeedback } from "@/components/feedback/inline-feedback";
 import { TextAction } from "@/components/ui/text-action";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuthSession } from "@/features/auth/auth-session";
-import { MarkdownToolbar } from "@/features/content/markdown-toolbar";
-import { ImageAttachmentUploader } from "@/features/media/media-attachments";
-import type { MediaAttachment } from "@/features/media/types";
+import { getReferencedAttachmentIdsForSubmit } from "@/features/content/attachment-markdown";
+import { MarkdownComposerField } from "@/features/content/markdown-composer-field";
+import {
+  IMAGE_UPLOAD_LIMITS,
+  type MediaAttachment,
+} from "@/features/media/types";
 import { ApiError } from "@/lib/api/client";
 
 import { publishComment } from "./api";
 import { commentQueryKeys } from "./queries";
+import { postQueryKeys } from "../post/queries";
 
 const commentSchema = z.object({
   body: z.string().trim().min(1, "请输入评论内容。"),
@@ -28,6 +30,10 @@ type CommentFormValues = z.infer<typeof commentSchema>;
 
 type CommentFormProps = {
   compact?: boolean;
+  defaultExpanded?: boolean;
+  docked?: boolean;
+  focusSignal?: number;
+  onExpandedChange?: (isExpanded: boolean) => void;
   onSubmitted?: () => void;
   parentId?: string | null;
   postId: string;
@@ -37,6 +43,10 @@ type CommentFormProps = {
 
 export function CommentForm({
   compact = false,
+  defaultExpanded,
+  docked = false,
+  focusSignal,
+  onExpandedChange,
   onSubmitted,
   parentId = null,
   postId,
@@ -46,9 +56,11 @@ export function CommentForm({
   const pathname = usePathname();
   const { isReady, token } = useAuthSession();
   const queryClient = useQueryClient();
-  const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [attachments, setAttachments] = useState<MediaAttachment[]>([]);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? compact);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [editorFocusKey, setEditorFocusKey] = useState(0);
+  const lastFocusSignalRef = useRef(focusSignal);
   const form = useForm<CommentFormValues>({
     resolver: zodResolver(commentSchema),
     defaultValues: {
@@ -59,16 +71,27 @@ export function CommentForm({
   const commentMutation = useMutation({
     mutationFn: (values: CommentFormValues) =>
       publishComment(postId, {
-        attachment_ids: attachments.map((attachment) => attachment.id),
+        attachment_ids: getReferencedAttachmentIdsForSubmit(
+          values.body,
+          attachments,
+        ),
         body: values.body,
         parent_id: parentId || undefined,
       }),
     onSuccess: async () => {
       form.reset();
       setAttachments([]);
-      await queryClient.invalidateQueries({
-        queryKey: commentQueryKeys.postCommentsPrefix(postId),
-      });
+      if (!compact) {
+        setIsExpanded(false);
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: commentQueryKeys.postCommentsPrefix(postId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: postQueryKeys.detail(postId),
+        }),
+      ]);
       onSubmitted?.();
     },
   });
@@ -78,15 +101,58 @@ export function CommentForm({
   const loginHref = `/login?next=${encodeURIComponent(next)}`;
   const registerHref = `/register?next=${encodeURIComponent(next)}`;
   const bodyValue = useWatch({ control: form.control, name: "body" }) ?? "";
-  const bodyField = form.register("body");
+  const hasDraft = bodyValue.trim().length > 0 || attachments.length > 0;
+
+  useEffect(() => {
+    if (
+      focusSignal === undefined ||
+      focusSignal === lastFocusSignalRef.current ||
+      !token
+    ) {
+      return;
+    }
+
+    lastFocusSignalRef.current = focusSignal;
+    setIsExpanded(true);
+    setEditorFocusKey((value) => value + 1);
+  }, [focusSignal, token]);
+
+  useEffect(() => {
+    onExpandedChange?.(isExpanded);
+  }, [isExpanded, onExpandedChange]);
+
+  function expandComposer() {
+    setIsExpanded(true);
+    setEditorFocusKey((value) => value + 1);
+  }
+
+  function collapseComposer() {
+    if (commentMutation.isPending || isUploadingImage) {
+      return;
+    }
+
+    setIsExpanded(false);
+  }
+
+  function setBodyValue(nextValue: string) {
+    if (commentMutation.error) {
+      commentMutation.reset();
+    }
+
+    form.setValue("body", nextValue, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+  }
 
   if (!isReady) {
     return (
       <div
         className={
-          compact
-            ? "border-l border-border pl-4 text-sm text-muted-foreground"
-            : "border-y border-border py-4 text-sm text-muted-foreground"
+          compact || docked
+            ? "text-sm text-muted-foreground"
+            : "border-t border-border py-4 text-sm text-muted-foreground"
         }
         aria-label="正在读取登录状态"
       >
@@ -96,24 +162,42 @@ export function CommentForm({
   }
 
   if (!token) {
+    if (docked && !compact) {
+      return (
+        <section className="flex min-h-11 w-full items-center justify-between gap-3 border-t border-border pt-3">
+          <span className="min-w-0 truncate text-sm text-muted-foreground">
+            登录后发表评论
+          </span>
+          <TextAction href={loginHref} tone="primary" className="h-9 shrink-0">
+            去登录
+          </TextAction>
+        </section>
+      );
+    }
+
     return (
-      <section className={compact ? "border-l border-border pl-4" : "border-y border-border py-4"}>
-        <div className="font-mono text-xs text-primary">
-          {parentId ? "REPLY / LOGIN" : "COMMENT / LOGIN"}
-        </div>
-        <h3 className={compact ? "mt-2 text-sm font-semibold" : "mt-3 text-lg font-semibold tracking-normal"}>
+      <section
+        className={
+          compact ? "py-1" : "border-t border-border py-4"
+        }
+      >
+        <h3
+          className={
+            compact
+              ? "text-sm font-semibold"
+              : "text-base font-semibold tracking-normal"
+          }
+        >
           登录后{parentId ? "回复评论" : "发表评论"}
         </h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {parentId
-            ? "回复会绑定到当前账号。登录或注册后会回到这条帖子继续参与讨论。"
-            : "评论会绑定到当前账号。登录或注册后会回到这条帖子继续参与讨论。"}
+          未登录可以阅读帖子和评论；发表内容、投票和举报需要登录。
         </p>
-        <div className="mt-4 border-y border-border">
-          <TextAction href={loginHref} tone="primary" variant="bar">
+        <div className="mt-3 flex flex-wrap gap-4 border-t border-border pt-3">
+          <TextAction href={loginHref} tone="primary">
             去登录
           </TextAction>
-          <TextAction href={registerHref} variant="bar">
+          <TextAction href={registerHref}>
             创建账号
           </TextAction>
         </div>
@@ -121,41 +205,85 @@ export function CommentForm({
     );
   }
 
+  if (!compact && !isExpanded) {
+    return (
+      <button
+        type="button"
+        className="flex min-h-11 w-full items-center justify-between gap-3 border-b border-border px-0 py-2 text-left text-sm transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        aria-label="展开评论输入框"
+        onClick={expandComposer}
+      >
+        <span className="min-w-0 truncate text-muted-foreground">
+          {hasDraft ? "继续编辑评论草稿" : (placeholder ?? "写下你的评论")}
+        </span>
+      </button>
+    );
+  }
+
   return (
     <form
-      className={compact ? "space-y-3 border-l border-border pl-4" : "space-y-3"}
-      onSubmit={form.handleSubmit((values) => commentMutation.mutate(values))}
+      className={
+        compact
+          ? "space-y-2"
+          : docked
+            ? "w-full space-y-3"
+            : "w-full space-y-3"
+      }
+      onSubmit={form.handleSubmit((values) => {
+        if (commentMutation.error) {
+          commentMutation.reset();
+        }
+
+        commentMutation.mutate(values);
+      })}
     >
+      {!compact ? (
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <span className="truncate text-sm font-semibold text-muted-foreground">
+            {docked ? "底部评论窗" : "评论输入"}
+          </span>
+          <button
+            type="button"
+            className="inline-flex h-8 shrink-0 items-center px-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={commentMutation.isPending || isUploadingImage}
+            onClick={collapseComposer}
+          >
+            收起
+          </button>
+        </div>
+      ) : null}
+
       {submitError ? (
-        <Alert variant="destructive">
-          <AlertTitle>评论发布失败</AlertTitle>
-          <AlertDescription>{submitError}</AlertDescription>
-        </Alert>
+        <InlineFeedback
+          title="评论发布失败"
+          description={submitError}
+          onDismiss={() => commentMutation.reset()}
+        />
       ) : null}
 
       <div className="space-y-2">
-        <MarkdownToolbar
+        <MarkdownComposerField
+          autoFocusKey={editorFocusKey}
           disabled={commentMutation.isPending}
-          onChange={(nextValue) =>
-            form.setValue("body", nextValue, {
-              shouldDirty: true,
-              shouldTouch: true,
-              shouldValidate: true,
-            })
-          }
-          textareaRef={bodyTextareaRef}
+          maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerComment}
+          onChange={setBodyValue}
+          fieldProps={{
+            "aria-label": "评论内容",
+            "aria-invalid": Boolean(form.formState.errors.body),
+            className: compact
+              ? "min-h-24"
+              : docked
+                ? "max-h-[34vh] min-h-24 overflow-y-auto sm:min-h-28"
+                : "min-h-28 sm:min-h-32",
+            placeholder:
+              placeholder ?? (parentId ? "回复这条评论" : "写下你的评论"),
+          }}
           value={bodyValue}
-        />
-        <Textarea
-          aria-label="评论内容"
-          aria-invalid={Boolean(form.formState.errors.body)}
-          disabled={commentMutation.isPending}
-          placeholder={placeholder ?? (parentId ? "回复这条评论。" : "写下你的评论。")}
-          className={compact ? "min-h-28" : undefined}
-          {...bodyField}
-          ref={(element) => {
-            bodyField.ref(element);
-            bodyTextareaRef.current = element;
+          imageUpload={{
+            attachments,
+            maxCount: IMAGE_UPLOAD_LIMITS.maxCountPerComment,
+            onChange: setAttachments,
+            onUploadingChange: setIsUploadingImage,
           }}
         />
         {form.formState.errors.body ? (
@@ -165,24 +293,47 @@ export function CommentForm({
         ) : null}
       </div>
 
-      <ImageAttachmentUploader
-        attachments={attachments}
-        disabled={commentMutation.isPending}
-        idPrefix={`comment-image-${parentId ?? "root"}-${postId}`}
-        onChange={setAttachments}
-        onUploadingChange={setIsUploadingImage}
-      />
-
       <div className="flex justify-end">
-        <Button type="submit" disabled={commentMutation.isPending || isUploadingImage}>
+        <CommentSubmitAction
+          type="submit"
+          disabled={commentMutation.isPending || isUploadingImage}
+        >
           {isUploadingImage
             ? "图片上传中..."
             : commentMutation.isPending
               ? "正在发布..."
-              : (submitLabel ?? (parentId ? "发布回复" : "发布评论"))}
-        </Button>
+              : (submitLabel ?? (parentId ? "发布回复" : "发表评论"))}
+        </CommentSubmitAction>
       </div>
     </form>
+  );
+}
+
+function CommentSubmitAction({
+  children,
+  className,
+  ...props
+}: ComponentProps<"button">) {
+  return (
+    <button
+      className={[
+        "group inline-flex h-9 items-center gap-2 border-b border-transparent px-0.5 text-sm font-semibold text-primary transition-colors",
+        "hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "disabled:cursor-not-allowed disabled:border-transparent disabled:text-muted-foreground disabled:opacity-60",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      {...props}
+    >
+      <span>{children}</span>
+      <span
+        className="font-mono text-xs text-primary transition-colors group-disabled:text-muted-foreground"
+        aria-hidden="true"
+      >
+        +
+      </span>
+    </button>
   );
 }
 

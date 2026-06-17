@@ -3,10 +3,12 @@
 import { forwardRef, useState, type ComponentProps, type ReactNode } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Flag } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InlineFeedback } from "@/components/feedback/inline-feedback";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuthSession } from "@/features/auth/auth-session";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +47,8 @@ export function ReportContentDialog({
   targetLabel,
   targetType,
 }: ReportContentDialogProps) {
+  const pathname = usePathname();
+  const { isReady, token } = useAuthSession();
   const [open, setOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const postMutation = useReportPostMutation(targetId);
@@ -63,6 +68,31 @@ export function ReportContentDialog({
   }
 
   const submitError = getSubmitError(mutation.error);
+  const next = pathname || "/";
+  const loginHref = `/login?next=${encodeURIComponent(next)}`;
+
+  if (!isReady) {
+    return (
+      <ReportTrigger disabled aria-label="正在确认举报权限">
+        <Flag className="size-3.5" aria-hidden="true" />
+        举报
+      </ReportTrigger>
+    );
+  }
+
+  if (!token) {
+    return (
+      <Link
+        href={loginHref}
+        className={cn(
+          "-mx-1 inline-flex min-h-10 items-center gap-1.5 px-1 py-2 text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        )}
+      >
+        <Flag className="size-3.5" aria-hidden="true" />
+        登录后举报
+      </Link>
+    );
+  }
 
   return (
     <Dialog
@@ -88,20 +118,21 @@ export function ReportContentDialog({
         </DialogHeader>
 
         {successMessage ? (
-          <Alert variant="success">
-            <AlertTitle>已提交</AlertTitle>
-            <AlertDescription>{successMessage}</AlertDescription>
-          </Alert>
+          <InlineFeedback
+          tone="success"
+          title="已提交"
+          description={successMessage}
+        />
         ) : null}
 
         {submitError ? (
-          <Alert variant="destructive">
-            <AlertTitle>举报提交失败</AlertTitle>
-            <AlertDescription>{submitError}</AlertDescription>
-          </Alert>
+          <InlineFeedback
+                title="举报提交失败"
+                description={submitError}
+              />
         ) : null}
 
-        <div className="border-y border-border py-3">
+        <div className="border-t border-border pt-3">
           <div className="font-mono text-xs text-muted-foreground">目标</div>
           <p className="mt-2 break-words text-sm font-semibold">{targetLabel}</p>
         </div>
@@ -133,7 +164,7 @@ export function ReportContentDialog({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               disabled={mutation.isPending}
               onClick={() => setOpen(false)}
             >
@@ -164,7 +195,7 @@ const ReportTrigger = forwardRef<HTMLButtonElement, ReportTriggerProps>(
         type={type}
         {...props}
         className={cn(
-          "-mx-1 inline-flex min-h-10 items-center gap-1.5 px-1 py-2 text-xs text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40",
+          "-mx-1 inline-flex min-h-10 items-center gap-1.5 px-1 py-2 text-xs text-muted-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40",
           className,
         )}
       >

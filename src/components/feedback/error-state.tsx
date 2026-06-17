@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 type ErrorStateProps = {
   title?: string;
@@ -14,10 +13,20 @@ export function ErrorState({
   action,
 }: ErrorStateProps) {
   return (
-    <Alert variant="destructive">
-      <AlertTitle>{title}</AlertTitle>
-      <AlertDescription>{description}</AlertDescription>
-      {action ? <div className="mt-3">{action}</div> : null}
-    </Alert>
+    <section className="border-y border-border py-5" role="status">
+      <div className="flex min-w-0 gap-3">
+        <AlertCircle
+          className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {description}
+          </p>
+          {action ? <div className="mt-3">{action}</div> : null}
+        </div>
+      </div>
+    </section>
   );
 }

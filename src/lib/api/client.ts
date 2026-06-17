@@ -6,6 +6,8 @@ const DEFAULT_API_BASE_URL = "http://localhost:8080";
 const DEFAULT_API_TIMEOUT_MS = 15_000;
 const TIMEOUT_ABORT_REASON = "api-request-timeout";
 
+export const SERVER_PREFETCH_API_TIMEOUT_MS = 3_000;
+
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
   body?: BodyInit | unknown;
   timeoutMs?: number;
@@ -15,12 +17,14 @@ type ApiRequestOptions = Omit<RequestInit, "body"> & {
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
+  readonly serverMessage: string;
 
   constructor(status: number, error: ApiErrorBody) {
     super(getClientErrorMessage(error));
     this.name = "ApiError";
     this.status = status;
     this.code = error.code;
+    this.serverMessage = error.message;
   }
 }
 

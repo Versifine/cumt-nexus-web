@@ -1,4 +1,4 @@
-export type SearchScope = "all" | "communities" | "posts";
+export type SearchScope = "all" | "communities" | "posts" | "users";
 
 export type SearchCommunityResult = {
   id: string;
@@ -24,6 +24,18 @@ export type SearchPostResult = {
   updated_at: string;
 };
 
+export type SearchUserResult = {
+  id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string;
+  headline: string;
+  bio_excerpt: string;
+  status: "active" | string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SearchInput = {
   q: string;
   scope?: SearchScope;
@@ -38,4 +50,5 @@ export type SearchResponse = {
   offset: number;
   communities: SearchCommunityResult[];
   posts: SearchPostResult[];
+  users?: SearchUserResult[];
 };

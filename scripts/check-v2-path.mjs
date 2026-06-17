@@ -19,6 +19,11 @@ const apiBaseUrl = normalizeUrl(
     env.NEXT_PUBLIC_API_BASE_URL ??
     "http://localhost:8080",
 );
+const frontendOrigin = normalizeUrl(
+  getArgValue("--frontend-origin") ??
+    env.NEXT_PUBLIC_SITE_URL ??
+    "http://localhost:3000",
+);
 
 const runId = createRunId();
 const slugRunId = runId.replaceAll("_", "-");
@@ -35,6 +40,7 @@ let commentReportId = "";
 
 console.log("CUMT Nexus Web V2 backend path check");
 console.log(`backend: ${apiBaseUrl}`);
+console.log(`frontend origin: ${frontendOrigin}`);
 console.log(`run id:  ${runId}`);
 console.log("");
 
@@ -43,6 +49,7 @@ await createUsers();
 await promoteStaffUser();
 await checkCurrentUserStaffFlag();
 await checkUploadPostAndComments();
+await checkBrowserEditCors();
 await checkFeedSort();
 await checkSearch();
 await checkNotifications();
@@ -129,6 +136,38 @@ async function checkUploadPostAndComments() {
   const postAttachment = await uploadImage(reporter.token, "v2 post image");
   const rootAttachment = await uploadImage(reporter.token, "v2 root comment image");
   const childAttachment = await uploadImage(reporter.token, "v2 child comment image");
+  const postEditAttachment = await uploadImage(reporter.token, "v2 edited post image");
+  const rootEditAttachment = await uploadImage(reporter.token, "v2 edited root comment image");
+  if (
+    !postAttachment.id ||
+    !rootAttachment.id ||
+    !childAttachment.id ||
+    !postEditAttachment.id ||
+    !rootEditAttachment.id
+  ) {
+    return;
+  }
+
+  const postAttachmentMarkdown = createSmokeAttachmentMarkdown(
+    postAttachment.id,
+    "v2 post image",
+  );
+  const rootAttachmentMarkdown = createSmokeAttachmentMarkdown(
+    rootAttachment.id,
+    "v2 root comment image",
+  );
+  const childAttachmentMarkdown = createSmokeAttachmentMarkdown(
+    childAttachment.id,
+    "v2 child comment image",
+  );
+  const postEditAttachmentMarkdown = createSmokeAttachmentMarkdown(
+    postEditAttachment.id,
+    "v2 edited post image",
+  );
+  const rootEditAttachmentMarkdown = createSmokeAttachmentMarkdown(
+    rootEditAttachment.id,
+    "v2 edited root comment image",
+  );
 
   const postResponse = await request("/api/v1/communities/public/posts", {
     body: {
@@ -141,6 +180,8 @@ async function checkUploadPostAndComments() {
         "> 引用",
         "",
         ">! 隐藏内容 !<",
+        "",
+        postAttachmentMarkdown,
         "",
         "| 项 | 值 |",
         "| --- | --- |",
@@ -157,17 +198,133 @@ async function checkUploadPostAndComments() {
   }
 
   const post = postResponse.json?.post;
-  if (!post?.id || !Array.isArray(post.attachments) || post.attachments[0]?.id !== postAttachment.id) {
+  if (
+    !post?.id ||
+    !post.body?.includes(postAttachmentMarkdown) ||
+    !Array.isArray(post.attachments) ||
+    post.attachments[0]?.id !== postAttachment.id
+  ) {
     addFail("publish post with image", `unexpected response payload: ${preview(postResponse.bodyText)}`);
     return;
   }
 
   postId = post.id;
 
+  const postDetailResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}`, {
+    token: reporter.token,
+  });
+  if (!expectOk(postDetailResponse, "post detail preserves inline image marker")) {
+    return;
+  }
+  if (
+    !postDetailResponse.json?.post?.body?.includes(postAttachmentMarkdown) ||
+    !postDetailResponse.json?.post?.attachments?.some(
+      (attachment) => attachment?.id === postAttachment.id,
+    )
+  ) {
+    addFail("post detail preserves inline image marker", `unexpected response payload: ${preview(postDetailResponse.bodyText)}`);
+    return;
+  }
+
+  const postEditResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}`, {
+    body: {
+      attachment_ids: [postEditAttachment.id],
+      body: [
+        `# ${marker} edited`,
+        "",
+        "帖子编辑态图片替换。",
+        "",
+        postEditAttachmentMarkdown,
+      ].join("\n"),
+      title: `${marker} post edited`,
+    },
+    method: "PATCH",
+    token: reporter.token,
+  });
+
+  if (!expectOk(postEditResponse, "edit post replaces image attachments")) {
+    return;
+  }
+
+  const editedPost = postEditResponse.json?.post;
+  if (
+    !editedPost?.body?.includes(postEditAttachmentMarkdown) ||
+    editedPost.body.includes(postAttachmentMarkdown) ||
+    !editedPost.attachments?.some((attachment) => attachment?.id === postEditAttachment.id) ||
+    editedPost.attachments?.some((attachment) => attachment?.id === postAttachment.id)
+  ) {
+    addFail("edit post replaces image attachments", `unexpected response payload: ${preview(postEditResponse.bodyText)}`);
+    return;
+  }
+
+  const editedPostDetailResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}`, {
+    token: reporter.token,
+  });
+  if (!expectOk(editedPostDetailResponse, "post detail preserves edited inline image marker")) {
+    return;
+  }
+  if (
+    !editedPostDetailResponse.json?.post?.body?.includes(postEditAttachmentMarkdown) ||
+    editedPostDetailResponse.json?.post?.body?.includes(postAttachmentMarkdown) ||
+    !editedPostDetailResponse.json?.post?.attachments?.some(
+      (attachment) => attachment?.id === postEditAttachment.id,
+    ) ||
+    editedPostDetailResponse.json?.post?.attachments?.some(
+      (attachment) => attachment?.id === postAttachment.id,
+    )
+  ) {
+    addFail("post detail preserves edited inline image marker", `unexpected response payload: ${preview(editedPostDetailResponse.bodyText)}`);
+    return;
+  }
+
+  const postRemoveImageResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}`, {
+    body: {
+      attachment_ids: [],
+      body: [
+        `# ${marker} image removed`,
+        "",
+        "帖子编辑态删除正文图片后保存。",
+      ].join("\n"),
+      title: `${marker} post image removed`,
+    },
+    method: "PATCH",
+    token: reporter.token,
+  });
+
+  if (!expectOk(postRemoveImageResponse, "edit post removes image attachments")) {
+    return;
+  }
+
+  const postWithoutImage = postRemoveImageResponse.json?.post;
+  if (
+    !postWithoutImage?.body?.includes("帖子编辑态删除正文图片后保存。") ||
+    postWithoutImage.body.includes(postAttachmentMarkdown) ||
+    postWithoutImage.body.includes(postEditAttachmentMarkdown) ||
+    postWithoutImage.attachments?.length
+  ) {
+    addFail("edit post removes image attachments", `unexpected response payload: ${preview(postRemoveImageResponse.bodyText)}`);
+    return;
+  }
+
+  const postWithoutImageDetailResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}`, {
+    token: reporter.token,
+  });
+  if (!expectOk(postWithoutImageDetailResponse, "post detail preserves removed image state")) {
+    return;
+  }
+  if (
+    postWithoutImageDetailResponse.json?.post?.body?.includes(postAttachmentMarkdown) ||
+    postWithoutImageDetailResponse.json?.post?.body?.includes(postEditAttachmentMarkdown) ||
+    postWithoutImageDetailResponse.json?.post?.attachments?.length
+  ) {
+    addFail("post detail preserves removed image state", `unexpected response payload: ${preview(postWithoutImageDetailResponse.bodyText)}`);
+    return;
+  }
+
   const rootResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}/comments`, {
     body: {
       attachment_ids: [rootAttachment.id],
-      body: `${marker} root comment **markdown** >!hidden!<`,
+      body: `${marker} root comment **markdown** >!hidden!<\n\n${rootAttachmentMarkdown}`,
     },
     method: "POST",
     token: reporter.token,
@@ -178,17 +335,70 @@ async function checkUploadPostAndComments() {
   }
 
   const rootComment = rootResponse.json?.comment;
-  if (!rootComment?.id || !Array.isArray(rootComment.attachments) || rootComment.attachments[0]?.id !== rootAttachment.id) {
+  if (
+    !rootComment?.id ||
+    !rootComment.body?.includes(rootAttachmentMarkdown) ||
+    !Array.isArray(rootComment.attachments) ||
+    rootComment.attachments[0]?.id !== rootAttachment.id
+  ) {
     addFail("publish root comment with image", `unexpected response payload: ${preview(rootResponse.bodyText)}`);
     return;
   }
 
   rootCommentId = rootComment.id;
 
+  const rootEditResponse = await request(`/api/v1/comments/${encodeURIComponent(rootCommentId)}`, {
+    body: {
+      attachment_ids: [rootEditAttachment.id],
+      body: `${marker} root comment edited\n\n${rootEditAttachmentMarkdown}`,
+    },
+    method: "PATCH",
+    token: reporter.token,
+  });
+
+  if (!expectOk(rootEditResponse, "edit root comment replaces image attachments")) {
+    return;
+  }
+
+  const editedRootComment = rootEditResponse.json?.comment;
+  if (
+    !editedRootComment?.body?.includes(rootEditAttachmentMarkdown) ||
+    editedRootComment.body.includes(rootAttachmentMarkdown) ||
+    !editedRootComment.attachments?.some((attachment) => attachment?.id === rootEditAttachment.id) ||
+    editedRootComment.attachments?.some((attachment) => attachment?.id === rootAttachment.id)
+  ) {
+    addFail("edit root comment replaces image attachments", `unexpected response payload: ${preview(rootEditResponse.bodyText)}`);
+    return;
+  }
+
+  const rootRemoveImageResponse = await request(`/api/v1/comments/${encodeURIComponent(rootCommentId)}`, {
+    body: {
+      attachment_ids: [],
+      body: `${marker} root comment image removed`,
+    },
+    method: "PATCH",
+    token: reporter.token,
+  });
+
+  if (!expectOk(rootRemoveImageResponse, "edit root comment removes image attachments")) {
+    return;
+  }
+
+  const rootCommentWithoutImage = rootRemoveImageResponse.json?.comment;
+  if (
+    !rootCommentWithoutImage?.body?.includes("root comment image removed") ||
+    rootCommentWithoutImage.body.includes(rootAttachmentMarkdown) ||
+    rootCommentWithoutImage.body.includes(rootEditAttachmentMarkdown) ||
+    rootCommentWithoutImage.attachments?.length
+  ) {
+    addFail("edit root comment removes image attachments", `unexpected response payload: ${preview(rootRemoveImageResponse.bodyText)}`);
+    return;
+  }
+
   const childResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}/comments`, {
     body: {
       attachment_ids: [childAttachment.id],
-      body: `${marker} child comment`,
+      body: `${marker} child comment\n\n${childAttachmentMarkdown}`,
       parent_id: rootCommentId,
     },
     method: "POST",
@@ -200,7 +410,12 @@ async function checkUploadPostAndComments() {
   }
 
   const childComment = childResponse.json?.comment;
-  if (!childComment?.id || childComment.parent_id !== rootCommentId || childComment.attachments?.[0]?.id !== childAttachment.id) {
+  if (
+    !childComment?.id ||
+    !childComment.body?.includes(childAttachmentMarkdown) ||
+    childComment.parent_id !== rootCommentId ||
+    childComment.attachments?.[0]?.id !== childAttachment.id
+  ) {
     addFail("publish child comment with image", `unexpected response payload: ${preview(childResponse.bodyText)}`);
     return;
   }
@@ -224,12 +439,55 @@ async function checkUploadPostAndComments() {
     ? comments.find((comment) => comment?.id === childCommentId)
     : null;
 
-  if (!rootFromTree?.attachments?.length || !childFromTree?.attachments?.length) {
+  if (
+    !rootFromTree?.body?.includes("root comment image removed") ||
+    rootFromTree?.body?.includes(rootAttachmentMarkdown) ||
+    rootFromTree?.body?.includes(rootEditAttachmentMarkdown) ||
+    !childFromTree?.body?.includes(childAttachmentMarkdown) ||
+    !childFromTree?.attachments?.length ||
+    rootFromTree?.attachments?.length
+  ) {
     addFail("comment tree with attachments", `attachments missing from tree: ${preview(treeResponse.bodyText)}`);
     return;
   }
 
-  addPass("content media path", `created post ${postId}, root comment ${rootCommentId} and child comment ${childCommentId}`);
+  addPass("content media path", `created, edited and removed inline images for post ${postId}, root comment ${rootCommentId} and child comment ${childCommentId}`);
+}
+
+async function checkBrowserEditCors() {
+  if (!postId || !rootCommentId) {
+    addFail("browser edit CORS", "post/comment smoke content was not created");
+    return;
+  }
+
+  const postPreflight = await corsPreflight(
+    `/api/v1/posts/${encodeURIComponent(postId)}`,
+    "PATCH",
+  );
+  const commentPreflight = await corsPreflight(
+    `/api/v1/comments/${encodeURIComponent(rootCommentId)}`,
+    "PATCH",
+  );
+
+  const postOk = expectCorsPreflight(
+    postPreflight,
+    "browser edit CORS post PATCH",
+    "PATCH",
+  );
+  const commentOk = expectCorsPreflight(
+    commentPreflight,
+    "browser edit CORS comment PATCH",
+    "PATCH",
+  );
+
+  if (!postOk || !commentOk) {
+    return;
+  }
+
+  addPass(
+    "browser edit CORS",
+    `PATCH preflight allows ${frontendOrigin} for post and comment edit endpoints`,
+  );
 }
 
 async function checkFeedSort() {
@@ -288,6 +546,9 @@ async function checkSearch() {
 
 async function checkNotifications() {
   const notificationId = randomUUID();
+  const mentionNotificationId = randomUUID();
+  const likeNotificationId = randomUUID();
+  const readAllNotificationId = randomUUID();
   const insert = runDockerPsql(`
     INSERT INTO notifications (
       id,
@@ -302,9 +563,39 @@ async function checkNotifications() {
     ) VALUES (
       '${notificationId}'::uuid,
       '${escapeSql(reporter.user.id)}'::uuid,
+      'post_reply',
+      'V2 smoke reply notification',
+      'V2 smoke reply notification body',
+      'post',
+      '${escapeSql(postId)}',
+      now(),
+      now()
+    ), (
+      '${mentionNotificationId}'::uuid,
+      '${escapeSql(reporter.user.id)}'::uuid,
+      'mention',
+      'V2 smoke mention notification',
+      'V2 smoke mention notification body',
+      'post',
+      '${escapeSql(postId)}',
+      now(),
+      now()
+    ), (
+      '${likeNotificationId}'::uuid,
+      '${escapeSql(reporter.user.id)}'::uuid,
+      'post_like',
+      'V2 smoke like notification',
+      'V2 smoke like notification body',
+      'post',
+      '${escapeSql(postId)}',
+      now(),
+      now()
+    ), (
+      '${readAllNotificationId}'::uuid,
+      '${escapeSql(reporter.user.id)}'::uuid,
       'system',
-      'V2 smoke notification',
-      'V2 smoke notification body',
+      'V2 smoke system notification',
+      'V2 smoke system notification body',
       'post',
       '${escapeSql(postId)}',
       now(),
@@ -324,6 +615,51 @@ async function checkNotifications() {
 
   if (!unread.json?.notifications?.some((notification) => notification?.id === notificationId)) {
     addFail("list unread notifications", `seeded notification ${notificationId} missing`);
+    return;
+  }
+
+  const replies = await request("/api/v1/notifications?category=replies&status=unread&limit=20&offset=0", { token: reporter.token });
+  const mentions = await request("/api/v1/notifications?category=mentions&status=unread&limit=20&offset=0", { token: reporter.token });
+  const likes = await request("/api/v1/notifications?category=likes&status=unread&limit=20&offset=0", { token: reporter.token });
+  const system = await request("/api/v1/notifications?category=system&status=unread&limit=20&offset=0", { token: reporter.token });
+  if (
+    !expectOk(replies, "list replies notifications") ||
+    !expectOk(mentions, "list mentions notifications") ||
+    !expectOk(likes, "list likes notifications") ||
+    !expectOk(system, "list system notifications")
+  ) {
+    return;
+  }
+
+  if (replies.json?.category !== "replies" || !replies.json?.notifications?.some((notification) => notification?.id === notificationId)) {
+    addFail("list replies notifications", `reply notification ${notificationId} missing: ${preview(replies.bodyText)}`);
+    return;
+  }
+  if (mentions.json?.category !== "mentions" || !mentions.json?.notifications?.some((notification) => notification?.id === mentionNotificationId)) {
+    addFail("list mentions notifications", `mention notification ${mentionNotificationId} missing: ${preview(mentions.bodyText)}`);
+    return;
+  }
+  if (likes.json?.category !== "likes" || !likes.json?.notifications?.some((notification) => notification?.id === likeNotificationId)) {
+    addFail("list likes notifications", `like notification ${likeNotificationId} missing: ${preview(likes.bodyText)}`);
+    return;
+  }
+  if (system.json?.category !== "system" || !system.json?.notifications?.some((notification) => notification?.id === readAllNotificationId)) {
+    addFail("list system notifications", `system notification ${readAllNotificationId} missing: ${preview(system.bodyText)}`);
+    return;
+  }
+
+  const summary = await request("/api/v1/notifications/unread-summary", { token: reporter.token });
+  if (!expectOk(summary, "notification unread summary")) {
+    return;
+  }
+  if (
+    summary.json?.total < 4 ||
+    summary.json?.replies < 1 ||
+    summary.json?.mentions < 1 ||
+    summary.json?.likes < 1 ||
+    summary.json?.system < 1
+  ) {
+    addFail("notification unread summary", `unexpected summary: ${preview(summary.bodyText)}`);
     return;
   }
 
@@ -350,7 +686,29 @@ async function checkNotifications() {
     return;
   }
 
-  addPass("notifications", "list unread, mark read and list read all work");
+  const readAllResponse = await request("/api/v1/notifications/read-all", {
+    method: "POST",
+    token: reporter.token,
+  });
+  if (!expectOk(readAllResponse, "mark all notifications read")) {
+    return;
+  }
+
+  if (!readAllResponse.json?.read_at || readAllResponse.json?.updated_count < 3) {
+    addFail("mark all notifications read", `unexpected payload: ${preview(readAllResponse.bodyText)}`);
+    return;
+  }
+
+  const afterReadAllSummary = await request("/api/v1/notifications/unread-summary", { token: reporter.token });
+  if (!expectOk(afterReadAllSummary, "notification unread summary after read all")) {
+    return;
+  }
+  if (afterReadAllSummary.json?.total !== 0) {
+    addFail("notification unread summary after read all", `expected total=0: ${preview(afterReadAllSummary.bodyText)}`);
+    return;
+  }
+
+  addPass("notifications", "category list, unread summary, mark read and mark all read all work");
 }
 
 async function checkReportsAndModeration() {
@@ -650,7 +1008,71 @@ async function uploadImage(token, altText) {
     return {};
   }
 
+  const publicCheck = await checkPublicImageUrl(attachment.url);
+  if (!publicCheck.ok) {
+    addFail(`upload image ${altText} public URL`, publicCheck.detail);
+    return {};
+  }
+
+  addPass(
+    `upload image ${altText} public URL`,
+    `${publicCheck.method} ${attachment.url} returned HTTP ${publicCheck.status} ${publicCheck.contentType}`,
+  );
+
   return attachment;
+}
+
+async function checkPublicImageUrl(url) {
+  if (!url || !/^https?:\/\//u.test(url)) {
+    return {
+      detail: `attachment url is not an absolute HTTP URL: ${String(url)}`,
+      ok: false,
+    };
+  }
+
+  let lastDetail = "";
+  for (const method of ["HEAD", "GET"]) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        method,
+        signal: controller.signal,
+      });
+      const contentType = response.headers.get("content-type") ?? "";
+
+      if (!response.ok) {
+        lastDetail = `${method} ${url} returned HTTP ${response.status}`;
+        continue;
+      }
+
+      if (!contentType.toLowerCase().startsWith("image/")) {
+        lastDetail = `${method} ${url} returned non-image Content-Type ${contentType || "(empty)"}`;
+        continue;
+      }
+
+      if (method === "GET") {
+        await response.arrayBuffer();
+      }
+
+      return {
+        contentType,
+        method,
+        ok: true,
+        status: response.status,
+      };
+    } catch (error) {
+      lastDetail = `${method} ${url} failed: ${error instanceof Error ? error.message : String(error)}`;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  return {
+    detail: lastDetail || `attachment url is not readable: ${url}`,
+    ok: false,
+  };
 }
 
 async function request(path, options = {}) {
@@ -699,6 +1121,41 @@ async function request(path, options = {}) {
   }
 }
 
+async function corsPreflight(path, method) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      headers: {
+        "Access-Control-Request-Headers": "authorization,content-type",
+        "Access-Control-Request-Method": method,
+        Origin: frontendOrigin,
+      },
+      method: "OPTIONS",
+      signal: controller.signal,
+    });
+
+    return {
+      allowHeaders: response.headers.get("access-control-allow-headers") ?? "",
+      allowMethods: response.headers.get("access-control-allow-methods") ?? "",
+      allowOrigin: response.headers.get("access-control-allow-origin") ?? "",
+      ok: true,
+      status: response.status,
+    };
+  } catch (error) {
+    return {
+      detail:
+        error?.name === "AbortError"
+          ? `preflight timed out after ${timeoutMs}ms: ${path}`
+          : `${error?.message ?? error}: ${path}`,
+      ok: false,
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function expectOk(response, name) {
   if (!response.ok) {
     addFail(name, response.detail);
@@ -727,6 +1184,49 @@ function expectErrorCode(response, name, status, code) {
 
   addFail(name, `expected HTTP ${status} ${code}, got HTTP ${response.status}: ${preview(response.bodyText)}`);
   return false;
+}
+
+function expectCorsPreflight(response, name, method) {
+  if (!response.ok) {
+    addFail(name, response.detail);
+    return false;
+  }
+
+  if (response.status < 200 || response.status >= 300) {
+    addFail(name, `OPTIONS returned HTTP ${response.status}`);
+    return false;
+  }
+
+  if (response.allowOrigin !== frontendOrigin && response.allowOrigin !== "*") {
+    addFail(
+      name,
+      `expected Access-Control-Allow-Origin ${frontendOrigin} or *, got ${response.allowOrigin || "(empty)"}`,
+    );
+    return false;
+  }
+
+  const methods = splitHeaderList(response.allowMethods);
+  if (!methods.has(method.toLowerCase())) {
+    addFail(
+      name,
+      `expected Access-Control-Allow-Methods to include ${method}, got ${response.allowMethods || "(empty)"}`,
+    );
+    return false;
+  }
+
+  const headers = splitHeaderList(response.allowHeaders);
+  for (const requiredHeader of ["authorization", "content-type"]) {
+    if (!headers.has(requiredHeader)) {
+      addFail(
+        name,
+        `expected Access-Control-Allow-Headers to include ${requiredHeader}, got ${response.allowHeaders || "(empty)"}`,
+      );
+      return false;
+    }
+  }
+
+  addPass(name, `OPTIONS allows ${method} from ${frontendOrigin}`);
+  return true;
 }
 
 function runDockerPsql(sql) {
@@ -807,6 +1307,20 @@ function findRunningPostgresContainer() {
   return preferred?.name ?? candidates[0]?.name ?? "";
 }
 
+function createSmokeAttachmentMarkdown(id, altText) {
+  return `![${escapeMarkdownAltText(altText)}](nexus-attachment:${encodeAttachmentIdForMarkdown(id)})`;
+}
+
+function escapeMarkdownAltText(value) {
+  return value.replace(/\\/g, "\\\\").replace(/\]/g, "\\]").replace(/\r?\n/g, " ");
+}
+
+function encodeAttachmentIdForMarkdown(value) {
+  return encodeURIComponent(value).replace(/[()]/g, (character) =>
+    `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+}
+
 function getArgValue(name) {
   const prefix = `${name}=`;
   const inline = args.find((arg) => arg.startsWith(prefix));
@@ -870,6 +1384,15 @@ function parseJson(value) {
 
 function preview(value = "") {
   return value.replace(/\s+/g, " ").trim().slice(0, 180);
+}
+
+function splitHeaderList(value = "") {
+  return new Set(
+    value
+      .split(",")
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean),
+  );
 }
 
 function escapeSql(value) {

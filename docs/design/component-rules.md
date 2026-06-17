@@ -11,7 +11,7 @@
 - 组件的用户可见文案默认使用简体中文，包括 `aria-label`、placeholder、表单校验、空状态和错误兜底。
 - 不允许重复造多个风格不同的 Button、Card、Dialog、Form。
 - 不允许引入第二套 UI 库解决单个组件问题。
-- 当前视觉方向是暗色 editorial product。组件质感优先来自版式、线条和信息层级，不来自堆叠阴影和大圆角卡片。
+- 当前视觉方向是暗色 editorial product，并以 Nexus Surface 第四版样张为面层基准。组件质感优先来自版式、面层深浅、间距和信息层级，不来自堆叠阴影、大圆角卡片或高频分割线。
 
 ## 缺组件时怎么做
 
@@ -93,10 +93,10 @@
 规则：
 
 - Card 是内容容器，不是页面 section 的默认包裹。
-- 帖子流、社区流和右侧上下文栏不默认使用 Card；能用分割线和 section 完成时优先用分割线。
+- 帖子流、社区流和右侧上下文栏不默认使用 Card；优先用面层深浅、间距和列表节奏区分内容，必要时才补低对比分割线。
 - 不能卡片套卡片。
-- 边框优先，阴影克制。
-- hover 可改变边框或背景，不改变尺寸。
+- 边框辅助，阴影克制；不要让 Card 默认变成一圈硬边框。
+- hover 可改变背景或极轻边界，不改变尺寸。
 - 列表 Card 信息密度要可扫读。
 
 不要：
@@ -209,7 +209,7 @@
 规则：
 
 - 统一使用 `src/components/ui/data-display.tsx` 中的 `MetricBlock`、`InfoRow`、`IndexedInfoRow`、`MetaCell` 和 `StatusToken`。
-- 数据块使用边框、色块和字体层级表达重点，不新增阴影、渐变或大圆角。
+- 数据块使用面层、色块和字体层级表达重点；边框只在密集键值信息需要边界时使用，不新增阴影、渐变或大圆角。
 - 状态标签 tone 必须复用 `default`、`primary`、`success`、`warning`、`danger`。
 - 页面里不要重复定义局部 `MetricBlock`、`InfoRow` 或 `StatusToken`。
 - 新增同类数据展示基础件时，必须同步更新 `npm run check:ui-primitives`。

@@ -17,28 +17,22 @@ const spoilerLinkPrefix = "#nexus-spoiler-";
 const superscriptLinkPrefix = "#nexus-sup-";
 
 export function transformRedditMarkdown(value: string): RedditMarkdownTransform {
+  const withReferenceMarkdown = inlineReferenceMarkdown(value);
   const spoilerTokens: RedditToken[] = [];
-  const withSpoilers = replaceDelimitedTokens({
-    close: "!<",
-    createMarkdown: (index) => `[显示隐藏内容](${spoilerLinkPrefix}${index})`,
-    open: ">!",
-    tokens: spoilerTokens,
-    type: "spoiler",
-    value,
-  });
-
+  const withSpoilers = transformOutsideFencedCodeBlocks(withReferenceMarkdown, (line) =>
+    replaceDelimitedTokensOutsideMarkdownSyntax({
+      close: "!<",
+      createMarkdown: (index) => `[显示隐藏内容](${spoilerLinkPrefix}${index})`,
+      open: ">!",
+      tokens: spoilerTokens,
+      type: "spoiler",
+      value: line,
+    }),
+  );
   const tokens = [...spoilerTokens];
-  const markdown = withSpoilers.replace(/\^\(([^)\n]+)\)|\^([^\s^]+)/g, (match, parenthesized: string | undefined, bare: string | undefined) => {
-    const text = normalizeTokenText(parenthesized ?? bare ?? "");
-
-    if (!text) {
-      return match;
-    }
-
-    const index = tokens.length;
-    tokens.push({ text, type: "sup" });
-    return `[${escapeMarkdownLinkText(text)}](${superscriptLinkPrefix}${index})`;
-  });
+  const markdown = transformOutsideFencedCodeBlocks(withSpoilers, (line) =>
+    replaceSuperscriptOutsideMarkdownSyntax(line, tokens),
+  );
 
   return {
     markdown,
@@ -65,7 +59,217 @@ export function getRedditToken(
   return null;
 }
 
-function replaceDelimitedTokens({
+function inlineReferenceMarkdown(value: string) {
+  const { definitions, markdown } = collectReferenceDefinitions(value);
+
+  if (definitions.size === 0) {
+    return value;
+  }
+
+  return transformOutsideFencedCodeBlocks(markdown, (line) =>
+    inlineReferenceMarkdownInLine(line, definitions),
+  );
+}
+
+function collectReferenceDefinitions(value: string) {
+  const definitions = new Map<string, string>();
+  const lines = value.split(/\r?\n/);
+  let fenceMarker: "`" | "~" | null = null;
+  const markdownLines: string[] = [];
+
+  for (const line of lines) {
+    const marker = getFenceMarker(line);
+
+    if (marker) {
+      if (!fenceMarker) {
+        fenceMarker = marker;
+      } else if (fenceMarker === marker) {
+        fenceMarker = null;
+      }
+
+      markdownLines.push(line);
+      continue;
+    }
+
+    if (!fenceMarker) {
+      const definition = readReferenceDefinition(line);
+
+      if (definition) {
+        definitions.set(definition.label, definition.destination);
+        markdownLines.push("");
+        continue;
+      }
+    }
+
+    markdownLines.push(line);
+  }
+
+  return {
+    definitions,
+    markdown: markdownLines.join("\n"),
+  };
+}
+
+function readReferenceDefinition(line: string) {
+  const match = line.match(
+    /^\s{0,3}\[([^\]\n]+)\]:\s*(\S+)(?:\s+["'][^"'\n]*["'])?\s*$/,
+  );
+
+  if (!match?.[1] || !match[2]) {
+    return null;
+  }
+
+  return {
+    destination: match[2],
+    label: normalizeReferenceLabel(match[1]),
+  };
+}
+
+function inlineReferenceMarkdownInLine(
+  line: string,
+  definitions: Map<string, string>,
+) {
+  const inlineCodeSpans = getInlineCodeSpans(line);
+  let cursor = 0;
+  let result = "";
+
+  while (cursor < line.length) {
+    const protectedSpan = getContainingProtectedSpan(inlineCodeSpans, cursor);
+
+    if (protectedSpan) {
+      result += line.slice(cursor, protectedSpan.end);
+      cursor = protectedSpan.end;
+      continue;
+    }
+
+    const reference = readReferenceMarkdown(line, cursor);
+
+    if (reference) {
+      const destination = definitions.get(reference.reference);
+
+      if (destination) {
+        result += createInlineMarkdownReference(reference, destination);
+        cursor = reference.end;
+        continue;
+      }
+    }
+
+    result += line[cursor];
+    cursor += 1;
+  }
+
+  return result;
+}
+
+function readReferenceMarkdown(line: string, start: number) {
+  let isImage = false;
+  let labelStart = start;
+
+  if (line[start] === "!") {
+    if (line[start + 1] !== "[" || isEscapedMarkdownToken(line, start)) {
+      return null;
+    }
+
+    isImage = true;
+    labelStart = start + 1;
+  } else if (
+    line[start] !== "[" ||
+    isEscapedMarkdownToken(line, start) ||
+    isImageLabelStart(line, start)
+  ) {
+    return null;
+  }
+
+  const labelEnd = findMatchingDelimiter(line, labelStart, "[", "]");
+
+  if (labelEnd === -1 || line[labelEnd + 1] !== "[") {
+    return null;
+  }
+
+  const referenceEnd = findMatchingDelimiter(line, labelEnd + 1, "[", "]");
+
+  if (referenceEnd === -1) {
+    return null;
+  }
+
+  const text = line.slice(labelStart + 1, labelEnd);
+  const referenceText = line.slice(labelEnd + 2, referenceEnd);
+  const reference = normalizeReferenceLabel(referenceText || text);
+
+  if (!text.trim() || !reference) {
+    return null;
+  }
+
+  return {
+    end: referenceEnd + 1,
+    isImage,
+    reference,
+    text,
+  };
+}
+
+function createInlineMarkdownReference(
+  reference: NonNullable<ReturnType<typeof readReferenceMarkdown>>,
+  destination: string,
+) {
+  const marker = reference.isImage ? "!" : "";
+
+  return `${marker}[${escapeMarkdownLinkText(reference.text)}](${escapeMarkdownDestination(destination)})`;
+}
+
+function escapeMarkdownDestination(destination: string) {
+  return destination.replace(/([\\()])/g, "\\$1");
+}
+
+function normalizeReferenceLabel(label: string) {
+  return label.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function isImageLabelStart(line: string, labelStart: number) {
+  const imageBangIndex = labelStart - 1;
+
+  return (
+    imageBangIndex >= 0 &&
+    line[imageBangIndex] === "!" &&
+    !isEscapedMarkdownToken(line, imageBangIndex)
+  );
+}
+
+function replaceSuperscriptOutsideMarkdownSyntax(
+  value: string,
+  tokens: RedditToken[],
+) {
+  const protectedSpans = getProtectedMarkdownSpans(value);
+
+  return value.replace(
+    /\^\(([^)\n]+)\)|\^([^\s^]+)/g,
+    (
+      match,
+      parenthesized: string | undefined,
+      bare: string | undefined,
+      offset: number,
+    ) => {
+      if (
+        isIndexProtected(protectedSpans, offset) ||
+        isEscapedMarkdownToken(value, offset)
+      ) {
+        return match;
+      }
+
+      const text = normalizeTokenText(parenthesized ?? bare ?? "");
+
+      if (!text) {
+        return match;
+      }
+
+      const index = tokens.length;
+      tokens.push({ text, type: "sup" });
+      return `[${escapeMarkdownLinkText(text)}](${superscriptLinkPrefix}${index})`;
+    },
+  );
+}
+
+function replaceDelimitedTokensOutsideMarkdownSyntax({
   close,
   createMarkdown,
   open,
@@ -80,18 +284,29 @@ function replaceDelimitedTokens({
   type: RedditToken["type"];
   value: string;
 }) {
+  const protectedSpans = getProtectedMarkdownSpans(value);
   let cursor = 0;
   let result = "";
 
   while (cursor < value.length) {
-    const start = value.indexOf(open, cursor);
+    const start = findTokenOutsideProtectedSpans(
+      value,
+      open,
+      cursor,
+      protectedSpans,
+    );
 
     if (start === -1) {
       result += value.slice(cursor);
       break;
     }
 
-    const end = value.indexOf(close, start + open.length);
+    const end = findTokenOutsideProtectedSpans(
+      value,
+      close,
+      start + open.length,
+      protectedSpans,
+    );
 
     if (end === -1) {
       result += value.slice(cursor);
@@ -107,6 +322,245 @@ function replaceDelimitedTokens({
   }
 
   return result;
+}
+
+function findTokenOutsideProtectedSpans(
+  value: string,
+  token: string,
+  start: number,
+  protectedSpans: ProtectedMarkdownSpan[],
+) {
+  let cursor = start;
+
+  while (cursor < value.length) {
+    const index = value.indexOf(token, cursor);
+
+    if (index === -1) {
+      return -1;
+    }
+
+    const protectedSpan = getContainingProtectedSpan(protectedSpans, index);
+
+    if (!protectedSpan && !isEscapedMarkdownToken(value, index)) {
+      return index;
+    }
+
+    cursor = protectedSpan ? protectedSpan.end : index + token.length;
+  }
+
+  return -1;
+}
+
+type ProtectedMarkdownSpan = {
+  end: number;
+  start: number;
+};
+
+function getProtectedMarkdownSpans(line: string) {
+  if (isReferenceDefinitionLine(line)) {
+    return [{ end: line.length, start: 0 }];
+  }
+
+  return mergeProtectedSpans([
+    ...getInlineCodeSpans(line),
+    ...getInlineMarkdownLinkSpans(line),
+  ]);
+}
+
+function isReferenceDefinitionLine(line: string) {
+  return /^\s{0,3}\[[^\]\n]+\]:\s+\S/.test(line);
+}
+
+function getInlineCodeSpans(line: string) {
+  const spans: ProtectedMarkdownSpan[] = [];
+  let cursor = 0;
+
+  while (cursor < line.length) {
+    if (line[cursor] !== "`" || isEscapedMarkdownToken(line, cursor)) {
+      cursor += 1;
+      continue;
+    }
+
+    const markerLength = countRepeatedCharacters(line, cursor, "`");
+    const marker = "`".repeat(markerLength);
+    const end = line.indexOf(marker, cursor + markerLength);
+
+    if (end === -1) {
+      cursor += markerLength;
+      continue;
+    }
+
+    spans.push({ end: end + markerLength, start: cursor });
+    cursor = end + markerLength;
+  }
+
+  return spans;
+}
+
+function getInlineMarkdownLinkSpans(line: string) {
+  const spans: ProtectedMarkdownSpan[] = [];
+  const inlineCodeSpans = getInlineCodeSpans(line);
+  let cursor = 0;
+
+  while (cursor < line.length) {
+    if (isIndexProtected(inlineCodeSpans, cursor)) {
+      const protectedSpan = getContainingProtectedSpan(inlineCodeSpans, cursor);
+      cursor = protectedSpan ? protectedSpan.end : cursor + 1;
+      continue;
+    }
+
+    const span = readMarkdownLinkSpan(line, cursor);
+
+    if (span) {
+      spans.push(span);
+      cursor = span.end;
+      continue;
+    }
+
+    cursor += 1;
+  }
+
+  return spans;
+}
+
+function readMarkdownLinkSpan(line: string, start: number) {
+  let labelStart = start;
+
+  if (line[start] === "!") {
+    if (line[start + 1] !== "[" || isEscapedMarkdownToken(line, start)) {
+      return null;
+    }
+
+    labelStart = start + 1;
+  } else if (line[start] !== "[" || isEscapedMarkdownToken(line, start)) {
+    return null;
+  }
+
+  const labelEnd = findMatchingDelimiter(line, labelStart, "[", "]");
+
+  if (labelEnd === -1) {
+    return null;
+  }
+
+  const destinationStart = labelEnd + 1;
+  const destinationMarker = line[destinationStart];
+
+  if (destinationMarker === "(") {
+    const destinationEnd = findMatchingDelimiter(
+      line,
+      destinationStart,
+      "(",
+      ")",
+    );
+
+    return destinationEnd === -1
+      ? null
+      : { end: destinationEnd + 1, start };
+  }
+
+  if (destinationMarker === "[") {
+    const referenceEnd = findMatchingDelimiter(
+      line,
+      destinationStart,
+      "[",
+      "]",
+    );
+
+    return referenceEnd === -1 ? null : { end: referenceEnd + 1, start };
+  }
+
+  return null;
+}
+
+function findMatchingDelimiter(
+  value: string,
+  openIndex: number,
+  open: string,
+  close: string,
+) {
+  let depth = 0;
+
+  for (let index = openIndex; index < value.length; index += 1) {
+    const character = value[index];
+
+    if (isEscapedMarkdownToken(value, index)) {
+      continue;
+    }
+
+    if (character === open) {
+      depth += 1;
+      continue;
+    }
+
+    if (character === close) {
+      depth -= 1;
+
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  return -1;
+}
+
+function mergeProtectedSpans(spans: ProtectedMarkdownSpan[]) {
+  const sortedSpans = spans
+    .filter((span) => span.end > span.start)
+    .sort((left, right) => left.start - right.start || left.end - right.end);
+  const mergedSpans: ProtectedMarkdownSpan[] = [];
+
+  for (const span of sortedSpans) {
+    const previous = mergedSpans.at(-1);
+
+    if (previous && span.start <= previous.end) {
+      previous.end = Math.max(previous.end, span.end);
+      continue;
+    }
+
+    mergedSpans.push({ ...span });
+  }
+
+  return mergedSpans;
+}
+
+function isIndexProtected(spans: ProtectedMarkdownSpan[], index: number) {
+  return Boolean(getContainingProtectedSpan(spans, index));
+}
+
+function getContainingProtectedSpan(
+  spans: ProtectedMarkdownSpan[],
+  index: number,
+) {
+  return spans.find((span) => index >= span.start && index < span.end);
+}
+
+function countRepeatedCharacters(
+  value: string,
+  start: number,
+  character: string,
+) {
+  let count = 0;
+
+  while (value[start + count] === character) {
+    count += 1;
+  }
+
+  return count;
+}
+
+function isEscapedMarkdownToken(markdown: string, index: number) {
+  let slashCount = 0;
+
+  for (let position = index - 1; position >= 0; position -= 1) {
+    if (markdown[position] !== "\\") {
+      break;
+    }
+
+    slashCount += 1;
+  }
+
+  return slashCount % 2 === 1;
 }
 
 function getTokenByHref(
@@ -131,4 +585,45 @@ function normalizeTokenText(text: string) {
 
 function escapeMarkdownLinkText(text: string) {
   return text.replace(/([\\[\]])/g, "\\$1");
+}
+
+function transformOutsideFencedCodeBlocks(
+  markdown: string,
+  transformLine: (line: string) => string,
+) {
+  const lines = markdown.split(/\r?\n/);
+  let fenceMarker: "`" | "~" | null = null;
+  const transformedLines: string[] = [];
+
+  for (const line of lines) {
+    const marker = getFenceMarker(line);
+
+    if (marker) {
+      if (!fenceMarker) {
+        fenceMarker = marker;
+        transformedLines.push(line);
+        continue;
+      }
+
+      if (fenceMarker === marker) {
+        fenceMarker = null;
+        transformedLines.push(line);
+        continue;
+      }
+    }
+
+    transformedLines.push(fenceMarker ? line : transformLine(line));
+  }
+
+  return transformedLines.join("\n");
+}
+
+function getFenceMarker(line: string): "`" | "~" | null {
+  const fenceMatch = line.trimStart().match(/^(`{3,}|~{3,})/);
+
+  if (!fenceMatch) {
+    return null;
+  }
+
+  return fenceMatch[1].startsWith("`") ? "`" : "~";
 }

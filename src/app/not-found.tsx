@@ -4,7 +4,7 @@ export default function NotFound() {
   return (
     <StatusPage
       code="404"
-      eyebrow="404 / 未找到"
+      eyebrow="未找到"
       title="这个页面不存在或已经移动"
       description="当前地址没有对应的校园社区页面。可能是链接写错、内容已被移除，或这个入口还没有开放。"
       rows={[

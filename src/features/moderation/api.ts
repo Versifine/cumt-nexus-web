@@ -2,8 +2,12 @@ import { apiRequest } from "@/lib/api/client";
 
 import type {
   ContentReportResponse,
+  ListModQueueInput,
+  ListModQueueResponse,
   ListReportsInput,
   ListReportsResponse,
+  ModerationBulkActionInput,
+  ModerationBulkActionResponse,
   RemoveContentResponse,
   ReportContentInput,
 } from "./types";
@@ -51,6 +55,101 @@ export function removeCommentByModeration(
   );
 }
 
+export function removeCommunityPostByModeration(
+  slug: string,
+  postId: string,
+  input: ReportContentInput,
+) {
+  return apiRequest<RemoveContentResponse>(
+    `/api/v1/communities/${encodeURIComponent(slug)}/moderation/posts/${encodeURIComponent(postId)}/remove`,
+    {
+      method: "POST",
+      body: input,
+    },
+  );
+}
+
+export function removeCommunityCommentByModeration(
+  slug: string,
+  commentId: string,
+  input: ReportContentInput,
+) {
+  return apiRequest<RemoveContentResponse>(
+    `/api/v1/communities/${encodeURIComponent(slug)}/moderation/comments/${encodeURIComponent(commentId)}/remove`,
+    {
+      method: "POST",
+      body: input,
+    },
+  );
+}
+
+export function listAdminModQueue({
+  limit = 20,
+  offset = 0,
+  queue,
+}: ListModQueueInput) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+    queue,
+  });
+
+  return apiRequest<ListModQueueResponse>(
+    `/api/v1/admin/mod-queues?${params.toString()}`,
+    { cache: "no-store" },
+  );
+}
+
+export function listCommunityModQueue({
+  limit = 20,
+  offset = 0,
+  queue,
+  slug,
+}: ListModQueueInput & { slug: string }) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+    queue,
+  });
+
+  return apiRequest<ListModQueueResponse>(
+    `/api/v1/communities/${encodeURIComponent(slug)}/mod-queues?${params.toString()}`,
+    { cache: "no-store" },
+  );
+}
+
+export function applyAdminModQueueAction(input: ModerationBulkActionInput) {
+  return apiRequest<ModerationBulkActionResponse>(
+    "/api/v1/admin/mod-queues/actions",
+    {
+      method: "POST",
+      body: input,
+    },
+  );
+}
+
+export function applyCommunityModQueueAction(
+  slug: string,
+  input: ModerationBulkActionInput,
+) {
+  return apiRequest<ModerationBulkActionResponse>(
+    `/api/v1/communities/${encodeURIComponent(slug)}/mod-queues/actions`,
+    {
+      method: "POST",
+      body: input,
+    },
+  );
+}
+
+export function ignoreCommunityReport(slug: string, reportId: string) {
+  return apiRequest<ContentReportResponse>(
+    `/api/v1/communities/${encodeURIComponent(slug)}/moderation/reports/${encodeURIComponent(reportId)}/ignore`,
+    {
+      method: "POST",
+    },
+  );
+}
+
 export function listModerationReports({
   status = "pending",
   limit = 20,
@@ -64,6 +163,7 @@ export function listModerationReports({
 
   return apiRequest<ListReportsResponse>(
     `/api/v1/moderation/reports?${params.toString()}`,
+    { cache: "no-store" },
   );
 }
 

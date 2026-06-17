@@ -109,7 +109,7 @@ V2 后端能力收口可以运行：
 npm run check:v2-path
 ```
 
-`check:v2-path` 用于真实后端上的 V2 新增能力验收，覆盖 `/me.is_platform_staff`、图片上传、附件、new/hot、搜索、通知、举报、审核台、社区申请列表、社区申请详情和 approve/reject。它会写入 smoke 数据并依赖本地 PostgreSQL 容器提升 staff，只适合本地或预发布环境。
+`check:v2-path` 用于真实后端上的 V2 新增能力验收，覆盖 `/me.is_platform_staff`、图片上传、正文内附件 marker、浏览器编辑 `PATCH` CORS 预检、new/hot、搜索、通知、举报、审核台、社区申请列表、社区申请详情和 approve/reject。图片上传通过后必须继续真实读取 `attachment.url`，确认返回 HTTP 成功和 `image/*` Content-Type。它会写入 smoke 数据并依赖本地 PostgreSQL 容器提升 staff，只适合本地或预发布环境。
 
 动作边界可以运行：
 

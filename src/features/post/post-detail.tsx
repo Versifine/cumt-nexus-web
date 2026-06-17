@@ -1,325 +1,806 @@
 "use client";
-import {
-  ArrowDown,
-  ArrowUp,
-  MessageSquare,
-} from "lucide-react";
 
-import { PageNav } from "@/components/app-shell/page-nav";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { MessageSquare, Share2 } from "lucide-react";
+
+import { useAppShellBackAction } from "@/components/app-shell/app-shell";
+import {
+  resolvePostBackSource,
+  usePostNavigationSource,
+  type PostNavigationSource,
+} from "@/components/app-shell/post-navigation-source";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import {
-  InfoRow,
-  MetricBlock,
-  StatusToken,
-} from "@/components/ui/data-display";
+import { SortMenu } from "@/components/ui/sort-menu";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
+import { resolvePlatformRole } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { CommentForm } from "@/features/comment/comment-form";
 import { CommentTree } from "@/features/comment/comment-tree";
 import { usePostCommentsQuery } from "@/features/comment/queries";
+import {
+  commentSortItems,
+  DEFAULT_COMMENT_SORT,
+  formatCommentSortDescription,
+  formatCommentSortFallbackNotice,
+} from "@/features/comment/sort";
+import type { CommentSort, ListCommentsResponse } from "@/features/comment/types";
 import { ContentBody } from "@/features/content/content-body";
-import { MediaAttachmentGallery } from "@/features/media/media-attachments";
-import { ModerationRemoveDialog } from "@/features/moderation/moderation-remove-dialog";
+import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
+import {
+  CommunityHoverAvatar,
+  CommunityHoverPreview,
+} from "@/features/community/community-hover-card";
+import { canAccessCommunityManagement } from "@/features/community/permissions";
+import { DisabledMessageShareAction } from "@/features/message/disabled-share-action";
+import { createMessageShareSnapshot } from "@/features/message/share";
+import { ModerationQuickActions } from "@/features/moderation/moderation-quick-actions";
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
-import { VoteControl } from "@/features/vote/vote-control";
+import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { ApiError } from "@/lib/api/client";
 
+import {
+  formatPostStatus,
+  getPostAuthorIdentity,
+  getPostCommunityIdentity,
+  PostAuthorAvatar,
+  PostDetailAttribution,
+} from "./post-attribution";
 import { PostLifecycleControls } from "./post-lifecycle-controls";
+import { PostSaveButton } from "./post-save-button";
 import { usePostQuery } from "./queries";
-import type { Post } from "./types";
+import type { GetPostResponse, Post } from "./types";
+
+const APP_LAYOUT_SYNC_EVENT = "cumt-nexus:app-layout-sync";
 
 type PostDetailProps = {
   id: string;
+  initialCommentSort?: CommentSort;
+  initialCommentsData?: ListCommentsResponse;
+  initialPostData?: GetPostResponse;
 };
 
-export function PostDetail({ id }: PostDetailProps) {
+export function PostDetail({
+  id,
+  initialCommentSort = DEFAULT_COMMENT_SORT,
+  initialCommentsData,
+  initialPostData,
+}: PostDetailProps) {
   const { isReady, token } = useAuthSession();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const navigationSource = usePostNavigationSource(id);
+  const commentColumnRef = useRef<HTMLDivElement | null>(null);
+  const commentComposerAnchorRef = useRef<HTMLDivElement | null>(null);
+  const [commentComposerFocusSignal, setCommentComposerFocusSignal] = useState(0);
+  const [isCommentComposerExpanded, setIsCommentComposerExpanded] =
+    useState(false);
+  const [isCommentDockVisible, setIsCommentDockVisible] = useState(false);
+  const [commentDockMetrics, setCommentDockMetrics] = useState<{
+    left: number;
+    width: number;
+  } | null>(null);
   const currentUserQuery = useCurrentUserQuery();
-  const canRequestPost = isReady && Boolean(token);
-  const postQuery = usePostQuery(id, canRequestPost);
-  const canRequestComments = canRequestPost && postQuery.isSuccess && Boolean(postQuery.data?.post);
-  const commentsQuery = usePostCommentsQuery(id, 20, 0, "tree", "new", 6, canRequestComments);
-  const post = canRequestPost ? postQuery.data?.post : undefined;
+  const postQuery = usePostQuery(id, isReady, initialPostData);
+  const canRequestComments =
+    isReady && postQuery.isSuccess && Boolean(postQuery.data?.post);
+  const commentsQuery = usePostCommentsQuery(
+    id,
+    20,
+    0,
+    "tree",
+    initialCommentSort,
+    6,
+    canRequestComments,
+    initialCommentsData,
+  );
+  const commentSortFallbackNotice = formatCommentSortFallbackNotice(
+    commentsQuery.data?.requested_sort,
+    commentsQuery.data?.effective_sort,
+  );
+  const post = postQuery.data?.post;
   const comments = canRequestComments ? (commentsQuery.data?.comments ?? []) : [];
   const currentUserId = currentUserQuery.data?.id ?? null;
+  const isAuthenticated = Boolean(token);
+  const platformRole = resolvePlatformRole(currentUserQuery.data);
+  const canModerate = Boolean(platformRole);
+  const postCommunitySlug = post ? getPostCommunitySlug(post) : null;
+  const canUseCommunityManage =
+    Boolean(post) &&
+    (post?.viewer_permissions?.can_moderate === true ||
+      post?.viewer_permissions?.can_manage === true ||
+      canAccessCommunityManagement(post?.community, platformRole) ||
+      (platformRole === "owner" && Boolean(postCommunitySlug)));
   const canManagePost =
     Boolean(post) &&
     currentUserQuery.isSuccess &&
     currentUserId === post?.author_id;
-  const loginHref = `/login?next=${encodeURIComponent(`/posts/${id}`)}`;
+  const commentCount = Math.max(post?.comment_count ?? 0, comments.length);
+  const postIdForCommentDock = post?.id;
+  const postBackTarget = getPostBackTarget(post, navigationSource);
+
+  useAppShellBackAction(postBackTarget);
+
+  useEffect(() => {
+    let animationFrame = 0;
+    let layoutSyncFrame = 0;
+    const layoutSyncTimeouts: number[] = [];
+
+    if (!postIdForCommentDock) {
+      animationFrame = window.requestAnimationFrame(() => {
+        setIsCommentDockVisible(false);
+      });
+
+      return () => {
+        window.cancelAnimationFrame(animationFrame);
+      };
+    }
+
+    function updateCommentDock() {
+      const anchor = commentComposerAnchorRef.current;
+      const column = commentColumnRef.current;
+
+      if (!anchor || !column) {
+        setIsCommentDockVisible(false);
+        setCommentDockMetrics(null);
+        return;
+      }
+
+      const isDockVisible = anchor.getBoundingClientRect().bottom < 80;
+      setIsCommentDockVisible(isDockVisible);
+
+      if (!isDockVisible) {
+        setCommentDockMetrics(null);
+        return;
+      }
+
+      const nextMetrics = getCommentDockMetrics(column);
+      setCommentDockMetrics((currentMetrics) =>
+        currentMetrics?.left === nextMetrics.left &&
+        currentMetrics.width === nextMetrics.width
+          ? currentMetrics
+          : nextMetrics,
+      );
+    }
+
+    function scheduleCommentDockUpdate() {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(updateCommentDock);
+    }
+
+    function scheduleLayoutSyncSamples() {
+      scheduleCommentDockUpdate();
+
+      window.cancelAnimationFrame(layoutSyncFrame);
+      layoutSyncFrame = window.requestAnimationFrame(() => {
+        scheduleCommentDockUpdate();
+      });
+
+      layoutSyncTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      layoutSyncTimeouts.length = 0;
+      [80, 160, 240].forEach((delay) => {
+        layoutSyncTimeouts.push(
+          window.setTimeout(scheduleCommentDockUpdate, delay),
+        );
+      });
+    }
+
+    const column = commentColumnRef.current;
+    const anchor = commentComposerAnchorRef.current;
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(scheduleCommentDockUpdate);
+
+    if (column) {
+      resizeObserver?.observe(column);
+    }
+
+    if (anchor) {
+      resizeObserver?.observe(anchor);
+    }
+
+    animationFrame = window.requestAnimationFrame(updateCommentDock);
+    window.addEventListener("scroll", scheduleCommentDockUpdate, { passive: true });
+    window.addEventListener("resize", scheduleCommentDockUpdate);
+    window.addEventListener(APP_LAYOUT_SYNC_EVENT, scheduleLayoutSyncSamples);
+    window.visualViewport?.addEventListener("resize", scheduleCommentDockUpdate);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.cancelAnimationFrame(layoutSyncFrame);
+      layoutSyncTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      resizeObserver?.disconnect();
+      window.removeEventListener("scroll", scheduleCommentDockUpdate);
+      window.removeEventListener("resize", scheduleCommentDockUpdate);
+      window.removeEventListener(APP_LAYOUT_SYNC_EVENT, scheduleLayoutSyncSamples);
+      window.visualViewport?.removeEventListener(
+        "resize",
+        scheduleCommentDockUpdate,
+      );
+    };
+  }, [postIdForCommentDock]);
+
+  function focusCommentComposer() {
+    setCommentComposerFocusSignal((value) => value + 1);
+
+    if (isCommentDockVisible) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById("post-comment-composer")
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1180px] px-4 py-6 md:px-6">
-        <PageNav backHref="/communities" backLabel="返回社区索引" />
+    <div
+      className={
+        isCommentDockVisible && isCommentComposerExpanded
+          ? "grid grid-cols-[minmax(0,1fr)] gap-5 pb-64 pt-2 lg:grid-cols-[minmax(0,1fr)_280px]"
+          : isCommentDockVisible
+            ? "grid grid-cols-[minmax(0,1fr)] gap-5 pb-24 pt-2 lg:grid-cols-[minmax(0,1fr)_280px]"
+            : "grid grid-cols-[minmax(0,1fr)] gap-5 py-2 lg:grid-cols-[minmax(0,1fr)_280px]"
+      }
+    >
+      <div ref={commentColumnRef} className="min-w-0">
+        <section>
+          {!isReady || postQuery.isLoading ? <LoadingState rows={3} /> : null}
 
-        <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="min-w-0">
-            <section>
-              {!isReady ? (
-                <LoadingState rows={3} />
-              ) : !token ? (
-                <ErrorState
-                  title="需要登录"
-                  description="请先登录后查看帖子详情、评论和投票。"
-                  action={
-                    <TextAction href={loginHref} tone="primary">
-                      登录
-                    </TextAction>
-                  }
-                />
-              ) : postQuery.isLoading ? (
-                <LoadingState rows={3} />
-              ) : postQuery.isError ? (
-                <ErrorState
-                  title={getErrorTitle(postQuery.error, "无法加载帖子")}
-                  description={getErrorDescription(postQuery.error)}
-                  action={
-                    isUnauthenticated(postQuery.error) ? (
-                      <TextAction href={loginHref} tone="primary">
-                        登录
-                      </TextAction>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => postQuery.refetch()}
-                      >
-                        重试
-                      </Button>
-                    )
-                  }
-                />
-              ) : post ? (
-                <PostArticle
-                  canManage={canManagePost}
-                  post={post}
-                  commentCount={comments.length}
-                />
-              ) : null}
-            </section>
-
-            {post ? (
-              <section className="mt-8 border-t border-border pt-6">
-                <div className="border-b border-border pb-4">
-                  <div className="font-mono text-xs uppercase text-primary">
-                    COMMENTS / 帖子评论
-                  </div>
-                  <h2 className="mt-2 text-2xl font-black tracking-normal">
-                    评论
-                  </h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                    用评论补充信息、提出问题或回应观点。回复会以树状结构展开，深层讨论可以折叠。
-                  </p>
-                </div>
-
-                <div className="border-b border-border py-5">
-                  <CommentForm postId={id} />
-                </div>
-
-                <div className="py-5">
-                  {commentsQuery.isLoading ? (
-                    <div className="border-b border-border pb-5">
-                      <LoadingState rows={3} />
-                    </div>
-                  ) : null}
-
-                  {commentsQuery.isError ? (
-                    <ErrorState
-                      title={getErrorTitle(commentsQuery.error, "无法加载评论")}
-                      description={getErrorDescription(commentsQuery.error)}
-                      action={
-                        isUnauthenticated(commentsQuery.error) ? (
-                          <TextAction href={loginHref} tone="primary">
-                            登录
-                          </TextAction>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => commentsQuery.refetch()}
-                          >
-                            重试
-                          </Button>
-                        )
-                      }
-                    />
-                  ) : null}
-
-                  {commentsQuery.isSuccess && comments.length === 0 ? (
-                    <EmptyState
-                      title="还没有评论"
-                      description="发布第一条评论，让这条讨论继续展开。"
-                    />
-                  ) : null}
-
-                  {commentsQuery.isSuccess && comments.length > 0 ? (
-                    <CommentTree
-                      comments={comments}
-                      currentUserId={currentUserId}
-                      maxDepth={6}
-                      postId={id}
-                    />
-                  ) : null}
-                </div>
-              </section>
-            ) : null}
-          </div>
-
-          {post ? (
-            <PostRail
-              post={post}
-              commentCount={comments.length}
-              isCommentsLoading={commentsQuery.isLoading}
+          {isReady && postQuery.isError ? (
+            <ErrorState
+              title={getErrorTitle(postQuery.error, "无法加载帖子")}
+              description={getErrorDescription(postQuery.error)}
+              action={
+                isUnauthenticated(postQuery.error) ? (
+                  <TextAction href="/" tone="primary">
+                    信息流首页
+                  </TextAction>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => postQuery.refetch()}
+                  >
+                    重试
+                  </Button>
+                )
+              }
             />
           ) : null}
-        </div>
+
+          {post ? (
+            <PostArticle
+              canManage={canManagePost}
+              canModerate={canModerate}
+              canUseCommunityManage={canUseCommunityManage}
+              commentCount={commentCount}
+              isAuthenticated={isAuthenticated}
+              onCommentIntent={focusCommentComposer}
+              post={post}
+            />
+          ) : null}
+        </section>
+
+        {post ? (
+          <section className="mt-6 border-t border-border pt-4" aria-labelledby="comments-heading">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="min-w-0">
+              <h2
+                id="comments-heading"
+                className="text-lg font-semibold tracking-normal"
+              >
+                评论
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                {formatCommentSortDescription(initialCommentSort)}
+                回复会保留树状层级。
+              </p>
+              {commentSortFallbackNotice ? (
+                <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
+                  {commentSortFallbackNotice}
+                </p>
+              ) : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-xs text-muted-foreground">
+                  {commentCount} 条评论
+                </span>
+                  <button
+                    type="button"
+                    className="inline-flex h-8 items-center gap-1.5 border-b border-transparent px-1 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    onClick={focusCommentComposer}
+                  >
+                    写评论
+                    <span className="font-mono text-primary" aria-hidden="true">
+                      +
+                    </span>
+                  </button>
+                  <CommentSortMenu
+                    disabled={!canRequestComments || commentsQuery.isFetching}
+                    onSortChange={(nextSort) => {
+                      if (nextSort !== initialCommentSort) {
+                        router.push(
+                          getCommentSortHref(pathname, searchParams, nextSort),
+                        );
+                      }
+                    }}
+                    sort={initialCommentSort}
+                  />
+              </div>
+            </div>
+
+            <div
+              id="post-comment-composer"
+              ref={commentComposerAnchorRef}
+              className={
+                isCommentDockVisible
+                  ? isCommentComposerExpanded
+                    ? "mt-4 min-h-64 scroll-mt-32"
+                    : "mt-4 min-h-20 scroll-mt-32"
+                  : "mt-4 scroll-mt-32 border-t border-border pt-3"
+              }
+            >
+              <div
+                className={
+                  isCommentDockVisible
+                    ? isCommentComposerExpanded
+                      ? "fixed bottom-3 z-40 border border-border bg-background/95 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur sm:bottom-4 sm:p-3"
+                      : "fixed bottom-3 z-40 shadow-[0_10px_30px_rgba(0,0,0,0.35)] sm:bottom-4"
+                    : ""
+                }
+                style={
+                  isCommentDockVisible && commentDockMetrics
+                    ? {
+                        left: commentDockMetrics.left,
+                        width: commentDockMetrics.width,
+                      }
+                    : undefined
+                }
+              >
+                <CommentForm
+                  docked={isCommentDockVisible}
+                  focusSignal={commentComposerFocusSignal}
+                  onExpandedChange={setIsCommentComposerExpanded}
+                  postId={id}
+                />
+              </div>
+            </div>
+
+            <div className="mt-3 border-t border-border">
+              {commentsQuery.isLoading ? (
+                <div className="border-b border-border py-4">
+                  <LoadingState rows={3} />
+                </div>
+              ) : null}
+
+              {commentsQuery.isError ? (
+                <div className="border-b border-border py-4">
+                  <ErrorState
+                    title={getErrorTitle(commentsQuery.error, "无法加载评论")}
+                    description={getErrorDescription(commentsQuery.error)}
+                    action={
+                      isUnauthenticated(commentsQuery.error) ? (
+                        <TextAction href="/" tone="primary">
+                          信息流首页
+                        </TextAction>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => commentsQuery.refetch()}
+                        >
+                          重试
+                        </Button>
+                      )
+                    }
+                  />
+                </div>
+              ) : null}
+
+              {commentsQuery.isSuccess && comments.length === 0 ? (
+                <div className="border-b border-border py-4">
+                  <EmptyState
+                    title="还没有评论"
+                    description="发布第一条评论，让这条讨论继续展开。"
+                  />
+                </div>
+              ) : null}
+
+              {commentsQuery.isSuccess && comments.length > 0 ? (
+                <CommentTree
+                  canModerate={canModerate || canUseCommunityManage}
+                  comments={comments}
+                  communityModerationSlug={
+                    canUseCommunityManage ? (postCommunitySlug ?? undefined) : undefined
+                  }
+                  currentUserId={currentUserId}
+                  isAuthenticated={isAuthenticated}
+                  maxDepth={6}
+                  platformAuditEnabled={canModerate}
+                  postId={id}
+                />
+              ) : null}
+            </div>
+          </section>
+        ) : null}
       </div>
-    </main>
+
+      {post ? (
+        <PostRail
+          post={post}
+          commentCount={commentCount}
+        />
+      ) : null}
+    </div>
   );
+}
+
+function CommentSortMenu({
+  disabled,
+  onSortChange,
+  sort,
+}: {
+  disabled: boolean;
+  onSortChange: (sort: CommentSort) => void;
+  sort: CommentSort;
+}) {
+  return (
+    <SortMenu
+      aria-label="选择评论排序方式"
+      disabled={disabled}
+      items={commentSortItems}
+      onValueChange={onSortChange}
+      value={sort}
+    />
+  );
+}
+
+function getCommentSortHref(
+  pathname: string,
+  searchParams: { toString(): string },
+  sort: CommentSort,
+) {
+  const params = new URLSearchParams(searchParams.toString());
+  params.delete("comment_sort");
+
+  if (sort === DEFAULT_COMMENT_SORT) {
+    params.delete("sort");
+  } else {
+    params.set("sort", sort);
+  }
+
+  const query = params.toString();
+
+  return query ? `${pathname}?${query}` : pathname;
+}
+
+function getPostBackTarget(
+  post: Post | undefined,
+  source: PostNavigationSource | null,
+) {
+  const fallbackSlug = post?.community_slug?.trim() || post?.community?.slug?.trim();
+
+  return resolvePostBackSource({
+    communitySlug: fallbackSlug,
+    postId: post?.id ?? "",
+    source,
+  });
+}
+
+function getCommentDockMetrics(column: HTMLElement) {
+  const rect = column.getBoundingClientRect();
+  const horizontalInset = window.innerWidth >= 640 ? 16 : 12;
+  const left = Math.max(horizontalInset, Math.round(rect.left));
+  const right = Math.min(
+    window.innerWidth - horizontalInset,
+    Math.round(rect.right),
+  );
+
+  return {
+    left,
+    width: Math.max(280, right - left),
+  };
 }
 
 function PostArticle({
   canManage,
-  post,
+  canModerate,
+  canUseCommunityManage,
   commentCount,
+  isAuthenticated,
+  onCommentIntent,
+  post,
 }: {
   canManage: boolean;
-  post: Post;
+  canModerate: boolean;
+  canUseCommunityManage: boolean;
   commentCount: number;
+  isAuthenticated: boolean;
+  onCommentIntent: () => void;
+  post: Post;
 }) {
+  const [shareState, setShareState] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
+
+  async function copyPostLink() {
+    const href = new URL(`/posts/${post.id}`, window.location.origin).toString();
+
+    try {
+      await navigator.clipboard.writeText(href);
+      setShareState("copied");
+      window.setTimeout(() => setShareState("idle"), 1600);
+    } catch {
+      setShareState("failed");
+      window.setTimeout(() => setShareState("idle"), 1600);
+    }
+  }
+
+  const author = getPostAuthorIdentity(post);
+  const communitySlug = getPostCommunitySlug(post);
+  const communityManageHref = canUseCommunityManage && communitySlug
+    ? `/communities/${encodeURIComponent(communitySlug)}/manage`
+    : null;
+  const authorQuery = author.slug || post.author_id;
+  const canQuickModerate = canModerate || canUseCommunityManage;
+  const messageShare = createMessageShareSnapshot({
+    shareId: post.id,
+    shareType: "post",
+    summary: getMarkdownPlainTextSummary(post.body, ""),
+    targetUrl: `/posts/${post.id}`,
+    title: post.title,
+  });
+
   return (
-    <article>
-      <div className="border-b border-border pb-6">
-        <div className="font-mono text-xs uppercase text-primary">
-          CUMT NEXUS / 讨论详情
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <StatusToken tone="primary">
-            社区 {formatShortId(post.community_id)}
-          </StatusToken>
-          <StatusToken>{formatPostStatus(post.status)}</StatusToken>
-          <StatusToken>作者 {formatShortId(post.author_id)}</StatusToken>
-        </div>
-        <h1 className="mt-4 break-words text-4xl font-black leading-tight tracking-normal text-foreground md:text-5xl">
-          {post.title}
-        </h1>
-        <p className="mt-4 text-sm text-muted-foreground">
-          发布于 {formatDate(post.created_at)}，更新于 {formatDate(post.updated_at)}
-        </p>
-      </div>
+    <article className="grid grid-cols-[42px_minmax(0,1fr)] border-t border-border bg-background sm:grid-cols-[52px_minmax(0,1fr)]">
+      <RedditVoteControl
+        className="border-r border-border/70 py-3"
+        downvoteCount={post.downvote_count}
+        myVote={post.my_vote}
+        score={post.score}
+        targetId={post.id}
+        targetType="post"
+        upvoteCount={post.upvote_count}
+      />
 
-      <div className="border-b border-border py-6">
-        <ContentBody value={post.body} className="text-base leading-8" />
-        <MediaAttachmentGallery attachments={post.attachments} className="mt-5" />
-      </div>
+      <div className="min-w-0">
+        <header className="border-b border-border px-3 py-4 sm:px-4">
+          <PostDetailAttribution post={post}>
+            <h1 className="mt-3 break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl sm:leading-8">
+              {post.title}
+            </h1>
+          </PostDetailAttribution>
+        </header>
 
-      <PostLifecycleControls canManage={canManage} post={post} />
-
-      <div className="border-b border-border py-4">
-        <div className="flex flex-col gap-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <VoteControl
-            postId={post.id}
-            upvoteCount={post.upvote_count}
-            downvoteCount={post.downvote_count}
-            score={post.score}
-            myVote={post.my_vote}
+        <div className="px-3 py-5 sm:px-4">
+          <ContentBody
+            attachments={post.attachments}
+            value={post.body}
+            className="text-base leading-8"
           />
-          <span className="inline-flex items-center gap-1.5">
+        </div>
+
+        <footer className="flex flex-wrap items-center gap-1 border-t border-border px-3 py-2 text-xs text-muted-foreground sm:px-4">
+          <button
+            type="button"
+            className="inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            onClick={onCommentIntent}
+          >
             <MessageSquare className="size-4" aria-hidden="true" />
             {commentCount} 条评论
-          </span>
-          <ReportContentDialog
-            targetId={post.id}
-            targetLabel={post.title}
-            targetType="post"
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            onClick={copyPostLink}
+          >
+            <Share2 className="size-4" aria-hidden="true" />
+            {shareState === "copied"
+              ? "已复制"
+              : shareState === "failed"
+                ? "复制失败"
+                : "分享"}
+          </button>
+          <DisabledMessageShareAction
+            className="h-8 font-semibold"
+            iconClassName="size-4"
+            label="发送给好友"
+            share={messageShare}
           />
-          <ModerationRemoveDialog
-            targetId={post.id}
-            targetLabel={post.title}
-            targetType="post"
+          <PostSaveButton
+            className="h-8 text-xs"
+            isSaved={post.is_saved}
+            postId={post.id}
+            saveCount={post.save_count}
           />
-        </div>
+          <PostLifecycleControls canManage={canManage} post={post} />
+          {isAuthenticated && post.viewer_permissions?.can_report !== false ? (
+            <ReportContentDialog
+              targetId={post.id}
+              targetLabel={post.title}
+              targetType="post"
+            />
+          ) : null}
+          {canQuickModerate ? (
+            <ModerationQuickActions
+              auditHref={
+                canModerate
+                  ? `/admin/audit-logs?target_type=post&target_id=${encodeURIComponent(post.id)}`
+                  : null
+              }
+              canRemove={canQuickModerate && post.status !== "removed"}
+              communityManageHref={communityManageHref}
+              communitySlug={canUseCommunityManage ? communitySlug : null}
+              targetId={post.id}
+              targetAuthorId={post.author_id}
+              targetLabel={post.title}
+              targetStatus={post.status}
+              targetState={{
+                flairText: post.flair_text,
+                isLocked: post.is_locked,
+                isNsfw: post.is_nsfw,
+                isPinned: post.is_pinned,
+                isSpoiler: post.is_spoiler,
+              }}
+              targetType="post"
+              userHref={
+                canModerate
+                  ? `/admin/users?q=${encodeURIComponent(authorQuery)}`
+                  : null
+              }
+            />
+          ) : null}
+        </footer>
       </div>
     </article>
   );
 }
 
 function PostRail({
-  post,
   commentCount,
-  isCommentsLoading,
+  post,
 }: {
-  post?: Post;
   commentCount: number;
-  isCommentsLoading: boolean;
+  post: Post;
 }) {
+  const community = getPostCommunityIdentity(post);
+  const author = getPostAuthorIdentity(post);
+
   return (
-    <aside className="border-t border-border pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-      <div className="sticky top-6 space-y-8">
-        <section className="border-b border-border pb-6">
-          <div className="font-mono text-xs uppercase text-muted-foreground">
-            帖子数据
+    <aside className="border-t border-border px-0 py-5 lg:border-l lg:border-t-0 lg:pl-5">
+      <div className="sticky top-20 right-rail-scroll space-y-5">
+        <section className="border-b border-border pb-5">
+          <h2 className="text-sm font-semibold">所在社区</h2>
+          <div className="mt-3 flex min-w-0 items-start gap-3">
+            <CommunityHoverPreview
+              community={{
+                avatarUrl: community.avatarUrl,
+                description: post.community?.description,
+                href: community.href,
+                label: community.label,
+                memberCount: post.community?.member_count,
+                name: community.name,
+                postCount: post.community?.post_count,
+                slug: community.slug,
+                viewerIsFollowing: post.community?.viewer_is_following,
+              }}
+              panelClassName="w-80"
+            >
+              {community.href ? (
+                <Link
+                  href={community.href}
+                  className="block shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  aria-label={`进入${community.name}`}
+                >
+                  <CommunityHoverAvatar
+                    avatarUrl={community.avatarUrl}
+                    label={community.name}
+                  />
+                </Link>
+              ) : (
+                <CommunityHoverAvatar
+                  avatarUrl={community.avatarUrl}
+                  label={community.name}
+                />
+              )}
+            </CommunityHoverPreview>
+            <div className="min-w-0">
+              {community.href ? (
+                <Link
+                  href={community.href}
+                  className="block truncate text-lg font-semibold tracking-normal hover:text-primary"
+                >
+                  {community.name}
+                </Link>
+              ) : (
+                <span className="block truncate text-lg font-semibold tracking-normal">
+                  {community.name}
+                </span>
+              )}
+              {community.slug ? (
+                <span className="mt-1 block truncate font-mono text-xs text-muted-foreground">
+                  /{community.slug}
+                </span>
+              ) : null}
+            </div>
           </div>
-          <div className="mt-3 grid grid-cols-2 border border-border text-center">
-            <MetricBlock label="分数" value={post ? String(post.score) : "--"} />
-            <MetricBlock
-              label="评论"
-              value={isCommentsLoading ? "--" : String(commentCount)}
-            />
-          </div>
-          <div className="mt-4 divide-y divide-border border-y border-border">
-            <InfoRow label="状态" value={post ? formatPostStatus(post.status) : "--"} />
-            <InfoRow label="社区" value={post ? formatShortId(post.community_id) : "--"} />
-            <InfoRow label="作者" value={post ? formatShortId(post.author_id) : "--"} />
-            <InfoRow label="创建" value={post ? formatDate(post.created_at) : "--"} />
-          </div>
+          {post.community?.description ? (
+            <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">
+              {post.community.description}
+            </p>
+          ) : null}
+          <p className="mt-3 font-mono text-xs text-muted-foreground">
+            {formatCommunityStats(post, commentCount)}
+          </p>
         </section>
 
-        <section className="border-b border-border pb-6">
-          <h2 className="text-sm font-semibold">投票概览</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            <InfoRow
-              icon={<ArrowUp className="size-4" aria-hidden="true" />}
-              label="赞成"
-              value={post ? String(post.upvote_count) : "--"}
-              active={post?.my_vote === 1}
-            />
-            <InfoRow
-              icon={<ArrowDown className="size-4" aria-hidden="true" />}
-              label="反对"
-              value={post ? String(post.downvote_count) : "--"}
-              active={post?.my_vote === -1}
-            />
+        <section className="border-b border-border pb-5">
+          <h2 className="text-sm font-semibold">作者</h2>
+          <div className="mt-3 flex min-w-0 items-center gap-3">
+            <PostAuthorAvatar avatarUrl={author.avatarUrl} name={author.name} />
+            <div className="min-w-0">
+              {author.href ? (
+                <Link
+                  href={author.href}
+                  className="block truncate font-semibold hover:text-primary"
+                >
+                  {author.name}
+                </Link>
+              ) : (
+                <span className="block truncate font-semibold">{author.name}</span>
+              )}
+            </div>
           </div>
+          {post.author?.headline ? (
+            <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">
+              {post.author.headline}
+            </p>
+          ) : null}
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold">参与提示</h2>
-          <div className="mt-3 divide-y divide-border border-y border-border">
-            {["先阅读正文，再投票或评论。", "评论只补充真实信息和明确观点。", "遇到争议内容时优先描述事实。"].map(
-              (item, index) => (
-                <div key={item} className="flex gap-3 py-3 text-sm leading-6">
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="text-muted-foreground">{item}</span>
-                </div>
-              ),
-            )}
-          </div>
+          <h2 className="text-sm font-semibold">发布时间</h2>
+          <dl className="mt-3 space-y-2 border-t border-border pt-3 text-sm">
+            {post.status !== "visible" ? (
+              <RailRow label="状态" value={formatPostStatus(post.status)} />
+            ) : null}
+            <RailRow label="发布" value={formatDate(post.created_at)} />
+            {post.updated_at !== post.created_at ? (
+              <RailRow label="更新" value={formatDate(post.updated_at)} />
+            ) : null}
+          </dl>
         </section>
       </div>
     </aside>
   );
 }
 
-function formatShortId(value: string) {
-  return value.slice(0, 8);
+function RailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 truncate text-right">{value}</dd>
+    </div>
+  );
+}
+
+function formatCommunityStats(post: Post, commentCount: number) {
+  const parts = [`${post.score} 分`, `${commentCount} 条评论`];
+
+  if (typeof post.community?.member_count === "number") {
+    parts.push(`${post.community.member_count} 名成员`);
+  }
+
+  return parts.join(" / ");
 }
 
 function formatDate(value: string) {
@@ -330,19 +811,27 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function getPostCommunitySlug(post: Post) {
+  return post.community?.slug?.trim() || post.community_slug?.trim() || null;
+}
+
 function isUnauthenticated(error: Error | null) {
   return error instanceof ApiError && error.code === "unauthenticated";
 }
 
 function getErrorTitle(error: Error | null, fallback: string) {
   if (isUnauthenticated(error)) {
-    return "需要登录";
+    return "公开内容暂时不可读";
   }
 
   return fallback;
 }
 
 function getErrorDescription(error: Error | null) {
+  if (isUnauthenticated(error)) {
+    return "这个帖子暂时无法公开读取。可以先去信息流首页，或登录后再试。";
+  }
+
   if (error instanceof ApiError) {
     return error.message;
   }
@@ -350,15 +839,3 @@ function getErrorDescription(error: Error | null) {
   return "请求失败，请稍后重试。";
 }
 
-function formatPostStatus(status: string) {
-  switch (status) {
-    case "visible":
-      return "可见";
-    case "archived":
-      return "已归档";
-    case "hidden":
-      return "已隐藏";
-    default:
-      return status;
-  }
-}

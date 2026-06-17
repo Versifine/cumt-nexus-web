@@ -1,7 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { deleteComment, listPostComments, updateComment } from "./api";
-import type { UpdateCommentInput } from "./types";
+import {
+  deleteComment,
+  listPostComments,
+  listUserComments,
+  updateComment,
+} from "./api";
+import { DEFAULT_COMMENT_SORT } from "./sort";
+import type {
+  CommentSort,
+  ListCommentsResponse,
+  UpdateCommentInput,
+} from "./types";
+import { postQueryKeys } from "../post/queries";
 
 export const commentQueryKeys = {
   postCommentsPrefix: (postId: string) => ["post-comments", postId] as const,
@@ -10,9 +21,13 @@ export const commentQueryKeys = {
     limit: number,
     offset: number,
     view: "flat" | "tree",
-    sort: "new" | "old",
+    sort: CommentSort,
     maxDepth: number,
   ) => ["post-comments", postId, { limit, offset, maxDepth, sort, view }] as const,
+  userCommentsAll: () => ["user-comments"] as const,
+  userCommentsPrefix: (username: string) => ["user-comments", username] as const,
+  userComments: (username: string, limit: number, offset: number) =>
+    ["user-comments", username, { limit, offset }] as const,
 };
 
 export function usePostCommentsQuery(
@@ -20,9 +35,10 @@ export function usePostCommentsQuery(
   limit = 20,
   offset = 0,
   view: "flat" | "tree" = "tree",
-  sort: "new" | "old" = "new",
+  sort: CommentSort = DEFAULT_COMMENT_SORT,
   maxDepth = 6,
   enabled = true,
+  initialData?: ListCommentsResponse,
 ) {
   return useQuery({
     queryKey: commentQueryKeys.postComments(
@@ -35,6 +51,22 @@ export function usePostCommentsQuery(
     ),
     queryFn: () => listPostComments({ maxDepth, offset, postId, limit, sort, view }),
     enabled,
+    initialData,
+  });
+}
+
+export function useUserCommentsQuery(
+  username: string,
+  limit = 20,
+  offset = 0,
+  enabled = true,
+  initialData?: ListCommentsResponse,
+) {
+  return useQuery({
+    queryKey: commentQueryKeys.userComments(username, limit, offset),
+    queryFn: () => listUserComments({ username, limit, offset }),
+    enabled: enabled && Boolean(username.trim()),
+    initialData,
   });
 }
 
@@ -46,6 +78,12 @@ export function useUpdateCommentMutation(commentId: string, postId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: commentQueryKeys.postCommentsPrefix(postId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: postQueryKeys.detail(postId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: commentQueryKeys.userCommentsAll(),
       });
     },
   });
@@ -59,6 +97,9 @@ export function useDeleteCommentMutation(commentId: string, postId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: commentQueryKeys.postCommentsPrefix(postId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: commentQueryKeys.userCommentsAll(),
       });
     },
   });
