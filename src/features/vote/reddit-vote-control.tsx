@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { useAuthSession } from "@/features/auth/auth-session";
 import { commentQueryKeys } from "@/features/comment/queries";
+import type { Comment, ListCommentsResponse } from "@/features/comment/types";
 import { postQueryKeys } from "@/features/post/queries";
 import type { GetPostResponse, ListPostsResponse, Post } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
@@ -80,16 +81,12 @@ export function RedditVoteControl({
         return;
       }
 
-      await Promise.all([
-        postId
-          ? queryClient.invalidateQueries({
-              queryKey: commentQueryKeys.postCommentsPrefix(postId),
-            })
-          : Promise.resolve(),
-        queryClient.invalidateQueries({
-          queryKey: commentQueryKeys.userCommentsAll(),
-        }),
-      ]);
+      updateCachedCommentVote({
+        commentId: targetId,
+        nextVote,
+        postId,
+        queryClient,
+      });
     },
   });
 
@@ -110,7 +107,8 @@ export function RedditVoteControl({
         active={myVote === 1}
         count={upvoteCount}
         disabled={!canVote || isPending}
-        label={canVote ? "赞同" : "登录后投票"}
+        intent="up"
+        label={canVote ? (myVote === 1 ? "取消赞同" : "赞同") : "登录后投票"}
         onClick={() => voteMutation.mutate(1)}
       >
         <ArrowBigUp className="size-5" aria-hidden="true" />
@@ -119,6 +117,8 @@ export function RedditVoteControl({
         className={cn(
           "min-w-8 text-center font-mono text-xs font-semibold text-foreground",
           mode === "column" ? "my-0.5" : "px-1",
+          myVote === 1 && "text-primary",
+          myVote === -1 && "text-destructive",
         )}
         title={`赞同 ${upvoteCount} / 反对 ${downvoteCount}`}
       >
@@ -128,7 +128,8 @@ export function RedditVoteControl({
         active={myVote === -1}
         count={downvoteCount}
         disabled={!canVote || isPending}
-        label={canVote ? "反对" : "登录后投票"}
+        intent="down"
+        label={canVote ? (myVote === -1 ? "取消反对" : "反对") : "登录后投票"}
         onClick={() => voteMutation.mutate(-1)}
       >
         <ArrowBigDown className="size-5" aria-hidden="true" />
@@ -143,6 +144,7 @@ function VoteButton({
   children,
   count,
   disabled,
+  intent,
   label,
   onClick,
 }: {
@@ -150,6 +152,7 @@ function VoteButton({
   children: ReactNode;
   count: number;
   disabled: boolean;
+  intent: "down" | "up";
   label: string;
   onClick: () => void;
 }) {
@@ -161,10 +164,14 @@ function VoteButton({
       disabled={disabled}
       title={label}
       className={cn(
-        "inline-flex size-8 items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        active
-          ? "text-primary [&_svg]:fill-primary"
-          : "hover:text-foreground",
+        "inline-flex size-8 items-center justify-center rounded-md transition-[background-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        !active && "text-muted-foreground hover:bg-surface-hover hover:text-foreground",
+        active &&
+          intent === "up" &&
+          "bg-primary-muted text-primary ring-1 ring-primary/25 [&_svg]:fill-primary",
+        active &&
+          intent === "down" &&
+          "bg-destructive/10 text-destructive ring-1 ring-destructive/25 [&_svg]:fill-destructive",
         disabled && "cursor-not-allowed opacity-60 hover:bg-transparent",
       )}
       onClick={onClick}
@@ -256,6 +263,134 @@ function applyPostVotePatch(post: Post, patch: PostVotePatch): Post {
 type PostVotePatch = {
   my_vote: -1 | 0 | 1;
 };
+
+function updateCachedCommentVote({
+  commentId,
+  nextVote,
+  postId,
+  queryClient,
+}: {
+  commentId: string;
+  nextVote: -1 | 0 | 1;
+  postId?: string;
+  queryClient: ReturnType<typeof useQueryClient>;
+}) {
+  const patch = getCommentVotePatch(nextVote);
+
+  if (postId) {
+    patchCommentListQueries(
+      queryClient,
+      commentQueryKeys.postCommentsPrefix(postId),
+      commentId,
+      patch,
+    );
+  }
+
+  patchCommentListQueries(
+    queryClient,
+    commentQueryKeys.userCommentsAll(),
+    commentId,
+    patch,
+  );
+}
+
+function patchCommentListQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+  queryKey: readonly unknown[],
+  commentId: string,
+  patch: CommentVotePatch,
+) {
+  for (const [cachedQueryKey] of queryClient.getQueriesData<ListCommentsResponse>({
+    queryKey,
+  })) {
+    queryClient.setQueryData<ListCommentsResponse>(cachedQueryKey, (current) =>
+      patchCommentListResponse(current, commentId, patch),
+    );
+  }
+}
+
+function patchCommentListResponse(
+  current: ListCommentsResponse | undefined,
+  commentId: string,
+  patch: CommentVotePatch,
+) {
+  if (!current) {
+    return current;
+  }
+
+  const result = patchCommentList(current.comments, commentId, patch);
+
+  return result.didPatch
+    ? {
+        ...current,
+        comments: result.comments,
+      }
+    : current;
+}
+
+function patchCommentList(
+  comments: Comment[],
+  commentId: string,
+  patch: CommentVotePatch,
+): { comments: Comment[]; didPatch: boolean } {
+  let didPatch = false;
+
+  const nextComments = comments.map((comment) => {
+    if (comment.id === commentId) {
+      didPatch = true;
+      return applyCommentVotePatch(comment, patch);
+    }
+
+    if (!comment.children?.length) {
+      return comment;
+    }
+
+    const childResult = patchCommentList(comment.children, commentId, patch);
+    if (!childResult.didPatch) {
+      return comment;
+    }
+
+    didPatch = true;
+    return {
+      ...comment,
+      children: childResult.comments,
+    };
+  });
+
+  return { comments: nextComments, didPatch };
+}
+
+function applyCommentVotePatch(
+  comment: Comment,
+  patch: CommentVotePatch,
+): Comment {
+  const previousVote = normalizeVote(comment.my_vote ?? 0);
+  const upvoteCount = comment.upvote_count ?? 0;
+  const downvoteCount = comment.downvote_count ?? 0;
+  const score =
+    typeof comment.score === "number" ? comment.score : upvoteCount - downvoteCount;
+  const upvoteDelta = getVoteBucketDelta(previousVote, patch.my_vote, 1);
+  const downvoteDelta = getVoteBucketDelta(previousVote, patch.my_vote, -1);
+  const scoreDelta = patch.my_vote - previousVote;
+
+  return {
+    ...comment,
+    downvote_count: Math.max(0, downvoteCount + downvoteDelta),
+    my_vote: patch.my_vote,
+    score: score + scoreDelta,
+    upvote_count: Math.max(0, upvoteCount + upvoteDelta),
+  };
+}
+
+type CommentVotePatch = {
+  my_vote: -1 | 0 | 1;
+};
+
+function getCommentVotePatch(nextVote: -1 | 0 | 1): CommentVotePatch {
+  return {
+    my_vote: nextVote,
+  };
+}
 
 function getPostVotePatch(nextVote: -1 | 0 | 1): PostVotePatch {
   return {

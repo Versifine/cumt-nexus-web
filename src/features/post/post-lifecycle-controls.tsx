@@ -187,7 +187,7 @@ export function PostLifecycleControls({
                 fieldProps={{
                   "aria-label": "帖子正文",
                   "aria-invalid": Boolean(form.formState.errors.body),
-                  className: "min-h-56 border-border bg-background text-sm leading-7",
+                  className: "min-h-56 text-sm leading-7",
                   placeholder: "写正文，粘贴或拖拽图片会进入当前位置。",
                 }}
                 value={bodyValue}

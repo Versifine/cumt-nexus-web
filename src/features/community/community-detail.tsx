@@ -84,15 +84,15 @@ export function CommunityDetail({
   }, [community]);
 
   return (
-    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px] xl:gap-8">
+    <div className="grid grid-cols-1 gap-5 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
-        <section className="bg-background">
+        <section className="space-y-4">
           {!isReady || communityQuery.isPending ? (
-            <div className="border-b border-border py-4">
+            <div className="rounded-lg bg-surface px-4 py-5">
               <LoadingState rows={3} />
             </div>
           ) : communityQuery.isError ? (
-            <div className="border-b border-border py-4">
+            <div className="rounded-lg bg-surface px-4 py-5">
               <ErrorState
                 title={getErrorTitle(communityQuery.error, "无法加载社区")}
                 description={getErrorDescription(communityQuery.error)}
@@ -121,8 +121,8 @@ export function CommunityDetail({
             />
           ) : null}
           {community ? (
-            <div>
-            <div className="flex min-h-12 flex-col gap-3 border-t border-border py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-4">
+            <div className="flex min-h-12 flex-col gap-3 rounded-lg bg-surface px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold">社区帖子</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -153,13 +153,13 @@ export function CommunityDetail({
             </div>
 
             {postsQuery.isPending ? (
-              <div className="border-b border-border py-4">
+              <div className="rounded-lg bg-surface px-4 py-5">
                 <LoadingState rows={5} />
               </div>
             ) : null}
 
             {postsQuery.isError ? (
-              <div className="border-b border-border py-4">
+              <div className="rounded-lg bg-surface px-4 py-5">
                 <ErrorState
                   title={getErrorTitle(postsQuery.error, "无法加载帖子")}
                   description={getErrorDescription(postsQuery.error)}
@@ -183,7 +183,7 @@ export function CommunityDetail({
             ) : null}
 
             {postsQuery.isSuccess && posts.length === 0 ? (
-              <div className="border-b border-border">
+              <div className="rounded-lg bg-surface px-4 py-5">
                 <EmptyState
                   title="还没有帖子"
                   description="这个社区还没有形成可公开浏览的讨论。"
@@ -210,8 +210,11 @@ export function CommunityDetail({
             ) : null}
 
             {postsQuery.isSuccess && posts.length > 0
-              ? posts.map((post) => (
+              ? (
+                <div className="rounded-lg bg-surface p-1">
+                  {posts.map((post) => (
                   <RedditPostListItem
+                    className="rounded-md"
                     key={post.id}
                     post={post}
                     source={{
@@ -221,7 +224,9 @@ export function CommunityDetail({
                     communityFallback={community}
                     showCommunity={false}
                   />
-                ))
+                  ))}
+                </div>
+              )
               : null}
             </div>
           ) : null}
@@ -253,6 +258,7 @@ function CommunityHeader({
   const messageShare = createMessageShareSnapshot({
     shareId: community.slug,
     shareType: "community",
+    snapshotCreatedAt: community.updated_at || community.created_at,
     summary: community.description,
     targetUrl: `/communities/${encodeURIComponent(community.slug)}`,
     thumbnailUrl: community.avatar_url,
@@ -260,7 +266,7 @@ function CommunityHeader({
   });
 
   return (
-    <div className="border-b border-border py-4">
+    <div className="rounded-lg bg-surface px-4 py-4">
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-3">
@@ -336,6 +342,7 @@ function CommunityRail({
   const messageShare = createMessageShareSnapshot({
     shareId: community.slug,
     shareType: "community",
+    snapshotCreatedAt: community.updated_at || community.created_at,
     summary: community.description,
     targetUrl: `/communities/${encodeURIComponent(community.slug)}`,
     thumbnailUrl: community.avatar_url,
@@ -346,9 +353,9 @@ function CommunityRail({
     platformRole === "owner";
 
   return (
-    <aside className="border-t border-border px-0 py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 right-rail-scroll space-y-6">
-        <section className="border-b border-border pb-5">
+    <aside className="px-0 xl:pl-1">
+      <div className="sticky top-20 right-rail-scroll space-y-4">
+        <section className="rounded-lg bg-surface p-4">
           <h2 className="text-sm font-semibold">社区动态</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {formatCommunitySummary(community, posts)}
@@ -358,7 +365,7 @@ function CommunityRail({
           </p>
         </section>
 
-        <section className="border-b border-border pb-5">
+        <section className="rounded-lg bg-surface p-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold">高分帖子</h2>
             <span className="font-mono text-xs text-muted-foreground">
@@ -368,7 +375,7 @@ function CommunityRail({
           {isPostsLoading ? (
             <LoadingState rows={2} />
           ) : topPosts.length > 0 ? (
-            <div className="divide-y divide-border">
+            <div className="rounded-md bg-surface-raised">
               {topPosts.map((post) => (
                 <Link
                   key={post.id}
@@ -380,7 +387,7 @@ function CommunityRail({
                       postId: post.id,
                     })
                   }
-                  className="block py-3 transition-colors hover:text-primary"
+                  className="block px-3 py-2.5 transition-colors first:rounded-t-md last:rounded-b-md hover:bg-surface-hover hover:text-primary"
                 >
                   <div className="font-mono text-xs text-muted-foreground">
                     {post.score} 分 / {post.comment_count ?? 0} 条评论
@@ -398,9 +405,9 @@ function CommunityRail({
           )}
         </section>
 
-        <section className="border-b border-border pb-5">
+        <section className="rounded-lg bg-surface p-4">
           <h2 className="text-sm font-semibold">社区操作</h2>
-          <div className="mt-3 flex flex-col border-t border-border">
+          <div className="mt-3 flex flex-col">
             {canPost ? (
               <TextAction
                 href={`/communities/${encodeURIComponent(community.slug)}/new`}
@@ -431,7 +438,7 @@ function CommunityRail({
               </TextAction>
             ) : null}
             <DisabledMessageShareAction
-              className="h-auto justify-start border-b border-border px-3 py-3 text-sm font-semibold"
+              className="h-auto justify-start px-3 py-3 text-sm font-semibold hover:bg-surface-hover"
               iconClassName="size-4"
               label="发送给好友"
               share={messageShare}
@@ -466,9 +473,9 @@ function CommunityRail({
           ) : null}
         </section>
 
-        <section>
+        <section className="rounded-lg bg-surface p-4">
           <h2 className="text-sm font-semibold">继续浏览</h2>
-          <div className="mt-3 flex flex-col border-t border-border">
+          <div className="mt-3 flex flex-col">
             <TextAction href="/communities" variant="bar">
               浏览社区
             </TextAction>

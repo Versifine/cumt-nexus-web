@@ -255,7 +255,7 @@ function UserCommentRow({
             ) : null}
           </div>
 
-          <div className="mt-2 border-l border-border pl-3">
+          <div className="mt-2 rounded-md bg-background-soft px-3 py-2 ring-1 ring-border/60">
             <Link
               href={context.postHref}
               onClick={rememberSource}

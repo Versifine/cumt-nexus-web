@@ -353,8 +353,8 @@ function ProfileSettingsRail({
   user: PublicUser;
 }) {
   return (
-    <aside className="hidden min-w-0 border-l border-border pl-5 xl:block">
-      <div className="sticky top-20 right-rail-scroll space-y-6">
+    <aside className="hidden min-w-0 xl:block">
+      <div className="sticky top-20 right-rail-scroll space-y-6 rounded-md bg-background-soft p-4">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">保存状态</h2>
           <div className="mt-3 space-y-3">

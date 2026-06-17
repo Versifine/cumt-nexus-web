@@ -1383,9 +1383,9 @@ function checkMarkdownMobileOverflowBoundary() {
 
   if (
     !contentBody.content.includes("table({ children })") ||
-    !contentBody.content.includes('className="my-4 overflow-x-auto border border-border"') ||
+    !contentBody.content.includes("min-w-0 max-w-full overflow-x-auto") ||
     !contentBody.content.includes("min-w-[560px]") ||
-    !contentBody.content.includes("border-collapse text-sm")
+    !contentBody.content.includes("border-separate border-spacing-0")
   ) {
     problems.push("wide Markdown tables must use a scrolling wrapper instead of widening the page");
   }
@@ -1426,8 +1426,16 @@ function checkCommentTreeMobileIndentBoundary() {
     problems.push("nested comments must not add recursive left margin on mobile");
   }
 
-  if (!commentTree.content.includes('visualDepth > 0 && "border-l border-border pl-2 sm:pl-4"')) {
-    problems.push("nested comments must use a narrow mobile border and padding indentation");
+  if (!commentTree.content.includes('visualDepth > 0 && "pl-2 sm:pl-4"')) {
+    problems.push("nested comments must keep narrow mobile padding indentation");
+  }
+
+  if (commentTree.content.includes("border-l border-border")) {
+    problems.push("nested comments must not rely on continuous left border rails");
+  }
+
+  if (/absolute[^"']*bottom-0[^"']*top-0[^"']*w-px/.test(commentTree.content)) {
+    problems.push("nested comments must not render a continuous vertical guide line");
   }
 
   if (commentTree.content.includes("ml-3 inline-flex min-h-10")) {
@@ -1441,7 +1449,7 @@ function checkCommentTreeMobileIndentBoundary() {
 
   addPass(
     "comment tree mobile indent",
-    "nested comments keep mobile indentation narrow so Markdown content remains readable",
+    "nested comments keep mobile indentation narrow without continuous guide lines",
   );
 }
 

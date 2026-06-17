@@ -70,10 +70,10 @@ export function HomeShell({
   );
 
   return (
-    <div className="grid grid-cols-1 gap-0 xl:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
       <section className="min-w-0">
-        <div className="bg-background">
-          <div className="border-b border-border pb-3">
+        <div className="space-y-4">
+          <div className="rounded-lg bg-surface px-4 py-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
                 <h1 className="text-xl font-semibold leading-7 text-foreground">
@@ -104,19 +104,19 @@ export function HomeShell({
           </div>
 
           {!isReady ? (
-            <div className="border-b border-border py-5">
+            <div className="rounded-lg bg-surface px-4 py-5">
               <LoadingState rows={5} />
             </div>
           ) : null}
 
           {canReadLatestPosts && latestPostsQuery.isLoading ? (
-            <div className="border-b border-border py-5">
+            <div className="rounded-lg bg-surface px-4 py-5">
               <LoadingState rows={5} />
             </div>
           ) : null}
 
           {canReadLatestPosts && latestPostsQuery.isError ? (
-            <div className="py-5">
+            <div className="rounded-lg bg-surface px-4 py-5">
               <ErrorState
                 title={getErrorTitle(latestPostsQuery.error)}
                 description={getErrorDescription(latestPostsQuery.error)}
@@ -140,7 +140,7 @@ export function HomeShell({
           ) : null}
 
           {isReady && requiresAuth && !token ? (
-            <div className="py-5">
+            <div className="rounded-lg bg-surface px-4 py-5">
               <EmptyState
                 title="登录后查看关注信息流"
                 description="关注流只展示与你关注社区有关的内容。登录后可以回到这里继续浏览。"
@@ -166,7 +166,7 @@ export function HomeShell({
           {canReadLatestPosts &&
           latestPostsQuery.isSuccess &&
           posts.length === 0 ? (
-            <div className="py-5">
+            <div className="rounded-lg bg-surface px-4 py-5">
               <EmptyState
                 title={isFollowingFeed ? "关注流还没有帖子" : "还没有帖子"}
                 description={
@@ -182,9 +182,10 @@ export function HomeShell({
           {canReadLatestPosts &&
           latestPostsQuery.isSuccess &&
           posts.length > 0 ? (
-            <div className="border-t border-border">
+            <div className="rounded-lg bg-surface p-1">
               {posts.map((post) => (
                 <RedditPostListItem
+                  className="rounded-md"
                   key={post.id}
                   onRememberSource={(postId) =>
                     rememberPostNavigationSource({
@@ -251,16 +252,16 @@ function RightRail({
   const activeCommunities = getActiveCommunities(posts).slice(0, 4);
 
   return (
-    <aside className="border-t border-border px-0 py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 right-rail-scroll space-y-6">
-        <section className="border-b border-border pb-5">
+    <aside className="px-0 xl:pl-1">
+      <div className="sticky top-20 right-rail-scroll space-y-4">
+        <section className="rounded-lg bg-surface p-4">
           <h2 className="text-sm font-semibold">
             {formatFeedSourceLabel(feedSource)}信息流
           </h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {getRailDescription(feedSource, sortFallbackNotice)}
           </p>
-          <div className="mt-4 flex flex-col border-t border-border">
+          <div className="mt-4 flex flex-col">
             <TextAction href="/communities" tone="primary" variant="bar">
               浏览社区
             </TextAction>
@@ -270,15 +271,15 @@ function RightRail({
           </div>
         </section>
 
-        <section>
+        <section className="rounded-lg bg-surface p-4">
           <h3 className="text-sm font-semibold">当前流里的社区</h3>
           {activeCommunities.length > 0 ? (
-            <div className="divide-y divide-border">
+            <div className="mt-3 rounded-md bg-surface-raised">
               {activeCommunities.map((community) => (
                 <Link
                   key={community.slug}
                   href={`/communities/${community.slug}`}
-                  className="flex items-center justify-between gap-3 py-3 text-sm transition-colors hover:text-primary"
+                  className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm transition-colors first:rounded-t-md last:rounded-b-md hover:bg-surface-hover hover:text-primary"
                 >
                   <span className="min-w-0 truncate font-medium">
                     {community.name}

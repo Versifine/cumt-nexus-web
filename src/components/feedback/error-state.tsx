@@ -13,10 +13,10 @@ export function ErrorState({
   action,
 }: ErrorStateProps) {
   return (
-    <section className="border-y border-border py-5" role="status">
+    <section className="rounded-lg bg-surface-raised p-4" role="status">
       <div className="flex min-w-0 gap-3">
         <AlertCircle
-          className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+          className="mt-0.5 size-4 shrink-0 text-destructive"
           aria-hidden="true"
         />
         <div className="min-w-0">

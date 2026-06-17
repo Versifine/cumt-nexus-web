@@ -332,7 +332,7 @@ export function ManagedMediaEditor<TSaveResult>({
               : "md:grid-cols-[220px_minmax(0,1fr)]",
           )}
         >
-          <div className="min-w-0 border-l border-border pl-3">
+          <div className="min-w-0 rounded-md bg-surface px-3 py-3 ring-1 ring-border/60">
             <div className="font-mono text-[11px] text-muted-foreground">
               {selectedFile ? "裁剪预览" : "当前预览"}
             </div>

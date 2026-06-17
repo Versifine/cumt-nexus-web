@@ -17,9 +17,11 @@ import {
   type MediaAttachment,
 } from "@/features/media/types";
 import { ApiError } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 
 import { publishComment } from "./api";
 import { commentQueryKeys } from "./queries";
+import type { Comment, ListCommentsResponse } from "./types";
 import { postQueryKeys } from "../post/queries";
 
 const commentSchema = z.object({
@@ -34,7 +36,7 @@ type CommentFormProps = {
   docked?: boolean;
   focusSignal?: number;
   onExpandedChange?: (isExpanded: boolean) => void;
-  onSubmitted?: () => void;
+  onSubmitted?: (comment: Comment) => void;
   parentId?: string | null;
   postId: string;
   placeholder?: string;
@@ -78,13 +80,21 @@ export function CommentForm({
         body: values.body,
         parent_id: parentId || undefined,
       }),
-    onSuccess: async () => {
+    onSuccess: (result) => {
+      queryClient.setQueriesData<ListCommentsResponse>(
+        {
+          queryKey: commentQueryKeys.postCommentsPrefix(postId),
+        },
+        (current) => insertPublishedComment(current, result.comment),
+      );
       form.reset();
       setAttachments([]);
       if (!compact) {
         setIsExpanded(false);
       }
-      await Promise.all([
+      onSubmitted?.(result.comment);
+
+      void Promise.all([
         queryClient.invalidateQueries({
           queryKey: commentQueryKeys.postCommentsPrefix(postId),
         }),
@@ -92,7 +102,6 @@ export function CommentForm({
           queryKey: postQueryKeys.detail(postId),
         }),
       ]);
-      onSubmitted?.();
     },
   });
 
@@ -114,8 +123,16 @@ export function CommentForm({
 
     lastFocusSignalRef.current = focusSignal;
     setIsExpanded(true);
-    setEditorFocusKey((value) => value + 1);
-  }, [focusSignal, token]);
+    if (docked) {
+      return;
+    }
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      setEditorFocusKey((value) => value + 1);
+    });
+
+    return () => window.cancelAnimationFrame(focusFrame);
+  }, [docked, focusSignal, token]);
 
   useEffect(() => {
     onExpandedChange?.(isExpanded);
@@ -123,7 +140,9 @@ export function CommentForm({
 
   function expandComposer() {
     setIsExpanded(true);
-    setEditorFocusKey((value) => value + 1);
+    if (!docked) {
+      setEditorFocusKey((value) => value + 1);
+    }
   }
 
   function collapseComposer() {
@@ -152,7 +171,7 @@ export function CommentForm({
         className={
           compact || docked
             ? "text-sm text-muted-foreground"
-            : "border-t border-border py-4 text-sm text-muted-foreground"
+            : "rounded-md bg-surface-raised px-3 py-3 text-sm text-muted-foreground"
         }
         aria-label="正在读取登录状态"
       >
@@ -164,7 +183,7 @@ export function CommentForm({
   if (!token) {
     if (docked && !compact) {
       return (
-        <section className="flex min-h-11 w-full items-center justify-between gap-3 border-t border-border pt-3">
+        <section className="flex min-h-11 w-full items-center justify-between gap-3 rounded-md bg-surface-raised px-3 py-3">
           <span className="min-w-0 truncate text-sm text-muted-foreground">
             登录后发表评论
           </span>
@@ -178,7 +197,7 @@ export function CommentForm({
     return (
       <section
         className={
-          compact ? "py-1" : "border-t border-border py-4"
+          compact ? "py-1" : "rounded-md bg-surface-raised px-4 py-4"
         }
       >
         <h3
@@ -193,7 +212,7 @@ export function CommentForm({
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           未登录可以阅读帖子和评论；发表内容、投票和举报需要登录。
         </p>
-        <div className="mt-3 flex flex-wrap gap-4 border-t border-border pt-3">
+        <div className="mt-3 flex flex-wrap gap-4">
           <TextAction href={loginHref} tone="primary">
             去登录
           </TextAction>
@@ -209,12 +228,24 @@ export function CommentForm({
     return (
       <button
         type="button"
-        className="flex min-h-11 w-full items-center justify-between gap-3 border-b border-border px-0 py-2 text-left text-sm transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="group flex min-h-14 w-full items-center justify-between gap-3 rounded-lg bg-background-soft px-3 py-3 text-left text-sm shadow-[0_0_0_1px_var(--border)] transition-colors hover:bg-surface-raised hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         aria-label="展开评论输入框"
         onClick={expandComposer}
       >
-        <span className="min-w-0 truncate text-muted-foreground">
-          {hasDraft ? "继续编辑评论草稿" : (placeholder ?? "写下你的评论")}
+        <span className="flex min-w-0 items-center gap-2">
+          <span
+            className="size-1.5 shrink-0 rounded-full bg-primary"
+            aria-hidden="true"
+          />
+          <span className="min-w-0 truncate text-muted-foreground transition-colors group-hover:text-foreground">
+            {hasDraft ? "继续编辑评论草稿" : (placeholder ?? "写下你的评论")}
+          </span>
+        </span>
+        <span
+          className="shrink-0 font-mono text-sm font-semibold text-primary"
+          aria-hidden="true"
+        >
+          +
         </span>
       </button>
     );
@@ -222,13 +253,12 @@ export function CommentForm({
 
   return (
     <form
-      className={
+      className={cn(
         compact
           ? "space-y-2"
-          : docked
-            ? "w-full space-y-3"
-            : "w-full space-y-3"
-      }
+          : "w-full space-y-3 rounded-lg bg-background-soft p-2 shadow-[0_0_0_1px_var(--border)] sm:p-3",
+        docked && !compact && "p-1.5 sm:p-2",
+      )}
       onSubmit={form.handleSubmit((values) => {
         if (commentMutation.error) {
           commentMutation.reset();
@@ -347,4 +377,90 @@ function getSubmitError(error: Error | null) {
   }
 
   return "请求失败，请稍后重试。";
+}
+
+function insertPublishedComment(
+  current: ListCommentsResponse | undefined,
+  comment: Comment,
+): ListCommentsResponse | undefined {
+  if (!current || containsComment(current.comments, comment.id)) {
+    return current;
+  }
+
+  const normalizedComment = normalizePublishedComment(comment);
+  if (!normalizedComment.parent_id || current.view === "flat") {
+    return {
+      ...current,
+      comments: [normalizedComment, ...current.comments],
+    };
+  }
+
+  const result = insertReplyComment(
+    current.comments,
+    normalizedComment.parent_id,
+    normalizedComment,
+  );
+
+  return result.didInsert
+    ? {
+        ...current,
+        comments: result.comments,
+      }
+    : {
+        ...current,
+        comments: [normalizedComment, ...current.comments],
+      };
+}
+
+function normalizePublishedComment(comment: Comment): Comment {
+  return {
+    ...comment,
+    children: comment.children ?? [],
+  };
+}
+
+function containsComment(comments: Comment[], commentId: string): boolean {
+  return comments.some(
+    (comment) =>
+      comment.id === commentId ||
+      (comment.children ? containsComment(comment.children, commentId) : false),
+  );
+}
+
+function insertReplyComment(
+  comments: Comment[],
+  parentId: string,
+  reply: Comment,
+): { comments: Comment[]; didInsert: boolean } {
+  let didInsert = false;
+
+  const nextComments = comments.map((comment) => {
+    if (comment.id === parentId) {
+      didInsert = true;
+      const children = comment.children ?? [];
+
+      return {
+        ...comment,
+        children: [reply, ...children],
+        reply_count: Math.max(comment.reply_count ?? children.length, children.length) + 1,
+      };
+    }
+
+    if (!comment.children?.length) {
+      return comment;
+    }
+
+    const childResult = insertReplyComment(comment.children, parentId, reply);
+    if (!childResult.didInsert) {
+      return comment;
+    }
+
+    didInsert = true;
+    return {
+      ...comment,
+      children: childResult.comments,
+    };
+  });
+
+  return { comments: nextComments, didInsert };
 }

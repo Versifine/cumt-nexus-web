@@ -87,6 +87,7 @@ export function RedditPostListItem({
   const messageShare = createMessageShareSnapshot({
     shareId: post.id,
     shareType: "post",
+    snapshotCreatedAt: post.updated_at || post.created_at,
     summary: excerpt,
     targetUrl: postHref,
     title: post.title,
@@ -119,11 +120,17 @@ export function RedditPostListItem({
   return (
     <article
       className={cn(
-        "group flex min-w-0 gap-0 border-b border-border/60",
+        "group flex min-w-0 gap-0 overflow-hidden transition-colors hover:bg-surface-hover",
         className,
       )}
     >
-      <div className="flex w-10 shrink-0 flex-col items-center pt-3 sm:w-11">
+      <div
+        className={cn(
+          "flex w-10 shrink-0 flex-col items-center bg-surface-raised/75 pt-3 transition-colors sm:w-11",
+          post.my_vote === 1 && "bg-primary/10",
+          post.my_vote === -1 && "bg-destructive/10",
+        )}
+      >
         <RedditVoteControl
           downvoteCount={post.downvote_count}
           myVote={post.my_vote}
@@ -249,7 +256,7 @@ function PostLinkPreviewCard({ preview }: { preview: ResolvedLinkPreview }) {
       href={preview.url}
       target="_blank"
       rel="nofollow ugc noopener noreferrer"
-      className="group block max-w-[640px] border-l border-border px-3 py-2 transition-colors hover:border-primary"
+      className="group block max-w-[640px] rounded-md bg-surface-raised px-3 py-2 transition-colors hover:bg-surface-hover"
     >
       <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
           <LinkIcon className="size-3 shrink-0" aria-hidden="true" />

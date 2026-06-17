@@ -5,6 +5,7 @@ import type {
   MouseEvent,
   PointerEvent as ReactPointerEvent,
   ReactNode,
+  WheelEvent as ReactWheelEvent,
 } from "react";
 import {
   createContext,
@@ -176,6 +177,10 @@ function requestAppLayoutSync() {
   }, 240);
 }
 
+function stopLocalScrollPropagation(event: ReactWheelEvent<HTMLDivElement>) {
+  event.stopPropagation();
+}
+
 export function AppShell({
   backTarget = null,
   children,
@@ -333,6 +338,7 @@ export function AppShell({
                 "app-sidebar-scroll h-full overflow-y-auto py-5 transition-[padding] duration-200 ease-out",
                 isDesktopSidebarCollapsed ? "px-3" : "px-5",
               )}
+              onWheel={stopLocalScrollPropagation}
             >
               <div
                 className={cn(
@@ -1381,7 +1387,7 @@ function NotificationMenuBody({
   if (!canLoadNotifications) {
     return (
       <div className="p-3">
-        <div className="border-l border-border px-3 py-2">
+        <div className="rounded-md bg-surface-raised px-3 py-3">
           <h3 className="text-sm font-semibold text-foreground">登录即可同步消息</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             回复、@、赞和系统消息会跟随账号同步。
@@ -1407,7 +1413,7 @@ function NotificationMenuBody({
   if (notificationsError) {
     return (
       <div className="p-3">
-        <div className="border-l border-border px-3 py-2">
+        <div className="rounded-md bg-surface-raised px-3 py-3">
           <h3 className="text-sm font-semibold text-foreground">暂时无法加载消息</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             可以进入完整消息中心重新加载。
@@ -1424,7 +1430,7 @@ function NotificationMenuBody({
     return (
       <div className="p-3">
         <NotificationCategorySummary onClose={onClose} />
-        <div className="border-l border-border px-3 py-2">
+        <div className="rounded-md bg-surface-raised px-3 py-3">
           <h3 className="text-sm font-semibold text-foreground">暂时没有消息</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             有新的回复、@、赞或系统消息时，会显示在这里。

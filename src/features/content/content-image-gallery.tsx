@@ -230,12 +230,12 @@ export function ContentImageGallery({
       ref={galleryRef}
       data-media-gallery="true"
       className={cn(
-        "block min-w-0 overflow-hidden border border-border bg-background-soft",
+        "block min-w-0 overflow-hidden rounded-lg bg-surface-raised p-1",
         isDetail ? "my-5 w-full" : "w-full max-w-[720px]",
         className,
       )}
     >
-      <span className="relative block bg-black">
+      <span className="relative block overflow-hidden rounded-md bg-background">
         <span
           ref={viewportRef}
           className="block overflow-hidden"
@@ -309,34 +309,42 @@ export function ContentImageGallery({
         ) : null}
 
         {isDetail ? (
-          <span
-            className={cn(
-              "absolute inset-x-2 flex flex-wrap justify-end gap-2",
-              isActiveTallExpanded ? "top-2 items-start" : "bottom-2 items-end",
-            )}
-          >
-            {isActiveTall ? (
+          <>
+            {isActiveTallExpanded ? (
+              <span className="absolute inset-x-2 top-2 flex justify-end">
+                <button
+                  type="button"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md bg-surface/90 px-2 text-xs font-semibold text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  onClick={toggleActiveTallImage}
+                >
+                  收起长图
+                </button>
+              </span>
+            ) : null}
+            <span className="absolute inset-x-2 bottom-2 flex flex-wrap items-end justify-end gap-2">
+              {isActiveTall ? (
+                <button
+                  type="button"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md bg-surface/90 px-2 text-xs font-semibold text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  onClick={toggleActiveTallImage}
+                >
+                  {isActiveTallExpanded ? "收起长图" : "展开长图"}
+                </button>
+              ) : null}
               <button
                 type="button"
-                className="inline-flex h-8 items-center gap-1.5 border border-white/15 bg-black/70 px-2 text-xs font-semibold text-foreground transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                onClick={toggleActiveTallImage}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md bg-surface/90 px-2 text-xs font-semibold text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                onClick={() => openLightbox(selectedIndex)}
               >
-                {isActiveTallExpanded ? "收起长图" : "展开长图"}
+                <Maximize2 className="size-4" aria-hidden="true" />
+                查看完整图片
               </button>
-            ) : null}
-            <button
-              type="button"
-              className="inline-flex h-8 items-center gap-1.5 border border-white/15 bg-black/70 px-2 text-xs font-semibold text-foreground transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              onClick={() => openLightbox(selectedIndex)}
-            >
-              <Maximize2 className="size-4" aria-hidden="true" />
-              查看完整图片
-            </button>
-          </span>
+            </span>
+          </>
         ) : null}
       </span>
 
-      <span className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border px-3 py-2 text-xs text-muted-foreground">
+      <span className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-xs text-muted-foreground">
         <span className="min-w-0 truncate">
           {canNavigate
             ? `${activeCaption} · ${selectedIndex + 1}/${visibleAttachments.length}`
@@ -351,7 +359,7 @@ export function ContentImageGallery({
               href={activeAttachment.original_url || activeAttachment.url}
               target="_blank"
               rel="nofollow ugc noopener noreferrer"
-              className="inline-flex size-7 items-center justify-center transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="inline-flex size-7 items-center justify-center rounded-md transition-colors hover:bg-surface-hover hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               title="打开原图"
               aria-label="打开原图"
             >
@@ -379,8 +387,8 @@ export function ContentImageGallery({
         controller={{ closeOnBackdropClick: true }}
         thumbnails={{
           border: 1,
-          borderColor: "rgb(63 63 70)",
-          borderRadius: 0,
+          borderColor: "transparent",
+          borderRadius: 8,
           gap: 8,
           imageFit: "cover",
           padding: 0,
@@ -443,13 +451,15 @@ function ImageStage({
     <span
       data-media-stage={isActive ? "active" : "idle"}
       className={cn(
-        "relative flex min-w-0 items-center justify-center bg-black",
+        "relative flex min-w-0 items-center justify-center bg-background",
         (!isDetail || aspectKind !== "tall" || !isExpanded) && "overflow-hidden",
         !isDetail && "h-[min(320px,76vw)] sm:h-[420px]",
         isDetail && "w-full",
         isDetail &&
           aspectKind === "tall" &&
           (isExpanded ? "h-auto" : "h-[min(80vh,760px)]"),
+        isDetail && aspectKind === "wide" && "min-h-48",
+        isDetail && aspectKind === "normal" && "min-h-60",
         isDetail && aspectKind === "small" && "min-h-60",
         !isDetail && aspectKind === "wide" && "h-auto aspect-video",
         !isDetail && aspectKind === "small" && "h-60 p-4",
@@ -482,7 +492,7 @@ function ImageStage({
         )}
       />
       {isDetail && aspectKind === "tall" && !isExpanded ? (
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/85 to-transparent" />
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-background/90 to-transparent" />
       ) : null}
     </span>
   );
@@ -502,13 +512,13 @@ function MediaBadges({
   return (
     <span className="pointer-events-none absolute left-2 top-2 flex flex-wrap gap-2">
       {count > 1 ? (
-        <span className="inline-flex h-7 items-center gap-1 border border-white/15 bg-black/70 px-2 text-xs font-semibold text-foreground">
+        <span className="inline-flex h-7 items-center gap-1 rounded-md bg-surface/90 px-2 text-xs font-semibold text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.24)]">
           <Images className="size-3.5" aria-hidden="true" />
           {count} 图
         </span>
       ) : null}
       {aspectKind === "tall" ? (
-        <span className="inline-flex h-7 items-center border border-white/15 bg-black/70 px-2 text-xs font-semibold text-foreground">
+        <span className="inline-flex h-7 items-center rounded-md bg-surface/90 px-2 text-xs font-semibold text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.24)]">
           {variant === "detail" ? "长图 · 点击完整查看" : "长图"}
         </span>
       ) : null}
@@ -529,7 +539,7 @@ function CarouselButton({
     <button
       type="button"
       className={cn(
-        "absolute top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center border border-white/15 bg-black/70 text-foreground transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        "absolute top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-md bg-surface/90 text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
         side === "left" ? "left-2" : "right-2",
       )}
       onClick={onClick}
@@ -555,7 +565,7 @@ function ThumbnailRail({
   selectedIndex: number;
 }) {
   return (
-    <span className="flex gap-2 overflow-x-auto border-t border-border bg-background px-2 py-2 [scrollbar-width:thin]">
+    <span className="flex gap-2 overflow-x-auto px-2 pb-2 [scrollbar-width:thin]">
       {attachments.slice(0, 4).map((attachment, index) => {
         const hiddenCount = attachments.length - 4;
         const showOverflow = index === 3 && hiddenCount > 0;
@@ -565,10 +575,10 @@ function ThumbnailRail({
             key={attachment.id}
             type="button"
             className={cn(
-              "relative size-14 shrink-0 overflow-hidden border bg-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+              "relative size-14 shrink-0 overflow-hidden rounded-md bg-background transition-[box-shadow,opacity] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
               index === selectedIndex
-                ? "border-primary"
-                : "border-border hover:border-primary/60",
+                ? "shadow-[inset_0_0_0_2px_var(--primary)]"
+                : "opacity-70 hover:opacity-100",
             )}
             onClick={() => onSelect(index)}
             aria-label={`查看第 ${index + 1} 张图片`}
@@ -581,7 +591,7 @@ function ThumbnailRail({
               className="size-full object-cover"
             />
             {showOverflow ? (
-              <span className="absolute inset-0 flex items-center justify-center bg-black/70 font-mono text-sm font-semibold text-foreground">
+              <span className="absolute inset-0 flex items-center justify-center bg-background/75 font-mono text-sm font-semibold text-foreground">
                 +{hiddenCount}
               </span>
             ) : null}

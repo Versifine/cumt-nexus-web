@@ -33,12 +33,12 @@ export function HoverPreview({
       {trigger}
       <span
         className={cn(
-          "invisible absolute z-50 hidden w-72 max-w-[calc(100vw-2rem)] opacity-0 transition duration-150",
+          "invisible absolute z-50 hidden w-72 max-w-[calc(100vw-2rem)] scale-[0.98] opacity-0 transition duration-150 ease-out motion-reduce:transform-none motion-reduce:transition-none",
           "pointer-events-auto sm:group-hover/hover-preview:block sm:group-focus-within/hover-preview:block",
-          "group-hover/hover-preview:visible group-hover/hover-preview:translate-y-0 group-hover/hover-preview:opacity-100",
-          "group-focus-within/hover-preview:visible group-focus-within/hover-preview:translate-y-0 group-focus-within/hover-preview:opacity-100",
-          side === "bottom" && "top-full translate-y-1 pt-2",
-          side === "top" && "bottom-full -translate-y-1 pb-2",
+          "group-hover/hover-preview:visible group-hover/hover-preview:translate-y-0 group-hover/hover-preview:scale-100 group-hover/hover-preview:opacity-100",
+          "group-focus-within/hover-preview:visible group-focus-within/hover-preview:translate-y-0 group-focus-within/hover-preview:scale-100 group-focus-within/hover-preview:opacity-100",
+          side === "bottom" && "top-full origin-top translate-y-1 pt-2",
+          side === "top" && "bottom-full origin-bottom -translate-y-1 pb-2",
           align === "start" && "left-0",
           align === "end" && "right-0",
           panelClassName,

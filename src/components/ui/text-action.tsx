@@ -33,28 +33,19 @@ export function TextAction({
       <Link
         href={href}
         className={cn(
-          "group relative flex items-center justify-between overflow-hidden border-b border-border py-3 text-sm font-semibold last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          "nexus-micro-lift group my-0.5 flex items-center justify-between rounded-md px-3 py-3 text-sm font-semibold first:mt-0 last:mb-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          isPrimary
+            ? "bg-primary/10 text-foreground hover:bg-primary/15"
+            : "bg-surface-raised text-foreground hover:bg-surface-hover",
           className,
         )}
       >
         <span
-          className={cn(
-            "absolute inset-y-0 left-0 w-1 transition-all duration-200 group-hover:w-full",
-            isPrimary ? "bg-primary" : "bg-foreground",
-          )}
-          aria-hidden="true"
-        />
-        <span
-          className={cn(
-            "relative z-10 inline-flex min-w-0 items-center gap-2 pl-3 transition-colors",
-            isPrimary
-              ? "text-foreground group-hover:text-primary-foreground"
-              : "text-foreground group-hover:text-background",
-          )}
+          className="inline-flex min-w-0 items-center gap-2 transition-colors duration-150 ease-out"
         >
           {isBack ? (
             <Icon
-              className="size-4 shrink-0 transition-transform group-hover:-translate-x-1"
+              className="size-4 shrink-0 transition-transform duration-150 ease-out group-hover:-translate-x-1 motion-reduce:transform-none"
               aria-hidden="true"
             />
           ) : null}
@@ -63,10 +54,10 @@ export function TextAction({
         {!isBack ? (
           <Icon
             className={cn(
-              "relative z-10 mr-3 size-4 transition-transform group-hover:translate-x-1",
+              "size-4 transition-transform duration-150 ease-out group-hover:translate-x-1 motion-reduce:transform-none",
               isPrimary
-                ? "text-primary group-hover:text-primary-foreground"
-                : "text-muted-foreground group-hover:text-background",
+                ? "text-primary"
+                : "text-muted-foreground group-hover:text-foreground",
             )}
             aria-hidden="true"
           />
@@ -79,7 +70,7 @@ export function TextAction({
     <Link
       href={href}
       className={cn(
-        "group inline-flex min-h-9 items-center gap-2 border-b border-transparent px-0.5 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "nexus-micro-lift group inline-flex min-h-9 items-center gap-2 border-b border-transparent px-0.5 text-sm font-semibold text-foreground hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         className,
       )}
     >
@@ -91,7 +82,7 @@ export function TextAction({
       >
         {isBack ? (
           <ArrowLeft
-            className="size-4 shrink-0 transition-transform group-hover:-translate-x-1"
+            className="size-4 shrink-0 transition-transform duration-150 ease-out group-hover:-translate-x-1 motion-reduce:transform-none"
             aria-hidden="true"
           />
         ) : null}
@@ -100,7 +91,7 @@ export function TextAction({
       {!isBack ? (
         <span
           className={cn(
-            "font-mono text-xs transition-colors",
+            "font-mono text-xs transition-colors duration-150 ease-out",
             isPrimary ? "text-primary" : "text-muted-foreground group-hover:text-primary",
           )}
         >

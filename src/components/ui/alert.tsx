@@ -4,13 +4,13 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const alertVariants = cva(
-  "relative w-full rounded-lg border px-4 py-3 text-sm",
+  "nexus-soft-transition relative w-full rounded-lg border px-4 py-3 text-sm",
   {
     variants: {
       variant: {
-        default: "border-border bg-card text-card-foreground",
-        destructive: "border-destructive/30 bg-destructive/10 text-destructive",
-        success: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
+        default: "border-border bg-surface-raised text-muted-foreground",
+        destructive: "border-destructive/25 bg-destructive/10 text-destructive",
+        success: "border-emerald-300/25 bg-emerald-400/10 text-emerald-300",
       },
     },
     defaultVariants: {
@@ -38,7 +38,7 @@ function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="alert-title"
-      className={cn("mb-1 font-medium leading-none tracking-normal", className)}
+      className={cn("mb-1 font-medium leading-none tracking-normal text-foreground", className)}
       {...props}
     />
   );

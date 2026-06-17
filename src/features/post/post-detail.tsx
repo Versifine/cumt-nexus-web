@@ -29,7 +29,11 @@ import {
   formatCommentSortDescription,
   formatCommentSortFallbackNotice,
 } from "@/features/comment/sort";
-import type { CommentSort, ListCommentsResponse } from "@/features/comment/types";
+import type {
+  Comment,
+  CommentSort,
+  ListCommentsResponse,
+} from "@/features/comment/types";
 import { ContentBody } from "@/features/content/content-body";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import {
@@ -43,6 +47,7 @@ import { ModerationQuickActions } from "@/features/moderation/moderation-quick-a
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { ApiError } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 
 import {
   formatPostStatus,
@@ -82,6 +87,8 @@ export function PostDetail({
   const [isCommentComposerExpanded, setIsCommentComposerExpanded] =
     useState(false);
   const [isCommentDockVisible, setIsCommentDockVisible] = useState(false);
+  const [replyingCommentId, setReplyingCommentId] = useState<string | null>(null);
+  const [pendingCommentId, setPendingCommentId] = useState<string | null>(null);
   const [commentDockMetrics, setCommentDockMetrics] = useState<{
     left: number;
     width: number;
@@ -124,8 +131,42 @@ export function PostDetail({
   const commentCount = Math.max(post?.comment_count ?? 0, comments.length);
   const postIdForCommentDock = post?.id;
   const postBackTarget = getPostBackTarget(post, navigationSource);
+  const shouldShowCommentDock = isCommentDockVisible && !replyingCommentId;
 
   useAppShellBackAction(postBackTarget);
+
+  useEffect(() => {
+    if (!pendingCommentId) {
+      return;
+    }
+
+    const targetCommentId = pendingCommentId;
+    let frame = 0;
+    let attempts = 0;
+    const maxAttempts = 8;
+
+    function focusPendingComment() {
+      const element = document.getElementById(getCommentElementId(targetCommentId));
+      if (!element) {
+        attempts += 1;
+        if (attempts < maxAttempts) {
+          frame = window.requestAnimationFrame(focusPendingComment);
+        }
+        return;
+      }
+
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.setAttribute("data-focus-comment", "true");
+      window.setTimeout(() => {
+        element.removeAttribute("data-focus-comment");
+      }, 1800);
+      setPendingCommentId(null);
+    }
+
+    frame = window.requestAnimationFrame(focusPendingComment);
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [commentsQuery.dataUpdatedAt, pendingCommentId]);
 
   useEffect(() => {
     let animationFrame = 0;
@@ -228,6 +269,7 @@ export function PostDetail({
   }, [postIdForCommentDock]);
 
   function focusCommentComposer() {
+    setReplyingCommentId(null);
     setCommentComposerFocusSignal((value) => value + 1);
 
     if (isCommentDockVisible) {
@@ -241,15 +283,17 @@ export function PostDetail({
     });
   }
 
+  function handleCommentSubmitted(comment: Comment) {
+    setReplyingCommentId(null);
+    setPendingCommentId(comment.id);
+  }
+
   return (
     <div
-      className={
-        isCommentDockVisible && isCommentComposerExpanded
-          ? "grid grid-cols-[minmax(0,1fr)] gap-5 pb-64 pt-2 lg:grid-cols-[minmax(0,1fr)_280px]"
-          : isCommentDockVisible
-            ? "grid grid-cols-[minmax(0,1fr)] gap-5 pb-24 pt-2 lg:grid-cols-[minmax(0,1fr)_280px]"
-            : "grid grid-cols-[minmax(0,1fr)] gap-5 py-2 lg:grid-cols-[minmax(0,1fr)_280px]"
-      }
+      className={cn(
+        "grid grid-cols-[minmax(0,1fr)] gap-5 pt-2 lg:grid-cols-[minmax(0,1fr)_280px]",
+        shouldShowCommentDock ? "pb-24" : "pb-2",
+      )}
     >
       <div ref={commentColumnRef} className="min-w-0">
         <section>
@@ -291,74 +335,64 @@ export function PostDetail({
         </section>
 
         {post ? (
-          <section className="mt-6 border-t border-border pt-4" aria-labelledby="comments-heading">
+          <section
+            className="mt-5 rounded-lg bg-surface p-4"
+            aria-labelledby="comments-heading"
+          >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
-              <h2
-                id="comments-heading"
-                className="text-lg font-semibold tracking-normal"
-              >
-                评论
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                {formatCommentSortDescription(initialCommentSort)}
-                回复会保留树状层级。
-              </p>
-              {commentSortFallbackNotice ? (
-                <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
-                  {commentSortFallbackNotice}
+                <h2
+                  id="comments-heading"
+                  className="text-lg font-semibold tracking-normal"
+                >
+                  评论
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  {formatCommentSortDescription(initialCommentSort)}
+                  回复会保留树状层级。
                 </p>
-              ) : null}
+                {commentSortFallbackNotice ? (
+                  <p className="mt-2 max-w-2xl text-xs leading-5 text-warning">
+                    {commentSortFallbackNotice}
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-xs text-muted-foreground">
                   {commentCount} 条评论
                 </span>
-                  <button
-                    type="button"
-                    className="inline-flex h-8 items-center gap-1.5 border-b border-transparent px-1 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                    onClick={focusCommentComposer}
-                  >
-                    写评论
-                    <span className="font-mono text-primary" aria-hidden="true">
-                      +
-                    </span>
-                  </button>
-                  <CommentSortMenu
-                    disabled={!canRequestComments || commentsQuery.isFetching}
-                    onSortChange={(nextSort) => {
-                      if (nextSort !== initialCommentSort) {
-                        router.push(
-                          getCommentSortHref(pathname, searchParams, nextSort),
-                        );
-                      }
-                    }}
-                    sort={initialCommentSort}
-                  />
+                <CommentSortMenu
+                  disabled={!canRequestComments || commentsQuery.isFetching}
+                  onSortChange={(nextSort) => {
+                    if (nextSort !== initialCommentSort) {
+                      router.push(
+                        getCommentSortHref(pathname, searchParams, nextSort),
+                      );
+                    }
+                  }}
+                  sort={initialCommentSort}
+                />
               </div>
             </div>
 
             <div
               id="post-comment-composer"
               ref={commentComposerAnchorRef}
-              className={
-                isCommentDockVisible
-                  ? isCommentComposerExpanded
-                    ? "mt-4 min-h-64 scroll-mt-32"
-                    : "mt-4 min-h-20 scroll-mt-32"
-                  : "mt-4 scroll-mt-32 border-t border-border pt-3"
-              }
+              className={cn(
+                "mt-4 scroll-mt-32",
+                shouldShowCommentDock && "min-h-20",
+              )}
             >
               <div
-                className={
-                  isCommentDockVisible
-                    ? isCommentComposerExpanded
-                      ? "fixed bottom-3 z-40 border border-border bg-background/95 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur sm:bottom-4 sm:p-3"
-                      : "fixed bottom-3 z-40 shadow-[0_10px_30px_rgba(0,0,0,0.35)] sm:bottom-4"
-                    : ""
-                }
+                className={cn(
+                  shouldShowCommentDock &&
+                    "fixed bottom-3 z-40 rounded-md bg-surface/95 p-1 shadow-[0_12px_36px_rgba(0,0,0,0.28)] backdrop-blur sm:bottom-4",
+                  shouldShowCommentDock &&
+                    isCommentComposerExpanded &&
+                    "rounded-lg p-2 sm:p-3",
+                )}
                 style={
-                  isCommentDockVisible && commentDockMetrics
+                  shouldShowCommentDock && commentDockMetrics
                     ? {
                         left: commentDockMetrics.left,
                         width: commentDockMetrics.width,
@@ -367,23 +401,24 @@ export function PostDetail({
                 }
               >
                 <CommentForm
-                  docked={isCommentDockVisible}
+                  docked={shouldShowCommentDock}
                   focusSignal={commentComposerFocusSignal}
                   onExpandedChange={setIsCommentComposerExpanded}
+                  onSubmitted={handleCommentSubmitted}
                   postId={id}
                 />
               </div>
             </div>
 
-            <div className="mt-3 border-t border-border">
+            <div className="mt-4">
               {commentsQuery.isLoading ? (
-                <div className="border-b border-border py-4">
+                <div className="rounded-md bg-surface-raised px-4 py-4">
                   <LoadingState rows={3} />
                 </div>
               ) : null}
 
               {commentsQuery.isError ? (
-                <div className="border-b border-border py-4">
+                <div className="rounded-md bg-surface-raised px-4 py-4">
                   <ErrorState
                     title={getErrorTitle(commentsQuery.error, "无法加载评论")}
                     description={getErrorDescription(commentsQuery.error)}
@@ -407,7 +442,7 @@ export function PostDetail({
               ) : null}
 
               {commentsQuery.isSuccess && comments.length === 0 ? (
-                <div className="border-b border-border py-4">
+                <div className="rounded-md bg-surface-raised px-4 py-4">
                   <EmptyState
                     title="还没有评论"
                     description="发布第一条评论，让这条讨论继续展开。"
@@ -425,8 +460,11 @@ export function PostDetail({
                   currentUserId={currentUserId}
                   isAuthenticated={isAuthenticated}
                   maxDepth={6}
+                  onCommentSubmitted={handleCommentSubmitted}
+                  onReplyChange={setReplyingCommentId}
                   platformAuditEnabled={canModerate}
                   postId={id}
+                  replyingTo={replyingCommentId}
                 />
               ) : null}
             </div>
@@ -442,6 +480,10 @@ export function PostDetail({
       ) : null}
     </div>
   );
+}
+
+function getCommentElementId(commentId: string) {
+  return `comment-${commentId}`;
 }
 
 function CommentSortMenu({
@@ -555,15 +597,20 @@ function PostArticle({
   const messageShare = createMessageShareSnapshot({
     shareId: post.id,
     shareType: "post",
+    snapshotCreatedAt: post.updated_at || post.created_at,
     summary: getMarkdownPlainTextSummary(post.body, ""),
     targetUrl: `/posts/${post.id}`,
     title: post.title,
   });
 
   return (
-    <article className="grid grid-cols-[42px_minmax(0,1fr)] border-t border-border bg-background sm:grid-cols-[52px_minmax(0,1fr)]">
+    <article className="grid grid-cols-[42px_minmax(0,1fr)] overflow-hidden rounded-lg bg-surface sm:grid-cols-[52px_minmax(0,1fr)]">
       <RedditVoteControl
-        className="border-r border-border/70 py-3"
+        className={cn(
+          "bg-surface-raised/75 py-3 transition-colors",
+          post.my_vote === 1 && "bg-primary/10",
+          post.my_vote === -1 && "bg-destructive/10",
+        )}
         downvoteCount={post.downvote_count}
         myVote={post.my_vote}
         score={post.score}
@@ -573,7 +620,7 @@ function PostArticle({
       />
 
       <div className="min-w-0">
-        <header className="border-b border-border px-3 py-4 sm:px-4">
+        <header className="px-3 py-4 sm:px-4">
           <PostDetailAttribution post={post}>
             <h1 className="mt-3 break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl sm:leading-8">
               {post.title}
@@ -589,75 +636,80 @@ function PostArticle({
           />
         </div>
 
-        <footer className="flex flex-wrap items-center gap-1 border-t border-border px-3 py-2 text-xs text-muted-foreground sm:px-4">
-          <button
-            type="button"
-            className="inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            onClick={onCommentIntent}
-          >
-            <MessageSquare className="size-4" aria-hidden="true" />
-            {commentCount} 条评论
-          </button>
-          <button
-            type="button"
-            className="inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            onClick={copyPostLink}
-          >
-            <Share2 className="size-4" aria-hidden="true" />
-            {shareState === "copied"
-              ? "已复制"
-              : shareState === "failed"
-                ? "复制失败"
-                : "分享"}
-          </button>
-          <DisabledMessageShareAction
-            className="h-8 font-semibold"
-            iconClassName="size-4"
-            label="发送给好友"
-            share={messageShare}
-          />
-          <PostSaveButton
-            className="h-8 text-xs"
-            isSaved={post.is_saved}
-            postId={post.id}
-            saveCount={post.save_count}
-          />
-          <PostLifecycleControls canManage={canManage} post={post} />
-          {isAuthenticated && post.viewer_permissions?.can_report !== false ? (
-            <ReportContentDialog
-              targetId={post.id}
-              targetLabel={post.title}
-              targetType="post"
+        <footer className="mx-3 mb-3 space-y-1.5 rounded-md bg-surface-raised px-3 py-2 text-xs text-muted-foreground sm:mx-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <button
+              type="button"
+              className="inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              onClick={onCommentIntent}
+            >
+              <MessageSquare className="size-4" aria-hidden="true" />
+              {commentCount} 条评论
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              onClick={copyPostLink}
+            >
+              <Share2 className="size-4" aria-hidden="true" />
+              {shareState === "copied"
+                ? "已复制"
+                : shareState === "failed"
+                  ? "复制失败"
+                  : "分享"}
+            </button>
+            <DisabledMessageShareAction
+              className="h-8 font-semibold"
+              iconClassName="size-4"
+              label="发送给好友"
+              share={messageShare}
             />
-          ) : null}
+            <PostSaveButton
+              className="h-8 text-xs"
+              isSaved={post.is_saved}
+              postId={post.id}
+              saveCount={post.save_count}
+            />
+            <PostLifecycleControls canManage={canManage} post={post} />
+            {isAuthenticated && post.viewer_permissions?.can_report !== false ? (
+              <ReportContentDialog
+                targetId={post.id}
+                targetLabel={post.title}
+                targetType="post"
+              />
+            ) : null}
+          </div>
+
           {canQuickModerate ? (
-            <ModerationQuickActions
-              auditHref={
-                canModerate
-                  ? `/admin/audit-logs?target_type=post&target_id=${encodeURIComponent(post.id)}`
-                  : null
-              }
-              canRemove={canQuickModerate && post.status !== "removed"}
-              communityManageHref={communityManageHref}
-              communitySlug={canUseCommunityManage ? communitySlug : null}
-              targetId={post.id}
-              targetAuthorId={post.author_id}
-              targetLabel={post.title}
-              targetStatus={post.status}
-              targetState={{
-                flairText: post.flair_text,
-                isLocked: post.is_locked,
-                isNsfw: post.is_nsfw,
-                isPinned: post.is_pinned,
-                isSpoiler: post.is_spoiler,
-              }}
-              targetType="post"
-              userHref={
-                canModerate
-                  ? `/admin/users?q=${encodeURIComponent(authorQuery)}`
-                  : null
-              }
-            />
+            <div className="min-w-0">
+              <ModerationQuickActions
+                auditHref={
+                  canModerate
+                    ? `/admin/audit-logs?target_type=post&target_id=${encodeURIComponent(post.id)}`
+                    : null
+                }
+                canRemove={canQuickModerate && post.status !== "removed"}
+                communityManageHref={communityManageHref}
+                communitySlug={canUseCommunityManage ? communitySlug : null}
+                targetId={post.id}
+                targetAuthorId={post.author_id}
+                targetLabel={post.title}
+                targetStatus={post.status}
+                targetState={{
+                  flairText: post.flair_text,
+                  isLocked: post.is_locked,
+                  isNsfw: post.is_nsfw,
+                  isPinned: post.is_pinned,
+                  isSpoiler: post.is_spoiler,
+                }}
+                targetType="post"
+                userHref={
+                  canModerate
+                    ? `/admin/users?q=${encodeURIComponent(authorQuery)}`
+                    : null
+                }
+              />
+            </div>
           ) : null}
         </footer>
       </div>
@@ -676,9 +728,9 @@ function PostRail({
   const author = getPostAuthorIdentity(post);
 
   return (
-    <aside className="border-t border-border px-0 py-5 lg:border-l lg:border-t-0 lg:pl-5">
-      <div className="sticky top-20 right-rail-scroll space-y-5">
-        <section className="border-b border-border pb-5">
+    <aside className="px-0 lg:pl-1">
+      <div className="sticky top-20 right-rail-scroll space-y-4">
+        <section className="rounded-lg bg-surface p-4">
           <h2 className="text-sm font-semibold">所在社区</h2>
           <div className="mt-3 flex min-w-0 items-start gap-3">
             <CommunityHoverPreview
@@ -743,7 +795,7 @@ function PostRail({
           </p>
         </section>
 
-        <section className="border-b border-border pb-5">
+        <section className="rounded-lg bg-surface p-4">
           <h2 className="text-sm font-semibold">作者</h2>
           <div className="mt-3 flex min-w-0 items-center gap-3">
             <PostAuthorAvatar avatarUrl={author.avatarUrl} name={author.name} />
@@ -767,9 +819,9 @@ function PostRail({
           ) : null}
         </section>
 
-        <section>
+        <section className="rounded-lg bg-surface p-4">
           <h2 className="text-sm font-semibold">发布时间</h2>
-          <dl className="mt-3 space-y-2 border-t border-border pt-3 text-sm">
+          <dl className="mt-3 space-y-2 rounded-md bg-surface-raised p-3 text-sm">
             {post.status !== "visible" ? (
               <RailRow label="状态" value={formatPostStatus(post.status)} />
             ) : null}

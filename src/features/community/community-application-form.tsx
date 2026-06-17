@@ -59,7 +59,7 @@ export function CommunityApplicationForm({
 
   if (applicationMutation.isSuccess) {
     return (
-      <div className={cn("border-l border-border py-5 pl-4", className)}>
+      <div className={cn("rounded-md bg-surface px-4 py-5 ring-1 ring-border/60", className)}>
         <Alert variant="success">
           <AlertTitle>申请已提交</AlertTitle>
           <AlertDescription>

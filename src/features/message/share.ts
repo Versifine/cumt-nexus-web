@@ -3,6 +3,7 @@ import type { MessageShareSnapshot, MessageShareType } from "./types";
 type MessageShareDraftInput = {
   shareId: string;
   shareType: MessageShareType;
+  snapshotCreatedAt: string;
   summary?: string | null;
   targetUrl: string;
   thumbnailUrl?: string | null;
@@ -12,6 +13,7 @@ type MessageShareDraftInput = {
 export function createMessageShareSnapshot({
   shareId,
   shareType,
+  snapshotCreatedAt,
   summary,
   targetUrl,
   thumbnailUrl,
@@ -20,7 +22,7 @@ export function createMessageShareSnapshot({
   return {
     share_id: shareId,
     share_type: shareType,
-    snapshot_created_at: new Date().toISOString(),
+    snapshot_created_at: snapshotCreatedAt,
     summary: summary?.trim() ?? "",
     target_url: targetUrl,
     thumbnail_url: thumbnailUrl?.trim() ?? "",

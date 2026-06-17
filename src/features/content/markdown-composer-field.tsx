@@ -175,7 +175,7 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
       getAttachmentById: () => null,
       HTMLAttributes: {
         class:
-          "my-4 block h-auto max-h-[520px] max-w-full border border-border bg-background-soft object-contain",
+          "my-4 block h-auto max-h-[520px] max-w-full rounded-md bg-background object-contain",
       },
     };
   },
@@ -247,7 +247,7 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
         "span",
         {
           class:
-            "my-4 block border-l border-border px-3 py-2 text-sm text-muted-foreground",
+            "my-4 block rounded-md bg-surface-raised px-3 py-2 text-sm text-muted-foreground",
         },
         "图片附件不存在或尚未随内容返回。",
       ];
@@ -257,7 +257,7 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
       "span",
       {
         class:
-          "my-4 block border-l border-border px-3 py-2 text-sm text-muted-foreground",
+          "my-4 block rounded-md bg-surface-raised px-3 py-2 text-sm text-muted-foreground",
       },
       "外部图片不会直接渲染；请上传图片后放入正文。",
     ];
@@ -439,7 +439,7 @@ const MediaEmbedNode = TiptapNode.create({
       const embed = resolveWhitelistedMediaEmbed(originalUrl);
       const dom = document.createElement("div");
 
-      dom.className = "my-4 block outline-offset-2";
+      dom.className = "my-4 block rounded-lg outline-offset-2";
       dom.setAttribute("data-media-editor-node", "true");
 
       if (embed) {
@@ -450,11 +450,11 @@ const MediaEmbedNode = TiptapNode.create({
 
       return {
         deselectNode() {
-          dom.classList.remove("outline", "outline-1", "outline-primary");
+          dom.style.boxShadow = "";
         },
         dom,
         selectNode() {
-          dom.classList.add("outline", "outline-1", "outline-primary");
+          dom.style.boxShadow = "inset 3px 0 0 var(--primary)";
         },
       };
     };
@@ -492,8 +492,8 @@ function AttachmentImageEditorView({
     <NodeViewWrapper
       as="div"
       className={cn(
-        "group/media-node my-4 block outline-offset-2",
-        selected && "outline outline-1 outline-primary",
+        "group/media-node my-4 block rounded-lg outline-offset-2",
+        selected && "ring-2 ring-primary/35",
       )}
       contentEditable={false}
       data-attachment-id={attachmentId ?? undefined}
@@ -505,11 +505,11 @@ function AttachmentImageEditorView({
           variant="detail"
         />
       ) : !attachmentId ? (
-        <span className="block border-l border-border px-3 py-2 text-sm text-muted-foreground">
+        <span className="block rounded-md bg-surface-raised px-3 py-2 text-sm text-muted-foreground">
           外部图片不会直接渲染；请上传图片后放入正文。
         </span>
       ) : (
-        <span className="block border-l border-border px-3 py-2 text-sm text-muted-foreground">
+        <span className="block rounded-md bg-surface-raised px-3 py-2 text-sm text-muted-foreground">
           图片附件不存在、尚未随内容返回或当前不可显示。
         </span>
       )}
@@ -557,8 +557,8 @@ function AttachmentGalleryEditorView({
     <NodeViewWrapper
       as="div"
       className={cn(
-        "group/media-node my-4 block outline-offset-2",
-        selected && "outline outline-1 outline-primary",
+        "group/media-node my-4 block rounded-lg outline-offset-2",
+        selected && "ring-2 ring-primary/35",
       )}
       contentEditable={false}
       data-attachment-gallery="true"
@@ -572,7 +572,7 @@ function AttachmentGalleryEditorView({
           variant="detail"
         />
       ) : (
-        <span className="block border-l border-border px-3 py-2 text-sm text-muted-foreground">
+        <span className="block rounded-md bg-surface-raised px-3 py-2 text-sm text-muted-foreground">
           图片轮播里的附件不存在或尚未随内容返回。
         </span>
       )}
@@ -813,14 +813,14 @@ export function MarkdownComposerField({
             "prose-headings:tracking-normal",
             "data-[placeholder]:before:pointer-events-none data-[placeholder]:before:float-left data-[placeholder]:before:h-0 data-[placeholder]:before:text-muted-foreground data-[placeholder]:before:content-[attr(data-placeholder)]",
             "[&_a]:text-primary [&_a]:underline [&_a]:decoration-primary/40 [&_a]:underline-offset-4",
-            "[&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:border-primary/50 [&_blockquote]:bg-primary/5 [&_blockquote]:px-4 [&_blockquote]:py-2 [&_blockquote]:text-muted-foreground",
-            "[&_code]:border [&_code]:border-border [&_code]:bg-background-soft [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.92em]",
+            "[&_blockquote]:my-4 [&_blockquote]:rounded-md [&_blockquote]:bg-background-soft [&_blockquote]:px-4 [&_blockquote]:py-3 [&_blockquote]:text-muted-foreground [&_blockquote]:ring-1 [&_blockquote]:ring-border/60",
+            "[&_code]:rounded-sm [&_code]:bg-background-soft [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.92em]",
             "[&_h1]:mb-2 [&_h1]:mt-5 [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:leading-7",
             "[&_h2]:mb-2 [&_h2]:mt-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:leading-7",
             "[&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:leading-6",
             "[&_ol]:my-4 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-6",
             "[&_p]:my-3 [&_p]:whitespace-pre-wrap [&_p]:leading-7 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
-            "[&_pre]:my-4 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:border [&_pre]:border-border [&_pre]:bg-background-soft [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-sm [&_pre]:leading-6",
+            "[&_pre]:my-4 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-background-soft [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-sm [&_pre]:leading-6",
             "[&_pre_code]:border-0 [&_pre_code]:bg-transparent [&_pre_code]:p-0",
             "[&_table]:my-4 [&_table]:w-full [&_table]:min-w-[560px] [&_table]:border-collapse [&_table]:text-sm",
             "[&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_td]:align-top",
@@ -1369,7 +1369,7 @@ export function MarkdownComposerField({
     >
       <section
         className={cn(
-          "min-w-0 overflow-hidden border border-border bg-background",
+          "min-w-0 overflow-hidden rounded-lg bg-surface-raised p-1",
           isEditorDisabled && "opacity-70",
         )}
       >
@@ -1379,7 +1379,7 @@ export function MarkdownComposerField({
           renderImageTool={renderImageTool}
           state={toolbarState}
         />
-        <div className="min-w-0 max-w-full overflow-x-auto border-t border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="min-w-0 max-w-full overflow-x-auto rounded-md bg-surface [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <EditorContent editor={editor} />
         </div>
       </section>
@@ -1561,11 +1561,11 @@ function RichMarkdownToolbar({
   return (
     <div
       role="toolbar"
-      className="min-w-0 max-w-full overflow-x-auto bg-background-soft [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="min-w-0 max-w-full"
       aria-label="正文格式工具栏"
     >
-      <div className="flex min-w-max items-center gap-1 p-1">
-        <span className="shrink-0 px-2 font-mono text-[11px] text-muted-foreground">
+      <div className="flex min-w-0 flex-wrap items-center gap-1 px-1 pb-1">
+        <span className="shrink-0 px-2 font-mono text-[11px] text-subtle-foreground">
           格式
         </span>
         {tools.map((tool) => (
@@ -1596,10 +1596,10 @@ function ComposerNotice({
   return (
     <p
       className={cn(
-        "flex items-start gap-2 border-l px-3 py-2 text-sm leading-6 text-muted-foreground",
+        "flex items-start gap-2 rounded-md border px-3 py-2 text-sm leading-6 text-muted-foreground",
         tone === "warning"
           ? "border-amber-400/60 bg-amber-400/5"
-          : "border-primary bg-primary/5",
+          : "border-primary/25 bg-primary/5",
       )}
     >
       <span
@@ -1646,8 +1646,8 @@ function ToolbarButton({
       type="button"
       variant="ghost"
       className={cn(
-        "size-9 shrink-0 rounded-none border-b border-transparent hover:bg-transparent hover:text-primary",
-        active && "border-primary text-primary",
+        "size-9 shrink-0 rounded-md text-muted-foreground hover:bg-surface-hover hover:text-primary",
+        active && "bg-primary-muted text-primary",
       )}
     >
       {icon}
@@ -1960,7 +1960,7 @@ function createMediaFallbackLink(originalUrl: string) {
   link.rel = "nofollow ugc noopener noreferrer";
   link.target = "_blank";
   link.className =
-    "block border-l border-border px-3 py-2 text-sm text-primary underline decoration-primary/40 underline-offset-4";
+    "block rounded-md bg-background-soft px-3 py-2 text-sm text-primary underline decoration-primary/40 underline-offset-4 ring-1 ring-border/60";
   link.textContent = originalUrl;
 
   return link;

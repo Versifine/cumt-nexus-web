@@ -23,7 +23,7 @@ function TabsList({
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        "inline-flex h-9 w-fit items-center justify-center bg-transparent text-muted-foreground",
+        "nexus-soft-transition inline-flex w-fit items-center justify-center rounded-lg bg-surface-raised p-1 text-muted-foreground",
         className,
       )}
       {...props}
@@ -39,9 +39,9 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "inline-flex h-8 items-center justify-center border-b border-transparent px-3 text-sm font-medium whitespace-nowrap transition-colors outline-none",
+        "nexus-micro-lift inline-flex h-8 items-center justify-center rounded-md px-3 text-sm font-medium whitespace-nowrap outline-none",
         "focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
-        "data-[state=active]:border-primary data-[state=active]:text-foreground",
+        "hover:bg-surface-hover/70 data-[state=active]:bg-surface-hover data-[state=active]:text-foreground data-[state=active]:shadow-[inset_0_0_0_1px_var(--border)]",
         className,
       )}
       {...props}
@@ -56,7 +56,10 @@ function TabsContent({
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
-      className={cn("outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}
+      className={cn(
+        "nexus-soft-transition outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:duration-150 motion-reduce:animate-none",
+        className,
+      )}
       {...props}
     />
   );

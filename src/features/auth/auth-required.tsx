@@ -106,7 +106,7 @@ function AuthPanel({
   title: string;
 }) {
   return (
-    <section className={cn("border-l border-border py-5 pl-4", className)}>
+    <section className={cn("rounded-md bg-surface px-4 py-5 ring-1 ring-border/60", className)}>
       <div className="min-w-0">
         <StatusToken tone={getAuthPanelTone(eyebrow)}>{eyebrow}</StatusToken>
         <h2 className="mt-3 break-words text-base font-semibold leading-6 tracking-normal">

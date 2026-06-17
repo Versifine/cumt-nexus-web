@@ -207,8 +207,7 @@ export function PostForm({
           onChange={setBodyValue}
           fieldProps={{
             "aria-invalid": Boolean(form.formState.errors.body),
-            className:
-              "min-h-64 bg-background text-base leading-7 sm:min-h-80",
+            className: "min-h-64 text-base leading-7 sm:min-h-80",
             id: "body",
             placeholder: "正文",
           }}

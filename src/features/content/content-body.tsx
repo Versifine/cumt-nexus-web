@@ -59,6 +59,7 @@ export function ContentBody({
       className={cn(
         "min-w-0 break-words text-foreground",
         "prose-headings:tracking-normal",
+        "[&_strong]:font-semibold [&_strong]:text-foreground",
         className,
       )}
     >
@@ -114,7 +115,7 @@ function createMarkdownComponents(
           href={safeHref}
           rel={isExternal ? "nofollow ugc noopener noreferrer" : undefined}
           target={isExternal ? "_blank" : undefined}
-          className="text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:decoration-primary"
+          className="font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:decoration-primary"
         >
           {children}
         </a>
@@ -142,21 +143,21 @@ function createMarkdownComponents(
 
       if (!attachmentId && !isAttachmentGalleryMarkdownUrl(safeSrc)) {
         return (
-          <span className="my-4 block border-l border-border px-3 py-2 text-sm text-muted-foreground">
+          <span className="my-4 block rounded-md bg-surface-raised px-3 py-2 text-sm text-muted-foreground">
             外部图片不会直接渲染；请上传图片后放入正文。
           </span>
         );
       }
 
       return (
-        <span className="my-4 block border-l border-border px-3 py-2 text-sm text-muted-foreground">
+        <span className="my-4 block rounded-md bg-surface-raised px-3 py-2 text-sm text-muted-foreground">
           图片附件不存在、尚未随内容返回或当前不可显示。
         </span>
       );
     },
     blockquote({ children }) {
       return (
-        <blockquote className="my-4 border-l-2 border-primary/50 bg-primary/5 px-4 py-2 text-muted-foreground">
+        <blockquote className="my-4 rounded-md bg-background-soft px-4 py-3 text-muted-foreground ring-1 ring-border/60">
           {children}
         </blockquote>
       );
@@ -165,7 +166,7 @@ function createMarkdownComponents(
       return (
         <code
           className={cn(
-            "border border-border bg-background-soft px-1.5 py-0.5 font-mono text-[0.92em] text-foreground",
+            "rounded-sm bg-background-soft px-1.5 py-0.5 font-mono text-[0.92em] text-foreground",
             className,
           )}
         >
@@ -177,16 +178,40 @@ function createMarkdownComponents(
       return <del className="text-muted-foreground decoration-muted-foreground">{children}</del>;
     },
     h1({ children }) {
-      return <h1 className="mb-2 mt-5 text-xl font-semibold leading-7">{children}</h1>;
+      return (
+        <h1 className="mb-3 mt-6 flex min-w-0 items-start gap-2 text-xl font-semibold leading-7 first:mt-0">
+          <span
+            className="mt-2 size-2 shrink-0 rounded-full bg-primary"
+            aria-hidden="true"
+          />
+          <span className="min-w-0">{children}</span>
+        </h1>
+      );
     },
     h2({ children }) {
-      return <h2 className="mb-2 mt-5 text-lg font-semibold leading-7">{children}</h2>;
+      return (
+        <h2 className="mb-2 mt-5 flex min-w-0 items-start gap-2 text-lg font-semibold leading-7 first:mt-0">
+          <span
+            className="mt-2 size-1.5 shrink-0 rounded-full bg-primary"
+            aria-hidden="true"
+          />
+          <span className="min-w-0">{children}</span>
+        </h2>
+      );
     },
     h3({ children }) {
-      return <h3 className="mb-2 mt-4 text-base font-semibold leading-6">{children}</h3>;
+      return (
+        <h3 className="mb-2 mt-4 flex min-w-0 items-start gap-2 text-base font-semibold leading-6 first:mt-0">
+          <span
+            className="mt-2 size-1.5 shrink-0 rounded-full bg-primary-muted"
+            aria-hidden="true"
+          />
+          <span className="min-w-0">{children}</span>
+        </h3>
+      );
     },
     hr() {
-      return <hr className="my-6 border-border" />;
+      return <hr className="my-6 h-1 w-16 rounded-full border-0 bg-primary-muted" />;
     },
     input({ checked, type }) {
       if (type === "checkbox") {
@@ -210,7 +235,7 @@ function createMarkdownComponents(
       return (
         <li
           className={cn(
-            "pl-1 leading-7 [&>p]:my-0",
+            "pl-1 leading-7 marker:text-primary/70 [&>p]:my-0",
             isTaskListItem && "list-none pl-0",
             className,
           )}
@@ -220,7 +245,7 @@ function createMarkdownComponents(
       );
     },
     ol({ children, className }) {
-      return <ol className={cn("my-4 list-decimal space-y-1 pl-6", className)}>{children}</ol>;
+      return <ol className={cn("my-4 list-decimal space-y-1 pl-6 marker:text-primary/70", className)}>{children}</ol>;
     },
     p({ children }) {
       return <p className="my-3 whitespace-pre-wrap leading-7 first:mt-0 last:mb-0">{children}</p>;
@@ -236,35 +261,35 @@ function createMarkdownComponents(
         : children;
 
       return (
-        <pre className="my-4 min-w-0 max-w-full overflow-x-auto border border-border bg-background-soft p-3 font-mono text-sm leading-6">
+        <pre className="my-4 min-w-0 max-w-full overflow-x-auto rounded-md bg-background-soft p-3 font-mono text-sm leading-6">
           {codeBlock}
         </pre>
       );
     },
     table({ children }) {
       return (
-        <div className="my-4 overflow-x-auto border border-border">
-          <table className="w-full min-w-[560px] border-collapse text-sm">
+        <div className="my-4 min-w-0 max-w-full overflow-x-auto rounded-lg bg-background-soft p-1">
+          <table className="w-full min-w-[560px] border-separate border-spacing-0 overflow-hidden rounded-md bg-surface text-sm">
             {children}
           </table>
         </div>
       );
     },
     tbody({ children }) {
-      return <tbody className="divide-y divide-border">{children}</tbody>;
+      return <tbody>{children}</tbody>;
     },
     td({ children }) {
-      return <td className="border-r border-border px-3 py-2 align-top last:border-r-0">{children}</td>;
+      return <td className="border-r border-t border-border px-3 py-2 align-top first:border-l last:border-r">{children}</td>;
     },
     th({ children }) {
       return (
-        <th className="border-r border-border bg-background-soft px-3 py-2 text-left text-xs font-semibold text-muted-foreground last:border-r-0">
+        <th className="border-r border-t border-border bg-background-soft px-3 py-2 text-left text-xs font-semibold text-muted-foreground first:border-l last:border-r">
           {children}
         </th>
       );
     },
     thead({ children }) {
-      return <thead className="border-b border-border">{children}</thead>;
+      return <thead>{children}</thead>;
     },
     ul({ children, className }) {
       const containsTaskList = className?.includes("contains-task-list");
@@ -273,6 +298,7 @@ function createMarkdownComponents(
         <ul
           className={cn(
             "my-4 list-disc space-y-1 pl-6",
+            "marker:text-primary/70",
             containsTaskList && "list-none pl-0",
             className,
           )}

@@ -199,7 +199,7 @@ export function MessageCenterPage({
       <div
         className={cn(
           "px-4 py-6",
-          fullscreen && "min-h-screen bg-[#20202a] text-white",
+          fullscreen && "min-h-screen bg-background text-foreground",
         )}
       >
         <LoadingState rows={6} />
@@ -219,10 +219,16 @@ export function MessageCenterPage({
         className={cn(
           "mx-auto w-full max-w-xl px-4 py-6",
           fullscreen &&
-            "flex min-h-screen max-w-none items-center justify-center bg-[#20202a] text-white",
+            "flex min-h-screen max-w-none items-center justify-center bg-background text-foreground",
         )}
       >
-        <div className={fullscreen ? "w-full max-w-xl border-y border-white/10 py-8" : ""}>
+        <div
+          className={
+            fullscreen
+              ? "w-full max-w-xl rounded-md bg-surface p-6 shadow-[inset_0_0_0_1px_var(--border)]"
+              : ""
+          }
+        >
           <EmptyState
             title="登录后查看私信"
             description="私信会话、陌生人消息和在线状态需要登录后同步。"
@@ -240,7 +246,7 @@ export function MessageCenterPage({
   return (
     <section
       className={cn(
-        "min-h-[620px] overflow-hidden bg-[#20202a] text-foreground",
+        "min-h-[620px] overflow-hidden bg-background text-foreground",
         fullscreen
           ? "h-screen"
           : "h-[calc(100vh-64px)] lg:h-[calc(100vh-72px)]",
@@ -264,7 +270,7 @@ export function MessageCenterPage({
 
         <main
           className={cn(
-            "min-h-0 min-w-0 flex-col border-l border-white/5 bg-[#242430]",
+            "min-h-0 min-w-0 flex-col bg-background",
             isThreadRoute ||
               isRequestInboxRoute ||
               selectedConversation ||
@@ -274,7 +280,7 @@ export function MessageCenterPage({
           )}
         >
           {listError ? (
-            <div className="border-b border-white/5 px-5 py-3">
+            <div className="bg-surface-raised px-5 py-3">
               <ErrorState
                 title="私信暂时无法加载"
                 description={getErrorMessage(listError)}
@@ -361,22 +367,22 @@ function ConversationSidebar({
   return (
     <aside
       className={cn(
-        "min-h-0 w-full flex-col bg-[#252530] lg:w-[248px]",
+        "min-h-0 w-full flex-col bg-background-soft lg:w-[248px]",
         className,
       )}
     >
-      <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2.5">
+      <div className="flex items-center gap-2 px-3 py-3">
         {showBackButton ? <MessageBackButton /> : null}
         <label className="relative block min-w-0 flex-1">
           <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-white/40"
+            className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
             aria-hidden="true"
           />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="搜索"
-            className="h-7 rounded-md border-0 bg-[#3e3e4a] pl-8 text-xs text-white placeholder:text-white/45 focus-visible:ring-1 focus-visible:ring-white/20"
+            className="h-8 rounded-md border-0 bg-surface pl-8 text-xs text-foreground placeholder:text-muted-foreground shadow-[inset_0_0_0_1px_var(--input)] focus-visible:ring-2 focus-visible:ring-primary/25"
           />
         </label>
       </div>
@@ -387,7 +393,7 @@ function ConversationSidebar({
             <LoadingState rows={8} />
           </div>
         ) : (
-          <div>
+          <div className="space-y-1 px-2 pb-3">
             {shouldShowRequestEntry ? (
               <RequestInboxRow
                 active={Boolean(
@@ -438,23 +444,25 @@ function RequestInboxRow({
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "grid h-[58px] grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-2 border-b border-white/5 px-3 transition-colors",
-        active ? "bg-[#4a4a55]" : "hover:bg-white/5",
+        "grid min-h-[58px] grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-2 rounded-md px-2.5 py-2 text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+        active
+          ? "bg-surface-raised text-foreground ring-1 ring-primary/20"
+          : "hover:bg-surface hover:text-foreground",
       )}
     >
-      <span className="relative flex size-10 items-center justify-center rounded-full bg-[#3a3340] text-[#ff4f7b]">
+      <span className="relative flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
         <UserPlus className="size-4" aria-hidden="true" />
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-sm font-semibold text-white">
+        <span className="block truncate text-sm font-semibold text-foreground">
           陌生人消息
         </span>
-        <span className="mt-0.5 block truncate text-xs text-white/45">
+        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
           {count > 0 ? `${count} 条待处理` : "查看陌生人请求"}
         </span>
       </span>
       {count > 0 ? (
-        <span className="inline-flex min-w-2 rounded-full bg-[#ff2d55] px-1.5 py-0.5 text-[10px] font-semibold leading-3 text-white">
+        <span className="inline-flex min-w-2 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-3 text-primary-foreground">
           {count > 99 ? "99+" : count}
         </span>
       ) : null}
@@ -477,8 +485,10 @@ function ConversationListRow({
       href={`/messages/${encodeURIComponent(conversation.id)}`}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "grid h-[58px] grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-2 border-b border-white/5 px-3 transition-colors",
-        active ? "bg-[#4a4a55]" : "hover:bg-white/5",
+        "grid min-h-[58px] grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-2 rounded-md px-2.5 py-2 text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+        active
+          ? "bg-surface-raised text-foreground ring-1 ring-primary/20"
+          : "hover:bg-surface hover:text-foreground",
       )}
     >
       <MessageUserAvatar
@@ -488,29 +498,29 @@ function ConversationListRow({
       />
       <span className="min-w-0">
         <span className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-sm font-semibold text-white">
+          <span className="truncate text-sm font-semibold text-foreground">
             {displayName}
           </span>
           {conversation.pinned ? (
-            <Pin className="size-3 text-white/35" aria-hidden="true" />
+            <Pin className="size-3 text-subtle-foreground" aria-hidden="true" />
           ) : null}
           {conversation.muted ? (
-            <BellOff className="size-3 text-white/35" aria-hidden="true" />
+            <BellOff className="size-3 text-subtle-foreground" aria-hidden="true" />
           ) : null}
           {requestDirection === "outgoing" ? (
-            <span className="shrink-0 text-[10px] text-white/40">等待</span>
+            <span className="shrink-0 text-[10px] text-subtle-foreground">等待</span>
           ) : null}
         </span>
-        <span className="mt-0.5 block truncate text-xs text-white/45">
+        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
           {formatConversationPreview(conversation)}
         </span>
       </span>
       <span className="flex min-w-0 flex-col items-end gap-1">
-        <span className="text-[10px] text-white/35">
+        <span className="text-[10px] text-subtle-foreground">
           {formatShortTime(conversation.updated_at)}
         </span>
         {conversation.unread_count > 0 ? (
-          <span className="size-1.5 rounded-full bg-[#ff2d55]" />
+          <span className="size-1.5 rounded-full bg-primary" />
         ) : null}
       </span>
     </Link>
@@ -695,7 +705,7 @@ function ThreadHeader({
   const displayName = getUserDisplayName(conversation.participant);
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-white/5 bg-[#242430] px-3 lg:px-4">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 bg-background-soft px-3 lg:px-4">
       <div className="flex min-w-0 items-center gap-2.5">
         {showBackButton ? <MessageBackButton /> : null}
         <MessageUserAvatar
@@ -705,10 +715,10 @@ function ThreadHeader({
           user={conversation.participant}
         />
         <div className="min-w-0">
-          <h1 className="truncate text-sm font-semibold text-white">
+          <h1 className="truncate text-sm font-semibold text-foreground">
             {displayName}
           </h1>
-          <p className="mt-0.5 truncate text-[11px] text-white/35">
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
             {formatOnlineStatus(conversation)}
           </p>
         </div>
@@ -718,7 +728,7 @@ function ThreadHeader({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="inline-flex size-8 items-center justify-center rounded-md text-white/60 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
             aria-label="更多会话操作"
           >
             <MoreHorizontal className="size-5" aria-hidden="true" />
@@ -784,11 +794,11 @@ function IncomingRequestNotice({
   onReject: () => void;
 }) {
   return (
-    <section className="border-b border-white/5 bg-[#242430] px-5 py-3">
+    <section className="bg-surface-raised px-5 py-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-white">陌生人消息</p>
-          <p className="mt-1 text-xs text-white/45">
+          <p className="text-sm font-semibold text-foreground">陌生人消息</p>
+          <p className="mt-1 text-xs text-muted-foreground">
             接受后才能继续聊天；忽略后对方不能继续发送。
           </p>
         </div>
@@ -832,13 +842,13 @@ function RequestInboxPane({
 
   return (
     <>
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-white/5 bg-[#242430] px-3 lg:px-4">
+      <header className="flex h-14 shrink-0 items-center gap-2 bg-background-soft px-3 lg:px-4">
         <MessageBackButton />
         <div className="min-w-0">
-          <h1 className="truncate text-sm font-semibold text-white">
+          <h1 className="truncate text-sm font-semibold text-foreground">
             陌生人消息
           </h1>
-          <p className="mt-0.5 truncate text-[11px] text-white/35">
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
             {requestCount > 0 ? `${requestCount} 条待处理` : "没有待处理请求"}
           </p>
         </div>
@@ -853,7 +863,7 @@ function RequestInboxPane({
             description="非互关用户发来的首条消息会显示在这里。"
           />
         ) : (
-          <div className="mx-auto w-full max-w-3xl divide-y divide-white/5 border-y border-white/5">
+          <div className="mx-auto w-full max-w-3xl space-y-2">
             {requests.map((conversation) => (
               <RequestInboxListItem
                 key={conversation.id}
@@ -902,22 +912,22 @@ function RequestInboxListItem({
   const displayName = getUserDisplayName(conversation.participant);
 
   return (
-    <article className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+    <article className="grid gap-3 rounded-md bg-surface px-3 py-3 shadow-[inset_0_0_0_1px_var(--border)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
       <Link
         href={`/messages/${encodeURIComponent(conversation.id)}`}
-        className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] gap-3 rounded-md py-1 pr-2 transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+        className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] gap-3 rounded-md py-1 pr-2 transition-colors hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
       >
         <MessageUserAvatar user={conversation.participant} />
         <span className="min-w-0">
           <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-sm font-semibold text-white">
+            <span className="truncate text-sm font-semibold text-foreground">
               {displayName}
             </span>
-            <span className="shrink-0 text-[10px] text-white/35">
+            <span className="shrink-0 text-[10px] text-subtle-foreground">
               {formatShortTime(conversation.updated_at)}
             </span>
           </span>
-          <span className="mt-1 block truncate text-xs text-white/45">
+          <span className="mt-1 block truncate text-xs text-muted-foreground">
             {conversation.last_message?.text || formatConversationPreview(conversation)}
           </span>
         </span>
@@ -954,7 +964,7 @@ function MessageBackButton() {
     <button
       type="button"
       aria-label="返回上一级"
-      className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-white/55 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+      className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
       onClick={() => {
         router.push(getMessageReturnTarget());
       }}
@@ -1036,10 +1046,10 @@ function MessageRow({
       >
         <div
           className={cn(
-            "max-w-full overflow-hidden rounded-[10px] px-3 py-2 text-sm leading-6",
+            "max-w-full overflow-hidden rounded-md px-3 py-2 text-sm leading-6 shadow-sm",
             isOwn
-              ? "rounded-br-[4px] bg-[#1e9bff] text-white"
-              : "rounded-bl-[4px] bg-[#4b4b57] text-white",
+              ? "rounded-br-sm bg-primary text-primary-foreground"
+              : "rounded-bl-sm bg-surface-raised text-foreground shadow-[inset_0_0_0_1px_var(--border)]",
             isRich && "bg-transparent p-0",
           )}
         >
@@ -1087,12 +1097,12 @@ function MessageActions({
   onReport: () => void;
 }) {
   return (
-    <div className="mt-1 flex items-center gap-2 text-[11px] text-white/35 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+    <div className="mt-1 flex items-center gap-2 text-[11px] text-subtle-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
       {canRecall ? (
         <button
           type="button"
           disabled={disabled}
-          className="hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+          className="hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           onClick={onRecall}
         >
           撤回
@@ -1101,7 +1111,7 @@ function MessageActions({
       <button
         type="button"
         disabled={disabled}
-        className="hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+        className="hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
         onClick={onDelete}
       >
         删除
@@ -1110,7 +1120,7 @@ function MessageActions({
         <button
           type="button"
           disabled={disabled}
-          className="hover:text-[#ff5a78] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+          className="hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           onClick={onReport}
         >
           举报
@@ -1128,28 +1138,46 @@ function MessageBody({
   message: Message;
 }) {
   if (isRecalled(message)) {
-    return <span className="text-white/55">消息已撤回</span>;
+    return (
+      <span className={isOwn ? "text-primary-foreground/75" : "text-muted-foreground"}>
+        消息已撤回
+      </span>
+    );
   }
 
   if (message.viewer_deleted) {
-    return <span className="text-white/55">这条消息已删除</span>;
+    return (
+      <span className={isOwn ? "text-primary-foreground/75" : "text-muted-foreground"}>
+        这条消息已删除
+      </span>
+    );
   }
 
   if (message.status === "unavailable") {
-    return <span className="text-white/55">内容暂不可查看</span>;
+    return (
+      <span className={isOwn ? "text-primary-foreground/75" : "text-muted-foreground"}>
+        内容暂不可查看
+      </span>
+    );
   }
 
   if (message.type.startsWith("share_")) {
     return message.share ? (
       <MessageSharePreview compact share={message.share} />
     ) : (
-      <span className="text-white/55">内容暂不可查看</span>
+      <span className={isOwn ? "text-primary-foreground/75" : "text-muted-foreground"}>
+        内容暂不可查看
+      </span>
     );
   }
 
   if (message.type === "image") {
     if (message.status === "image_rejected") {
-      return <span className="text-white/55">图片审核失败</span>;
+      return (
+        <span className={isOwn ? "text-primary-foreground/75" : "text-muted-foreground"}>
+          图片审核失败
+        </span>
+      );
     }
 
     return message.image_url ? (
@@ -1160,7 +1188,9 @@ function MessageBody({
         className="max-h-80 max-w-[280px] rounded-[8px] object-contain lg:max-w-[360px]"
       />
     ) : (
-      <span className="text-white/55">图片暂不可查看</span>
+      <span className={isOwn ? "text-primary-foreground/75" : "text-muted-foreground"}>
+        图片暂不可查看
+      </span>
     );
   }
 
@@ -1168,7 +1198,7 @@ function MessageBody({
     <p
       className={cn(
         "whitespace-pre-wrap break-words",
-        isOwn ? "text-white" : "text-white",
+        isOwn ? "text-primary-foreground" : "text-foreground",
       )}
     >
       {message.body || "消息暂不可查看"}
@@ -1339,21 +1369,21 @@ function MessageComposer({
   }
 
   return (
-    <footer className="shrink-0 border-t border-white/5 bg-[#242430] px-3 py-2.5">
+    <footer className="shrink-0 bg-background-soft px-3 py-3">
       {!canEdit ? (
-        <div className="flex h-9 items-center rounded-full bg-[#4b4b57] px-4 text-sm text-white/45">
+        <div className="flex min-h-9 items-center rounded-md bg-surface-raised px-3 text-sm text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
           {formatComposerDisabledReason(requestDirection, disabledReason)}
         </div>
       ) : (
         <form className="relative space-y-2" onSubmit={submit}>
           {shareDraft ? <MessageSharePreview compact share={shareDraft} /> : null}
           {emojiOpen ? (
-            <div className="absolute bottom-14 left-1 z-10 grid w-[260px] grid-cols-8 gap-1 rounded-[8px] border border-white/10 bg-[#30303b] p-2 shadow-2xl">
+            <div className="absolute bottom-14 left-1 z-10 grid w-[260px] grid-cols-8 gap-1 rounded-md border border-border bg-surface-raised p-2 shadow-2xl">
               {MESSAGE_EMOJI_OPTIONS.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
-                  className="flex size-7 items-center justify-center rounded-[6px] text-base transition-colors hover:bg-white/10"
+                  className="flex size-7 items-center justify-center rounded-sm text-base transition-colors hover:bg-surface-hover"
                   onClick={() => insertEmoji(emoji)}
                   aria-label={`输入表情 ${emoji}`}
                 >
@@ -1369,11 +1399,11 @@ function MessageComposer({
             className="hidden"
             onChange={handleImageChange}
           />
-          <div className="flex min-h-10 items-center gap-2 rounded-full bg-[#4b4b57] px-2 py-1">
+          <div className="flex min-h-10 items-center gap-2 rounded-md bg-surface-raised px-2 py-1 shadow-[inset_0_0_0_1px_var(--input)] focus-within:ring-2 focus-within:ring-primary/20">
             <button
               type="button"
               disabled={Boolean(shareDraft)}
-              className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-white/60 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:text-white/25"
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:text-subtle-foreground"
               aria-label="选择表情"
               aria-expanded={emojiOpen}
               onClick={() => {
@@ -1396,12 +1426,12 @@ function MessageComposer({
               onKeyDown={handleKeyDown}
               placeholder={shareDraft ? "发送这张分享卡片" : "发送消息"}
               disabled={Boolean(shareDraft)}
-              className="h-8 min-h-8 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-0 py-1.5 text-sm leading-5 text-white placeholder:text-white/40 focus-visible:ring-0 disabled:opacity-100"
+              className="h-8 min-h-8 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-0 py-1.5 text-sm leading-5 text-foreground placeholder:text-muted-foreground shadow-none hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 disabled:opacity-100"
             />
             <button
               type="button"
               disabled={Boolean(shareDraft) || isSubmitting}
-              className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-white/60 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:text-white/25"
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:text-subtle-foreground"
               aria-label={uploadImageMutation.isPending ? "图片上传中" : "发送图片"}
               onClick={handleImageButtonClick}
             >
@@ -1410,14 +1440,14 @@ function MessageComposer({
             <button
               type="submit"
               disabled={isSubmitting || (!shareDraft && !body.trim())}
-              className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-[#1e9bff] text-white transition-colors hover:bg-[#3aa9ff] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-surface-hover disabled:text-subtle-foreground"
               aria-label={isSubmitting ? "发送中" : shareDraft ? "发送分享卡片" : "发送消息"}
             >
               <Send className="size-4" aria-hidden="true" />
             </button>
           </div>
           {localError || sendMutation.isError || uploadImageMutation.isError ? (
-            <p className="px-3 text-xs text-[#ff6b88]">
+            <p className="px-3 text-xs text-destructive">
               {localError ||
                 getErrorMessage(sendMutation.error ?? uploadImageMutation.error)}
             </p>
@@ -1467,20 +1497,20 @@ function StartConversationPane({
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center px-4">
       <form
-        className="w-full max-w-md border-y border-white/10 py-5"
+        className="w-full max-w-md rounded-md bg-surface p-5 shadow-[inset_0_0_0_1px_var(--border)]"
         onSubmit={submit}
       >
-        <h1 className="text-base font-semibold text-white">
+        <h1 className="text-base font-semibold text-foreground">
           {shareDraft ? "发送给好友" : "发起私信"}
         </h1>
-        <p className="mt-2 text-sm leading-6 text-white/45">
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
           非互关用户只会收到一条陌生人请求；对方接受前不能连续追发。
         </p>
         <Input
           value={targetUsername}
           onChange={(event) => setTargetUsername(event.target.value)}
           placeholder="输入 username"
-          className="mt-4 h-9 border-white/10 bg-[#363642] text-white placeholder:text-white/35"
+          className="mt-4 h-9"
         />
         {shareDraft ? (
           <MessageSharePreview compact share={shareDraft} />
@@ -1489,11 +1519,11 @@ function StartConversationPane({
             value={body}
             onChange={(event) => setBody(event.target.value)}
             placeholder="发送消息"
-            className="mt-3 min-h-24 resize-none border-white/10 bg-[#363642] text-white placeholder:text-white/35"
+            className="mt-3 min-h-24 resize-none"
           />
         )}
         {startMutation.isError ? (
-          <p className="mt-3 text-xs text-[#ff6b88]">
+          <p className="mt-3 text-xs text-destructive">
             {getErrorMessage(startMutation.error)}
           </p>
         ) : null}
@@ -1546,14 +1576,14 @@ function EmptyThreadPane() {
     <div className="flex min-h-0 flex-1 items-center justify-center px-4">
       <div className="text-center">
         <MessageCircle
-          className="mx-auto size-10 text-white/25"
+          className="mx-auto size-10 text-subtle-foreground"
           aria-hidden="true"
         />
-        <h1 className="mt-4 text-sm font-semibold text-white">选择一个会话</h1>
-        <p className="mt-2 text-sm text-white/40">私信内容会显示在这里。</p>
+        <h1 className="mt-4 text-sm font-semibold text-foreground">选择一个会话</h1>
+        <p className="mt-2 text-sm text-muted-foreground">私信内容会显示在这里。</p>
         <Link
           href="/settings/privacy"
-          className="mt-4 inline-flex items-center gap-1.5 text-sm text-white/55 hover:text-white"
+          className="mt-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
           <Settings className="size-4" aria-hidden="true" />
           私信设置
@@ -1565,7 +1595,7 @@ function EmptyThreadPane() {
 
 function TimeDivider({ value }: { value: string }) {
   return (
-    <div className="mb-4 mt-1 text-center text-xs text-white/35">
+    <div className="mb-4 mt-1 text-center text-xs text-subtle-foreground">
       {formatDateTime(value)}
     </div>
   );
@@ -1573,7 +1603,7 @@ function TimeDivider({ value }: { value: string }) {
 
 function SystemLine({ children }: { children: ReactNode }) {
   return (
-    <div className="border-b border-white/5 py-3 text-center text-xs text-[#f4c542]">
+    <div className="mx-4 my-2 rounded-md bg-warning/10 py-2 text-center text-xs text-warning">
       {children}
     </div>
   );
@@ -1592,7 +1622,7 @@ export function MessageSharePreview({
     <Link
       href={share.target_url || "#"}
       className={cn(
-        "mt-2 block overflow-hidden rounded-[8px] bg-[#33333f] text-left ring-1 ring-white/5 transition-colors hover:bg-[#3b3b47]",
+        "mt-2 block overflow-hidden rounded-md bg-surface-raised text-left shadow-[inset_0_0_0_1px_var(--border)] transition-colors hover:bg-surface-hover",
         compact ? "w-[260px] max-w-full" : "w-[300px] max-w-full",
       )}
     >
@@ -1605,19 +1635,19 @@ export function MessageSharePreview({
             className="aspect-square rounded-[6px] object-cover"
           />
         ) : (
-          <span className="flex aspect-square items-center justify-center rounded-[6px] bg-white/5 text-white/45">
+          <span className="flex aspect-square items-center justify-center rounded-sm bg-surface-hover text-muted-foreground">
             <MessageCircle className="size-4" aria-hidden="true" />
           </span>
         )}
         <span className="min-w-0">
-          <span className="block text-[11px] text-white/40">
+          <span className="block text-[11px] text-muted-foreground">
             {formatShareType(share.share_type)}
           </span>
-          <span className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-white">
+          <span className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-foreground">
             {share.title || "内容暂不可查看"}
           </span>
           {share.summary ? (
-            <span className="mt-1 line-clamp-1 text-xs text-white/45">
+            <span className="mt-1 line-clamp-1 text-xs text-muted-foreground">
               {share.summary}
             </span>
           ) : null}
@@ -1652,15 +1682,15 @@ export function MessageUserAvatar({
           className="size-full rounded-full object-cover"
         />
       ) : (
-        <span className="flex size-full items-center justify-center rounded-full bg-[#3e3e4a] font-semibold text-white">
+        <span className="flex size-full items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
           {name.slice(0, 1).toUpperCase()}
         </span>
       )}
       {onlineVisible ? (
         <span
           className={cn(
-            "absolute bottom-0 right-0 size-2.5 rounded-full border border-[#252530]",
-            online ? "bg-[#4ade80]" : "bg-white/30",
+            "absolute bottom-0 right-0 size-2.5 rounded-full border border-background-soft",
+            online ? "bg-success" : "bg-muted-foreground",
           )}
         />
       ) : null}

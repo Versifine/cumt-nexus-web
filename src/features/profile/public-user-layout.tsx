@@ -85,6 +85,7 @@ export function PublicUserHeader({
   const userShare = createMessageShareSnapshot({
     shareId: user.username,
     shareType: "user",
+    snapshotCreatedAt: user.created_at,
     summary: user.headline || user.bio,
     targetUrl: `/users/${encodeURIComponent(user.username)}`,
     thumbnailUrl: user.avatar_url,
@@ -325,8 +326,8 @@ export function PublicUserRail({
   const hasIdentityMarks = hasUserIdentityMarks(user);
 
   return (
-    <aside className="hidden min-w-0 border-l border-border pl-5 xl:block">
-      <div className="sticky top-20 right-rail-scroll space-y-6">
+    <aside className="hidden min-w-0 xl:block">
+      <div className="sticky top-20 right-rail-scroll space-y-6 rounded-md bg-background-soft p-4">
         <section className="border-b border-border pb-5">
           <h2 className="text-sm font-semibold">公开资料</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
