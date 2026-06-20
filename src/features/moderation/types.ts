@@ -131,6 +131,31 @@ export type ModQueueItem = {
   updated_at: string;
 };
 
+export type ModQueueReport = {
+  created_at: string;
+  id: string;
+  reason: string;
+  reporter_id: string;
+  status: ContentReportStatus | string;
+};
+
+export type ModQueueItemDetailResponse = {
+  item: ModQueueItem;
+  recent_actions: ModerationAction[];
+  reports: ModQueueReport[];
+  target_preview: ReportTargetPreview;
+};
+
+export type ModQueueCount = {
+  count: number;
+  queue: ModQueueKind;
+};
+
+export type ModQueueSummaryResponse = {
+  priority_items: ModQueueItem[];
+  queues: ModQueueCount[];
+};
+
 export type ListModQueueInput = {
   limit?: number;
   offset?: number;

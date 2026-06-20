@@ -89,7 +89,7 @@ export function AdminSettingsPage() {
       ) : null}
 
       {settingsQuery.isSuccess ? (
-        <div className="border-b border-border">
+        <div className="space-y-2">
           {settingViews.map((settingView, index) => {
             const enabled = settingView.setting?.enabled ?? true;
 
@@ -148,7 +148,7 @@ function SettingDetailRail({ settingView }: { settingView: SettingView | null })
                 {describeAdminSetting(settingView.key)}
               </p>
             </div>
-            <dl className="divide-y divide-border border-y border-border">
+            <dl className="grid gap-1 rounded-md bg-surface px-3">
               <InfoRow label="配置键" value={settingView.key} />
               <InfoRow
                 label="更新人"
@@ -171,7 +171,7 @@ function SettingDetailRail({ settingView }: { settingView: SettingView | null })
       </AdminRailSection>
 
       <AdminRailSection title="相关入口">
-        <div className="flex flex-col border-t border-border">
+        <div className="grid gap-1 rounded-md bg-surface p-2">
           <AdminAuditLink targetType="admin_setting" targetId={settingView?.key} />
           <TextAction href="/admin/owner-transfer" variant="bar">
             负责人交接

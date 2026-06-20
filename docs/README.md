@@ -24,7 +24,7 @@
 - `internal/product/`：产品目标、路线图、功能设计和阶段性方案。
 - `internal/architecture/`：前端架构、内容系统、Markdown 渲染和 API 缺口。
 - `internal/design/`：设计方向索引和视觉噪音审计。
-- `internal/engineering/`：工作流、上线检查、部署和浏览器 QA。
+- `internal/engineering/`：工作流、Linux 开发环境、上线检查、部署和浏览器 QA。
 
 ## 使用顺序
 

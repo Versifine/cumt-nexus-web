@@ -8,6 +8,12 @@ import {
   User,
 } from "lucide-react";
 
+import {
+  RightRail,
+  RightRailAction,
+  RightRailActionList,
+  RightRailSection,
+} from "@/components/app-shell/right-rail";
 import { useCurrentUserQuery, useMyPointsQuery } from "@/features/auth/queries";
 import type { PointAccount } from "@/features/auth/types";
 import { DisabledMessageShareAction } from "@/features/message/disabled-share-action";
@@ -85,6 +91,7 @@ export function PublicUserHeader({
   const userShare = createMessageShareSnapshot({
     shareId: user.username,
     shareType: "user",
+    snapshotCreatedAt: user.created_at,
     summary: user.headline || user.bio,
     targetUrl: `/users/${encodeURIComponent(user.username)}`,
     thumbnailUrl: user.avatar_url,
@@ -325,57 +332,52 @@ export function PublicUserRail({
   const hasIdentityMarks = hasUserIdentityMarks(user);
 
   return (
-    <aside className="hidden min-w-0 border-l border-border pl-5 xl:block">
-      <div className="sticky top-20 right-rail-scroll space-y-6">
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">公开资料</h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            {displayName} 在 {formatDate(user.created_at)} 加入。公开内容包含{" "}
-            <span className="font-mono text-foreground">{user.stats.post_count}</span>{" "}
-            篇帖子和{" "}
-            <span className="font-mono text-foreground">{user.stats.comment_count}</span>{" "}
-            条评论，关注者{" "}
-            <span className="font-mono text-foreground">
-              {formatMetricCount(user.stats.follower_count)}
-            </span>
-            。
-          </p>
-        </section>
+    <RightRail className="hidden min-w-0 xl:block">
+      <RightRailSection title="公开资料">
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          {displayName} 在 {formatDate(user.created_at)} 加入。公开内容包含{" "}
+          <span className="font-mono text-foreground">{user.stats.post_count}</span>{" "}
+          篇帖子和{" "}
+          <span className="font-mono text-foreground">{user.stats.comment_count}</span>{" "}
+          条评论，关注者{" "}
+          <span className="font-mono text-foreground">
+            {formatMetricCount(user.stats.follower_count)}
+          </span>
+          。
+        </p>
+      </RightRailSection>
 
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">内容入口</h2>
-          <div className="mt-3 flex flex-col border-t border-border">
-            <RailLink
-              active={activeTab === "posts"}
-              href={getProfileTabHref(user.username, "posts")}
-            >
-              公开帖子
-            </RailLink>
-            <RailLink
-              active={activeTab === "comments"}
-              href={getProfileTabHref(user.username, "comments")}
-            >
-              公开评论
-            </RailLink>
-          </div>
-        </section>
+      <RightRailSection title="内容入口">
+        <RightRailActionList>
+          <RightRailAction
+            href={getProfileTabHref(user.username, "posts")}
+            tone={activeTab === "posts" ? "primary" : "default"}
+          >
+            公开帖子
+          </RightRailAction>
+          <RightRailAction
+            href={getProfileTabHref(user.username, "comments")}
+            tone={activeTab === "comments" ? "primary" : "default"}
+          >
+            公开评论
+          </RightRailAction>
+        </RightRailActionList>
+      </RightRailSection>
 
-        {hasIdentityMarks ? (
-          <section className="border-b border-border pb-5">
-            <h2 className="text-sm font-semibold">身份和徽章</h2>
-            <UserIdentityMarks
-              badges={user.badges}
-              className="mt-3 gap-2"
-              displayTitle={displayTitle}
-              level={progression}
-              roles={user.roles}
-            />
-          </section>
-        ) : null}
+      {hasIdentityMarks ? (
+        <RightRailSection title="身份和徽章">
+          <UserIdentityMarks
+            badges={user.badges}
+            className="mt-3 gap-2"
+            displayTitle={displayTitle}
+            level={progression}
+            roles={user.roles}
+          />
+        </RightRailSection>
+      ) : null}
 
-        {children}
-      </div>
-    </aside>
+      {children}
+    </RightRail>
   );
 }
 
@@ -478,30 +480,6 @@ function ProfileGrowthStrip({
         </div>
       ) : null}
     </div>
-  );
-}
-
-function RailLink({
-  active,
-  children,
-  href,
-}: {
-  active: boolean;
-  children: ReactNode;
-  href: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "relative px-3 py-3 text-sm font-semibold transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        active
-          ? "text-primary before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-primary"
-          : "text-muted-foreground",
-      )}
-    >
-      {children}
-    </Link>
   );
 }
 

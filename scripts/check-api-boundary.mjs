@@ -178,7 +178,7 @@ function checkReadableFeedSourceBoundary() {
     (file) => file.path === "src/features/post/queries.ts",
   );
   const homePageFile = sourceFiles.find(
-    (file) => file.path === "src/app/home-feed-page.tsx",
+    (file) => file.path === "src/app/(feed)/home-feed-page.tsx",
   );
   const homeShellFile = sourceFiles.find(
     (file) => file.path === "src/components/app-shell/home-shell.tsx",
@@ -226,7 +226,7 @@ function checkReadableFeedSourceBoundary() {
   }
 
   if (!homePageFile) {
-    problems.push("src/app/home-feed-page.tsx is missing");
+    problems.push("src/app/(feed)/home-feed-page.tsx is missing");
   }
 
   if (!homeShellFile) {
@@ -236,7 +236,7 @@ function checkReadableFeedSourceBoundary() {
       "const isFollowingFeed = source === \"following\"",
       "const canReadLatestPosts = isReady && (!requiresAuth || Boolean(token))",
       "source,",
-      "只展示你关注社区中的公开讨论",
+      "只展示你关注的社区和用户发布的公开讨论",
       "关注流还没有帖子",
     ]) {
       if (!homeShellFile.content.includes(token)) {
@@ -822,7 +822,7 @@ function checkCommunityManageBoundary() {
     for (const token of [
       "useAdminModQueueQuery",
       "useAdminAuditLogsQuery",
-      "AdminQueueLayout",
+      "QueueLayout",
       "ModerationQuickActions",
       "ModerationBulkActions",
       "queueTabs",

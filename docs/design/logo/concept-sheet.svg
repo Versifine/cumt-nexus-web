@@ -1,0 +1,124 @@
+<svg width="1440" height="960" viewBox="0 0 1440 960" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">CUMT Nexus logo concept sheet</title>
+  <desc id="desc">Three logo directions for CUMT Nexus.</desc>
+  <rect width="1440" height="960" fill="#080A0D"/>
+  <g font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="64" y="78" fill="#EEF5F4" font-size="34" font-weight="760" letter-spacing="0">CUMT Nexus Logo Directions</text>
+    <text x="64" y="112" fill="#8EA0A6" font-size="15" font-weight="500" letter-spacing="0">设计阶段草案 - 保留 CN 识别, 用直线和连接关系统一到当前产品语言。</text>
+  </g>
+
+  <g transform="translate(64 160)">
+    <rect width="400" height="660" rx="10" fill="#10151A"/>
+    <rect x="0.5" y="0.5" width="399" height="659" rx="9.5" stroke="#243038"/>
+    <text x="32" y="48" fill="#18B7A5" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif" font-size="13" font-weight="760">方案 A - 推荐</text>
+    <text x="32" y="84" fill="#EEF5F4" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif" font-size="26" font-weight="780">CN Nexus Mark</text>
+    <text x="32" y="118" fill="#8EA0A6" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="500">从当前 CN 标识升级, 用开放 C 和连接线表达社区网络。</text>
+
+    <g transform="translate(32 164)">
+      <rect x="0" y="0" width="152" height="152" rx="18" fill="#0E1418"/>
+      <rect x="0.5" y="0.5" width="151" height="151" rx="17.5" stroke="#243038"/>
+      <path d="M98 40H61C41.5 40 31 54.5 31 76C31 97.5 41.5 112 61 112H98" stroke="#EEF5F4" stroke-width="13" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M60 111V41L96 111V41" stroke="#18B7A5" stroke-width="10" stroke-linecap="square" stroke-linejoin="miter"/>
+      <rect x="54" y="35" width="12" height="12" rx="2" fill="#18B7A5"/>
+      <rect x="90" y="105" width="12" height="12" rx="2" fill="#18B7A5"/>
+    </g>
+
+    <g transform="translate(32 356)">
+      <rect width="336" height="84" fill="#080A0D"/>
+      <g transform="translate(20 17)">
+        <rect width="50" height="50" rx="7" fill="#0E1418"/>
+        <path d="M32.5 13H20.5C13.4 13 9 18.3 9 25C9 31.7 13.4 37 20.5 37H32.5" stroke="#EEF5F4" stroke-width="4.8" stroke-linecap="square"/>
+        <path d="M20 37.5V12.5L33 37.5V12.5" stroke="#18B7A5" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter"/>
+      </g>
+      <text x="88" y="39" fill="#EEF5F4" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="760">CUMT Nexus</text>
+      <text x="89" y="61" fill="#8EA0A6" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="520">校园社区</text>
+    </g>
+
+    <g transform="translate(32 486)" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif">
+      <text x="0" y="0" fill="#EEF5F4" font-size="14" font-weight="700">适合</text>
+      <text x="0" y="30" fill="#8EA0A6" font-size="13">左侧栏、favicon、深色顶栏、社区产品主标识</text>
+      <text x="0" y="74" fill="#EEF5F4" font-size="14" font-weight="700">风险</text>
+      <text x="0" y="104" fill="#8EA0A6" font-size="13">需要继续微调 C 和 N 的交叠, 避免小尺寸时糊成一团</text>
+    </g>
+  </g>
+
+  <g transform="translate(520 160)">
+    <rect width="400" height="660" rx="10" fill="#10151A"/>
+    <rect x="0.5" y="0.5" width="399" height="659" rx="9.5" stroke="#243038"/>
+    <text x="32" y="48" fill="#8EA0A6" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif" font-size="13" font-weight="760">方案 B</text>
+    <text x="32" y="84" fill="#EEF5F4" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif" font-size="26" font-weight="780">Nexus Grid</text>
+    <text x="32" y="118" fill="#8EA0A6" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="500">强调节点、路径和信息流, 更像社区网络系统。</text>
+
+    <g transform="translate(32 164)">
+      <rect width="152" height="152" rx="18" fill="#0E1418"/>
+      <rect x="0.5" y="0.5" width="151" height="151" rx="17.5" stroke="#243038"/>
+      <path d="M39 112V40H63L113 112V40" stroke="#18B7A5" stroke-width="12" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M39 40H113" stroke="#EEF5F4" stroke-width="8" stroke-linecap="square"/>
+      <rect x="32" y="33" width="14" height="14" rx="3" fill="#EEF5F4"/>
+      <rect x="56" y="33" width="14" height="14" rx="3" fill="#18B7A5"/>
+      <rect x="106" y="33" width="14" height="14" rx="3" fill="#EEF5F4"/>
+      <rect x="106" y="105" width="14" height="14" rx="3" fill="#18B7A5"/>
+    </g>
+
+    <g transform="translate(32 356)">
+      <rect width="336" height="84" fill="#080A0D"/>
+      <g transform="translate(20 17)">
+        <rect width="50" height="50" rx="7" fill="#0E1418"/>
+        <path d="M13 37V13H21L37 37V13" stroke="#18B7A5" stroke-width="4.2" stroke-linecap="square" stroke-linejoin="miter"/>
+        <path d="M13 13H37" stroke="#EEF5F4" stroke-width="3.4" stroke-linecap="square"/>
+      </g>
+      <text x="88" y="39" fill="#EEF5F4" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="760">CUMT Nexus</text>
+      <text x="89" y="61" fill="#8EA0A6" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="520">校园社区</text>
+    </g>
+
+    <g transform="translate(32 486)" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif">
+      <text x="0" y="0" fill="#EEF5F4" font-size="14" font-weight="700">适合</text>
+      <text x="0" y="30" fill="#8EA0A6" font-size="13">技术感、节点关系、未来扩展到数据面板</text>
+      <text x="0" y="74" fill="#EEF5F4" font-size="14" font-weight="700">风险</text>
+      <text x="0" y="104" fill="#8EA0A6" font-size="13">比较通用, 和矿大校园社区的品牌关系弱</text>
+    </g>
+  </g>
+
+  <g transform="translate(976 160)">
+    <rect width="400" height="660" rx="10" fill="#10151A"/>
+    <rect x="0.5" y="0.5" width="399" height="659" rx="9.5" stroke="#243038"/>
+    <text x="32" y="48" fill="#8EA0A6" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif" font-size="13" font-weight="760">方案 C</text>
+    <text x="32" y="84" fill="#EEF5F4" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif" font-size="26" font-weight="780">Thread Signal</text>
+    <text x="32" y="118" fill="#8EA0A6" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="500">把帖子流、回复层级和聚合信号抽象成标识。</text>
+
+    <g transform="translate(32 164)">
+      <rect width="152" height="152" rx="18" fill="#0E1418"/>
+      <rect x="0.5" y="0.5" width="151" height="151" rx="17.5" stroke="#243038"/>
+      <path d="M39 48H106" stroke="#EEF5F4" stroke-width="10" stroke-linecap="square"/>
+      <path d="M39 76H92" stroke="#18B7A5" stroke-width="10" stroke-linecap="square"/>
+      <path d="M39 104H116" stroke="#EEF5F4" stroke-width="10" stroke-linecap="square"/>
+      <path d="M100 48V76H82V104" stroke="#18B7A5" stroke-width="7" stroke-linecap="square" stroke-linejoin="miter"/>
+      <rect x="94" y="42" width="12" height="12" rx="2" fill="#18B7A5"/>
+      <rect x="76" y="98" width="12" height="12" rx="2" fill="#18B7A5"/>
+    </g>
+
+    <g transform="translate(32 356)">
+      <rect width="336" height="84" fill="#080A0D"/>
+      <g transform="translate(20 17)">
+        <rect width="50" height="50" rx="7" fill="#0E1418"/>
+        <path d="M13 17H36" stroke="#EEF5F4" stroke-width="3.8" stroke-linecap="square"/>
+        <path d="M13 26H31" stroke="#18B7A5" stroke-width="3.8" stroke-linecap="square"/>
+        <path d="M13 35H39" stroke="#EEF5F4" stroke-width="3.8" stroke-linecap="square"/>
+        <path d="M34 17V26H28V35" stroke="#18B7A5" stroke-width="2.8" stroke-linecap="square" stroke-linejoin="miter"/>
+      </g>
+      <text x="88" y="39" fill="#EEF5F4" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="760">CUMT Nexus</text>
+      <text x="89" y="61" fill="#8EA0A6" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="520">校园社区</text>
+    </g>
+
+    <g transform="translate(32 486)" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif">
+      <text x="0" y="0" fill="#EEF5F4" font-size="14" font-weight="700">适合</text>
+      <text x="0" y="30" fill="#8EA0A6" font-size="13">内容产品、评论区、帖子流视觉体系</text>
+      <text x="0" y="74" fill="#EEF5F4" font-size="14" font-weight="700">风险</text>
+      <text x="0" y="104" fill="#8EA0A6" font-size="13">不像主品牌, 更适合作为功能图标或活动标识</text>
+    </g>
+  </g>
+
+  <g transform="translate(64 872)" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif">
+    <text x="0" y="0" fill="#8EA0A6" font-size="13" font-weight="500">建议先沿 A 继续推: 它和当前 CN 入口最接近, 但比纯文字更有 Nexus 的连接感。</text>
+  </g>
+</svg>

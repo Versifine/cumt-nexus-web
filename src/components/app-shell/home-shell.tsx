@@ -1,12 +1,21 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 import {
   rememberPostNavigationSource,
   type PostNavigationSource,
 } from "@/components/app-shell/post-navigation-source";
+import {
+  RightRail as AppRightRail,
+  RightRailAction,
+  RightRailActionList,
+  RightRailRaisedList,
+  RightRailSection,
+} from "@/components/app-shell/right-rail";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -20,7 +29,10 @@ import {
   getFeedReturnLabel,
 } from "@/features/feed/source";
 import { PostSortMenu } from "@/features/post/post-sort-menu";
-import { useLatestPostsQuery } from "@/features/post/queries";
+import {
+  prefetchInfiniteLatestPostsQuery,
+  useInfiniteLatestPostsQuery,
+} from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
 import {
   formatPostSortFallbackNotice,
@@ -48,6 +60,7 @@ export function HomeShell({
   source = "recommended",
 }: HomeShellProps) {
   const { isReady, token } = useAuthSession();
+  const queryClient = useQueryClient();
   const router = useRouter();
   const pathname = usePathname();
   const sort = initialSort;
@@ -55,25 +68,111 @@ export function HomeShell({
   const isFollowingFeed = source === "following";
   const postSource = getHomePostSource(pathname, source, sort);
   const canReadLatestPosts = isReady && (!requiresAuth || Boolean(token));
-  const latestPostsQuery = useLatestPostsQuery(
+  const viewerInitialPostsData = token ? undefined : initialPostsData;
+  const latestPostsQuery = useInfiniteLatestPostsQuery(
     20,
-    0,
     canReadLatestPosts,
     sort,
     source,
-    initialPostsData,
+    viewerInitialPostsData,
   );
-  const posts = canReadLatestPosts ? (latestPostsQuery.data?.posts ?? []) : [];
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const feedPages = latestPostsQuery.data?.pages ?? [];
+  const firstFeedPage = feedPages[0];
+  const posts = canReadLatestPosts ? getUniqueFeedPosts(feedPages) : [];
   const sortFallbackNotice = formatPostSortFallbackNotice(
-    latestPostsQuery.data?.requested_sort,
-    latestPostsQuery.data?.effective_sort,
+    firstFeedPage?.requested_sort,
+    firstFeedPage?.effective_sort,
   );
+  const hasPosts = posts.length > 0;
+  const hasNextPostsPage = Boolean(latestPostsQuery.hasNextPage);
+  const isFetchingNextPostsPage = latestPostsQuery.isFetchingNextPage;
+  const isInitialPostsLoading =
+    canReadLatestPosts && latestPostsQuery.isLoading && !hasPosts;
+  const isSyncingPosts =
+    canReadLatestPosts &&
+    latestPostsQuery.isFetching &&
+    !isFetchingNextPostsPage &&
+    hasPosts;
+  const fetchNextPostsPage = latestPostsQuery.fetchNextPage;
+
+  useEffect(() => {
+    if (!canReadLatestPosts || isInitialPostsLoading) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const warmSources: FeedSource[] = token
+        ? ["recommended", "all", "following"]
+        : ["recommended", "all"];
+
+      for (const warmSource of warmSources) {
+        if (warmSource === source) {
+          continue;
+        }
+
+        void prefetchInfiniteLatestPostsQuery(queryClient, {
+          limit: 20,
+          offset: 0,
+          sort,
+          source: warmSource,
+        });
+      }
+    }, 260);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    canReadLatestPosts,
+    isInitialPostsLoading,
+    queryClient,
+    sort,
+    source,
+    token,
+  ]);
+
+  useEffect(() => {
+    if (
+      !canReadLatestPosts ||
+      !hasPosts ||
+      !hasNextPostsPage ||
+      isFetchingNextPostsPage
+    ) {
+      return;
+    }
+
+    const node = loadMoreRef.current;
+
+    if (!node) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void fetchNextPostsPage();
+        }
+      },
+      {
+        rootMargin: "520px 0px",
+      },
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [
+    canReadLatestPosts,
+    fetchNextPostsPage,
+    hasNextPostsPage,
+    hasPosts,
+    isFetchingNextPostsPage,
+  ]);
 
   return (
-    <div className="grid grid-cols-1 gap-0 xl:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
       <section className="min-w-0">
-        <div className="bg-background">
-          <div className="border-b border-border pb-3">
+        <div className="space-y-4">
+          <div className="rounded-lg bg-surface px-4 py-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
                 <h1 className="text-xl font-semibold leading-7 text-foreground">
@@ -87,11 +186,23 @@ export function HomeShell({
                     {sortFallbackNotice}
                   </p>
                 ) : null}
+                {isSyncingPosts ? (
+                  <p
+                    className="mt-2 inline-flex items-center gap-2 rounded-sm bg-primary-muted px-2 py-1 text-xs font-medium text-primary"
+                    aria-live="polite"
+                  >
+                    <span
+                      className="size-1.5 rounded-full bg-primary"
+                      aria-hidden="true"
+                    />
+                    正在同步最新内容
+                  </p>
+                ) : null}
               </div>
               <div className="flex max-w-full sm:items-end">
                 <PostSortMenu
                   aria-label="选择信息流排序方式"
-                  disabled={!canReadLatestPosts || latestPostsQuery.isFetching}
+                  disabled={!canReadLatestPosts || isInitialPostsLoading}
                   onSortChange={(nextSort) => {
                     if (nextSort !== sort) {
                       router.push(getFeedHref(source, nextSort));
@@ -104,19 +215,19 @@ export function HomeShell({
           </div>
 
           {!isReady ? (
-            <div className="border-b border-border py-5">
+            <div className="rounded-lg bg-surface px-4 py-5">
               <LoadingState rows={5} />
             </div>
           ) : null}
 
-          {canReadLatestPosts && latestPostsQuery.isLoading ? (
-            <div className="border-b border-border py-5">
+          {isInitialPostsLoading ? (
+            <div className="rounded-lg bg-surface px-4 py-5">
               <LoadingState rows={5} />
             </div>
           ) : null}
 
-          {canReadLatestPosts && latestPostsQuery.isError ? (
-            <div className="py-5">
+          {canReadLatestPosts && latestPostsQuery.isError && !hasPosts ? (
+            <div className="rounded-lg bg-surface px-4 py-5">
               <ErrorState
                 title={getErrorTitle(latestPostsQuery.error)}
                 description={getErrorDescription(latestPostsQuery.error)}
@@ -140,10 +251,10 @@ export function HomeShell({
           ) : null}
 
           {isReady && requiresAuth && !token ? (
-            <div className="py-5">
+            <div className="rounded-lg bg-surface px-4 py-5">
               <EmptyState
                 title="登录后查看关注信息流"
-                description="关注流只展示与你关注社区有关的内容。登录后可以回到这里继续浏览。"
+                description="关注流只展示你关注的社区和用户发布的公开讨论。登录后可以回到这里继续浏览。"
                 action={
                   <div className="flex flex-col items-stretch justify-center gap-2 sm:flex-row">
                     <TextAction
@@ -165,24 +276,34 @@ export function HomeShell({
 
           {canReadLatestPosts &&
           latestPostsQuery.isSuccess &&
-          posts.length === 0 ? (
-            <div className="py-5">
+          !latestPostsQuery.isFetching &&
+          !hasPosts ? (
+            <div className="rounded-lg bg-surface px-4 py-5">
               <EmptyState
                 title={isFollowingFeed ? "关注流还没有帖子" : "还没有帖子"}
                 description={
                   isFollowingFeed
-                    ? "关注社区后，相关公开讨论会出现在这里。"
+                    ? "关注社区或用户后，相关公开讨论会出现在这里。"
                     : "公开社区开始发布内容后，最新帖子会出现在这里。"
                 }
-                action={<TextAction href="/communities">去社区看看</TextAction>}
+                action={
+                  isFollowingFeed ? (
+                    <div className="flex flex-col items-stretch justify-center gap-2 sm:flex-row">
+                      <TextAction href="/communities" tone="primary">
+                        浏览社区
+                      </TextAction>
+                      <TextAction href="/search?scope=users">搜索用户</TextAction>
+                    </div>
+                  ) : (
+                    <TextAction href="/communities">去社区看看</TextAction>
+                  )
+                }
               />
             </div>
           ) : null}
 
-          {canReadLatestPosts &&
-          latestPostsQuery.isSuccess &&
-          posts.length > 0 ? (
-            <div className="border-t border-border">
+          {canReadLatestPosts && hasPosts ? (
+            <div className="space-y-2">
               {posts.map((post) => (
                 <RedditPostListItem
                   key={post.id}
@@ -197,6 +318,34 @@ export function HomeShell({
                   source={postSource}
                 />
               ))}
+              <div
+                ref={loadMoreRef}
+                className="flex min-h-16 items-center justify-center rounded-lg bg-surface px-4 py-3 text-xs text-muted-foreground"
+                aria-live="polite"
+              >
+                {isFetchingNextPostsPage ? (
+                  <span className="inline-flex items-center gap-2 font-medium text-primary">
+                    <span
+                      className="size-1.5 rounded-full bg-primary"
+                      aria-hidden="true"
+                    />
+                    正在加载更多讨论
+                  </span>
+                ) : hasNextPostsPage ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      void fetchNextPostsPage();
+                    }}
+                  >
+                    加载更多
+                  </Button>
+                ) : (
+                  <span>已经到底了</span>
+                )}
+              </div>
             </div>
           ) : null}
         </div>
@@ -219,8 +368,8 @@ function getFeedIntroText(
 ) {
   if (source === "following") {
     return hasToken
-      ? `只展示你关注社区中的公开讨论，当前按${formatPostSortLabel(sort)}排序。`
-      : "登录后查看你关注的社区入口。";
+      ? `只展示你关注的社区和用户发布的公开讨论，当前按${formatPostSortLabel(sort)}排序。`
+      : "登录后查看你关注的社区和用户。";
   }
 
   return `${formatFeedSourceDescription(source)}当前按${formatPostSortLabel(sort)}排序。`;
@@ -237,6 +386,24 @@ function getHomePostSource(
   };
 }
 
+function getUniqueFeedPosts(pages: ListPostsResponse[]) {
+  const seenPostIds = new Set<string>();
+  const posts: Post[] = [];
+
+  for (const page of pages) {
+    for (const post of page.posts) {
+      if (seenPostIds.has(post.id)) {
+        continue;
+      }
+
+      seenPostIds.add(post.id);
+      posts.push(post);
+    }
+  }
+
+  return posts;
+}
+
 function RightRail({
   canReadLatestPosts,
   feedSource,
@@ -251,52 +418,46 @@ function RightRail({
   const activeCommunities = getActiveCommunities(posts).slice(0, 4);
 
   return (
-    <aside className="border-t border-border px-0 py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 right-rail-scroll space-y-6">
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">
-            {formatFeedSourceLabel(feedSource)}信息流
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {getRailDescription(feedSource, sortFallbackNotice)}
-          </p>
-          <div className="mt-4 flex flex-col border-t border-border">
-            <TextAction href="/communities" tone="primary" variant="bar">
-              浏览社区
-            </TextAction>
-            <TextAction href="/community-applications/new" variant="bar">
-              申请社区
-            </TextAction>
-          </div>
-        </section>
+    <AppRightRail>
+      <RightRailSection
+        title={`${formatFeedSourceLabel(feedSource)}信息流`}
+        description={getRailDescription(feedSource, sortFallbackNotice)}
+      >
+        <RightRailActionList>
+          <RightRailAction href="/communities" tone="primary">
+            浏览社区
+          </RightRailAction>
+          <RightRailAction href="/community-applications/new">
+            申请社区
+          </RightRailAction>
+        </RightRailActionList>
+      </RightRailSection>
 
-        <section>
-          <h3 className="text-sm font-semibold">当前流里的社区</h3>
-          {activeCommunities.length > 0 ? (
-            <div className="divide-y divide-border">
-              {activeCommunities.map((community) => (
-                <Link
-                  key={community.slug}
-                  href={`/communities/${community.slug}`}
-                  className="flex items-center justify-between gap-3 py-3 text-sm transition-colors hover:text-primary"
-                >
-                  <span className="min-w-0 truncate font-medium">
-                    {community.name}
-                  </span>
-                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                    {community.count} 篇
-                  </span>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm leading-6 text-muted-foreground">
-              {getTopPostsEmptyText(feedSource, canReadLatestPosts)}
-            </p>
-          )}
-        </section>
-      </div>
-    </aside>
+      <RightRailSection title="当前流里的社区">
+        {activeCommunities.length > 0 ? (
+          <RightRailRaisedList>
+            {activeCommunities.map((community) => (
+              <Link
+                key={community.slug}
+                href={`/communities/${community.slug}`}
+                className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm transition-colors first:rounded-t-md last:rounded-b-md hover:bg-surface-hover hover:text-primary"
+              >
+                <span className="min-w-0 truncate font-medium">
+                  {community.name}
+                </span>
+                <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                  {community.count} 篇
+                </span>
+              </Link>
+            ))}
+          </RightRailRaisedList>
+        ) : (
+          <p className="text-sm leading-6 text-muted-foreground">
+            {getTopPostsEmptyText(feedSource, canReadLatestPosts)}
+          </p>
+        )}
+      </RightRailSection>
+    </AppRightRail>
   );
 }
 
@@ -309,7 +470,7 @@ function getRailDescription(
   }
 
   if (source === "following") {
-    return "这里按关注社区聚合公开讨论，不混入普通全站帖子。";
+    return "这里按你关注的社区和用户聚合公开讨论，不混入普通全站帖子。";
   }
 
   return "这里按当前来源展示公开讨论。右侧只保留能继续浏览的社区入口。";
@@ -320,7 +481,7 @@ function getTopPostsEmptyText(
   canReadLatestPosts: boolean,
 ) {
   if (source === "following") {
-    return "关注社区并产生公开讨论后会出现在这里。";
+    return "关注社区或用户并产生公开讨论后会出现在这里。";
   }
 
   return canReadLatestPosts ? "当前帖子还没有形成社区聚合。" : "正在准备公开帖子流。";

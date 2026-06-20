@@ -31,8 +31,9 @@ function DropdownMenuContent({
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
         className={cn(
-          "z-50 min-w-48 overflow-hidden rounded-lg border border-border bg-card p-1 text-card-foreground shadow-[0_12px_40px_rgb(0_0_0/0.35)]",
-          "data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "z-50 min-w-48 origin-[--radix-dropdown-menu-content-transform-origin] overflow-hidden rounded-lg border border-border bg-card p-1 text-card-foreground shadow-[0_12px_40px_rgb(0_0_0/0.35)]",
+          "data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:duration-100 data-[state=open]:duration-150",
+          "data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 motion-reduce:animate-none",
           className,
         )}
         {...props}
@@ -56,7 +57,7 @@ function DropdownMenuItem({
       data-inset={inset}
       data-variant={variant}
       className={cn(
-        "relative flex cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset=true]:pl-8",
+        "nexus-menu-item-motion relative flex cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[disabled]:!translate-x-0 data-[inset=true]:pl-8",
         "focus:bg-muted focus:text-foreground",
         "data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10",
         className,
@@ -76,7 +77,7 @@ function DropdownMenuCheckboxItem({
     <DropdownMenuPrimitive.CheckboxItem
       data-slot="dropdown-menu-checkbox-item"
       className={cn(
-        "relative flex cursor-default select-none items-center gap-2 rounded-md py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-muted focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "nexus-menu-item-motion relative flex cursor-default select-none items-center gap-2 rounded-md py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-muted focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[disabled]:!translate-x-0",
         className,
       )}
       checked={checked}
@@ -101,7 +102,7 @@ function DropdownMenuRadioItem({
     <DropdownMenuPrimitive.RadioItem
       data-slot="dropdown-menu-radio-item"
       className={cn(
-        "relative flex cursor-default select-none items-center gap-2 rounded-md py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-muted focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "nexus-menu-item-motion relative flex cursor-default select-none items-center gap-2 rounded-md py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-muted focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[disabled]:!translate-x-0",
         className,
       )}
       {...props}
@@ -181,7 +182,7 @@ function DropdownMenuSubTrigger({
       data-slot="dropdown-menu-sub-trigger"
       data-inset={inset}
       className={cn(
-        "flex cursor-default select-none items-center rounded-md px-2 py-1.5 text-sm outline-none transition-colors focus:bg-muted data-[inset=true]:pl-8",
+        "nexus-menu-item-motion flex cursor-default select-none items-center rounded-md px-2 py-1.5 text-sm outline-none focus:bg-muted data-[inset=true]:pl-8",
         className,
       )}
       {...props}
@@ -200,7 +201,9 @@ function DropdownMenuSubContent({
     <DropdownMenuPrimitive.SubContent
       data-slot="dropdown-menu-sub-content"
       className={cn(
-        "z-50 min-w-40 overflow-hidden rounded-lg border border-border bg-card p-1 text-card-foreground shadow-[0_12px_40px_rgb(0_0_0/0.35)]",
+        "z-50 min-w-40 origin-[--radix-dropdown-menu-content-transform-origin] overflow-hidden rounded-lg border border-border bg-card p-1 text-card-foreground shadow-[0_12px_40px_rgb(0_0_0/0.35)]",
+        "data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:duration-100 data-[state=open]:duration-150",
+        "data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 motion-reduce:animate-none",
         className,
       )}
       {...props}

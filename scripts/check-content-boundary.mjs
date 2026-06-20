@@ -49,6 +49,7 @@ const requiredToolbarLabels = [
   "代码块",
   "链接",
   "涂黑",
+  "公式",
   "表格",
 ];
 
@@ -306,8 +307,21 @@ function checkRedditAutolinkBoundary() {
       problems.push("ContentBody must import the Reddit-style autolink plugin");
     }
 
-    if (!contentBody.content.includes("remarkPlugins={[remarkGfm, remarkRedditAutolink]}")) {
+    if (
+      !contentBody.content.includes("remarkPlugins={[") ||
+      !contentBody.content.includes("remarkGfm") ||
+      !contentBody.content.includes("remarkRedditAutolink")
+    ) {
       problems.push("ContentBody must run Reddit-style autolink through the shared Markdown renderer");
+    }
+
+    if (
+      !contentBody.content.includes('from "remark-math"') ||
+      !contentBody.content.includes('from "rehype-katex"') ||
+      !contentBody.content.includes("remarkMath") ||
+      !contentBody.content.includes("rehypeKatex")
+    ) {
+      problems.push("ContentBody must render Markdown math through remark-math and rehype-katex");
     }
   }
 
@@ -321,7 +335,7 @@ function checkRedditAutolinkBoundary() {
       problems.push("Reddit-style autolink must map r/* and u/* to site routes");
     }
 
-    for (const skippedType of ["code", "inlineCode", "link", "image"]) {
+    for (const skippedType of ["code", "inlineCode", "link", "image", "math", "inlineMath"]) {
       if (!autolink.content.includes(`"${skippedType}"`)) {
         problems.push(`Reddit-style autolink must skip ${skippedType} nodes`);
       }
@@ -367,10 +381,22 @@ function checkMarkdownComposerEntryPoint() {
     "resolveWhitelistedMediaEmbed",
     "syncWhitelistedMediaEmbeds",
     "data-media-editor-node",
+    "InlineMathNode",
+    "BlockMathNode",
+    "katex.render",
+    'markdownTokenName: "inlineMath"',
+    'markdownTokenName: "math"',
+    "createInlineMathTokenizer",
+    "createBlockMathTokenizer",
+    "find: /^\\s*\\$\\$$/",
   ]) {
     if (!composer.content.includes(token)) {
       composerProblems.push(`MarkdownComposerField rich editor missing ${token}`);
     }
+  }
+
+  if (composer.content.includes("x^2 + y^2 = z^2")) {
+    composerProblems.push("MarkdownComposerField must not insert a default sample formula");
   }
 
   if (composer.content.includes("@/features/content/content-body")) {
@@ -472,6 +498,7 @@ function checkMarkdownToolbarTools() {
     "toggleCodeBlock()",
     "setLink({ href: normalizedHref })",
     "toggleSpoiler()",
+    "insertFormula(",
     "insertTable({ rows: 3, cols: 3, withHeaderRow: true })",
   ].filter((token) => !composer.content.includes(token));
 
@@ -1383,9 +1410,9 @@ function checkMarkdownMobileOverflowBoundary() {
 
   if (
     !contentBody.content.includes("table({ children })") ||
-    !contentBody.content.includes('className="my-4 overflow-x-auto border border-border"') ||
+    !contentBody.content.includes("min-w-0 max-w-full overflow-x-auto") ||
     !contentBody.content.includes("min-w-[560px]") ||
-    !contentBody.content.includes("border-collapse text-sm")
+    !contentBody.content.includes("border-separate border-spacing-0")
   ) {
     problems.push("wide Markdown tables must use a scrolling wrapper instead of widening the page");
   }
@@ -1426,8 +1453,31 @@ function checkCommentTreeMobileIndentBoundary() {
     problems.push("nested comments must not add recursive left margin on mobile");
   }
 
-  if (!commentTree.content.includes('visualDepth > 0 && "border-l border-border pl-2 sm:pl-4"')) {
-    problems.push("nested comments must use a narrow mobile border and padding indentation");
+  const keepsNarrowPadding =
+    commentTree.content.includes('visualDepth > 0 && "pl-1 sm:pl-2"') ||
+    commentTree.content.includes('visualDepth > 0 && "pl-2 sm:pl-4"') ||
+    (commentTree.content.includes('? "ml-5 pl-4 sm:ml-6"') &&
+      commentTree.content.includes(': "ml-3 pl-4"')) ||
+    (commentTree.content.includes('? "ml-[22px] pl-3 sm:ml-6"') &&
+      commentTree.content.includes(': "ml-3 pl-3"'));
+
+  if (!keepsNarrowPadding) {
+    problems.push("nested comments must keep narrow mobile padding indentation");
+  }
+
+  if (
+    !commentTree.content.includes("rounded-bl-lg border-b border-l") &&
+    !commentTree.content.includes("rounded-bl-[10px] border-b border-l")
+  ) {
+    problems.push("nested comments should use a curved thread connector");
+  }
+
+  if (/\bborder-l\s+border-border(?:\s|["'])/.test(commentTree.content)) {
+    problems.push("nested comments must not rely on continuous left border rails");
+  }
+
+  if (/absolute[^"']*bottom-0[^"']*top-0[^"']*w-px/.test(commentTree.content)) {
+    problems.push("nested comments must not render a continuous vertical guide line");
   }
 
   if (commentTree.content.includes("ml-3 inline-flex min-h-10")) {
@@ -1441,7 +1491,7 @@ function checkCommentTreeMobileIndentBoundary() {
 
   addPass(
     "comment tree mobile indent",
-    "nested comments keep mobile indentation narrow so Markdown content remains readable",
+    "nested comments keep mobile indentation narrow without continuous guide lines",
   );
 }
 

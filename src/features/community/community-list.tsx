@@ -1,17 +1,24 @@
-﻿"use client";
+"use client";
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Hash, MessageSquare, Users } from "lucide-react";
+import { ArrowRight, Hash, MessageSquare, Users } from "lucide-react";
 
 import { rememberRecentCommunity } from "@/components/app-shell/recent-communities";
+import {
+  ReviewDesk,
+  ReviewDeskBoard,
+  ReviewDeskInspector,
+} from "@/components/app-shell/review-desk";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
+import { StatusToken } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { ApiError } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 
 import { CommunityFollowButton } from "./community-follow-button";
 import { useCommunitiesQuery } from "./queries";
@@ -24,222 +31,204 @@ export function CommunityList() {
   const communities = communitiesQuery.data?.communities ?? [];
 
   return (
-    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px] xl:gap-8">
-      <div className="min-w-0">
-        <section className="bg-background">
-          <div className="border-b border-border pb-4">
-            <CommunityListHeader
-              communities={communities}
-              isLoading={communitiesQuery.isLoading}
-            />
-          </div>
+    <ReviewDesk className="max-w-[1180px]">
+      <CommunityListHeader
+        communities={communities}
+        isAuthenticated={isAuthenticated}
+        isLoading={communitiesQuery.isLoading}
+      />
 
-          <div className="flex min-h-12 flex-col gap-3 border-b border-border py-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-sm font-semibold">全部社区</h2>
-            <CommunityApplicationAction isAuthenticated={isAuthenticated} />
-          </div>
-
+      <ReviewDeskBoard
+        className="xl:grid-cols-[minmax(0,1fr)_320px]"
+        inspector={
+          <CommunityListRail
+            communities={communities}
+            isAuthenticated={isAuthenticated}
+            isLoading={communitiesQuery.isLoading}
+          />
+        }
+      >
+        <section className="min-w-0 space-y-3" aria-label="社区列表">
           {communitiesQuery.isLoading ? (
-            <div className="border-b border-border py-4">
+            <div className="rounded-lg bg-surface px-4 py-4">
               <LoadingState rows={5} />
             </div>
           ) : null}
 
           {communitiesQuery.isError ? (
-            <div className="border-b border-border py-4">
-              <ErrorState
-                title={getErrorTitle(communitiesQuery.error)}
-                description={getErrorDescription(communitiesQuery.error)}
-                action={
-                  isUnauthenticated(communitiesQuery.error) ? (
-                    <TextAction href="/login" tone="primary">
-                      登录
-                    </TextAction>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => communitiesQuery.refetch()}
-                    >
-                      重试
-                    </Button>
-                  )
-                }
-              />
-            </div>
+            <ErrorState
+              title={getErrorTitle(communitiesQuery.error)}
+              description={getErrorDescription(communitiesQuery.error)}
+              action={
+                isUnauthenticated(communitiesQuery.error) ? (
+                  <TextAction href="/login" tone="primary">
+                    登录
+                  </TextAction>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="px-1 hover:bg-transparent hover:text-primary"
+                    onClick={() => communitiesQuery.refetch()}
+                  >
+                    重试
+                  </Button>
+                )
+              }
+            />
           ) : null}
 
           {communitiesQuery.isSuccess && communities.length === 0 ? (
-            <div className="border-b border-border">
-              <EmptyState
-                title="还没有社区"
-                description="公开社区创建并启用后，会出现在这里。"
-                action={
-                  isAuthenticated ? (
-                    <TextAction href="/community-applications/new" tone="primary">
-                      申请第一个社区
-                    </TextAction>
-                  ) : (
-                    <TextAction
-                      href={`/login?next=${encodeURIComponent(
-                        "/community-applications/new",
-                      )}`}
-                      tone="primary"
-                    >
-                      登录后申请
-                    </TextAction>
-                  )
-                }
-              />
-            </div>
+            <EmptyState
+              className="bg-surface"
+              title="还没有社区"
+              description="公开社区创建并启用后，会出现在这里。"
+              action={
+                isAuthenticated ? (
+                  <TextAction href="/community-applications/new" tone="primary">
+                    申请第一个社区
+                  </TextAction>
+                ) : (
+                  <TextAction
+                    href={`/login?next=${encodeURIComponent(
+                      "/community-applications/new",
+                    )}`}
+                    tone="primary"
+                  >
+                    登录后申请
+                  </TextAction>
+                )
+              }
+            />
           ) : null}
 
           {communitiesQuery.isSuccess && communities.length > 0 ? (
-            <div className="grid gap-3 border-b border-border py-3 lg:grid-cols-2">
+            <div className="grid gap-3">
               {communities.map((community) => (
                 <CommunityCard key={community.id} community={community} />
               ))}
             </div>
           ) : null}
         </section>
-      </div>
-
-      <CommunityListRail
-        communities={communities}
-        isAuthenticated={isAuthenticated}
-        isLoading={communitiesQuery.isLoading}
-      />
-    </div>
+      </ReviewDeskBoard>
+    </ReviewDesk>
   );
 }
 
 function CommunityListHeader({
   communities,
+  isAuthenticated,
   isLoading,
 }: {
   communities: Community[];
+  isAuthenticated: boolean;
   isLoading: boolean;
 }) {
   return (
-    <div className="py-4">
+    <header className="flex min-w-0 flex-col gap-3 py-1 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-3">
-          <div
-            className="flex size-10 shrink-0 items-center justify-center bg-background-soft text-primary"
-            aria-label="社区图标"
-          >
-            <Hash className="size-5" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
-              社区
-            </h1>
-            <p className="mt-1 truncate font-mono text-xs text-primary">
-              communities
-            </p>
-          </div>
+        <div className="font-mono text-[11px] font-semibold uppercase text-primary">
+          /communities
         </div>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-          浏览已经开放的校园讨论场域，进入具体社区后再阅读、发帖或管理。
-        </p>
-        <p className="mt-2 font-mono text-xs text-muted-foreground">
-          {isLoading ? "正在加载社区目录" : `${communities.length} 个社区`}
+        <h1 className="mt-1 text-2xl font-semibold leading-8 tracking-normal text-foreground">
+          社区索引
+        </h1>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          {isLoading
+            ? "正在同步社区目录。"
+            : `共 ${communities.length} 个社区，进入具体社区后再阅读、发帖或管理。`}
         </p>
       </div>
-    </div>
+      <CommunityApplicationAction isAuthenticated={isAuthenticated} />
+    </header>
   );
 }
 
 function CommunityCard({ community }: { community: Community }) {
   const href = `/communities/${encodeURIComponent(community.slug)}`;
+  const bannerUrl = community.banner_url?.trim();
 
   return (
-    <article className="group grid h-[304px] overflow-hidden border border-border bg-background transition-colors hover:border-border-strong sm:h-[204px] sm:grid-cols-[112px_minmax(0,1fr)]">
-      <Link
-        href={href}
-        onClick={() => rememberRecentCommunity(community)}
-        className="relative min-h-24 overflow-hidden bg-background-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:min-h-full"
-      >
-        <CommunityBanner community={community} />
-        <div className="absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-background/95 via-background/72 to-transparent p-3">
+    <article className="nexus-soft-transition group relative overflow-hidden rounded-lg bg-surface px-4 py-4 hover:bg-surface-hover">
+      {bannerUrl ? (
+        <CommunityBannerBackdrop bannerUrl={bannerUrl} community={community} />
+      ) : null}
+
+      <div className="relative z-10 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 gap-3">
           <CommunityAvatar community={community} />
-        </div>
-      </Link>
+          <div className="min-w-0 flex-1">
+            <Link
+              href={href}
+              onClick={() => rememberRecentCommunity(community)}
+              className="block min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <div className="truncate font-mono text-[11px] font-semibold leading-5 text-primary">
+                /{community.slug}
+              </div>
+              <h2 className="mt-0.5 line-clamp-1 text-base font-semibold leading-6 tracking-normal text-foreground transition-colors group-hover:text-primary">
+                {community.name}
+              </h2>
+            </Link>
 
-      <div className="flex min-h-0 min-w-0 flex-col px-3 py-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <Link
-            href={href}
-            onClick={() => rememberRecentCommunity(community)}
-            className="min-w-0 flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <div className="community-card-slug h-5 max-w-full truncate font-mono text-[11px] font-semibold leading-5 text-primary">
-              /{community.slug}
-            </div>
-            <div className="flex h-5 min-w-0 flex-wrap items-center overflow-hidden text-[11px] leading-5 text-muted-foreground">
-              <span>{formatCommunityKind(community.kind)}</span>
-              <span className="px-1.5" aria-hidden="true">
-                ·
-              </span>
-              <span>{formatCommunityVisibility(community.visibility)}</span>
-              <span className="px-1.5" aria-hidden="true">
-                ·
-              </span>
-              <span>{formatCommunityStatus(community.status)}</span>
-            </div>
-
-            <h2 className="community-card-title mt-1 h-6 max-w-full truncate text-base font-semibold leading-6 tracking-normal text-foreground transition-colors group-hover:text-primary">
-              {community.name}
-            </h2>
-            <p className="mt-1 line-clamp-2 h-10 text-sm leading-5 text-muted-foreground">
+            <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
               {community.description || "这个社区还没有填写描述。"}
             </p>
-          </Link>
-          <CommunityFollowButton community={community} compact />
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <StatusToken>{formatCommunityKind(community.kind)}</StatusToken>
+              <StatusToken>{formatCommunityVisibility(community.visibility)}</StatusToken>
+              <StatusToken tone={getStatusTone(community.status)}>
+                {formatCommunityStatus(community.status)}
+              </StatusToken>
+            </div>
+          </div>
         </div>
 
-        <div className="mt-auto grid grid-cols-3 gap-2 border-t border-border pt-2 text-xs text-muted-foreground">
-          <CommunityMetric
+        <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground sm:max-w-[260px] sm:justify-end">
+          <CommunityFact
             icon={<Users className="size-3.5" aria-hidden="true" />}
             label="成员"
             value={formatCompactCount(community.member_count)}
           />
-          <CommunityMetric
+          <CommunityFact
             icon={<MessageSquare className="size-3.5" aria-hidden="true" />}
             label="帖子"
             value={formatCompactCount(community.post_count)}
           />
-          <div className="min-w-0">
-            <div className="font-mono text-[11px] text-muted-foreground">
-              更新
-            </div>
-            <div className="mt-0.5 truncate font-semibold text-foreground">
-              {formatShortDate(community.updated_at)}
-            </div>
-          </div>
+          <CommunityFact
+            icon={<Hash className="size-3.5" aria-hidden="true" />}
+            label="更新"
+            value={formatShortDate(community.updated_at)}
+          />
+          <CommunityFollowButton community={community} compact />
         </div>
       </div>
     </article>
   );
 }
 
-function CommunityBanner({ community }: { community: Community }) {
-  const bannerUrl = community.banner_url?.trim();
-
-  if (bannerUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
+function CommunityBannerBackdrop({
+  bannerUrl,
+  community,
+}: {
+  bannerUrl: string;
+  community: Community;
+}) {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+      aria-label={`/${community.slug} 的社区背景`}
+      role="img"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={bannerUrl}
-        alt={`/${community.slug} 的社区背景`}
-        className="size-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.03]"
+        alt=""
+        className="h-full w-full object-cover opacity-45 saturate-[0.95] transition-transform duration-300 ease-out group-hover:scale-[1.015] motion-reduce:transform-none"
       />
-    );
-  }
-
-  return (
-    <div className="flex size-full items-start justify-end bg-background-soft p-3 text-primary/45">
-      <Hash className="size-9" aria-hidden="true" />
+      <div className="absolute inset-0 bg-gradient-to-r from-surface via-surface/75 to-surface/25" />
+      <div className="absolute inset-0 bg-gradient-to-t from-surface/65 via-transparent to-surface/10" />
     </div>
   );
 }
@@ -253,14 +242,14 @@ function CommunityAvatar({ community }: { community: Community }) {
       <img
         src={avatarUrl}
         alt={`/${community.slug} 的社区头像`}
-        className="size-10 shrink-0 rounded-lg bg-background-soft object-cover"
+        className="size-11 shrink-0 rounded-md bg-background-soft object-cover"
       />
     );
   }
 
   return (
     <span
-      className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-background-soft text-primary"
+      className="inline-flex size-11 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"
       aria-label={`/${community.slug} 的社区头像占位`}
     >
       <Hash className="size-5" aria-hidden="true" />
@@ -268,7 +257,7 @@ function CommunityAvatar({ community }: { community: Community }) {
   );
 }
 
-function CommunityMetric({
+function CommunityFact({
   icon,
   label,
   value,
@@ -278,13 +267,11 @@ function CommunityMetric({
   value: string;
 }) {
   return (
-    <div className="min-w-0">
-      <div className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className="mt-0.5 truncate font-semibold text-foreground">{value}</div>
-    </div>
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      {icon}
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-semibold text-foreground">{value}</span>
+    </span>
   );
 }
 
@@ -302,88 +289,129 @@ function CommunityListRail({
       (left, right) =>
         new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime(),
     )
-    .slice(0, 3);
+    .slice(0, 4);
 
   return (
-    <aside className="border-t border-border px-0 py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 right-rail-scroll space-y-6">
-        <section className="border-b border-border pb-5">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">最近更新</h2>
-            <span className="font-mono text-xs text-muted-foreground">
-              {recentCommunities.length}
-            </span>
-          </div>
-          {isLoading ? (
-            <LoadingState rows={2} />
-          ) : recentCommunities.length > 0 ? (
-            <div className="divide-y divide-border">
-              {recentCommunities.map((community) => (
-                <Link
-                  key={community.id}
-                  href={`/communities/${encodeURIComponent(community.slug)}`}
-                  onClick={() => rememberRecentCommunity(community)}
-                  className="block py-3 transition-colors hover:text-primary"
-                >
-                  <div className="font-mono text-xs text-muted-foreground">
-                    /{community.slug} · {formatDate(community.updated_at)}
-                  </div>
-                  <div className="mt-1 line-clamp-2 text-sm font-medium">
-                    {community.name}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm leading-6 text-muted-foreground">
-              暂无可展示的社区。
-            </p>
-          )}
-        </section>
+    <div className="space-y-4">
+      <ReviewDeskInspector
+        title="社区上下文"
+        description="目录只展示已开放社区；具体权限和发帖入口由社区详情页确认。"
+      >
+        <dl className="grid gap-2">
+          <RailStat label="目录规模" value={`${communities.length} 个社区`} />
+          <RailStat
+            label="启用中"
+            value={`${communities.filter((community) => community.status === "active").length} 个`}
+          />
+          <RailStat
+            label="可公开浏览"
+            value={`${communities.filter((community) => community.visibility === "public").length} 个`}
+          />
+        </dl>
+      </ReviewDeskInspector>
 
-        <section>
-          <h2 className="text-sm font-semibold">社区入口</h2>
-          <div className="mt-3 flex flex-col border-t border-border">
-            <CommunityApplicationAction
-              isAuthenticated={isAuthenticated}
-              variant="bar"
-            />
-            <TextAction href="/" variant="bar">
-              回到信息流
-            </TextAction>
+      <ReviewDeskInspector title="最近更新" description="按社区更新时间排序。">
+        {isLoading ? (
+          <LoadingState rows={2} />
+        ) : recentCommunities.length > 0 ? (
+          <div className="space-y-1">
+            {recentCommunities.map((community) => (
+              <Link
+                key={community.id}
+                href={`/communities/${encodeURIComponent(community.slug)}`}
+                onClick={() => rememberRecentCommunity(community)}
+                className="group block rounded-md px-1.5 py-2 transition-colors hover:bg-surface-raised hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="font-mono text-[11px] text-muted-foreground">
+                  /{community.slug} · {formatDate(community.updated_at)}
+                </div>
+                <div className="mt-1 line-clamp-2 text-sm font-semibold text-foreground group-hover:text-primary">
+                  {community.name}
+                </div>
+              </Link>
+            ))}
           </div>
-        </section>
-      </div>
-    </aside>
+        ) : (
+          <p className="text-sm leading-6 text-muted-foreground">
+            暂无可展示的社区。
+          </p>
+        )}
+      </ReviewDeskInspector>
+
+      <ReviewDeskInspector title="继续浏览">
+        <div className="space-y-1">
+          <CommunityApplicationAction
+            className="w-full justify-between"
+            isAuthenticated={isAuthenticated}
+            variant="rail"
+          />
+          <RailActionLink href="/">回到信息流</RailActionLink>
+        </div>
+      </ReviewDeskInspector>
+    </div>
+  );
+}
+
+function RailStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded-md px-1.5 py-2">
+      <dt className="font-mono text-[11px] text-muted-foreground">{label}</dt>
+      <dd className="truncate text-sm font-semibold text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+function RailActionLink({
+  children,
+  className,
+  href,
+}: {
+  children: ReactNode;
+  className?: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "group flex min-h-10 items-center justify-between gap-3 rounded-md px-1.5 py-2 text-sm font-semibold text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        className,
+      )}
+    >
+      <span>{children}</span>
+      <ArrowRight
+        className="size-4 text-muted-foreground transition duration-150 group-hover:translate-x-1 group-hover:text-primary motion-reduce:transform-none"
+        aria-hidden="true"
+      />
+    </Link>
   );
 }
 
 function CommunityApplicationAction({
+  className,
   isAuthenticated,
-  variant,
+  variant = "inline",
 }: {
+  className?: string;
   isAuthenticated: boolean;
-  variant?: "bar";
+  variant?: "inline" | "rail";
 }) {
-  if (isAuthenticated) {
+  const href = isAuthenticated
+    ? "/community-applications/new"
+    : `/login?next=${encodeURIComponent("/community-applications/new")}`;
+  const label = isAuthenticated ? "申请社区" : "登录后申请";
+
+  if (variant === "rail") {
     return (
-      <TextAction
-        href="/community-applications/new"
-        tone="primary"
-        variant={variant}
-      >
-        申请社区
-      </TextAction>
+      <RailActionLink className={className} href={href}>
+        {label}
+      </RailActionLink>
     );
   }
 
   return (
-    <TextAction
-      href={`/login?next=${encodeURIComponent("/community-applications/new")}`}
-      tone="primary"
-      variant={variant}
-    >
-      登录后申请
+    <TextAction className={className} href={href} tone="primary">
+      {label}
     </TextAction>
   );
 }
@@ -474,3 +502,15 @@ function formatCommunityStatus(status: string) {
   }
 }
 
+function getStatusTone(status: string) {
+  switch (status) {
+    case "active":
+      return "success";
+    case "archived":
+      return "warning";
+    case "suspended":
+      return "danger";
+    default:
+      return "default";
+  }
+}

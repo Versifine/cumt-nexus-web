@@ -151,7 +151,7 @@ export function AdminAuditLogsPage({
 
       {logs.length > 0 ? (
         <>
-          <div className="border-b border-border">
+          <div className="space-y-2">
             {logs.map((log, index) => (
               <AdminResourceRow
                 key={log.id}
@@ -225,7 +225,7 @@ function AuditDetailRail({
                 {formatDateTime(log.created_at)}
               </p>
             </div>
-            <dl className="divide-y divide-border border-y border-border">
+            <dl className="grid gap-1 rounded-md bg-surface px-3">
               <InfoRow label="操作者" value={formatShortId(log.actor_id)} />
               <InfoRow label="目标类型" value={log.target_type} />
               <InfoRow label="目标 ID" value={formatShortId(log.target_id)} />
@@ -255,7 +255,7 @@ function AuditDetailRail({
       </AdminRailSection>
 
       <AdminRailSection title="相关入口">
-        <div className="flex flex-col border-t border-border">
+        <div className="grid gap-1 rounded-md bg-surface p-2">
           <TextAction href="/admin/users" variant="bar">
             用户管理
           </TextAction>
@@ -267,7 +267,7 @@ function AuditDetailRail({
 
 function JsonBlock({ label, value }: { label: string; value: unknown }) {
   return (
-    <div className="min-w-0 border border-border bg-background-soft/40 p-3">
+    <div className="min-w-0 rounded-md bg-surface p-3">
       <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
       <pre className="mt-2 max-w-full overflow-x-auto whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">
         {JSON.stringify(value ?? {}, null, 2)}

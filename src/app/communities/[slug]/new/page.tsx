@@ -31,7 +31,11 @@ export default async function NewPostPage({ params }: NewPostPageProps) {
       }}
       contextLabel={`发布 /${slug}`}
     >
-      <PostCreatePage key={slug} defaultCommunitySlug={slug} />
+      <PostCreatePage
+        key={slug}
+        authNextPath={`/communities/${encodeURIComponent(slug)}/new`}
+        defaultCommunitySlug={slug}
+      />
     </AppShell>
   );
 }

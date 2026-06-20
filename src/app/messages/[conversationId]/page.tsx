@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { MessageThreadPage } from "@/features/message/message-thread-page";
+
+import { MessageRouteLoading } from "../message-route-loading";
 
 type MessageConversationRouteProps = {
   params: Promise<{
     conversationId: string;
   }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export async function generateMetadata({
@@ -21,8 +25,20 @@ export async function generateMetadata({
 
 export default async function MessageConversationRoute({
   params,
+  searchParams,
 }: MessageConversationRouteProps) {
-  const { conversationId } = await params;
+  const [{ conversationId }, initialSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
 
-  return <MessageThreadPage conversationId={conversationId} fullscreen />;
+  return (
+    <Suspense fallback={<MessageRouteLoading />}>
+      <MessageThreadPage
+        conversationId={conversationId}
+        fullscreen
+        initialSearchParams={initialSearchParams}
+      />
+    </Suspense>
+  );
 }

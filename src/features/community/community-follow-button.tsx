@@ -2,7 +2,7 @@
 
 import { useState, type ComponentProps } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Check, Plus } from "lucide-react";
 
 import { useAuthSession } from "@/features/auth/auth-session";
@@ -25,12 +25,10 @@ export function CommunityFollowButton({
 }: CommunityFollowButtonProps) {
   const { isReady, token } = useAuthSession();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const mutation = useToggleCommunityFollowMutation();
   const isFollowing = community.viewer_is_following === true;
-  const currentSearch = searchParams.toString();
-  const currentPath = `${pathname}${currentSearch ? `?${currentSearch}` : ""}`;
+  const currentPath = pathname || "/";
 
   if (!isReady) {
     return (
@@ -77,6 +75,7 @@ export function CommunityFollowButton({
           setSubmitError(null);
           mutation.mutate(
             {
+              community,
               isFollowing,
               slug: community.slug,
             },

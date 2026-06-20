@@ -35,7 +35,9 @@ export type ListFollowedCommunitiesInput = {
 
 export type ListFollowedCommunitiesResponse = {
   communities: Community[];
+  has_more: boolean;
   limit: number;
+  next_offset: number;
   offset: number;
 };
 
@@ -403,6 +405,373 @@ export type ListCommunityModLogsResponse = {
   offset: number;
   next_offset: number;
   has_more: boolean;
+};
+
+export type AutomodConfig = {
+  community_id: string;
+  config_text: string;
+  rules: unknown;
+  updated_at: string;
+  updated_by?: string;
+  version: number;
+};
+
+export type AutomodConfigResponse = {
+  config: AutomodConfig;
+};
+
+export type UpdateAutomodConfigInput = {
+  config_text: string;
+  rules: unknown;
+  slug: string;
+};
+
+export type AutomodVersion = {
+  community_id: string;
+  config_text: string;
+  created_at: string;
+  id: string;
+  rules: unknown;
+  updated_by: string;
+  version: number;
+};
+
+export type ListAutomodVersionsInput = {
+  limit?: number;
+  offset?: number;
+  slug: string;
+};
+
+export type ListAutomodVersionsResponse = {
+  has_more: boolean;
+  limit: number;
+  next_offset: number;
+  offset: number;
+  versions: AutomodVersion[];
+};
+
+export type AutomodDryRunInput = {
+  author_id?: string;
+  body?: string;
+  links?: string[];
+  slug: string;
+  target_type: "post" | "comment";
+  title?: string;
+};
+
+export type AutomodDryRunMatch = {
+  action: string;
+  reason: string;
+  rule: string;
+};
+
+export type AutomodDryRunResponse = {
+  matches: AutomodDryRunMatch[];
+  reasons: string[];
+  suggested_action: string;
+};
+
+export type ContentControls = {
+  block_new_accounts: boolean;
+  blocked_domains: string[];
+  blocked_keywords: string[];
+  comment_rate_limit_per_hour: number;
+  community_id: string;
+  filter_links: boolean;
+  min_account_age_days: number;
+  post_rate_limit_per_hour: number;
+  updated_at: string;
+  updated_by?: string;
+};
+
+export type ContentControlsResponse = {
+  controls: ContentControls;
+};
+
+export type UpdateContentControlsInput = Omit<
+  ContentControls,
+  "community_id" | "updated_at" | "updated_by"
+> & {
+  slug: string;
+};
+
+export type ModmailFolder =
+  | "archived"
+  | "in_progress"
+  | "inbox"
+  | "needs_reply";
+
+export type ModmailConversation = {
+  assigned_to?: string;
+  community_id: string;
+  created_at: string;
+  folder: ModmailFolder | string;
+  id: string;
+  last_message_at: string;
+  status: string;
+  subject: string;
+  unread_count: number;
+  updated_at: string;
+  user_id: string;
+};
+
+export type ModmailMessage = {
+  author_id: string;
+  body: string;
+  conversation_id: string;
+  created_at: string;
+  id: string;
+  is_internal: boolean;
+};
+
+export type ListModmailConversationsInput = {
+  folder?: ModmailFolder;
+  limit?: number;
+  offset?: number;
+  slug: string;
+};
+
+export type ListModmailConversationsResponse = {
+  conversations: ModmailConversation[];
+  folder: ModmailFolder | string;
+  has_more: boolean;
+  limit: number;
+  next_offset: number;
+  offset: number;
+};
+
+export type CreateModmailConversationInput = {
+  body: string;
+  slug: string;
+  subject: string;
+  user_id: string;
+};
+
+export type ModmailConversationResponse = {
+  conversation: ModmailConversation;
+  messages: ModmailMessage[];
+};
+
+export type ModmailMessageInput = {
+  body: string;
+  conversation_id: string;
+  slug: string;
+};
+
+export type UpdateModmailConversationInput = {
+  assigned_to?: string;
+  conversation_id: string;
+  folder?: ModmailFolder | string;
+  mark_read?: boolean;
+  slug: string;
+  status?: string;
+};
+
+export type ModmailConversationPatchResponse = {
+  conversation: ModmailConversation;
+};
+
+export type CommunityInsightsRange = "30d" | "7d" | "90d";
+
+export type CommunityInsightsSummary = {
+  active_authors: number;
+  comments_made: number;
+  community_id: string;
+  members_total: number;
+  posts_created: number;
+  range: CommunityInsightsRange | string;
+  since: string;
+};
+
+export type CommunityInsightsSummaryResponse = {
+  summary: CommunityInsightsSummary;
+};
+
+export type CommunityModerationInsights = {
+  actions_count: number;
+  community_id: string;
+  pending_reports: number;
+  range: CommunityInsightsRange | string;
+  removed_comments: number;
+  removed_posts: number;
+  resolved_reports: number;
+  since: string;
+  spam_comments: number;
+  spam_posts: number;
+};
+
+export type CommunityModerationInsightsResponse = {
+  moderation: CommunityModerationInsights;
+};
+
+export type CommunityTrainingQueueItem = {
+  community_id: string;
+  created_at: string;
+  id: string;
+  preview: string;
+  reason: string;
+  suggested_action: string;
+  target_id: string;
+  target_type: string;
+};
+
+export type ListCommunityTrainingQueueInput = {
+  limit?: number;
+  offset?: number;
+  slug: string;
+};
+
+export type ListCommunityTrainingQueueResponse = {
+  has_more: boolean;
+  items: CommunityTrainingQueueItem[];
+  limit: number;
+  next_offset: number;
+  offset: number;
+};
+
+export type CommunityFlairKind = "post" | "user";
+
+export type CommunityFlair = {
+  color: string;
+  community_id: string;
+  created_at: string;
+  created_by: string;
+  id: string;
+  is_enabled: boolean;
+  is_user_selectable: boolean;
+  kind: CommunityFlairKind | string;
+  position: number;
+  title: string;
+  updated_at: string;
+  updated_by: string;
+};
+
+export type ListCommunityFlairsInput = {
+  kind: CommunityFlairKind;
+  slug: string;
+};
+
+export type ListCommunityFlairsResponse = {
+  items: CommunityFlair[];
+};
+
+export type WriteCommunityFlairInput = {
+  color?: string;
+  flair_id?: string;
+  is_enabled?: boolean;
+  is_user_selectable?: boolean;
+  kind: CommunityFlairKind;
+  position?: number;
+  slug: string;
+  title: string;
+};
+
+export type CommunityFlairResponse = {
+  item: CommunityFlair;
+};
+
+export type DeleteCommunityFlairInput = {
+  flair_id: string;
+  kind: CommunityFlairKind;
+  slug: string;
+};
+
+export type ReorderCommunityFlairsInput = {
+  ids: string[];
+  kind: CommunityFlairKind;
+  slug: string;
+};
+
+export type ScheduledPost = {
+  body: string;
+  community_id: string;
+  created_at: string;
+  created_by: string;
+  id: string;
+  repeat_rule: string;
+  scheduled_at: string;
+  status: string;
+  title: string;
+  updated_at: string;
+  updated_by: string;
+};
+
+export type ListScheduledPostsInput = {
+  limit?: number;
+  offset?: number;
+  slug: string;
+};
+
+export type ListScheduledPostsResponse = {
+  has_more: boolean;
+  items: ScheduledPost[];
+  limit: number;
+  next_offset: number;
+  offset: number;
+};
+
+export type WriteScheduledPostInput = {
+  body?: string;
+  repeat_rule?: string;
+  scheduled_at: string;
+  scheduled_post_id?: string;
+  slug: string;
+  status?: string;
+  title: string;
+};
+
+export type ScheduledPostResponse = {
+  item: ScheduledPost;
+};
+
+export type DeleteScheduledPostInput = {
+  scheduled_post_id: string;
+  slug: string;
+};
+
+export type CommunityGuide = {
+  body: string;
+  community_id: string;
+  created_at: string;
+  created_by: string;
+  id: string;
+  position: number;
+  title: string;
+  updated_at: string;
+  updated_by: string;
+  visibility: string;
+};
+
+export type ListCommunityGuidesInput = {
+  limit?: number;
+  offset?: number;
+  slug: string;
+};
+
+export type ListCommunityGuidesResponse = {
+  has_more: boolean;
+  items: CommunityGuide[];
+  limit: number;
+  next_offset: number;
+  offset: number;
+};
+
+export type WriteCommunityGuideInput = {
+  body?: string;
+  guide_id?: string;
+  position?: number;
+  slug: string;
+  title: string;
+  visibility?: string;
+};
+
+export type CommunityGuideResponse = {
+  item: CommunityGuide;
+};
+
+export type DeleteCommunityGuideInput = {
+  guide_id: string;
+  slug: string;
 };
 
 export type ModeratorNote = {

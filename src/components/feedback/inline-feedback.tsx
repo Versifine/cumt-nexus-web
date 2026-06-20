@@ -17,9 +17,9 @@ type InlineFeedbackProps = {
 };
 
 const toneClasses: Record<InlineFeedbackTone, string> = {
-  error: "border-destructive/40 text-destructive",
-  info: "border-border text-foreground",
-  success: "border-emerald-400/40 text-emerald-300",
+  error: "border-destructive/25 bg-destructive/10 text-destructive",
+  info: "border-border bg-surface-raised text-muted-foreground",
+  success: "border-emerald-300/25 bg-emerald-400/10 text-emerald-300",
 };
 
 const iconClasses: Record<InlineFeedbackTone, string> = {
@@ -48,7 +48,7 @@ export function InlineFeedback({
     <div
       role={tone === "error" ? "alert" : "status"}
       className={cn(
-        "grid grid-cols-[20px_minmax(0,1fr)_auto] gap-3 border-l bg-transparent py-3 pl-3 pr-0 text-sm",
+        "grid grid-cols-[20px_minmax(0,1fr)_auto] gap-3 rounded-lg border py-3 pl-3 pr-1 text-sm",
         toneClasses[tone],
         className,
       )}

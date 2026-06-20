@@ -7,6 +7,6 @@ export const metadata: Metadata = {
   description: "查看 CUMT Nexus 校园社区中的推荐帖子、社区入口和讨论上下文。",
 };
 
-export default async function Home() {
-  return <HomeFeedPage contextLabel="首页" sort="best" />;
+export default function Home() {
+  return <HomeFeedPage sort="best" />;
 }

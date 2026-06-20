@@ -384,11 +384,11 @@ export function QuickRegisterForm({ className, onSuccess }: QuickAuthFormProps) 
 
 function StepHeader({ current }: { current: 1 | 2 }) {
   return (
-    <div className="grid grid-cols-2 border-y border-border text-xs font-medium">
-      <div className={cn("py-2 text-center", current === 1 ? "text-primary" : "text-muted-foreground")}>
+    <div className="grid grid-cols-2 gap-1 rounded-md bg-background-soft p-1 text-xs font-medium">
+      <div className={cn("rounded px-2 py-2 text-center", current === 1 ? "bg-surface text-primary" : "text-muted-foreground")}>
         01 验证邮箱
       </div>
-      <div className={cn("border-l border-border py-2 text-center", current === 2 ? "text-primary" : "text-muted-foreground")}>
+      <div className={cn("rounded px-2 py-2 text-center", current === 2 ? "bg-surface text-primary" : "text-muted-foreground")}>
         02 账号信息
       </div>
     </div>

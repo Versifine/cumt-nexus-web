@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import { AppShell } from "@/components/app-shell/app-shell";
-import { AdminShell } from "@/features/admin/admin-shell";
 import { CommunityApplicationReview } from "@/features/community/community-application-review";
 
 export const metadata: Metadata = {
@@ -18,12 +17,7 @@ export default function AdminCommunityApplicationsRoute() {
       }}
       contextLabel="社区审批"
     >
-      <AdminShell
-        title="社区审批"
-        description="审核社区申请，通过后创建社区并设置唯一社区版主。"
-      >
-        <CommunityApplicationReview />
-      </AdminShell>
+      <CommunityApplicationReview />
     </AppShell>
   );
 }

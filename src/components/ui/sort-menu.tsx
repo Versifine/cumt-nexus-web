@@ -47,7 +47,7 @@ export function SortMenu<TValue extends string>({
         <button
           type="button"
           className={cn(
-            "inline-flex h-9 max-w-full items-center gap-1.5 border-b border-transparent px-1 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
+            "nexus-micro-lift inline-flex h-9 max-w-full items-center gap-1.5 border-b border-transparent px-1 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50",
             className,
           )}
           aria-label={ariaLabel}

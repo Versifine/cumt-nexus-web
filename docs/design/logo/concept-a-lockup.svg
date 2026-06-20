@@ -1,0 +1,17 @@
+<svg width="420" height="96" viewBox="0 0 420 96" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">CUMT Nexus logo concept A</title>
+  <desc id="desc">Horizontal CUMT Nexus logo with the recommended CN Nexus mark.</desc>
+  <rect width="420" height="96" rx="0" fill="#080A0D"/>
+  <g transform="translate(24 18)">
+    <rect x="0" y="0" width="60" height="60" rx="8" fill="#0E1418"/>
+    <rect x="0.5" y="0.5" width="59" height="59" rx="7.5" stroke="#243038"/>
+    <path d="M38.5 15.5H24.5C15.8 15.5 11 22.1 11 30C11 37.9 15.8 44.5 24.5 44.5H38.5" stroke="#EEF5F4" stroke-width="5.6" stroke-linecap="square" stroke-linejoin="miter"/>
+    <path d="M24 45V15L39 45V15" stroke="#18B7A5" stroke-width="4.8" stroke-linecap="square" stroke-linejoin="miter"/>
+    <rect x="21.6" y="12.6" width="5.4" height="5.4" rx="1.2" fill="#18B7A5"/>
+    <rect x="36.4" y="42" width="5.4" height="5.4" rx="1.2" fill="#18B7A5"/>
+  </g>
+  <g transform="translate(104 27)">
+    <text x="0" y="23" fill="#EEF5F4" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="25" font-weight="760" letter-spacing="0">CUMT Nexus</text>
+    <text x="1" y="45" fill="#8EA0A6" font-family="Inter, 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="520" letter-spacing="0">校园社区</text>
+  </g>
+</svg>

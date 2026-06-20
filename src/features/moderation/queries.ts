@@ -4,6 +4,8 @@ import {
   applyAdminModQueueAction,
   applyCommunityModQueueAction,
   dismissModerationReport,
+  getAdminModQueueItem,
+  getAdminModQueueSummary,
   getModerationReport,
   ignoreCommunityReport,
   listAdminModQueue,
@@ -30,6 +32,10 @@ export const moderationQueryKeys = {
   all: ["moderation"] as const,
   adminModQueue: (queue: string, limit: number, offset: number) =>
     ["moderation", "admin-mod-queue", { limit, offset, queue }] as const,
+  adminModQueueItem: (itemId: string) =>
+    ["moderation", "admin-mod-queue", "item", itemId] as const,
+  adminModQueueSummary: () =>
+    ["moderation", "admin-mod-queue", "summary"] as const,
   communityModQueue: (
     slug: string,
     queue: string,
@@ -57,6 +63,22 @@ export function useAdminModQueueQuery({
   return useQuery({
     queryKey: moderationQueryKeys.adminModQueue(queue, limit, offset),
     queryFn: () => listAdminModQueue({ limit, offset, queue }),
+    enabled,
+  });
+}
+
+export function useAdminModQueueItemQuery(itemId: string, enabled = true) {
+  return useQuery({
+    queryKey: moderationQueryKeys.adminModQueueItem(itemId),
+    queryFn: () => getAdminModQueueItem(itemId),
+    enabled: enabled && Boolean(itemId.trim()),
+  });
+}
+
+export function useAdminModQueueSummaryQuery(enabled = true) {
+  return useQuery({
+    queryKey: moderationQueryKeys.adminModQueueSummary(),
+    queryFn: getAdminModQueueSummary,
     enabled,
   });
 }

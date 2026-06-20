@@ -3,6 +3,12 @@
 import { useState } from "react";
 import { CheckCircle2, RefreshCw, ShieldAlert } from "lucide-react";
 
+import {
+  RightRail,
+  RightRailAction,
+  RightRailActionList,
+  RightRailSection,
+} from "@/components/app-shell/right-rail";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -264,49 +270,41 @@ export function CommunityOwnerTransferAcceptPage({
         </section>
       </section>
 
-      <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
-        <div className="sticky top-20 right-rail-scroll space-y-6">
-          <section className="border-b border-border pb-5">
-            <div className="flex items-center gap-2">
+      <RightRail>
+        <RightRailSection
+          title={
+            <span className="inline-flex items-center gap-2">
               <ShieldAlert className="size-4 text-primary" aria-hidden="true" />
-              <h2 className="text-sm font-semibold">权限边界</h2>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              社区版主转让必须由原版主创建，并由目标账号接受。平台接管异常社区走平台社区管理页。
-            </p>
-          </section>
-          <section>
-            <h2 className="text-sm font-semibold">相关入口</h2>
-            <div className="mt-3 flex flex-col border-t border-border">
-              <TextAction
-                href={`/communities/${encodeURIComponent(slug)}`}
-                variant="bar"
-              >
-                社区主页
-              </TextAction>
-              <TextAction href="/communities" variant="bar">
-                浏览社区
-              </TextAction>
-              <TextAction href="/communities/owner-transfers" variant="bar">
-                待接受交接
-              </TextAction>
-              <button
-                type="button"
-                className="flex min-h-10 items-center gap-2 border-b border-border py-2 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
-                onClick={() => currentUserQuery.refetch()}
-              >
-                <RefreshCw
-                  className={
-                    currentUserQuery.isFetching ? "size-4 animate-spin" : "size-4"
-                  }
-                  aria-hidden="true"
-                />
-                刷新身份
-              </button>
-            </div>
-          </section>
-        </div>
-      </aside>
+              权限边界
+            </span>
+          }
+          description="社区版主转让必须由原版主创建，并由目标账号接受。平台接管异常社区走平台社区管理页。"
+        />
+        <RightRailSection title="相关入口">
+          <RightRailActionList>
+            <RightRailAction href={`/communities/${encodeURIComponent(slug)}`}>
+              社区主页
+            </RightRailAction>
+            <RightRailAction href="/communities">浏览社区</RightRailAction>
+            <RightRailAction href="/communities/owner-transfers">
+              待接受交接
+            </RightRailAction>
+            <button
+              type="button"
+              className="nexus-micro-lift group my-0.5 flex min-h-11 items-center gap-2 rounded-md bg-surface-raised px-3 py-3 text-left text-sm font-semibold text-foreground transition-colors first:mt-0 last:mb-0 hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              onClick={() => currentUserQuery.refetch()}
+            >
+              <RefreshCw
+                className={
+                  currentUserQuery.isFetching ? "size-4 animate-spin" : "size-4"
+                }
+                aria-hidden="true"
+              />
+              刷新身份
+            </button>
+          </RightRailActionList>
+        </RightRailSection>
+      </RightRail>
     </div>
   );
 }

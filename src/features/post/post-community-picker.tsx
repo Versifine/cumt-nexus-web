@@ -168,16 +168,16 @@ export function PostCommunityPicker({
   }
 
   return (
-    <div className="relative max-w-[520px]" ref={containerRef}>
+    <div className="relative w-full" ref={containerRef}>
       <button
         aria-controls={isOpen ? panelId : undefined}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         className={cn(
-          "flex h-11 w-full items-center gap-2 border-b border-border bg-transparent text-left text-sm outline-none transition-colors",
-          "hover:border-primary/60 focus-visible:border-primary focus-visible:ring-0",
+          "nexus-soft-transition flex h-11 w-full items-center gap-2 rounded-lg bg-surface px-3 text-left text-sm outline-none shadow-[inset_0_0_0_1px_var(--input)]",
+          "hover:bg-surface-hover focus-visible:bg-surface-hover focus-visible:ring-2 focus-visible:ring-primary/25",
           value ? "pr-14" : "pr-8",
-          disabled && "cursor-not-allowed opacity-60 hover:border-border",
+          disabled && "cursor-not-allowed opacity-60 hover:bg-surface",
         )}
         disabled={disabled}
         id="communitySlug"
@@ -193,7 +193,7 @@ export function PostCommunityPicker({
         />
         <ChevronDown
           className={cn(
-            "absolute right-0 size-4 shrink-0 text-muted-foreground transition-transform",
+            "absolute right-3 size-4 shrink-0 text-muted-foreground transition-transform",
             isOpen && "rotate-180",
           )}
           aria-hidden="true"
@@ -203,7 +203,7 @@ export function PostCommunityPicker({
       {value ? (
         <button
           aria-label="清除已选社区"
-          className="absolute right-6 top-1/2 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
+          className="absolute right-9 top-1/2 z-10 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={disabled}
           onClick={clearCommunity}
           type="button"
@@ -214,11 +214,11 @@ export function PostCommunityPicker({
 
       {isOpen ? (
         <div
-          className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_18px_50px_rgb(0_0_0/0.42)]"
+          className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-lg bg-surface text-foreground shadow-[0_18px_50px_rgb(0_0_0/0.42),inset_0_0_0_1px_var(--border)]"
           id={panelId}
           role="listbox"
         >
-          <div className="relative border-b border-border">
+          <div className="relative bg-surface-raised">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden="true"
@@ -318,7 +318,7 @@ function CommunityAvatar({ isSelected }: { isSelected: boolean }) {
         "flex size-7 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold",
         isSelected
           ? "bg-primary/15 text-primary"
-          : "bg-background text-muted-foreground",
+          : "bg-surface-raised text-muted-foreground",
       )}
       aria-hidden="true"
     >
@@ -341,8 +341,8 @@ function CommunityCandidateButton({
   return (
     <button
       className={cn(
-        "flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60",
-        isSelected && "bg-muted/70",
+        "flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60",
+        isSelected && "bg-primary/10",
       )}
       disabled={disabled}
       onClick={() => onSelect(candidate.slug)}

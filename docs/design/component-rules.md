@@ -74,6 +74,7 @@
 - 文字动作必须仍然有清楚的 focus-visible 状态。
 - 文案要短，优先动词或目标名，例如 `浏览社区 +`、`申请社区 +`。
 - 色块提示使用项目主色或前景色，不新增随机颜色。
+- `variant="bar"` 是列表行，不是独立圆角按钮；连续出现时只保留整组外轮廓，内部行不能各自带圆角粘在一起。
 
 不要：
 
@@ -191,6 +192,7 @@
 - 状态颜色符合 `DESIGN.md`。
 - 不用 Badge 承载长句。
 - 色块可以用于当前栏目、实时状态、数据强调和轻量分类，但要保持扁平。
+- 圆角面层的当前态、成功/错误态和引用态不使用贴边竖条、弧条或单边 inset 色条；优先用面层深浅、文字/图标 token、独立小点或完整低对比描边表达。
 
 不要：
 
@@ -210,6 +212,8 @@
 
 - 统一使用 `src/components/ui/data-display.tsx` 中的 `MetricBlock`、`InfoRow`、`IndexedInfoRow`、`MetaCell` 和 `StatusToken`。
 - 数据块使用面层、色块和字体层级表达重点；边框只在密集键值信息需要边界时使用，不新增阴影、渐变或大圆角。
+- `MetricBlock` 和 `MetaCell` 是内容单元，不自带独立面层和圆角；父容器负责 `surface-raised`、圆角和整体边界。
+- 多个指标或元信息并列时，禁止把多个自带圆角的矩形无间距粘在一起；应该使用一个连续面层承载分栏内容。
 - 状态标签 tone 必须复用 `default`、`primary`、`success`、`warning`、`danger`。
 - 页面里不要重复定义局部 `MetricBlock`、`InfoRow` 或 `StatusToken`。
 - 新增同类数据展示基础件时，必须同步更新 `npm run check:ui-primitives`。

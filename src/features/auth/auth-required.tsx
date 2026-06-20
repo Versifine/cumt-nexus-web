@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { StatusToken } from "@/components/ui/data-display";
@@ -14,6 +14,7 @@ type AuthRequiredProps = {
   children: ReactNode;
   className?: string;
   description: string;
+  nextPath?: string;
   title: string;
 };
 
@@ -21,14 +22,13 @@ export function AuthRequired({
   children,
   className,
   description,
+  nextPath,
   title,
 }: AuthRequiredProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { token } = useAuthSession();
   const currentUserQuery = useCurrentUserQuery();
-  const query = searchParams.toString();
-  const next = `${pathname || "/"}${query ? `?${query}` : ""}`;
+  const next = nextPath ?? pathname ?? "/";
   const loginHref = `/login?next=${encodeURIComponent(next)}`;
   const registerHref = `/register?next=${encodeURIComponent(next)}`;
 
@@ -106,7 +106,7 @@ function AuthPanel({
   title: string;
 }) {
   return (
-    <section className={cn("border-l border-border py-5 pl-4", className)}>
+    <section className={cn("rounded-md bg-surface px-4 py-5 ring-1 ring-border/60", className)}>
       <div className="min-w-0">
         <StatusToken tone={getAuthPanelTone(eyebrow)}>{eyebrow}</StatusToken>
         <h2 className="mt-3 break-words text-base font-semibold leading-6 tracking-normal">

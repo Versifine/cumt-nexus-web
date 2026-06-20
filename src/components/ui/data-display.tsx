@@ -29,10 +29,9 @@ export function MetricBlock({
   return (
     <div
       className={cn(
-        variant === "default" &&
-          "border-r border-border px-3 py-4 last:border-r-0",
-        variant === "compact" &&
-          "border-b border-border px-4 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0",
+        "nexus-soft-transition",
+        variant === "default" && "px-3 py-4",
+        variant === "compact" && "px-4 py-4",
         className,
       )}
     >
@@ -85,7 +84,7 @@ export function InfoRow({
   return (
     <div
       className={cn(
-        "flex min-w-0 items-center justify-between gap-4 py-3 text-sm",
+        "nexus-soft-transition flex min-w-0 items-center justify-between gap-4 py-3 text-sm",
         wrap && "items-start",
         active ? "text-primary" : "text-muted-foreground",
         className,
@@ -126,7 +125,7 @@ export function IndexedInfoRow({
   return (
     <div
       className={cn(
-        "grid gap-3 border-b border-border py-4 last:border-b-0 sm:grid-cols-[56px_minmax(0,1fr)]",
+        "nexus-soft-transition grid gap-3 rounded-md bg-surface-raised p-4 sm:grid-cols-[56px_minmax(0,1fr)]",
         className,
       )}
     >
@@ -152,7 +151,7 @@ type MetaCellProps = {
 
 export function MetaCell({ className, label, value, wrap = false }: MetaCellProps) {
   return (
-    <div className={cn("min-w-0 px-3 py-2", className)}>
+    <div className={cn("nexus-soft-transition min-w-0 px-3 py-2", className)}>
       <div className="font-mono text-[11px] text-muted-foreground">
         {label}
       </div>
@@ -184,15 +183,15 @@ export function StatusToken({
   return (
     <span
       className={cn(
-        "inline-flex max-w-full items-center border px-2 py-0.5 text-xs font-medium",
+        "nexus-soft-transition inline-flex max-w-full items-center rounded-full px-2 py-0.5 text-xs font-medium",
         tone === "default" &&
-          "border-border bg-background text-muted-foreground",
-        tone === "primary" && "border-primary/40 bg-primary/10 text-primary",
+          "bg-surface-raised text-muted-foreground",
+        tone === "primary" && "bg-primary/10 text-primary",
         tone === "success" &&
-          "border-emerald-400/30 bg-emerald-500/10 text-emerald-300",
+          "bg-emerald-500/10 text-emerald-300",
         tone === "warning" &&
-          "border-amber-400/30 bg-amber-500/10 text-amber-300",
-        tone === "danger" && "border-red-400/30 bg-red-500/10 text-red-300",
+          "bg-amber-500/10 text-amber-300",
+        tone === "danger" && "bg-red-500/10 text-red-300",
         className,
       )}
     >

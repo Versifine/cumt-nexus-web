@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CUMT Nexus pickaxe construction">
+  <rect width="64" height="64" fill="#09090B"/>
+  <rect x="9.4" y="9.4" width="45.2" height="45.2" fill="none" stroke="#3F3F46" stroke-width=".45"/>
+  <path d="M24.4 9.4v45.2M39.6 9.4v45.2M9.4 24.4h45.2M9.4 39.6h45.2" stroke="#FBBF24" stroke-opacity=".55" stroke-width=".45"/>
+  <circle cx="32" cy="39.6" r="29.1" fill="none" stroke="#2DD4BF" stroke-opacity=".26" stroke-width=".5"/>
+  <circle cx="32" cy="39.6" r="18" fill="none" stroke="#2DD4BF" stroke-opacity=".18" stroke-width=".5"/>
+  <path fill="#FAFAFA" d="M8.8 27.2C17.2 16.3 31.7 11.6 49.1 14.1L56 18.4 52.6 24.1C38.1 18 24.6 21.2 14.1 32.7Z"/>
+  <path fill="none" stroke="#FAFAFA" stroke-linecap="round" stroke-width="5.8" d="M39.6 22.8 21 53"/>
+  <path fill="#09090B" d="M34.2 23.4 39.6 17.9 45 23.4 39.6 28.8Z"/>
+  <circle cx="39.6" cy="24.4" r="1" fill="#FBBF24"/>
+</svg>

@@ -284,7 +284,7 @@ function showToast(kind: "success" | "error") {
               这个页面把当前 `src` 下的 TSX 组件文件、主要组件名、基础组件示例和视觉备注集中到一处。后续统一网站风格时，先按全量索引定位，再回到基础组件或业务组件源头修复。
             </p>
           </div>
-          <div className="grid border-y border-border sm:grid-cols-3 lg:grid-cols-1">
+          <div className="grid rounded-md bg-surface-raised sm:grid-cols-3 lg:grid-cols-1">
             <MetricBlock
               label="TSX 文件"
               value={inventory.summary.fileCount}
@@ -465,7 +465,7 @@ function showToast(kind: "success" | "error") {
                 返回信息流
               </TextAction>
             </div>
-            <div className="border-t border-border">
+            <div>
               <TextAction href="/posts/new" tone="primary" variant="bar">
                 发布新讨论
               </TextAction>
@@ -628,12 +628,12 @@ function showToast(kind: "success" | "error") {
       >
         <ExamplePanel title="指标和编号">
           <div className="space-y-4">
-            <div className="grid border-y border-border sm:grid-cols-3">
+            <div className="grid rounded-md bg-surface-raised sm:grid-cols-3">
               <MetricBlock label="帖子" value="128" />
               <MetricBlock label="评论" value="2.4k" />
               <MetricBlock label="在线" value="36" />
             </div>
-            <div className="divide-y divide-border border-y border-border">
+            <div className="rounded-md bg-surface-raised px-3">
               <InfoRow
                 icon={<CircleDot className="size-4" aria-hidden="true" />}
                 label="当前状态"
@@ -646,7 +646,7 @@ function showToast(kind: "success" | "error") {
               title="组件只能从基础层统一派生"
               text="页面如果需要新的展示形态，先判断是否应该进入基础组件或业务组件，而不是复制一份局部样式。"
             />
-            <div className="grid border border-border sm:grid-cols-3">
+            <div className="grid rounded-md bg-surface-raised sm:grid-cols-3">
               <MetaCell label="来源" value="components/ui" />
               <MetaCell label="语义" value="基础展示" />
               <MetaCell label="风险" value="页面局部复制" />
@@ -925,17 +925,17 @@ function InkPreviewSection() {
   return (
     <section
       data-style-preview="surface-ledger"
-      className="overflow-hidden rounded-lg bg-[#09090B] text-[#FAFAFA] shadow-[0_22px_64px_rgb(0_0_0/0.24)]"
+      className="overflow-hidden rounded-lg bg-background text-foreground shadow-[0_22px_64px_rgb(0_0_0/0.24)]"
     >
       <div className="grid lg:grid-cols-[232px_minmax(0,1fr)]">
-        <aside className="hidden bg-[#0D0D10] p-5 lg:block">
+        <aside className="hidden bg-background-soft p-5 lg:block">
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-md bg-[#18181B] text-sm font-semibold text-[#2DD4BF]">
+            <span className="flex size-9 items-center justify-center rounded-md bg-surface-raised text-sm font-semibold text-primary">
               CN
             </span>
             <span className="min-w-0">
               <span className="block text-sm font-semibold">CUMT Nexus</span>
-              <span className="block text-xs text-[#71717A]">校园社区</span>
+              <span className="block text-xs text-subtle-foreground">校园社区</span>
             </span>
           </div>
 
@@ -946,35 +946,35 @@ function InkPreviewSection() {
                 className={cn(
                   "grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-3 py-2.5",
                   index === 0
-                    ? "bg-[#18181B] text-[#FAFAFA] shadow-[inset_3px_0_0_#2DD4BF]"
-                    : "text-[#A1A1AA] hover:bg-[#141416]",
+                    ? "bg-surface-raised text-foreground ring-1 ring-primary/20"
+                    : "text-muted-foreground hover:bg-surface-hover",
                 )}
               >
-                <span className="font-mono text-[11px] text-[#71717A]">
+                <span className="font-mono text-[11px] text-subtle-foreground">
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <span className="truncate">{item}</span>
                 {index === 0 ? (
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#2DD4BF]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                 ) : null}
               </div>
             ))}
           </nav>
 
-          <div className="mt-8 rounded-md bg-[#111113] p-3">
-            <div className="font-mono text-[11px] uppercase text-[#2DD4BF]">
+          <div className="mt-8 rounded-md bg-surface p-3">
+            <div className="font-mono text-[11px] uppercase text-primary">
               Layer
             </div>
-            <p className="mt-2 text-xs leading-5 text-[#A1A1AA]">
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
               用背景深浅、间距和字重建立层级；分割线只留给真正需要边界的系统区域。
             </p>
           </div>
         </aside>
 
         <div className="min-w-0">
-          <div className="flex flex-col gap-3 bg-[#0D0D10] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div className="flex flex-col gap-3 bg-background-soft px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div className="min-w-0">
-              <div className="font-mono text-[11px] uppercase text-[#2DD4BF]">
+              <div className="font-mono text-[11px] uppercase text-primary">
                 Nexus Surface / 第四版样张
               </div>
               <h2 className="mt-1 text-lg font-semibold leading-6">
@@ -983,69 +983,69 @@ function InkPreviewSection() {
             </div>
             <button
               type="button"
-              className="inline-flex h-9 w-fit shrink-0 items-center gap-2 rounded-md bg-[#2DD4BF] px-3 text-sm font-semibold text-[#042F2E] transition-colors hover:bg-[#5EEAD4]"
+              className="inline-flex h-9 w-fit shrink-0 items-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
               <Plus className="size-4" aria-hidden="true" />
               发帖
             </button>
           </div>
 
-          <div className="grid gap-4 bg-[#09090B] p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_304px]">
+          <div className="grid gap-4 bg-background p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_304px]">
             <main className="min-w-0 space-y-3">
-              <section className="rounded-md bg-[#0D0D10] p-3 sm:p-4">
+              <section className="rounded-md bg-background-soft p-3 sm:p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="font-mono text-[11px] text-[#2DD4BF]">FEED</div>
+                    <div className="font-mono text-[11px] text-primary">FEED</div>
                     <h3 className="mt-1 text-base font-semibold">全站最新讨论</h3>
                   </div>
-                  <div className="flex rounded-md bg-[#18181B] p-1 text-xs font-medium text-[#A1A1AA]">
-                    <button type="button" className="rounded px-2.5 py-1.5 text-[#FAFAFA]">
+                  <div className="flex rounded-md bg-surface-raised p-1 text-xs font-medium text-muted-foreground">
+                    <button type="button" className="rounded px-2.5 py-1.5 text-foreground">
                       最新
                     </button>
-                    <button type="button" className="rounded px-2.5 py-1.5 hover:bg-[#1F1F23]">
+                    <button type="button" className="rounded px-2.5 py-1.5 hover:bg-surface-hover">
                       热门
                     </button>
-                    <button type="button" className="rounded px-2.5 py-1.5 hover:bg-[#1F1F23]">
+                    <button type="button" className="rounded px-2.5 py-1.5 hover:bg-surface-hover">
                       关注
                     </button>
                   </div>
                 </div>
               </section>
 
-              <article className="rounded-md bg-[#111113] p-4 shadow-[0_10px_28px_rgb(0_0_0/0.16)] transition-colors hover:bg-[#151518] sm:p-5">
+              <article className="rounded-md bg-surface p-4 shadow-[0_10px_28px_rgb(0_0_0/0.16)] transition-colors hover:bg-surface-hover sm:p-5">
                 <div className="grid gap-4 sm:grid-cols-[42px_minmax(0,1fr)]">
-                  <div className="font-mono text-xs text-[#71717A]">01</div>
+                  <div className="font-mono text-xs text-subtle-foreground">01</div>
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#A1A1AA]">
-                      <span className="font-semibold text-[#2DD4BF]">/campus-life</span>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span className="font-semibold text-primary">/campus-life</span>
                       <span>今天 18:42</span>
                       <span>公共讨论</span>
                     </div>
                     <h3 className="mt-3 text-lg font-semibold leading-7">
                       图书馆晚上的自习区能不能开放到十一点？
                     </h3>
-                    <p className="mt-2 text-sm leading-6 text-[#A1A1AA]">
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
                       最近期末周位置很紧，大家更关心的是安静区域、插座和闭馆时间，而不是再开一个复杂预约入口。
                     </p>
                     <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
                       <button
                         type="button"
-                        className="rounded-md bg-[#1F1F23] px-2.5 py-1.5 font-semibold text-[#FAFAFA]"
+                        className="rounded-md bg-surface-hover px-2.5 py-1.5 font-semibold text-foreground"
                       >
                         赞同 42
                       </button>
                       <button
                         type="button"
-                        className="rounded-md bg-[#18181B] px-2.5 py-1.5 text-[#A1A1AA] hover:bg-[#1F1F23]"
+                        className="rounded-md bg-surface-raised px-2.5 py-1.5 text-muted-foreground hover:bg-surface-hover"
                       >
                         评论 18
                       </button>
-                      <button type="button" className="px-1.5 py-1.5 text-[#A1A1AA] hover:text-[#FAFAFA]">
+                      <button type="button" className="px-1.5 py-1.5 text-muted-foreground hover:text-foreground">
                         收藏
                       </button>
                       <button
                         type="button"
-                        className="ml-auto inline-flex size-8 items-center justify-center rounded-md text-[#A1A1AA] hover:bg-[#1F1F23] hover:text-[#FAFAFA]"
+                        className="ml-auto inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-hover hover:text-foreground"
                         aria-label="更多操作"
                       >
                         <MoreHorizontal className="size-4" aria-hidden="true" />
@@ -1055,26 +1055,26 @@ function InkPreviewSection() {
                 </div>
               </article>
 
-              <section className="rounded-md bg-[#111113] p-4 shadow-[0_10px_28px_rgb(0_0_0/0.14)] sm:p-5">
+              <section className="rounded-md bg-surface p-4 shadow-[0_10px_28px_rgb(0_0_0/0.14)] sm:p-5">
                 <div className="grid gap-4 sm:grid-cols-[42px_minmax(0,1fr)]">
-                  <div className="font-mono text-xs text-[#71717A]">02</div>
+                  <div className="font-mono text-xs text-subtle-foreground">02</div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-3">
-                      <span className="flex size-8 items-center justify-center rounded-md bg-[#1F1F23] text-xs font-semibold text-[#2DD4BF]">
+                      <span className="flex size-8 items-center justify-center rounded-md bg-surface-hover text-xs font-semibold text-primary">
                         L
                       </span>
                       <div className="min-w-0">
                         <div className="text-sm font-semibold">linyu</div>
-                        <div className="text-xs text-[#71717A]">2 分钟前</div>
+                        <div className="text-xs text-subtle-foreground">2 分钟前</div>
                       </div>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-[#A1A1AA]">
+                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
                       我更希望先优化座位占用提示。现在的问题不是入口不够多，而是大家不知道哪些区域真的可用。
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold text-[#2DD4BF]">
+                    <div className="mt-3 flex flex-wrap gap-3 text-xs font-semibold text-primary">
                       <button type="button">回复</button>
                       <button type="button">引用</button>
-                      <button type="button" className="text-[#A1A1AA]">
+                      <button type="button" className="text-muted-foreground">
                         收起
                       </button>
                     </div>
@@ -1082,20 +1082,20 @@ function InkPreviewSection() {
                 </div>
               </section>
 
-              <section className="rounded-md bg-[#111113] p-4 shadow-[0_10px_28px_rgb(0_0_0/0.14)] sm:p-5">
+              <section className="rounded-md bg-surface p-4 shadow-[0_10px_28px_rgb(0_0_0/0.14)] sm:p-5">
                 <label className="text-sm font-semibold" htmlFor="ink-preview-comment">
                   写下回复
                 </label>
                 <textarea
                   id="ink-preview-comment"
-                  className="mt-3 min-h-24 w-full resize-none rounded-md bg-[#18181B] px-3 py-2 text-sm text-[#FAFAFA] outline-none placeholder:text-[#71717A] focus:bg-[#1F1F23] focus:ring-2 focus:ring-[#2DD4BF]/45"
+                  className="mt-3 min-h-24 w-full resize-none rounded-md bg-surface-raised px-3 py-2 text-sm text-foreground outline-none placeholder:text-subtle-foreground focus:bg-surface-hover focus:ring-2 focus:ring-primary/45"
                   placeholder="用简短事实推进讨论。"
                 />
                 <div className="mt-3 flex items-center justify-between gap-3">
-                  <span className="text-xs text-[#71717A]">支持 Markdown</span>
+                  <span className="text-xs text-subtle-foreground">支持 Markdown</span>
                   <button
                     type="button"
-                    className="rounded-md bg-[#2DD4BF] px-3 py-2 text-sm font-semibold text-[#042F2E]"
+                    className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
                   >
                     发送回复
                   </button>
@@ -1104,8 +1104,8 @@ function InkPreviewSection() {
             </main>
 
             <aside className="space-y-3">
-              <section className="rounded-md bg-[#0D0D10] p-4">
-                <div className="font-mono text-[11px] uppercase text-[#2DD4BF]">
+              <section className="rounded-md bg-background-soft p-4">
+                <div className="font-mono text-[11px] uppercase text-primary">
                   COMMUNITY
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
@@ -1114,18 +1114,18 @@ function InkPreviewSection() {
                   <PreviewMetric label="待处理" value="2" className="col-span-2" />
                 </div>
               </section>
-              <section className="rounded-md bg-[#0D0D10] p-4">
+              <section className="rounded-md bg-background-soft p-4">
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="text-sm font-semibold">版规摘要</h3>
-                  <span className="rounded bg-[#134E4A] px-2 py-1 text-xs font-semibold text-[#5EEAD4]">
+                  <span className="rounded bg-primary-muted px-2 py-1 text-xs font-semibold text-primary">
                     正常
                   </span>
                 </div>
-                <ol className="mt-4 space-y-3 text-sm text-[#A1A1AA]">
+                <ol className="mt-4 space-y-3 text-sm text-muted-foreground">
                   {["先给结论，再补充上下文。", "避免重复刷屏和无来源传言。", "治理操作只在必要处显色。"].map(
                     (item, index) => (
                       <li key={item} className="grid grid-cols-[24px_minmax(0,1fr)] gap-2">
-                        <span className="font-mono text-xs text-[#71717A]">
+                        <span className="font-mono text-xs text-subtle-foreground">
                           {String(index + 1).padStart(2, "0")}
                         </span>
                         <span>{item}</span>
@@ -1134,15 +1134,15 @@ function InkPreviewSection() {
                   )}
                 </ol>
               </section>
-              <section className="rounded-md bg-[#18181B] p-4">
+              <section className="rounded-md bg-surface-raised p-4">
                 <div className="flex items-start gap-3">
                   <ShieldAlert
-                    className="mt-0.5 size-4 text-[#F59E0B]"
+                    className="mt-0.5 size-4 text-warning"
                     aria-hidden="true"
                   />
                   <div className="min-w-0">
                     <div className="text-sm font-semibold">治理提示</div>
-                    <p className="mt-2 text-sm leading-6 text-[#A1A1AA]">
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
                       重要状态只在局部显色，避免把整页做成状态标签集合。
                     </p>
                   </div>
@@ -1166,9 +1166,9 @@ function PreviewMetric({
   value: string;
 }) {
   return (
-    <div className={cn("rounded-md bg-[#18181B] px-3 py-3", className)}>
-      <div className="text-xs text-[#71717A]">{label}</div>
-      <div className="mt-1 font-mono text-base font-semibold text-[#FAFAFA]">
+    <div className={cn("rounded-md bg-surface-raised px-3 py-3", className)}>
+      <div className="text-xs text-subtle-foreground">{label}</div>
+      <div className="mt-1 font-mono text-base font-semibold text-foreground">
         {value}
       </div>
     </div>
@@ -1336,7 +1336,7 @@ function GuidelineCard({
   title: string;
 }) {
   return (
-    <div className="border-l border-border pl-4">
+    <div className="rounded-md bg-surface px-4 py-4 ring-1 ring-border/60">
       <div className="flex items-center gap-2 text-sm font-semibold">
         <span className="text-primary">{icon}</span>
         {title}

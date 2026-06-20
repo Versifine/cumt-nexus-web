@@ -10,10 +10,13 @@ import {
   type ReactNode,
 } from "react";
 import {
+  InputRule,
   mergeAttributes,
   Mark,
   Node as TiptapNode,
   type Editor,
+  type MarkdownTokenizer,
+  type NodeViewRendererProps,
 } from "@tiptap/core";
 import Image, { type ImageOptions } from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
@@ -24,6 +27,7 @@ import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
 import TableRow from "@tiptap/extension-table-row";
 import { Markdown } from "@tiptap/markdown";
+import katex from "katex";
 import {
   EditorContent,
   NodeViewWrapper,
@@ -37,6 +41,7 @@ import {
   Bold,
   Code,
   CodeXml,
+  Columns3,
   EyeOff,
   GalleryHorizontal,
   Heading2,
@@ -48,13 +53,26 @@ import {
   ListOrdered,
   Loader2,
   Quote,
+  Sigma,
+  Rows3,
   Strikethrough,
   Table as TableIcon,
+  TableColumnsSplit,
+  TableRowsSplit,
+  Trash2,
   Ungroup,
 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   type ClipboardDataImageSource,
   type ClipboardDataImageTextPaste,
@@ -142,7 +160,7 @@ const SpoilerMark = Mark.create({
       mergeAttributes(HTMLAttributes, {
         "data-spoiler": "true",
         class:
-          "rounded-sm bg-zinc-950 px-1 text-zinc-950 outline outline-1 outline-zinc-700 transition-colors hover:text-foreground",
+          "rounded-sm bg-zinc-950 px-1 text-transparent outline outline-1 outline-zinc-700 transition-colors hover:text-zinc-50",
       }),
       0,
     ];
@@ -161,6 +179,188 @@ const SpoilerMark = Mark.create({
   },
 });
 
+const InlineMathNode = TiptapNode.create({
+  name: "inlineMath",
+
+  atom: true,
+  group: "inline",
+  inline: true,
+  selectable: true,
+
+  addAttributes() {
+    return {
+      value: {
+        default: "",
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        getAttrs: (element) => {
+          if (!(element instanceof HTMLElement)) {
+            return false;
+          }
+
+          return {
+            value: element.dataset.value || element.textContent || "",
+          };
+        },
+        tag: "span[data-inline-math]",
+      },
+    ];
+  },
+
+  renderHTML({ node }) {
+    const value = getMathNodeValue(node);
+
+    return [
+      "span",
+      {
+        "data-inline-math": "true",
+        "data-value": value,
+      },
+      value,
+    ];
+  },
+
+  markdownTokenName: "inlineMath",
+
+  markdownTokenizer: createInlineMathTokenizer(),
+
+  parseMarkdown(token, helpers) {
+    return helpers.createNode("inlineMath", {
+      value: typeof token.text === "string" ? token.text : "",
+    });
+  },
+
+  renderMarkdown(node) {
+    return `$${getMathJsonValue(node)}$`;
+  },
+
+  addInputRules() {
+    return [
+      new InputRule({
+        find: /(?:^|\s)(\$([^$\n]+?)\$)$/,
+        handler: ({ match, range, state }) => {
+          const raw = match[1];
+          const value = match[2]?.trim();
+
+          if (!raw || !value || value.startsWith(" ") || value.endsWith(" ")) {
+            return null;
+          }
+
+          const from = range.to - raw.length;
+          const to = range.to;
+
+          state.tr
+            .replaceWith(from, to, this.type.create({ value }))
+            .scrollIntoView();
+          return null;
+        },
+      }),
+    ];
+  },
+
+  addNodeView() {
+    return createMathEditorNodeView(false);
+  },
+});
+
+const BlockMathNode = TiptapNode.create({
+  name: "math",
+
+  atom: true,
+  group: "block",
+  selectable: true,
+
+  addAttributes() {
+    return {
+      value: {
+        default: "",
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        getAttrs: (element) => {
+          if (!(element instanceof HTMLElement)) {
+            return false;
+          }
+
+          return {
+            value: element.dataset.value || element.textContent || "",
+          };
+        },
+        tag: "div[data-block-math]",
+      },
+    ];
+  },
+
+  renderHTML({ node }) {
+    const value = getMathNodeValue(node);
+
+    return [
+      "div",
+      {
+        "data-block-math": "true",
+        "data-value": value,
+      },
+      value,
+    ];
+  },
+
+  markdownTokenName: "math",
+
+  markdownTokenizer: createBlockMathTokenizer(),
+
+  parseMarkdown(token, helpers) {
+    return helpers.createNode("math", {
+      value: typeof token.text === "string" ? token.text : "",
+    });
+  },
+
+  renderMarkdown(node) {
+    return `$$\n${getMathJsonValue(node)}\n$$`;
+  },
+
+  addInputRules() {
+    return [
+      new InputRule({
+        find: /^\s*\$\$$/,
+        handler: ({ match, state }) => {
+          const $from = state.selection.$from;
+
+          if (
+            match[0].trim() !== "$$" ||
+            !$from.parent.isTextblock ||
+            $from.parent.textContent.trim() !== "$$"
+          ) {
+            return null;
+          }
+
+          state.tr
+            .replaceWith(
+              $from.before($from.depth),
+              $from.after($from.depth),
+              this.type.create({ value: "" }),
+            )
+            .scrollIntoView();
+
+          return null;
+        },
+      }),
+    ];
+  },
+
+  addNodeView() {
+    return createMathEditorNodeView(true);
+  },
+});
+
 const AttachmentImage = Image.extend<AttachmentImageOptions>({
   addOptions() {
     const parentOptions = this.parent?.() ?? {
@@ -175,7 +375,7 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
       getAttachmentById: () => null,
       HTMLAttributes: {
         class:
-          "my-4 block h-auto max-h-[520px] max-w-full border border-border bg-background-soft object-contain",
+          "my-4 block h-auto max-h-[520px] max-w-full rounded-md bg-background object-contain",
       },
     };
   },
@@ -247,7 +447,7 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
         "span",
         {
           class:
-            "my-4 block border-l border-border px-3 py-2 text-sm text-muted-foreground",
+            "my-4 block rounded-md bg-surface-raised px-3 py-2 text-sm text-muted-foreground",
         },
         "图片附件不存在或尚未随内容返回。",
       ];
@@ -257,7 +457,7 @@ const AttachmentImage = Image.extend<AttachmentImageOptions>({
       "span",
       {
         class:
-          "my-4 block border-l border-border px-3 py-2 text-sm text-muted-foreground",
+          "my-4 block rounded-md bg-surface-raised px-3 py-2 text-sm text-muted-foreground",
       },
       "外部图片不会直接渲染；请上传图片后放入正文。",
     ];
@@ -439,7 +639,7 @@ const MediaEmbedNode = TiptapNode.create({
       const embed = resolveWhitelistedMediaEmbed(originalUrl);
       const dom = document.createElement("div");
 
-      dom.className = "my-4 block outline-offset-2";
+      dom.className = "my-4 block rounded-lg outline-offset-2";
       dom.setAttribute("data-media-editor-node", "true");
 
       if (embed) {
@@ -450,11 +650,11 @@ const MediaEmbedNode = TiptapNode.create({
 
       return {
         deselectNode() {
-          dom.classList.remove("outline", "outline-1", "outline-primary");
+          dom.style.boxShadow = "";
         },
         dom,
         selectNode() {
-          dom.classList.add("outline", "outline-1", "outline-primary");
+          dom.style.boxShadow = "inset 3px 0 0 var(--primary)";
         },
       };
     };
@@ -492,8 +692,8 @@ function AttachmentImageEditorView({
     <NodeViewWrapper
       as="div"
       className={cn(
-        "group/media-node my-4 block outline-offset-2",
-        selected && "outline outline-1 outline-primary",
+        "group/media-node my-4 block rounded-lg outline-offset-2",
+        selected && "ring-2 ring-primary/35",
       )}
       contentEditable={false}
       data-attachment-id={attachmentId ?? undefined}
@@ -505,11 +705,11 @@ function AttachmentImageEditorView({
           variant="detail"
         />
       ) : !attachmentId ? (
-        <span className="block border-l border-border px-3 py-2 text-sm text-muted-foreground">
+        <span className="block rounded-md bg-surface-raised px-3 py-2 text-sm text-muted-foreground">
           外部图片不会直接渲染；请上传图片后放入正文。
         </span>
       ) : (
-        <span className="block border-l border-border px-3 py-2 text-sm text-muted-foreground">
+        <span className="block rounded-md bg-surface-raised px-3 py-2 text-sm text-muted-foreground">
           图片附件不存在、尚未随内容返回或当前不可显示。
         </span>
       )}
@@ -557,8 +757,8 @@ function AttachmentGalleryEditorView({
     <NodeViewWrapper
       as="div"
       className={cn(
-        "group/media-node my-4 block outline-offset-2",
-        selected && "outline outline-1 outline-primary",
+        "group/media-node my-4 block rounded-lg outline-offset-2",
+        selected && "ring-2 ring-primary/35",
       )}
       contentEditable={false}
       data-attachment-gallery="true"
@@ -572,7 +772,7 @@ function AttachmentGalleryEditorView({
           variant="detail"
         />
       ) : (
-        <span className="block border-l border-border px-3 py-2 text-sm text-muted-foreground">
+        <span className="block rounded-md bg-surface-raised px-3 py-2 text-sm text-muted-foreground">
           图片轮播里的附件不存在或尚未随内容返回。
         </span>
       )}
@@ -639,9 +839,30 @@ const emptyToolbarState = {
   orderedList: false,
   spoiler: false,
   strike: false,
+  table: false,
+};
+
+type TableAction = "add-row" | "add-column" | "delete-row" | "delete-column" | "delete-table";
+type TableActionMenuPlacement = "context" | "hover";
+type TableNodeRange = {
+  from: number;
+  to: number;
+};
+type TableActionMenuState = {
+  anchorPosition: number | null;
+  left: number;
+  placement: TableActionMenuPlacement;
+  tableRange: TableNodeRange | null;
+  top: number;
+};
+type TableGridSize = {
+  cols: number;
+  rows: number;
 };
 
 const minimumInlineImageUploadNoticeMs = 650;
+const tableActionMenuWidth = 152;
+const tableActionMenuHeight = 120;
 
 export function MarkdownComposerField({
   autoFocusKey,
@@ -659,8 +880,12 @@ export function MarkdownComposerField({
   const editorRef = useRef<Editor | null>(null);
   const latestValueRef = useRef(value);
   const mediaEmbedSyncFrameRef = useRef<number | null>(null);
+  const tableActionMenuRef = useRef<HTMLDivElement | null>(null);
+  const editorViewportRef = useRef<HTMLDivElement | null>(null);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [isUploadingInlineImage, setIsUploadingInlineImage] = useState(false);
+  const [tableActionMenu, setTableActionMenu] =
+    useState<TableActionMenuState | null>(null);
   const inlineImageUploadMutation = useUploadImageMutation();
   const previewAttachments = useMemo(
     () =>
@@ -706,6 +931,75 @@ export function MarkdownComposerField({
   const unsupportedMarkdownImageNotice =
     "外部图片不会作为正文图片保存；请用“添加图片”或粘贴、拖拽图片文件上传到正文当前位置。";
   const isEditorDisabled = disabled || Boolean(fieldProps?.disabled);
+
+  const openTableActionMenuFromPointer = useCallback(
+    (
+      view: Editor["view"],
+      event: MouseEvent,
+      placement: TableActionMenuPlacement,
+    ) => {
+      if (isEditorDisabled) {
+        return false;
+      }
+
+      const table = getEventTableElement(event.target);
+      const viewport = editorViewportRef.current;
+
+      if (!table || !viewport || !viewport.contains(table)) {
+        if (placement === "hover") {
+          setTableActionMenu((current) =>
+            current?.placement === "context" ? current : null,
+          );
+        }
+
+        return false;
+      }
+
+      const tableRect = table.getBoundingClientRect();
+      const viewportRect = viewport.getBoundingClientRect();
+      const coords = view.posAtCoords({
+        left: event.clientX,
+        top: event.clientY,
+      });
+      const anchorPosition = coords?.pos ?? null;
+      const tableRange = getTableRangeFromPointer(
+        view,
+        table,
+        anchorPosition,
+      );
+      const minLeft = viewport.scrollLeft + 8;
+      const maxLeft =
+        viewport.scrollLeft +
+        viewport.clientWidth -
+        tableActionMenuWidth -
+        8;
+      const minTop = viewport.scrollTop + 8;
+      const maxTop =
+        viewport.scrollTop +
+        viewport.clientHeight -
+        tableActionMenuHeight -
+        8;
+      const targetLeft =
+        placement === "context"
+          ? event.clientX - viewportRect.left + viewport.scrollLeft
+          : tableRect.left - viewportRect.left + viewport.scrollLeft + 8;
+      const targetTop =
+        placement === "context"
+          ? event.clientY - viewportRect.top + viewport.scrollTop
+          : tableRect.top - viewportRect.top + viewport.scrollTop + 8;
+
+      setTableActionMenu({
+        anchorPosition,
+        left: clampNumber(targetLeft, minLeft, Math.max(minLeft, maxLeft)),
+        placement,
+        tableRange,
+        top: clampNumber(targetTop, minTop, Math.max(minTop, maxTop)),
+      });
+
+      return true;
+    },
+    [isEditorDisabled],
+  );
 
   useEffect(() => {
     latestValueRef.current = normalizedValue;
@@ -778,6 +1072,8 @@ export function MarkdownComposerField({
         getAttachmentById: (id: string) => attachmentById.get(id) ?? null,
       }),
       MediaEmbedNode,
+      InlineMathNode,
+      BlockMathNode,
       Table.configure({
         resizable: false,
       }),
@@ -813,14 +1109,14 @@ export function MarkdownComposerField({
             "prose-headings:tracking-normal",
             "data-[placeholder]:before:pointer-events-none data-[placeholder]:before:float-left data-[placeholder]:before:h-0 data-[placeholder]:before:text-muted-foreground data-[placeholder]:before:content-[attr(data-placeholder)]",
             "[&_a]:text-primary [&_a]:underline [&_a]:decoration-primary/40 [&_a]:underline-offset-4",
-            "[&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:border-primary/50 [&_blockquote]:bg-primary/5 [&_blockquote]:px-4 [&_blockquote]:py-2 [&_blockquote]:text-muted-foreground",
-            "[&_code]:border [&_code]:border-border [&_code]:bg-background-soft [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.92em]",
+            "[&_blockquote]:my-4 [&_blockquote]:rounded-md [&_blockquote]:bg-background-soft [&_blockquote]:px-4 [&_blockquote]:py-3 [&_blockquote]:text-muted-foreground [&_blockquote]:ring-1 [&_blockquote]:ring-border/60",
+            "[&_code]:rounded-sm [&_code]:bg-background-soft [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.92em]",
             "[&_h1]:mb-2 [&_h1]:mt-5 [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:leading-7",
             "[&_h2]:mb-2 [&_h2]:mt-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:leading-7",
             "[&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:leading-6",
             "[&_ol]:my-4 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-6",
             "[&_p]:my-3 [&_p]:whitespace-pre-wrap [&_p]:leading-7 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
-            "[&_pre]:my-4 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:border [&_pre]:border-border [&_pre]:bg-background-soft [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-sm [&_pre]:leading-6",
+            "[&_pre]:my-4 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-background-soft [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-sm [&_pre]:leading-6",
             "[&_pre_code]:border-0 [&_pre_code]:bg-transparent [&_pre_code]:p-0",
             "[&_table]:my-4 [&_table]:w-full [&_table]:min-w-[560px] [&_table]:border-collapse [&_table]:text-sm",
             "[&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_td]:align-top",
@@ -833,6 +1129,22 @@ export function MarkdownComposerField({
           const insertionPosition = view.state.selection.from;
 
           return handleInlineImagePaste(event, insertionPosition);
+        },
+        handleDOMEvents: {
+          contextmenu: (view, event) => {
+            if (
+              openTableActionMenuFromPointer(view, event, "context")
+            ) {
+              event.preventDefault();
+              return true;
+            }
+
+            return false;
+          },
+          mousemove: (view, event) => {
+            openTableActionMenuFromPointer(view, event, "hover");
+            return false;
+          },
         },
       },
       immediatelyRender: false,
@@ -863,6 +1175,41 @@ export function MarkdownComposerField({
   }, [editor]);
 
   useEffect(() => {
+    if (tableActionMenu?.placement !== "context") {
+      return;
+    }
+
+    function closeContextMenu(event: KeyboardEvent | PointerEvent) {
+      if (event instanceof KeyboardEvent) {
+        if (event.key === "Escape") {
+          setTableActionMenu(null);
+        }
+
+        return;
+      }
+
+      const target = event.target;
+
+      if (
+        target instanceof Node &&
+        tableActionMenuRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setTableActionMenu(null);
+    }
+
+    window.addEventListener("keydown", closeContextMenu);
+    window.addEventListener("pointerdown", closeContextMenu);
+
+    return () => {
+      window.removeEventListener("keydown", closeContextMenu);
+      window.removeEventListener("pointerdown", closeContextMenu);
+    };
+  }, [tableActionMenu?.placement]);
+
+  useEffect(() => {
     if (!autoFocusKey || !editor || isEditorDisabled) {
       return;
     }
@@ -891,6 +1238,7 @@ export function MarkdownComposerField({
         orderedList: currentEditor?.isActive("orderedList") ?? false,
         spoiler: currentEditor?.isActive("spoiler") ?? false,
         strike: currentEditor?.isActive("strike") ?? false,
+        table: currentEditor?.isActive("table") ?? false,
       }),
     }) ?? emptyToolbarState;
 
@@ -1361,6 +1709,50 @@ export function MarkdownComposerField({
     );
   }
 
+  function runTableAction(action: TableAction) {
+    const currentEditor = editorRef.current;
+
+    if (!currentEditor || isEditorDisabled) {
+      return;
+    }
+
+    if (action === "delete-table" && tableActionMenu?.tableRange) {
+      currentEditor.view.dispatch(
+        currentEditor.state.tr
+          .delete(tableActionMenu.tableRange.from, tableActionMenu.tableRange.to)
+          .scrollIntoView(),
+      );
+      setTableActionMenu(null);
+      return;
+    }
+
+    let command = currentEditor.chain().focus();
+
+    if (typeof tableActionMenu?.anchorPosition === "number") {
+      command = command.setTextSelection(
+        clampEditorInsertionPosition(
+          currentEditor,
+          tableActionMenu.anchorPosition,
+        ),
+      );
+    }
+
+    const didRun =
+      action === "add-row"
+        ? command.addRowAfter().run()
+        : action === "add-column"
+          ? command.addColumnAfter().run()
+          : action === "delete-row"
+            ? command.deleteRow().run()
+            : action === "delete-column"
+              ? command.deleteColumn().run()
+              : command.deleteTable().run();
+
+    if (didRun) {
+      setTableActionMenu(null);
+    }
+  }
+
   return (
     <div
       className={cn("min-w-0 space-y-2", className)}
@@ -1369,7 +1761,7 @@ export function MarkdownComposerField({
     >
       <section
         className={cn(
-          "min-w-0 overflow-hidden border border-border bg-background",
+          "min-w-0 overflow-hidden rounded-lg bg-surface-raised p-1",
           isEditorDisabled && "opacity-70",
         )}
       >
@@ -1379,8 +1771,23 @@ export function MarkdownComposerField({
           renderImageTool={renderImageTool}
           state={toolbarState}
         />
-        <div className="min-w-0 max-w-full overflow-x-auto border-t border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div
+          ref={editorViewportRef}
+          className="relative min-w-0 max-w-full overflow-x-auto rounded-md bg-surface [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          onMouseLeave={() =>
+            setTableActionMenu((current) =>
+              current?.placement === "context" ? current : null,
+            )
+          }
+        >
           <EditorContent editor={editor} />
+          {tableActionMenu ? (
+            <TableActionMenu
+              menuRef={tableActionMenuRef}
+              menu={tableActionMenu}
+              onAction={runTableAction}
+            />
+          ) : null}
         </div>
       </section>
 
@@ -1468,6 +1875,70 @@ function RichMarkdownToolbar({
       .run();
   }
 
+  const [isTablePickerOpen, setIsTablePickerOpen] = useState(false);
+  const [tableGridSize, setTableGridSize] = useState<TableGridSize>({
+    cols: 3,
+    rows: 3,
+  });
+  const tableTool = {
+    active: false,
+    icon: <TableIcon aria-hidden="true" />,
+    label: "表格",
+  };
+
+  const formulaTool = {
+    active: false,
+    icon: <Sigma aria-hidden="true" />,
+    label: "公式",
+  };
+
+  function insertFormula(formulaKind: "block" | "inline") {
+    run((currentEditor) => {
+      const selectedText = currentEditor.state.doc.textBetween(
+        currentEditor.state.selection.from,
+        currentEditor.state.selection.to,
+        "\n",
+      );
+      const formula = selectedText.trim();
+      const content =
+        formulaKind === "block"
+          ? {
+              attrs: { value: formula },
+              type: "math",
+            }
+          : {
+              attrs: { value: formula },
+              type: "inlineMath",
+            };
+
+      currentEditor
+        .chain()
+        .focus()
+        .insertContent(content)
+        .run();
+    });
+  }
+
+  function insertTableBySize({ cols, rows }: TableGridSize) {
+    run((currentEditor) => {
+      if (cols === 3 && rows === 3) {
+        currentEditor
+          .chain()
+          .focus()
+          .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+          .run();
+        return;
+      }
+
+      currentEditor
+        .chain()
+        .focus()
+        .insertTable({ rows, cols, withHeaderRow: true })
+        .run();
+    });
+    setIsTablePickerOpen(false);
+  }
+
   const tools = [
     {
       active: state.bold,
@@ -1543,29 +2014,16 @@ function RichMarkdownToolbar({
       onClick: () =>
         run((currentEditor) => currentEditor.chain().focus().toggleSpoiler().run()),
     },
-    {
-      active: false,
-      icon: <TableIcon aria-hidden="true" />,
-      label: "表格",
-      onClick: () =>
-        run((currentEditor) =>
-          currentEditor
-            .chain()
-            .focus()
-            .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-            .run(),
-        ),
-    },
   ];
 
   return (
     <div
       role="toolbar"
-      className="min-w-0 max-w-full overflow-x-auto bg-background-soft [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="min-w-0 max-w-full"
       aria-label="正文格式工具栏"
     >
-      <div className="flex min-w-max items-center gap-1 p-1">
-        <span className="shrink-0 px-2 font-mono text-[11px] text-muted-foreground">
+      <div className="flex min-w-0 flex-wrap items-center gap-1 px-1 pb-1">
+        <span className="shrink-0 px-2 font-mono text-[11px] text-subtle-foreground">
           格式
         </span>
         {tools.map((tool) => (
@@ -1578,7 +2036,209 @@ function RichMarkdownToolbar({
             onClick={tool.onClick}
           />
         ))}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label={formulaTool.label}
+              aria-pressed={formulaTool.active}
+              disabled={disabled}
+              size="icon"
+              title={formulaTool.label}
+              type="button"
+              variant="ghost"
+              className={cn(
+                "size-9 shrink-0 rounded-md text-muted-foreground hover:bg-surface-hover hover:text-primary",
+                formulaTool.active && "bg-primary-muted text-primary",
+              )}
+            >
+              {formulaTool.icon}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-44">
+            <DropdownMenuLabel>插入公式</DropdownMenuLabel>
+            <DropdownMenuItem
+              disabled={disabled}
+              onSelect={() => insertFormula("inline")}
+            >
+              <Sigma className="size-4" aria-hidden="true" />
+              行内公式
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={disabled}
+              onSelect={() => insertFormula("block")}
+            >
+              <Sigma className="size-4" aria-hidden="true" />
+              独立公式
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu
+          open={isTablePickerOpen}
+          onOpenChange={(open) => {
+            setIsTablePickerOpen(open);
+            if (open) {
+              setTableGridSize({ cols: 3, rows: 3 });
+            }
+          }}
+        >
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label={tableTool.label}
+              aria-pressed={tableTool.active}
+              disabled={disabled}
+              size="icon"
+              title={tableTool.label}
+              type="button"
+              variant="ghost"
+              className={cn(
+                "size-9 shrink-0 rounded-md text-muted-foreground hover:bg-surface-hover hover:text-primary",
+                tableTool.active && "bg-primary-muted text-primary",
+              )}
+            >
+              {tableTool.icon}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-auto p-3">
+            <TableGridPicker
+              disabled={disabled}
+              selectedSize={tableGridSize}
+              onHoverSize={setTableGridSize}
+              onSelectSize={insertTableBySize}
+            />
+          </DropdownMenuContent>
+        </DropdownMenu>
         {renderImageTool()}
+      </div>
+    </div>
+  );
+}
+
+function TableGridPicker({
+  disabled,
+  onHoverSize,
+  onSelectSize,
+  selectedSize,
+}: {
+  disabled: boolean;
+  onHoverSize: (size: TableGridSize) => void;
+  onSelectSize: (size: TableGridSize) => void;
+  selectedSize: TableGridSize;
+}) {
+  const cells = Array.from({ length: 64 }, (_, index) => {
+    const row = Math.floor(index / 8) + 1;
+    const col = (index % 8) + 1;
+    const size = { cols: col, rows: row };
+    const isSelected = row <= selectedSize.rows && col <= selectedSize.cols;
+
+    return (
+      <button
+        key={`${row}-${col}`}
+        type="button"
+        aria-label={`插入 ${row} 行 ${col} 列表格`}
+        disabled={disabled}
+        className={cn(
+          "size-5 rounded-[3px] border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+          isSelected
+            ? "border-primary bg-primary/20"
+            : "border-border bg-surface-raised hover:border-primary/50 hover:bg-primary/10",
+        )}
+        onFocus={() => onHoverSize(size)}
+        onMouseEnter={() => onHoverSize(size)}
+        onClick={() => onSelectSize(size)}
+      />
+    );
+  });
+
+  return (
+    <div
+      className="space-y-2"
+      onMouseDown={(event) => event.preventDefault()}
+    >
+      <div className="flex items-center justify-between gap-6 px-0.5 text-xs">
+        <span className="font-medium text-foreground">插入表格</span>
+        <span className="font-mono text-muted-foreground">
+          {selectedSize.rows} 行 / {selectedSize.cols} 列
+        </span>
+      </div>
+      <div className="grid grid-cols-8 gap-1">{cells}</div>
+    </div>
+  );
+}
+
+function TableActionMenu({
+  menu,
+  menuRef,
+  onAction,
+}: {
+  menu: TableActionMenuState;
+  menuRef: { current: HTMLDivElement | null };
+  onAction: (action: TableAction) => void;
+}) {
+  const actions: Array<{
+    icon: ReactNode;
+    label: string;
+    tone?: "danger";
+    value: TableAction;
+  }> = [
+    {
+      icon: <TableRowsSplit aria-hidden="true" />,
+      label: "加行",
+      value: "add-row",
+    },
+    {
+      icon: <TableColumnsSplit aria-hidden="true" />,
+      label: "加列",
+      value: "add-column",
+    },
+    {
+      icon: <Rows3 aria-hidden="true" />,
+      label: "删行",
+      value: "delete-row",
+    },
+    {
+      icon: <Columns3 aria-hidden="true" />,
+      label: "删列",
+      value: "delete-column",
+    },
+    {
+      icon: <Trash2 aria-hidden="true" />,
+      label: "删表",
+      tone: "danger",
+      value: "delete-table",
+    },
+  ];
+
+  return (
+    <div
+      ref={menuRef}
+      className="absolute z-20 w-[152px] rounded-md border border-border bg-card p-1.5 text-card-foreground shadow-[0_12px_32px_rgb(0_0_0/0.22)]"
+      style={{
+        left: menu.left,
+        top: menu.top,
+      }}
+      onContextMenu={(event) => event.preventDefault()}
+      onMouseDown={(event) => event.preventDefault()}
+    >
+      <span className="block px-1 pb-1 font-mono text-[11px] text-subtle-foreground">
+        表格
+      </span>
+      <div className="grid grid-cols-2 gap-1">
+        {actions.map((action) => (
+          <button
+            key={action.value}
+            type="button"
+            className={cn(
+              "inline-flex h-8 items-center justify-center gap-1 rounded px-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+              action.tone === "danger" &&
+                "col-span-2 text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40",
+            )}
+            onClick={() => onAction(action.value)}
+          >
+            <span className="[&_svg]:size-3.5">{action.icon}</span>
+            <span>{action.label}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -1596,10 +2256,10 @@ function ComposerNotice({
   return (
     <p
       className={cn(
-        "flex items-start gap-2 border-l px-3 py-2 text-sm leading-6 text-muted-foreground",
+        "flex items-start gap-2 rounded-md border px-3 py-2 text-sm leading-6 text-muted-foreground",
         tone === "warning"
           ? "border-amber-400/60 bg-amber-400/5"
-          : "border-primary bg-primary/5",
+          : "border-primary/25 bg-primary/5",
       )}
     >
       <span
@@ -1646,13 +2306,301 @@ function ToolbarButton({
       type="button"
       variant="ghost"
       className={cn(
-        "size-9 shrink-0 rounded-none border-b border-transparent hover:bg-transparent hover:text-primary",
-        active && "border-primary text-primary",
+        "size-9 shrink-0 rounded-md text-muted-foreground hover:bg-surface-hover hover:text-primary",
+        active && "bg-primary-muted text-primary",
       )}
     >
       {icon}
     </Button>
   );
+}
+
+function createMathEditorNodeView(displayMode: boolean) {
+  return ({ editor, getPos, node }: NodeViewRendererProps) => {
+    let currentNode = node;
+    const dom = document.createElement(displayMode ? "div" : "span");
+
+    dom.contentEditable = "false";
+    dom.dataset.mathNode = displayMode ? "block" : "inline";
+    dom.className = displayMode
+      ? "my-4 block max-w-full overflow-x-auto rounded-md border border-border bg-background-soft px-3 py-3 text-foreground"
+      : "mx-0.5 inline-block rounded-sm border border-transparent bg-primary-muted/60 px-1 align-baseline text-foreground";
+
+    const render = () => {
+      const value = getMathNodeValue(currentNode);
+
+      dom.dataset.value = value;
+      renderKatexIntoElement(dom, value, displayMode);
+    };
+
+    const handleDoubleClick = (event: Event) => {
+      if (!editor.isEditable) {
+        return;
+      }
+
+      event.preventDefault();
+      const nextValue = window.prompt("编辑公式", getMathNodeValue(currentNode));
+
+      if (nextValue === null) {
+        return;
+      }
+
+      const position = getNodeViewPosition(getPos);
+
+      if (position === null) {
+        return;
+      }
+
+      editor.view.dispatch(
+        editor.state.tr
+          .setNodeMarkup(position, undefined, {
+            value: nextValue.trim(),
+          })
+          .scrollIntoView(),
+      );
+    };
+
+    dom.addEventListener("dblclick", handleDoubleClick);
+    render();
+
+    return {
+      deselectNode() {
+        dom.style.boxShadow = "";
+      },
+      destroy() {
+        dom.removeEventListener("dblclick", handleDoubleClick);
+      },
+      dom,
+      selectNode() {
+        dom.style.boxShadow = "inset 0 0 0 2px var(--primary)";
+      },
+      update(updatedNode: ProseMirrorNode) {
+        if (updatedNode.type !== currentNode.type) {
+          return false;
+        }
+
+        currentNode = updatedNode;
+        render();
+        return true;
+      },
+    };
+  };
+}
+
+function renderKatexIntoElement(
+  element: HTMLElement,
+  value: string,
+  displayMode: boolean,
+) {
+  element.replaceChildren();
+
+  if (!value.trim()) {
+    element.textContent = "公式";
+    return;
+  }
+
+  try {
+    katex.render(value, element, {
+      displayMode,
+      strict: false,
+      throwOnError: false,
+    });
+  } catch {
+    element.textContent = value;
+  }
+}
+
+function createInlineMathTokenizer(): MarkdownTokenizer {
+  return {
+    level: "inline",
+    name: "inlineMath",
+    start: "$",
+    tokenize(src) {
+      if (!src.startsWith("$") || src.startsWith("$$")) {
+        return undefined;
+      }
+
+      const closingIndex = findClosingDollar(src, 1);
+
+      if (closingIndex <= 1) {
+        return undefined;
+      }
+
+      const value = src.slice(1, closingIndex);
+
+      if (
+        value.trim() !== value ||
+        value.length === 0 ||
+        value.includes("\n") ||
+        /\d/.test(src[closingIndex + 1] ?? "")
+      ) {
+        return undefined;
+      }
+
+      return {
+        raw: src.slice(0, closingIndex + 1),
+        text: value,
+        type: "inlineMath",
+      };
+    },
+  };
+}
+
+function createBlockMathTokenizer(): MarkdownTokenizer {
+  return {
+    level: "block",
+    name: "math",
+    start: "$$",
+    tokenize(src) {
+      if (!src.startsWith("$$")) {
+        return undefined;
+      }
+
+      const closingIndex = findClosingDoubleDollar(src, 2);
+
+      if (closingIndex <= 2) {
+        return undefined;
+      }
+
+      const rawEnd = closingIndex + 2;
+      const suffixMatch = src.slice(rawEnd).match(/^[ \t]*(?:\n+|$)/);
+
+      if (!suffixMatch) {
+        return undefined;
+      }
+
+      return {
+        raw: src.slice(0, rawEnd + suffixMatch[0].length),
+        text: src.slice(2, closingIndex).trim(),
+        type: "math",
+      };
+    },
+  };
+}
+
+function findClosingDollar(value: string, startIndex: number) {
+  for (let index = startIndex; index < value.length; index += 1) {
+    if (value[index] === "$" && !isEscapedDelimiter(value, index)) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function findClosingDoubleDollar(value: string, startIndex: number) {
+  for (let index = startIndex; index < value.length - 1; index += 1) {
+    if (
+      value[index] === "$" &&
+      value[index + 1] === "$" &&
+      !isEscapedDelimiter(value, index)
+    ) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function isEscapedDelimiter(value: string, index: number) {
+  let backslashCount = 0;
+
+  for (let position = index - 1; position >= 0; position -= 1) {
+    if (value[position] !== "\\") {
+      break;
+    }
+
+    backslashCount += 1;
+  }
+
+  return backslashCount % 2 === 1;
+}
+
+function getMathNodeValue(node: { attrs?: Record<string, unknown> }) {
+  return typeof node.attrs?.value === "string" ? node.attrs.value : "";
+}
+
+function getMathJsonValue(node: { attrs?: Record<string, unknown> }) {
+  return getMathNodeValue(node).trim();
+}
+
+function getEventTableElement(target: EventTarget | null) {
+  if (!(target instanceof Element)) {
+    return null;
+  }
+
+  const table = target.closest("table");
+
+  return table instanceof HTMLTableElement ? table : null;
+}
+
+function getTableRangeFromPointer(
+  view: Editor["view"],
+  table: HTMLTableElement,
+  anchorPosition: number | null,
+): TableNodeRange | null {
+  const positions = [
+    anchorPosition,
+    safelyGetPosAtDom(view, table, 0),
+    safelyGetPosAtDom(view, table, table.childNodes.length),
+  ].filter((position): position is number => typeof position === "number");
+
+  for (const position of positions) {
+    for (const candidate of [position, position - 1, position + 1]) {
+      const range = getTableRangeAtPosition(view.state.doc, candidate);
+
+      if (range) {
+        return range;
+      }
+    }
+  }
+
+  return null;
+}
+
+function safelyGetPosAtDom(
+  view: Editor["view"],
+  node: Node,
+  offset: number,
+) {
+  try {
+    return view.posAtDOM(node, offset);
+  } catch {
+    return null;
+  }
+}
+
+function getTableRangeAtPosition(
+  doc: ProseMirrorNode,
+  position: number,
+): TableNodeRange | null {
+  let range: TableNodeRange | null = null;
+
+  doc.descendants((node, nodePosition) => {
+    if (range) {
+      return false;
+    }
+
+    if (node.type.name !== "table") {
+      return true;
+    }
+
+    const from = nodePosition;
+    const to = nodePosition + node.nodeSize;
+
+    if (position >= from && position <= to) {
+      range = { from, to };
+      return false;
+    }
+
+    return false;
+  });
+
+  return range;
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function dedupeAttachments(attachments: MediaAttachment[]) {
@@ -1782,7 +2730,9 @@ type AttachmentMediaItem = {
   to: number;
 };
 
-function getNodeViewPosition(getPos: ReactNodeViewProps["getPos"]) {
+function getNodeViewPosition(
+  getPos: NodeViewRendererProps["getPos"] | ReactNodeViewProps["getPos"],
+) {
   if (typeof getPos !== "function") {
     return null;
   }
@@ -1960,7 +2910,7 @@ function createMediaFallbackLink(originalUrl: string) {
   link.rel = "nofollow ugc noopener noreferrer";
   link.target = "_blank";
   link.className =
-    "block border-l border-border px-3 py-2 text-sm text-primary underline decoration-primary/40 underline-offset-4";
+    "block rounded-md bg-background-soft px-3 py-2 text-sm text-primary underline decoration-primary/40 underline-offset-4 ring-1 ring-border/60";
   link.textContent = originalUrl;
 
   return link;

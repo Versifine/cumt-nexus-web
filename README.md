@@ -397,6 +397,7 @@ npm run check:readiness
 - `docs/internal/design/product-visual-direction.md`：内部设计索引，指向 `docs/design/` 的权威规范。
 - `docs/internal/design/ui-visual-noise-audit.md`：视觉噪音排查与改进记录。
 - `docs/internal/engineering/workflow.md`：阶段推进、分支、文档和验证规则。
+- `docs/internal/engineering/linux-development.md`：Linux / WSL2 开发环境迁移、依赖安装、前后端联调和验收顺序。
 - `docs/internal/engineering/launch-readiness.md`：上线前自检、阻塞项和人工 QA 范围。
 - `docs/internal/engineering/deployment.md`：生产部署、环境变量、CORS、发布后验证和回滚标准。
 - `docs/internal/engineering/browser-qa.md`：真实浏览器人工 QA 步骤、失败分级和记录模板。

@@ -17,7 +17,7 @@ export const feedSourceItems: Array<{
     value: "all",
   },
   {
-    description: "登录后查看你关注社区里的公开讨论。",
+    description: "登录后查看你关注的社区和用户发布的公开讨论。",
     label: "关注",
     value: "following",
   },

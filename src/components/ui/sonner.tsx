@@ -18,8 +18,8 @@ function Toaster({ ...props }: ToasterProps) {
           toast:
             "border border-border bg-card/95 text-card-foreground shadow-[0_16px_48px_rgb(0_0_0/0.38)] backdrop-blur",
           description: "text-muted-foreground",
-          actionButton: "bg-primary text-primary-foreground",
-          cancelButton: "bg-secondary text-secondary-foreground",
+          actionButton: "nexus-micro-lift bg-primary text-primary-foreground",
+          cancelButton: "nexus-micro-lift bg-secondary text-secondary-foreground",
           error: "border-destructive/40",
           success: "border-emerald-400/40",
         },

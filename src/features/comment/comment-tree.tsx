@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronRight, CornerDownRight, User } from "lucide-react";
 
@@ -31,8 +31,11 @@ type CommentTreeProps = {
   currentUserId?: string | null;
   isAuthenticated?: boolean;
   maxDepth?: number;
+  onCommentSubmitted?: (comment: Comment) => void;
+  onReplyChange: (commentId: string | null) => void;
   platformAuditEnabled?: boolean;
   postId: string;
+  replyingTo: string | null;
 };
 
 type CommentTreeNode = {
@@ -48,11 +51,13 @@ export function CommentTree({
   currentUserId = null,
   isAuthenticated = false,
   maxDepth = 6,
+  onCommentSubmitted,
+  onReplyChange,
   platformAuditEnabled = false,
   postId,
+  replyingTo,
 }: CommentTreeProps) {
   const roots = useMemo(() => buildCommentTree(comments), [comments]);
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [expandedDepthIds, setExpandedDepthIds] = useState<Set<string>>(new Set());
 
@@ -77,7 +82,7 @@ export function CommentTree({
   }
 
   return (
-    <div className="border-b border-border">
+    <div className="space-y-2">
       {roots.map((node) => (
         <CommentBranch
           key={node.comment.id}
@@ -90,7 +95,8 @@ export function CommentTree({
           maxDepth={maxDepth}
           node={node}
           onExpandDepth={expandDepth}
-          onReply={setReplyingTo}
+          onCommentSubmitted={onCommentSubmitted}
+          onReply={onReplyChange}
           onToggleCollapsed={toggleCollapsed}
           platformAuditEnabled={platformAuditEnabled}
           postId={postId}
@@ -112,6 +118,7 @@ function CommentBranch({
   maxDepth,
   node,
   onExpandDepth,
+  onCommentSubmitted,
   onReply,
   onToggleCollapsed,
   platformAuditEnabled,
@@ -128,6 +135,7 @@ function CommentBranch({
   maxDepth: number;
   node: CommentTreeNode;
   onExpandDepth: (commentId: string) => void;
+  onCommentSubmitted?: (comment: Comment) => void;
   onReply: (commentId: string | null) => void;
   onToggleCollapsed: (commentId: string) => void;
   platformAuditEnabled: boolean;
@@ -150,6 +158,7 @@ function CommentBranch({
   const messageShare = createMessageShareSnapshot({
     shareId: comment.id,
     shareType: "comment",
+    snapshotCreatedAt: comment.updated_at || comment.created_at,
     summary: commentTargetLabel,
     targetUrl: `/posts/${postId}?comment=${encodeURIComponent(comment.id)}`,
     title: "评论分享",
@@ -161,29 +170,31 @@ function CommentBranch({
   const isReplying = replyingTo === comment.id;
 
   return (
-    <div
-      className="relative border-t border-border"
-    >
+    <div className="relative">
       <article
+        id={getCommentElementId(comment.id)}
+        data-comment-id={comment.id}
         className={cn(
-          "grid grid-cols-[30px_minmax(0,1fr)] transition-colors",
+          "grid scroll-mt-24 grid-cols-[44px_minmax(0,1fr)] overflow-hidden rounded-lg ring-1 ring-border/45 transition-[background-color,box-shadow] data-[focus-comment=true]:ring-2 data-[focus-comment=true]:ring-primary/40",
           visualDepth > 0
-            ? "hover:bg-background-soft/[0.16]"
-            : "bg-background",
+            ? "bg-surface-raised/65 hover:bg-surface-hover"
+            : "bg-surface-raised",
+          isReplying && "bg-surface-hover ring-primary/30",
         )}
       >
-        <RedditVoteControl
-          className="py-3"
-          downvoteCount={comment.downvote_count ?? 0}
-          myVote={comment.my_vote ?? 0}
-          postId={postId}
-          score={score}
-          targetId={comment.id}
-          targetType="comment"
-          upvoteCount={comment.upvote_count ?? 0}
-        />
+        <CommentVoteRail vote={comment.my_vote ?? 0}>
+          <RedditVoteControl
+            downvoteCount={comment.downvote_count ?? 0}
+            myVote={comment.my_vote ?? 0}
+            postId={postId}
+            score={score}
+            targetId={comment.id}
+            targetType="comment"
+            upvoteCount={comment.upvote_count ?? 0}
+          />
+        </CommentVoteRail>
 
-        <div className="grid min-w-0 grid-cols-[28px_minmax(0,1fr)] gap-2 py-3 pl-2 sm:gap-3 sm:pl-3">
+        <div className="grid min-w-0 grid-cols-[32px_minmax(0,1fr)] gap-2.5 py-3 pl-2 pr-3 sm:grid-cols-[36px_minmax(0,1fr)] sm:gap-3 sm:pl-3 sm:pr-4">
           <CommentAuthorAvatar
             comment={comment}
             name={getCommentAuthorName(comment)}
@@ -214,108 +225,117 @@ function CommentBranch({
             <ContentBody
               attachments={comment.attachments}
               value={comment.body}
-              className="mt-2 text-sm leading-7"
+              className="mt-2 text-sm leading-7 [&_blockquote]:my-3 [&_blockquote]:bg-background-soft/70 [&_blockquote]:px-3 [&_blockquote]:py-2.5 [&_blockquote]:ring-border/50 [&_pre]:my-3 [&_pre]:bg-background [&_table]:text-xs"
             />
 
             <CommentEffectSummary effects={comment.effects} />
 
-            <div className="mt-2 flex flex-wrap items-center gap-1 text-xs">
-              <TextCommand
-                onClick={() => onReply(isReplying ? null : comment.id)}
-              >
-                <CornerDownRight className="size-3.5" aria-hidden="true" />
-                {isReplying ? "收起回复" : "回复"}
-              </TextCommand>
-
-              {hasChildren ? (
-                <TextCommand onClick={() => onToggleCollapsed(comment.id)}>
-                  {areRepliesCollapsed ? (
-                    <ChevronRight className="size-3.5" aria-hidden="true" />
-                  ) : (
-                    <ChevronDown className="size-3.5" aria-hidden="true" />
-                  )}
-                  {areRepliesCollapsed
-                    ? `展开 ${replyCount} 条回复`
-                    : `收起 ${replyCount} 条回复`}
+            <div className="mt-2 space-y-1.5 text-xs">
+              <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-md bg-background/35 px-1 py-1">
+                <TextCommand
+                  active={isReplying}
+                  onClick={() => onReply(isReplying ? null : comment.id)}
+                >
+                  <CornerDownRight className="size-3.5" aria-hidden="true" />
+                  {isReplying ? "收起回复" : "回复"}
                 </TextCommand>
-              ) : null}
 
-              <CommentLifecycleControls
-                canManage={canManageComment}
-                comment={comment}
-                postId={postId}
-              />
+                {hasChildren ? (
+                  <TextCommand onClick={() => onToggleCollapsed(comment.id)}>
+                    {areRepliesCollapsed ? (
+                      <ChevronRight className="size-3.5" aria-hidden="true" />
+                    ) : (
+                      <ChevronDown className="size-3.5" aria-hidden="true" />
+                    )}
+                    {areRepliesCollapsed
+                      ? `展开 ${replyCount} 条回复`
+                      : `收起 ${replyCount} 条回复`}
+                  </TextCommand>
+                ) : null}
 
-              <CommentEffectMenu
-                commentId={comment.id}
-                isAuthenticated={isAuthenticated}
-                postId={postId}
-              />
-
-              <DisabledMessageShareAction label="发送给好友" share={messageShare} />
-
-              {isAuthenticated &&
-              comment.viewer_permissions?.can_report !== false ? (
-                <ReportContentDialog
-                  targetId={comment.id}
-                  targetLabel={commentTargetLabel || "评论"}
-                  targetType="comment"
+                <CommentLifecycleControls
+                  canManage={canManageComment}
+                  comment={comment}
+                  postId={postId}
                 />
-              ) : null}
+
+                <CommentEffectMenu
+                  commentId={comment.id}
+                  isAuthenticated={isAuthenticated}
+                  postId={postId}
+                />
+
+                <DisabledMessageShareAction label="发送给好友" share={messageShare} />
+
+                {isAuthenticated &&
+                comment.viewer_permissions?.can_report !== false ? (
+                  <ReportContentDialog
+                    targetId={comment.id}
+                    targetLabel={commentTargetLabel || "评论"}
+                    targetType="comment"
+                  />
+                ) : null}
+              </div>
 
               {canModerate && comment.status !== "removed" ? (
-                <ModerationQuickActions
-                  auditHref={
-                    platformAuditEnabled
-                      ? `/admin/audit-logs?target_type=comment&target_id=${encodeURIComponent(comment.id)}`
-                      : null
-                  }
-                  canRemove={comment.status !== "removed"}
-                  communityManageHref={
-                    communityModerationSlug
-                      ? `/communities/${encodeURIComponent(communityModerationSlug)}/manage`
-                      : null
-                  }
-                  communitySlug={communityModerationSlug}
-                  targetId={comment.id}
-                  targetAuthorId={comment.author_id}
-                  targetLabel={commentTargetLabel || "评论"}
-                  targetPostId={postId}
-                  targetStatus={comment.status}
-                  targetType="comment"
-                  userHref={
-                    platformAuditEnabled
-                      ? `/admin/users?q=${encodeURIComponent(
-                          comment.author?.username || comment.author_id,
-                        )}`
-                      : null
-                  }
-                />
+                <div className="min-w-0">
+                  <ModerationQuickActions
+                    auditHref={
+                      platformAuditEnabled
+                        ? `/admin/audit-logs?target_type=comment&target_id=${encodeURIComponent(comment.id)}`
+                        : null
+                    }
+                    canRemove={comment.status !== "removed"}
+                    communityManageHref={
+                      communityModerationSlug
+                        ? `/communities/${encodeURIComponent(communityModerationSlug)}/manage`
+                        : null
+                    }
+                    communitySlug={communityModerationSlug}
+                    targetId={comment.id}
+                    targetAuthorId={comment.author_id}
+                    targetLabel={commentTargetLabel || "评论"}
+                    targetPostId={postId}
+                    targetStatus={comment.status}
+                    targetType="comment"
+                    userHref={
+                      platformAuditEnabled
+                        ? `/admin/users?q=${encodeURIComponent(
+                            comment.author?.username || comment.author_id,
+                          )}`
+                        : null
+                    }
+                  />
+                </div>
               ) : null}
             </div>
 
-            {isReplying ? (
-              <ThreadRail active className="mt-3" depth={visualDepth}>
-                <ThreadRailItem active nodeTop="compact">
-                  <CommentForm
-                    compact
-                    onSubmitted={() => onReply(null)}
-                    parentId={comment.id}
-                    placeholder="回复这条评论"
-                    postId={postId}
-                    submitLabel="发布回复"
-                  />
-                </ThreadRailItem>
-              </ThreadRail>
-            ) : null}
           </div>
         </div>
+
+        {isReplying ? (
+          <div className="col-span-2 min-w-0 px-2 pb-3 pt-1 sm:px-3">
+            <ReplyComposerFrame>
+              <CommentForm
+                compact
+                onSubmitted={(newComment) => {
+                  onReply(null);
+                  onCommentSubmitted?.(newComment);
+                }}
+                parentId={comment.id}
+                placeholder="回复这条评论"
+                postId={postId}
+                submitLabel="发布回复"
+              />
+            </ReplyComposerFrame>
+          </div>
+        ) : null}
       </article>
 
       {hasChildren && !areRepliesCollapsed ? (
-        <ThreadRail active={isReplying} depth={visualDepth}>
+        <ThreadRail depth={visualDepth}>
           {isDepthLimited ? (
-            <ThreadRailItem active nodeTop="compact">
+            <ThreadRailItem>
               <button
                 type="button"
                 className="my-2 inline-flex min-h-9 items-center gap-2 px-3 py-2 text-xs text-primary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -326,10 +346,7 @@ function CommentBranch({
             </ThreadRailItem>
           ) : (
             children.map((child) => (
-              <ThreadRailItem
-                key={child.comment.id}
-                active={replyingTo === child.comment.id}
-              >
+              <ThreadRailItem key={child.comment.id}>
                 <CommentBranch
                   canModerate={canModerate}
                   collapsedIds={collapsedIds}
@@ -340,6 +357,7 @@ function CommentBranch({
                   maxDepth={maxDepth}
                   node={child}
                   onExpandDepth={onExpandDepth}
+                  onCommentSubmitted={onCommentSubmitted}
                   onReply={onReply}
                   onToggleCollapsed={onToggleCollapsed}
                   platformAuditEnabled={platformAuditEnabled}
@@ -355,7 +373,7 @@ function CommentBranch({
 
       {hasChildren && areRepliesCollapsed ? (
         <ThreadRail depth={visualDepth}>
-          <ThreadRailItem nodeTop="compact">
+          <ThreadRailItem>
             <div className="py-2 text-xs text-muted-foreground">
               回复已收起，展开后可以继续查看楼中楼。
             </div>
@@ -367,16 +385,23 @@ function CommentBranch({
 }
 
 function TextCommand({
+  active = false,
   children,
   onClick,
 }: {
+  active?: boolean;
   children: ReactNode;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
-      className="inline-flex h-8 items-center gap-1.5 px-1 font-semibold text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className={cn(
+        "inline-flex h-7 items-center gap-1.5 rounded-sm px-1.5 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        active
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-surface-hover hover:text-foreground",
+      )}
       onClick={onClick}
     >
       {children}
@@ -384,13 +409,43 @@ function TextCommand({
   );
 }
 
+function ReplyComposerFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-lg bg-background-soft p-2 ring-1 ring-border/60">
+      {children}
+    </div>
+  );
+}
+
+function CommentVoteRail({
+  children,
+  vote,
+}: {
+  children: ReactNode;
+  vote: number;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-h-full items-start justify-center bg-background-soft/70 px-1.5 py-3 transition-colors",
+        vote === 1 && "bg-primary/[0.08]",
+        vote === -1 && "bg-destructive/[0.08]",
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function getCommentElementId(commentId: string) {
+  return `comment-${commentId}`;
+}
+
 function ThreadRail({
-  active = false,
   children,
   className,
   depth,
 }: {
-  active?: boolean;
   children: ReactNode;
   className?: string;
   depth: number;
@@ -398,17 +453,17 @@ function ThreadRail({
   return (
     <div
       className={cn(
-        "relative pl-4",
-        depth === 0 ? "ml-9 sm:ml-10" : "ml-5 sm:ml-6",
+        "relative",
+        depth === 0
+          ? "ml-[22px] pl-3 sm:ml-6"
+          : depth === 1
+            ? "ml-4 pl-3"
+            : "ml-3 pl-3",
         className,
       )}
-      style={{ "--thread-rail-x": "4px" } as CSSProperties}
     >
       <span
-        className={cn(
-          "absolute bottom-0 left-[calc(var(--thread-rail-x)-0.5px)] top-0 w-px transition-colors",
-          active ? "bg-primary/60" : "bg-border/55",
-        )}
+        className="absolute bottom-4 left-1 top-1 w-px rounded-full bg-border/70"
         aria-hidden="true"
       />
       {children}
@@ -417,24 +472,16 @@ function ThreadRail({
 }
 
 function ThreadRailItem({
-  active = false,
   children,
   className,
-  nodeTop = "comment",
 }: {
-  active?: boolean;
   children: ReactNode;
   className?: string;
-  nodeTop?: "comment" | "compact";
 }) {
   return (
     <div className={cn("relative", className)}>
       <span
-        className={cn(
-          "absolute left-[calc(var(--thread-rail-x)-20px)] size-2 rounded-full border border-background transition-colors",
-          nodeTop === "compact" ? "top-4" : "top-[26px]",
-          active ? "bg-primary" : "bg-border-strong",
-        )}
+        className="pointer-events-none absolute -left-2.5 top-0 h-6 w-2.5 rounded-bl-[10px] border-b border-l border-border/70"
         aria-hidden="true"
       />
       {children}

@@ -1,4 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
   deleteComment,
@@ -24,10 +30,20 @@ export const commentQueryKeys = {
     sort: CommentSort,
     maxDepth: number,
   ) => ["post-comments", postId, { limit, offset, maxDepth, sort, view }] as const,
+  postCommentsInfinite: (
+    postId: string,
+    limit: number,
+    view: "flat" | "tree",
+    sort: CommentSort,
+    maxDepth: number,
+  ) =>
+    ["post-comments", postId, "infinite", { limit, maxDepth, sort, view }] as const,
   userCommentsAll: () => ["user-comments"] as const,
   userCommentsPrefix: (username: string) => ["user-comments", username] as const,
   userComments: (username: string, limit: number, offset: number) =>
     ["user-comments", username, { limit, offset }] as const,
+  userCommentsInfinite: (username: string, limit: number) =>
+    ["user-comments", username, "infinite", { limit }] as const,
 };
 
 export function usePostCommentsQuery(
@@ -55,6 +71,46 @@ export function usePostCommentsQuery(
   });
 }
 
+export function useInfinitePostCommentsQuery(
+  postId: string,
+  limit = 20,
+  view: "flat" | "tree" = "tree",
+  sort: CommentSort = DEFAULT_COMMENT_SORT,
+  maxDepth = 6,
+  enabled = true,
+  initialData?: ListCommentsResponse,
+) {
+  const initialInfiniteData = initialData
+    ? ({
+        pageParams: [initialData.offset],
+        pages: [initialData],
+      } satisfies InfiniteData<ListCommentsResponse, number>)
+    : undefined;
+
+  return useInfiniteQuery({
+    queryKey: commentQueryKeys.postCommentsInfinite(
+      postId,
+      limit,
+      view,
+      sort,
+      maxDepth,
+    ),
+    queryFn: ({ pageParam }) =>
+      listPostComments({
+        maxDepth,
+        offset: pageParam,
+        postId,
+        limit,
+        sort,
+        view,
+      }),
+    enabled: enabled && Boolean(postId.trim()),
+    initialData: initialInfiniteData,
+    initialPageParam: 0,
+    getNextPageParam: getNextCommentsPageParam,
+  });
+}
+
 export function useUserCommentsQuery(
   username: string,
   limit = 20,
@@ -68,6 +124,40 @@ export function useUserCommentsQuery(
     enabled: enabled && Boolean(username.trim()),
     initialData,
   });
+}
+
+export function useInfiniteUserCommentsQuery(
+  username: string,
+  limit = 20,
+  enabled = true,
+  initialData?: ListCommentsResponse,
+) {
+  const initialInfiniteData = initialData
+    ? ({
+        pageParams: [initialData.offset],
+        pages: [initialData],
+      } satisfies InfiniteData<ListCommentsResponse, number>)
+    : undefined;
+
+  return useInfiniteQuery({
+    queryKey: commentQueryKeys.userCommentsInfinite(username, limit),
+    queryFn: ({ pageParam }) =>
+      listUserComments({ username, limit, offset: pageParam }),
+    enabled: enabled && Boolean(username.trim()),
+    initialData: initialInfiniteData,
+    initialPageParam: 0,
+    getNextPageParam: getNextCommentsPageParam,
+  });
+}
+
+function getNextCommentsPageParam(lastPage: ListCommentsResponse) {
+  const pageLimit = lastPage.limit || 20;
+
+  if (lastPage.comments.length < pageLimit) {
+    return undefined;
+  }
+
+  return lastPage.offset + pageLimit;
 }
 
 export function useUpdateCommentMutation(commentId: string, postId: string) {

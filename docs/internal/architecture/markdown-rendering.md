@@ -1,6 +1,6 @@
 # Reddit Markdown 渲染选型与安全边界
 
-本文定义 CUMT Nexus Web Reddit-style Markdown 正文渲染和写作器的实施方案与当前安全边界。阅读态使用 `react-markdown` + `remark-gfm`；写作态使用 Tiptap 单一实时渲染编辑面，提交和存储格式仍然是 Markdown。后续新增 Markdown、HTML、embed 或 sanitize 相关依赖时，仍必须说明用途、替代方案和影响范围，并获得用户明确同意。
+本文定义 CUMT Nexus Web Reddit-style Markdown 正文渲染和写作器的实施方案与当前安全边界。阅读态使用 `react-markdown` + `remark-gfm` + `remark-math` + `rehype-katex` + `katex`；写作态使用 Tiptap 单一实时渲染编辑面，提交和存储格式仍然是 Markdown。后续新增 Markdown、HTML、embed 或 sanitize 相关依赖时，仍必须说明用途、替代方案和影响范围，并获得用户明确同意。
 
 产品目标：
 
@@ -22,11 +22,12 @@ Reddit-style Markdown parity
 已实现：
 
 - 发帖、根评论、回复评论、帖子编辑和评论编辑使用单一写作面板。
-- 写作器基于 Tiptap，提供加粗、斜体、标题、删除线、引用、无序列表、有序列表、行内代码、代码块、链接、涂黑、表格、图片和白名单媒体嵌入。
+- 写作器基于 Tiptap，提供加粗、斜体、标题、删除线、引用、无序列表、有序列表、行内代码、代码块、链接、涂黑、数学公式、表格、图片和白名单媒体嵌入。
 - 写作器工具栏不再向 textarea 插入 Markdown 字符串，而是对当前选区或当前块执行 Tiptap command；`editor.getMarkdown()` 负责把编辑内容序列化为提交给后端的 Markdown。
 - 帖子正文和评论正文通过 `src/features/content/content-body.tsx` 渲染。
-- 当前渲染器使用 `react-markdown` + `remark-gfm`。
+- 当前渲染器使用 `react-markdown` + `remark-gfm` + `remark-math` + `rehype-katex` + `katex`。
 - 支持 GFM 表格、任务列表、删除线、代码块、引用、列表、标题和链接。
+- 支持 `$...$` 行内数学公式和 `$$...$$` 块级数学公式；阅读态由 `react-markdown` + KaTeX 渲染，写作态由 Tiptap math 节点调用 KaTeX 实时渲染并序列化回 Markdown。
 - 支持 `>! ... !<` spoiler / 涂黑语法。
 - 支持 Reddit-style 上标预处理。
 - Reddit-style spoiler 和上标预处理不会改写行内代码、fenced code block、Markdown 链接 / 图片语法。
@@ -86,12 +87,16 @@ escaped Markdown syntax
 ```text
 react-markdown
 remark-gfm
+remark-math
+rehype-katex
+katex
 ```
 
 选择理由：
 
 - `react-markdown` 以 React 组件方式渲染 Markdown，符合当前 Next.js / React 结构。
 - `remark-gfm` 覆盖删除线、自动链接、表格、任务列表等常见社区内容语法。
+- `remark-math` 解析阅读态行内和块级数学公式语法；`rehype-katex` 和 `katex` 只负责把数学 AST 渲染成受控 React 节点和样式，不启用用户 HTML。写作态由 Tiptap 自定义 math tokenizer / node view 调用同一个 KaTeX 渲染库，提交时仍输出 `$...$` 或 `$$...$$`。
 - 这组依赖不引入第二套 UI 库，不改变 shadcn/ui 的主组件系统边界。
 - 当前通过 `skipHtml`、自定义组件和链接白名单保持安全边界，不启用 `rehype-raw`。
 - 图片不再由帖子或评论组件挂在正文外层；上传成功后写作器插入 `![说明](nexus-attachment:<attachment_id>)`，阅读态由 `ContentBody` 按后端返回的结构化 `attachments` 渲染对应图片。
@@ -185,7 +190,7 @@ src/features/content/
 规则：
 
 - `content-body.tsx` 保持为正文渲染入口，帖子和评论继续只依赖它。
-- `markdown-composer-field.tsx` 保持为唯一写作入口，内部 Tiptap 工具栏负责选区格式、图片插入和白名单媒体编辑态渲染。
+- `markdown-composer-field.tsx` 保持为唯一写作入口，内部 Tiptap 工具栏负责选区格式、数学公式、图片插入和白名单媒体编辑态渲染。
 - `markdown-renderer.tsx` 封装第三方 Markdown renderer 和组件映射。
 - `markdown-link.tsx` 统一处理链接协议、rel、target 和样式。
 - `reddit-auto-link.tsx` 处理 `r/community` 和 `u/user` 类自动链接。
@@ -214,7 +219,7 @@ Markdown 正文必须符合 `docs/design/DESIGN.md`：
 
 交付：
 
-- 说明是否新增 `react-markdown`、`remark-gfm`、`rehype-sanitize`。
+- 说明是否新增 `react-markdown`、`remark-gfm`、`remark-math`、`rehype-katex`、`katex`、`rehype-sanitize`。
 - 明确 Reddit spoiler、上标、自动链接是否需要自定义扩展。
 - 更新 `scripts/check-dependency-boundary.mjs` 的批准清单。
 - 更新 `package.json` 和 `package-lock.json`。
@@ -317,6 +322,8 @@ npm run check:v2-path
 
 - `react-markdown` 官方文档：<https://remarkjs.github.io/react-markdown/>
 - `remark-gfm` 官方仓库：<https://github.com/remarkjs/remark-gfm>
+- `remark-math` / `rehype-katex` 官方仓库：<https://github.com/remarkjs/remark-math>
+- `katex` 官方文档：<https://katex.org/>
 - `rehype-sanitize` 官方仓库：<https://github.com/rehypejs/rehype-sanitize>
 - Reddit Help Formatting Guide：<https://support.reddithelp.com/hc/en-us/articles/360043033952-Formatting-Guide>
 - Reddit Help comment/post formatting：<https://support.reddithelp.com/hc/en-us/articles/205191185-How-do-I-format-my-comment-or-post>

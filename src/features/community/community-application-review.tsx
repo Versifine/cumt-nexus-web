@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, type ReactNode } from "react";
 import {
@@ -10,12 +10,22 @@ import {
   XCircle,
 } from "lucide-react";
 
+import {
+  ReviewDesk,
+  ReviewDeskBoard,
+  ReviewDeskInspector,
+  ReviewDeskMasthead,
+  ReviewDeskPanel,
+  ReviewDeskState,
+} from "@/components/app-shell/review-desk";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
+  IndexedInfoRow,
+  MetricBlock,
   StatusToken,
   type StatusTokenTone,
 } from "@/components/ui/data-display";
@@ -23,8 +33,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthSession } from "@/features/auth/auth-session";
-import { resolvePlatformRole } from "@/features/auth/platform-role";
+import { resolvePlatformRole, type PlatformRole } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
+import { AdminToolsNav } from "@/features/admin/admin-tools-nav";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -145,7 +156,12 @@ export function CommunityApplicationReview() {
     return (
       <ReviewLayout
         applicationsCount={0}
-        body={<LoadingPanel />}
+        platformRole={platformRole}
+        body={
+          <ReviewDeskState>
+            <LoadingState rows={5} />
+          </ReviewDeskState>
+        }
         currentUserState="确认中"
         offset={0}
         status={status}
@@ -157,8 +173,9 @@ export function CommunityApplicationReview() {
     return (
       <ReviewLayout
         applicationsCount={0}
+        platformRole={platformRole}
         body={
-          <StatePanel>
+          <ReviewDeskState>
             <EmptyState
               title="登录后审核社区申请"
               description="社区申请审核需要平台管理权限。登录后会自动确认权限。"
@@ -168,7 +185,7 @@ export function CommunityApplicationReview() {
                 </TextAction>
               }
             />
-          </StatePanel>
+          </ReviewDeskState>
         }
         currentUserState="未登录"
         offset={0}
@@ -181,8 +198,9 @@ export function CommunityApplicationReview() {
     return (
       <ReviewLayout
         applicationsCount={0}
+        platformRole={platformRole}
         body={
-          <StatePanel>
+          <ReviewDeskState>
             <ErrorState
               title="无法确认用户身份"
               description={getErrorDescription(currentUserQuery.error)}
@@ -192,7 +210,7 @@ export function CommunityApplicationReview() {
                 </Button>
               }
             />
-          </StatePanel>
+          </ReviewDeskState>
         }
         currentUserState="验证失败"
         offset={0}
@@ -205,14 +223,15 @@ export function CommunityApplicationReview() {
     return (
       <ReviewLayout
         applicationsCount={0}
+        platformRole={platformRole}
         body={
-          <StatePanel>
+          <ReviewDeskState>
             <EmptyState
               title="需要平台权限"
               description="当前账号没有平台管理权限，不能查看社区申请列表或执行审批。"
               action={<TextAction href="/">信息流首页</TextAction>}
             />
-          </StatePanel>
+          </ReviewDeskState>
         }
         currentUserState="无权限"
         offset={0}
@@ -226,6 +245,7 @@ export function CommunityApplicationReview() {
       applicationsCount={applications.length}
       currentUserState={formatReviewerRole(platformRole)}
       offset={offset}
+      platformRole={platformRole}
       status={status}
       toolbar={
         <ReviewToolbar
@@ -240,20 +260,20 @@ export function CommunityApplicationReview() {
       body={
         <>
           {submitError ? (
-            <Alert variant="destructive" className="mx-3 mt-4 sm:mx-4">
+            <Alert variant="destructive">
               <AlertTitle>审批失败</AlertTitle>
               <AlertDescription>{submitError}</AlertDescription>
             </Alert>
           ) : null}
 
           {lastReviewMessage ? (
-            <Alert variant="success" className="mx-3 mt-4 sm:mx-4">
+            <Alert variant="success">
               <AlertTitle>审批已提交</AlertTitle>
               <AlertDescription>{lastReviewMessage}</AlertDescription>
             </Alert>
           ) : null}
 
-          <section className="grid gap-0 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(280px,380px)_minmax(0,1fr)]">
             <ApplicationListPanel
               applications={applications}
               applicationsQueryState={{
@@ -294,7 +314,7 @@ export function CommunityApplicationReview() {
               onRetryDetail={() => selectedQuery.refetch()}
               rejectReason={rejectReason}
             />
-          </section>
+          </div>
         </>
       }
     />
@@ -306,6 +326,7 @@ function ReviewLayout({
   body,
   currentUserState,
   offset,
+  platformRole,
   status,
   toolbar,
 }: {
@@ -313,69 +334,55 @@ function ReviewLayout({
   body: ReactNode;
   currentUserState: string;
   offset: number;
+  platformRole: PlatformRole | null;
   status: CommunityApplicationStatus;
   toolbar?: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
-      <div className="min-w-0">
-        <section className="bg-background">
-          <ReviewHeader
-            applicationsCount={applicationsCount}
-            offset={offset}
-            status={status}
-          />
-        </section>
-
-        <section className="bg-background">
-          <div className="flex min-h-12 flex-col gap-3 border-b border-border py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold">申请审批</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                当前查看{formatApplicationStatus(status)}申请
-              </p>
-            </div>
-            {toolbar}
-          </div>
-          {body}
-        </section>
-      </div>
-
-      <ReviewRail
-        applicationsCount={applicationsCount}
-        currentUserState={currentUserState}
-        status={status}
+    <ReviewDesk>
+      <ReviewDeskMasthead
+        actions={toolbar}
+        eyebrow="/admin/community-applications"
+        title="社区审批工作台"
+        description="左侧按申请队列扫读，右侧直接完成详情判断和审批动作。通过会创建社区并建立 owner 关系；拒绝必须留下原因。"
+        meta={
+          <>
+            <MetricBlock
+              label="当前状态"
+              value={formatApplicationStatus(status)}
+              variant="compact"
+            />
+            <MetricBlock label="本页申请" value={applicationsCount} variant="compact" />
+            <MetricBlock label="页偏移" value={offset} variant="compact" />
+            <MetricBlock
+              label="审核身份"
+              value={currentUserState}
+              valueClassName="truncate"
+              variant="compact"
+            />
+          </>
+        }
       />
-    </div>
-  );
-}
 
-function ReviewHeader({
-  applicationsCount,
-  offset,
-  status,
-}: {
-  applicationsCount: number;
-  offset: number;
-  status: CommunityApplicationStatus;
-}) {
-  return (
-    <div className="border-b border-border py-4">
-      <div className="min-w-0">
-        <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
-          社区审批
-        </h1>
-        <p className="mt-1 truncate font-mono text-xs text-primary">
-          /admin/community-applications
-        </p>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          当前查看{formatApplicationStatus(status)}申请，本页 {applicationsCount} 条
-          {applicationsCount > 0
-            ? `，范围 ${offset + 1}-${offset + applicationsCount}。`
-            : "。"}
-        </p>
-      </div>
-    </div>
+      <ReviewDeskBoard
+        inspector={
+          <div className="space-y-4">
+            <AdminToolsNav
+              activePath="/admin/community-applications"
+              platformRole={platformRole}
+              variant="compact"
+            />
+            <ApplicationContextPanel
+              applicationsCount={applicationsCount}
+              currentUserState={currentUserState}
+              status={status}
+            />
+          </div>
+        }
+      >
+        {body}
+      </ReviewDeskBoard>
+    </ReviewDesk>
   );
 }
 
@@ -392,13 +399,18 @@ function ReviewToolbar({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Tabs value={status} onValueChange={(value) => onStatusChange(value as CommunityApplicationStatus)}>
-        <TabsList className="h-9 rounded-none bg-transparent p-0">
+      <Tabs
+        value={status}
+        onValueChange={(value) =>
+          onStatusChange(value as CommunityApplicationStatus)
+        }
+      >
+        <TabsList className="h-9 rounded-md bg-surface-raised p-1">
           {statusTabs.map((tab) => (
             <TabsTrigger
               key={tab.status}
               value={tab.status}
-              className="h-9 rounded-none border-b border-transparent px-3 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
+              className="h-7 rounded px-3 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
             >
               {tab.label}
             </TabsTrigger>
@@ -422,7 +434,7 @@ function ReviewToolbar({
   );
 }
 
-function ReviewRail({
+function ApplicationContextPanel({
   applicationsCount,
   currentUserState,
   status,
@@ -432,49 +444,48 @@ function ReviewRail({
   status: CommunityApplicationStatus;
 }) {
   return (
-    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 right-rail-scroll space-y-6">
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">审批上下文</h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            当前身份为 {currentUserState}，正在查看{formatApplicationStatus(status)}
-            申请，本页 {applicationsCount} 条。
-          </p>
-        </section>
-
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">处理规则</h2>
-          <ol className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
-            <li><span className="font-mono text-primary">01</span> 审批前以详情内容为准。</li>
-            <li><span className="font-mono text-primary">02</span> 拒绝申请必须填写原因。</li>
-            <li><span className="font-mono text-primary">03</span> 通过和拒绝都由后端校验平台权限。</li>
-          </ol>
-        </section>
-
-        <section>
-          <h2 className="text-sm font-semibold">其他入口</h2>
-          <div className="mt-3 flex flex-col border-t border-border">
-            <TextAction href="/community-applications/new" variant="bar">
-              社区申请
-            </TextAction>
-            <TextAction href="/communities" variant="bar">
-              社区列表
-            </TextAction>
-          </div>
-        </section>
+    <ReviewDeskInspector
+      title="审批上下文"
+      description={`当前查看${formatApplicationStatus(status)}申请。`}
+    >
+      <div className="grid grid-cols-2 gap-2">
+        <ContextMetric label="本页" value={`${applicationsCount} 条`} />
+        <ContextMetric label="身份" value={currentUserState} />
       </div>
-    </aside>
+
+      <div className="mt-4 space-y-2">
+        <IndexedInfoRow
+          index="01"
+          title="先看详情"
+          text="列表只用于定位，最终判断以详情区返回的数据为准。"
+        />
+        <IndexedInfoRow
+          index="02"
+          title="拒绝留痕"
+          text="拒绝申请必须填写原因，便于申请人按反馈重新整理。"
+        />
+        <IndexedInfoRow
+          index="03"
+          title="后端兜底"
+          text="入口显隐只做体验控制，平台权限仍由后端校验。"
+        />
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-3 rounded-md bg-surface-raised p-3">
+        <TextAction href="/community-applications/new">社区申请入口</TextAction>
+        <TextAction href="/communities">社区列表</TextAction>
+      </div>
+    </ReviewDeskInspector>
   );
 }
 
-function StatePanel({ children }: { children: ReactNode }) {
-  return <div className="border-b border-border py-4">{children}</div>;
-}
-
-function LoadingPanel() {
+function ContextMetric({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="border-b border-border py-4">
-      <LoadingState rows={5} />
+    <div className="min-w-0 rounded-md bg-surface-raised px-3 py-3">
+      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
+      <div className="mt-1 truncate text-sm font-semibold text-foreground">
+        {value}
+      </div>
     </div>
   );
 }
@@ -503,19 +514,15 @@ function ApplicationListPanel({
   selectedId: string | null;
 }) {
   return (
-    <aside className="border-b border-border py-4 xl:border-b-0 xl:border-r xl:pr-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold">申请列表</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            按状态分页读取后端申请。
-          </p>
-        </div>
-        <span className="font-mono text-xs text-muted-foreground">
+    <ReviewDeskPanel
+      title="申请队列"
+      description="按状态分页读取后端申请。"
+      headerAction={
+        <StatusToken tone={applicationsQueryState.isFetching ? "primary" : "default"}>
           {applicationsQueryState.isFetching ? "同步中" : "已同步"}
-        </span>
-      </div>
-
+        </StatusToken>
+      }
+    >
       {applicationsQueryState.isLoading ? <LoadingState rows={5} /> : null}
 
       {applicationsQueryState.isError ? (
@@ -540,16 +547,16 @@ function ApplicationListPanel({
       ) : null}
 
       {applications.length > 0 ? (
-        <div className="border-t border-border">
+        <div className="space-y-2">
           {applications.map((application, index) => (
             <button
               key={application.id}
               type="button"
               className={cn(
-                "grid w-full grid-cols-[40px_minmax(0,1fr)] gap-3 border-b border-l-2 border-b-border py-3 pr-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                "nexus-micro-lift grid w-full grid-cols-[40px_minmax(0,1fr)] gap-3 rounded-md bg-surface-raised px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 selectedId === application.id
-                  ? "border-l-primary text-primary"
-                  : "border-l-transparent hover:text-primary",
+                  ? "bg-primary/10 text-primary ring-1 ring-primary/30"
+                  : "hover:bg-surface-hover hover:text-primary",
               )}
               onClick={() => onSelect(application.id)}
             >
@@ -600,7 +607,7 @@ function ApplicationListPanel({
           <ChevronRight className="size-4" aria-hidden="true" />
         </Button>
       </div>
-    </aside>
+    </ReviewDeskPanel>
   );
 }
 
@@ -631,15 +638,15 @@ function ApplicationDetailPanel({
 }) {
   if (isDetailLoading) {
     return (
-      <section className="py-4 xl:pl-4">
+      <ReviewDeskPanel>
         <LoadingState rows={6} />
-      </section>
+      </ReviewDeskPanel>
     );
   }
 
   if (isDetailError) {
     return (
-      <section className="py-4 xl:pl-4">
+      <ReviewDeskPanel>
         <ErrorState
           title="无法加载申请详情"
           description={getErrorDescription(detailError)}
@@ -649,64 +656,71 @@ function ApplicationDetailPanel({
             </Button>
           }
         />
-      </section>
+      </ReviewDeskPanel>
     );
   }
 
   if (!application) {
     return (
-      <section className="py-4 xl:pl-4">
+      <ReviewDeskPanel>
         <EmptyState
           title="选择一条申请"
           description="从申请列表选择项目后，可以查看详情并执行审批动作。"
           action={<ClipboardList className="size-5 text-primary" aria-hidden="true" />}
         />
-      </section>
+      </ReviewDeskPanel>
     );
   }
 
-  const canReview = application.status === "pending";
+  const canReviewApplication = application.status === "pending";
 
   return (
-    <section className="py-4 xl:pl-4">
-      <div className="border-b border-border pb-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <ApplicationStatusToken status={application.status} />
-          <span className="font-mono text-xs text-muted-foreground">
-            {application.id}
-          </span>
+    <ReviewDeskPanel>
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <ApplicationStatusToken status={application.status} />
+            <span className="font-mono text-xs text-muted-foreground">
+              {application.id}
+            </span>
+          </div>
+          <h2 className="mt-3 break-words text-2xl font-semibold leading-8 tracking-normal text-foreground">
+            {application.requested_name}
+          </h2>
+          <p className="mt-1 break-words font-mono text-xs text-primary">
+            /{application.requested_slug}
+          </p>
         </div>
-        <h2 className="mt-3 break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
-          {application.requested_name}
-        </h2>
-        <p className="mt-1 break-words font-mono text-xs text-primary">
-          /{application.requested_slug}
-        </p>
+        <StatusToken tone={canReviewApplication ? "primary" : "default"}>
+          {canReviewApplication ? "可审核" : "已结束"}
+        </StatusToken>
       </div>
 
-      <div className="grid grid-cols-1 border-b border-border sm:grid-cols-2">
-        <ApplicationMeta label="申请人" value={formatShortId(application.applicant_id)} />
-        <ApplicationMeta label="创建时间" value={formatDateTime(application.created_at)} />
-        <ApplicationMeta label="更新时间" value={formatDateTime(application.updated_at)} />
-        <ApplicationMeta
-          label="审核人"
-          value={
-            application.reviewed_by
-              ? formatShortId(application.reviewed_by)
-              : "尚未审核"
-          }
-        />
-        <ApplicationMeta
-          label="审核时间"
-          value={
-            application.reviewed_at
-              ? formatDateTime(application.reviewed_at)
-              : "尚未审核"
-          }
-        />
+      <div className="mt-5 rounded-md bg-surface-raised p-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <ApplicationMeta label="申请人" value={formatShortId(application.applicant_id)} />
+          <ApplicationMeta label="创建时间" value={formatDateTime(application.created_at)} />
+          <ApplicationMeta label="更新时间" value={formatDateTime(application.updated_at)} />
+          <ApplicationMeta
+            label="审核人"
+            value={
+              application.reviewed_by
+                ? formatShortId(application.reviewed_by)
+                : "尚未审核"
+            }
+          />
+          <ApplicationMeta
+            label="审核时间"
+            value={
+              application.reviewed_at
+                ? formatDateTime(application.reviewed_at)
+                : "尚未审核"
+            }
+          />
+        </div>
       </div>
 
-      <section className="border-b border-border py-4">
+      <section className="mt-4 rounded-md bg-surface-raised p-4">
         <h3 className="text-sm font-semibold">申请理由</h3>
         <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
           {application.reason}
@@ -714,7 +728,7 @@ function ApplicationDetailPanel({
       </section>
 
       {application.reject_reason ? (
-        <section className="border-b border-border py-4">
+        <section className="mt-4 rounded-md bg-red-500/10 p-4">
           <h3 className="text-sm font-semibold text-destructive">拒绝原因</h3>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
             {application.reject_reason}
@@ -722,15 +736,12 @@ function ApplicationDetailPanel({
         </section>
       ) : null}
 
-      <section className="py-4">
+      <section className="mt-4 rounded-md bg-surface-raised p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold">审核动作</h3>
-          <StatusToken tone={canReview ? "primary" : "default"}>
-            {canReview ? "可审核" : "已结束"}
-          </StatusToken>
         </div>
 
-        {canReview ? (
+        {canReviewApplication ? (
           <div className="space-y-3">
             <Textarea
               value={rejectReason}
@@ -770,7 +781,7 @@ function ApplicationDetailPanel({
           </p>
         )}
       </section>
-    </section>
+    </ReviewDeskPanel>
   );
 }
 
@@ -782,7 +793,7 @@ function ApplicationMeta({
   value: string;
 }) {
   return (
-    <div className="min-w-0 border-b border-border py-3 last:border-b-0 sm:border-r sm:px-3 sm:last:border-r-0 sm:[&:nth-last-child(-n+2)]:border-b-0">
+    <div className="min-w-0">
       <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
       <div className="mt-1 break-words text-sm font-medium text-foreground">
         {value}
@@ -866,4 +877,3 @@ function formatDateTime(value: string) {
     timeStyle: "short",
   }).format(new Date(value));
 }
-

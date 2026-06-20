@@ -1,19 +1,24 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
 import Link from "next/link";
 import { CornerDownRight, MessageSquare, User as UserIcon } from "lucide-react";
 
 import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
+import {
+  RightRailRaisedList,
+  RightRailSection,
+} from "@/components/app-shell/right-rail";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
+import { InfiniteListStatus } from "@/components/feedback/infinite-list-status";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { CommentEffectMenu } from "@/features/comment/comment-effect-menu";
 import { CommentEffectSummary } from "@/features/comment/comment-effect-summary";
-import { useUserCommentsQuery } from "@/features/comment/queries";
+import { useInfiniteUserCommentsQuery } from "@/features/comment/queries";
 import type { Comment, ListCommentsResponse } from "@/features/comment/types";
 import {
   CommunityHoverPreview,
@@ -28,6 +33,7 @@ import {
 import { UserInlineIdentity } from "@/features/profile/user-identity-marks";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { ApiError } from "@/lib/api/client";
+import { useInfiniteScrollTrigger } from "@/lib/hooks/use-infinite-scroll-trigger";
 
 import {
   PublicUserLayout,
@@ -59,14 +65,30 @@ export function PublicUserComments({
   const profileQuery = usePublicUserQuery(username, isReady, initialProfileData);
   const user = profileQuery.data?.user;
   const canRequestComments = isReady && profileQuery.isSuccess && Boolean(user);
-  const commentsQuery = useUserCommentsQuery(
+  const commentsQuery = useInfiniteUserCommentsQuery(
     username,
     20,
-    0,
     canRequestComments,
-    initialCommentsData,
+    token ? undefined : initialCommentsData,
   );
-  const comments = canRequestComments ? (commentsQuery.data?.comments ?? []) : [];
+  const commentPages = commentsQuery.data?.pages ?? [];
+  const comments = canRequestComments ? getUniqueComments(commentPages) : [];
+  const isInitialCommentsLoading =
+    commentsQuery.isLoading && comments.length === 0;
+  const hasNextCommentsPage = Boolean(commentsQuery.hasNextPage);
+  const isFetchingNextCommentsPage = commentsQuery.isFetchingNextPage;
+  const fetchNextCommentsPage = commentsQuery.fetchNextPage;
+  const loadMoreComments = useCallback(() => {
+    void fetchNextCommentsPage();
+  }, [fetchNextCommentsPage]);
+  const loadMoreRef = useInfiniteScrollTrigger({
+    enabled:
+      canRequestComments &&
+      comments.length > 0 &&
+      hasNextCommentsPage &&
+      !isFetchingNextCommentsPage,
+    onLoadMore: loadMoreComments,
+  });
 
   if (!isReady || profileQuery.isPending) {
     return (
@@ -126,17 +148,17 @@ export function PublicUserComments({
         <div className="border-b border-border py-3">
           <h2 className="text-sm font-semibold text-foreground">公开评论</h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            当前页 {comments.length} 条 / 共 {user.stats.comment_count} 条
+            已加载 {comments.length} 条 / 共 {user.stats.comment_count} 条
           </p>
         </div>
 
-        {commentsQuery.isPending ? (
+        {isInitialCommentsLoading ? (
           <div className="p-4">
             <LoadingState rows={5} />
           </div>
         ) : null}
 
-        {commentsQuery.isError ? (
+        {commentsQuery.isError && comments.length === 0 ? (
           <div className="p-4">
             <ErrorState
               title={getErrorTitle(commentsQuery.error, "无法加载公开评论")}
@@ -160,7 +182,9 @@ export function PublicUserComments({
           </div>
         ) : null}
 
-        {commentsQuery.isSuccess && comments.length === 0 ? (
+        {commentsQuery.isSuccess &&
+        !commentsQuery.isFetching &&
+        comments.length === 0 ? (
           <div className="p-4">
             <EmptyState
               title="还没有公开评论"
@@ -174,19 +198,48 @@ export function PublicUserComments({
           </div>
         ) : null}
 
-        {commentsQuery.isSuccess && comments.length > 0
-          ? comments.map((comment) => (
+        {comments.length > 0 ? (
+          <>
+            {comments.map((comment) => (
               <UserCommentRow
                 key={comment.id}
                 comment={comment}
                 isAuthenticated={Boolean(token)}
                 user={user}
               />
-            ))
-          : null}
+            ))}
+            <InfiniteListStatus
+              ref={loadMoreRef}
+              className="mt-2"
+              hasNextPage={hasNextCommentsPage}
+              isFetching={isFetchingNextCommentsPage}
+              loadingLabel="正在加载更多评论"
+              loadMoreLabel="加载更多评论"
+              onLoadMore={loadMoreComments}
+            />
+          </>
+        ) : null}
       </section>
     </PublicUserLayout>
   );
+}
+
+function getUniqueComments(pages: ListCommentsResponse[]) {
+  const seenCommentIds = new Set<string>();
+  const comments: Comment[] = [];
+
+  for (const page of pages) {
+    for (const comment of page.comments) {
+      if (seenCommentIds.has(comment.id)) {
+        continue;
+      }
+
+      seenCommentIds.add(comment.id);
+      comments.push(comment);
+    }
+  }
+
+  return comments;
 }
 
 function UserCommentRow({
@@ -255,7 +308,7 @@ function UserCommentRow({
             ) : null}
           </div>
 
-          <div className="mt-2 border-l border-border pl-3">
+          <div className="mt-2 rounded-md bg-background-soft px-3 py-2 ring-1 ring-border/60">
             <Link
               href={context.postHref}
               onClick={rememberSource}
@@ -474,25 +527,18 @@ function UserCommentsRail({
 
   return (
     <>
-      <section className="border-b border-border pb-5">
-        <h2 className="text-sm font-semibold">评论上下文</h2>
+      <RightRailSection title="评论上下文">
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          当前页展示{" "}
+          已加载{" "}
           <span className="font-mono text-foreground">{comments.length}</span>{" "}
           条公开评论，合计{" "}
           <span className="font-mono text-foreground">{totalScore}</span> 分。
         </p>
-      </section>
+      </RightRailSection>
 
-      <section className="border-b border-border pb-5">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">高分评论</h2>
-          <span className="font-mono text-xs text-muted-foreground">
-            {topComments.length}
-          </span>
-        </div>
+      <RightRailSection title="高分评论" meta={topComments.length}>
         {topComments.length > 0 ? (
-          <div className="divide-y divide-border">
+          <RightRailRaisedList>
             {topComments.map((comment) => {
               const context = getCommentContext(comment);
 
@@ -507,7 +553,7 @@ function UserCommentsRail({
                       postId: context.postId,
                     })
                   }
-                  className="block py-3 transition-colors hover:text-primary"
+                  className="block px-3 py-2.5 transition-colors first:rounded-t-md last:rounded-b-md hover:bg-surface-hover hover:text-primary"
                 >
                   <div className="font-mono text-xs text-muted-foreground">
                     {getCommentScore(comment)} 分 ·{" "}
@@ -520,13 +566,13 @@ function UserCommentsRail({
                 </Link>
               );
             })}
-          </div>
+          </RightRailRaisedList>
         ) : (
           <p className="text-sm leading-6 text-muted-foreground">
             暂无可展示的公开评论。
           </p>
         )}
-      </section>
+      </RightRailSection>
     </>
   );
 }

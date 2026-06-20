@@ -2,7 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { ShieldCheck, UserCog } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,9 @@ import {
 import { TextAction } from "@/components/ui/text-action";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { ApiError } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 
-import { AdminUserIdentity, getAdminUserDisplayName } from "./admin-user-picker";
+import { AdminUserIdentity } from "./admin-user-picker";
 import {
   AdminAuditLink,
   AdminActionDialog,
@@ -180,17 +181,22 @@ export function AdminUsersPage() {
 
       {users.length > 0 ? (
         <>
-          <div className="divide-y divide-border border-b border-border">
+          <div className="space-y-2">
             {users.map((user, index) => {
               const platformRole = resolvePlatformRole(user);
               const isSelected = selectedUser?.id === user.id;
-              const displayName = getAdminUserDisplayName(user);
 
               return (
-                <section key={user.id} className={isSelected ? "bg-background-soft/35" : undefined}>
+                <section
+                  key={user.id}
+                  className={cn(
+                    "overflow-hidden rounded-md bg-surface-raised transition-colors hover:bg-surface-hover",
+                    isSelected ? "bg-primary/5 ring-1 ring-primary/25" : undefined,
+                  )}
+                >
                   <button
                     type="button"
-                    className="grid w-full min-w-0 gap-3 border-l-2 border-l-transparent px-3 py-4 text-left transition-colors hover:bg-background-soft/35 data-[selected=true]:border-l-primary sm:grid-cols-[minmax(0,1fr)_auto]"
+                    className="grid w-full min-w-0 gap-3 px-3 py-4 text-left transition-colors sm:grid-cols-[minmax(0,1fr)_auto]"
                     data-selected={isSelected}
                     onClick={() => setSelectedUserId(isSelected ? null : user.id)}
                   >
@@ -199,12 +205,9 @@ export function AdminUsersPage() {
                         {String(offset + index + 1).padStart(2, "0")}
                       </span>
                       <span className="min-w-0">
-                        <span className="flex min-w-0 flex-wrap items-center gap-2">
-                          <UserCog className="size-4 text-primary" aria-hidden="true" />
-                          <span className="min-w-0 break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
-                            {displayName}
-                          </span>
-                          <span className="text-xs text-muted-foreground">@{user.username}</span>
+                        <span className="flex min-w-0 flex-wrap items-start gap-3">
+                          <AdminUserIdentity avatarSize="sm" user={user} />
+                          <span className="flex min-w-0 flex-wrap items-center gap-2 pt-1">
                           <StatusToken tone={getAdminUserStatusTone(user.status)}>
                             {formatAdminUserStatus(user.status)}
                           </StatusToken>
@@ -214,6 +217,7 @@ export function AdminUsersPage() {
                           {!user.platform_role && user.is_platform_staff ? (
                             <StatusToken>兼容权限</StatusToken>
                           ) : null}
+                          </span>
                         </span>
                         <span className="mt-2 block text-xs leading-5 text-muted-foreground">
                           创建 {formatDateTime(user.created_at)} · 更新{" "}
@@ -274,11 +278,11 @@ function UserManagementPanel({
   const platformRole = resolvePlatformRole(user);
 
   return (
-    <div className="border-t border-border px-3 py-4">
+    <div className="px-3 pb-4">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
         <div className="min-w-0 space-y-4">
           <AdminUserIdentity user={user} />
-          <dl className="grid grid-cols-1 border-y border-border sm:grid-cols-3">
+          <dl className="grid grid-cols-1 gap-x-4 rounded-md bg-surface px-3 sm:grid-cols-3">
             <InfoRow label="创建" value={formatDateTime(user.created_at)} />
             <InfoRow label="更新" value={formatDateTime(user.updated_at)} />
             <InfoRow
@@ -304,7 +308,7 @@ function UserManagementPanel({
               user={user}
             />
           </div>
-          <div className="flex flex-col border-t border-border">
+          <div className="grid gap-1 rounded-md bg-surface p-2">
             <TextAction href="/admin/growth" variant="bar">
               积分与头衔
             </TextAction>

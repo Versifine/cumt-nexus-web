@@ -1,29 +1,53 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 
 import {
   acceptCommunityOwnerTransfer,
+  addModmailInternalNote,
+  addModmailMessage,
   appointCommunityModerator,
   approveCommunityApplication,
   cancelCommunityOwnerTransfer,
+  createCommunityFlair,
+  createCommunityGuide,
   createCommunityRule,
   createCommunityModerationTemplate,
   createCommunityModeratorNote,
+  createModmailConversation,
   createCommunityOwnerTransfer,
+  createScheduledPost,
+  deleteCommunityFlair,
   deleteCommunityFollow,
+  deleteCommunityGuide,
   deleteCommunityModerationTemplate,
   deleteCommunityModeratorNote,
   deleteCommunityRule,
   deleteCommunityUserState,
+  deleteScheduledPost,
+  dryRunAutomod,
   followCommunity,
+  getAutomodConfig,
   getCommunity,
   getCommunityApplication,
+  getCommunityInsightsSummary,
   getCommunityManageContext,
   getCommunityManageSettings,
+  getCommunityModerationInsights,
   getCommunityModerationUserProfile,
   getCommunityOwnerTransfer,
   getCommunityOwnerTransferById,
+  getContentControls,
+  getModmailConversation,
+  listAutomodVersions,
+  listCommunityFlairs,
+  listCommunityGuides,
   listCommunityModLogs,
   listCommunityModeratorNotes,
+  listCommunityTrainingQueue,
   listFollowedCommunities,
   listCommunityMembers,
   listCommunityManageComments,
@@ -35,22 +59,37 @@ import {
   listCommunityApplications,
   listCommunities,
   listIncomingCommunityOwnerTransfers,
+  listModmailConversations,
+  listScheduledPosts,
   rejectCommunityApplication,
+  reorderCommunityFlairs,
   removeCommunityModerator,
+  updateAutomodConfig,
+  updateCommunityFlair,
+  updateCommunityGuide,
   updateCommunityModerationTemplate,
   updateCommunityManageSettings,
   updateCommunityRule,
+  updateContentControls,
+  updateModmailConversation,
+  updateScheduledPost,
   upsertCommunityUserState,
 } from "./api";
 import { postQueryKeys } from "@/features/post/queries";
 import type {
   AcceptCommunityOwnerTransferInput,
+  AutomodDryRunInput,
   AppointCommunityModeratorInput,
   CancelCommunityOwnerTransferInput,
+  CreateModmailConversationInput,
+  DeleteCommunityFlairInput,
+  DeleteCommunityGuideInput,
   CreateCommunityModerationTemplateInput,
   CreateCommunityModeratorNoteInput,
   CreateCommunityRuleInput,
   CreateCommunityOwnerTransferInput,
+  DeleteScheduledPostInput,
+  Community,
   CommunityApplicationStatus,
   DeleteCommunityModerationTemplateInput,
   DeleteCommunityModeratorNoteInput,
@@ -61,22 +100,37 @@ import type {
   GetCommunityOwnerTransferByIdInput,
   GetCommunityOwnerTransferInput,
   ListCommunityModLogsInput,
+  ListFollowedCommunitiesResponse,
   ListFollowedCommunitiesInput,
   ListCommunityMembersInput,
   ListCommunityManageCommentsInput,
   ListCommunityManagePostsInput,
   ListCommunityManageReportsInput,
+  ListAutomodVersionsInput,
+  ListCommunityFlairsInput,
+  ListCommunityGuidesInput,
   ListCommunityModerationTemplatesInput,
   ListCommunityModeratorNotesInput,
+  ListCommunityTrainingQueueInput,
   ListCommunityUserStatesInput,
   ListCommunityApplicationsInput,
+  ListModmailConversationsInput,
+  ListScheduledPostsInput,
+  ModmailMessageInput,
   ListIncomingCommunityOwnerTransfersInput,
   RejectCommunityApplicationInput,
+  ReorderCommunityFlairsInput,
   RemoveCommunityModeratorInput,
+  UpdateAutomodConfigInput,
+  UpdateContentControlsInput,
+  UpdateModmailConversationInput,
   UpdateCommunityModerationTemplateInput,
   UpdateCommunityManageSettingsInput,
   UpdateCommunityRuleInput,
   UpsertCommunityUserStateInput,
+  WriteCommunityFlairInput,
+  WriteCommunityGuideInput,
+  WriteScheduledPostInput,
 } from "./types";
 
 type CommunityQueryScope = "public" | "viewer";
@@ -147,6 +201,70 @@ export const communityQueryKeys = {
       input.offset ?? 0,
     ] as const,
   modLogsAll: (slug: string) => ["community", slug, "moderation", "logs"] as const,
+  automodConfig: (slug: string) =>
+    ["community", slug, "moderation", "automod", "config"] as const,
+  automodVersions: (input: ListAutomodVersionsInput) =>
+    [
+      "community",
+      input.slug,
+      "moderation",
+      "automod",
+      "versions",
+      input.limit ?? 20,
+      input.offset ?? 0,
+    ] as const,
+  contentControls: (slug: string) =>
+    ["community", slug, "moderation", "content-controls"] as const,
+  modmailConversations: (input: ListModmailConversationsInput) =>
+    [
+      "community",
+      input.slug,
+      "modmail",
+      "conversations",
+      input.folder ?? "inbox",
+      input.limit ?? 20,
+      input.offset ?? 0,
+    ] as const,
+  modmailConversationsAll: (slug: string) =>
+    ["community", slug, "modmail", "conversations"] as const,
+  modmailConversation: (slug: string, conversationId: string) =>
+    ["community", slug, "modmail", "conversations", conversationId] as const,
+  insightsSummary: (slug: string, range: string) =>
+    ["community", slug, "insights", "summary", range] as const,
+  insightsModeration: (slug: string, range: string) =>
+    ["community", slug, "insights", "moderation", range] as const,
+  trainingQueue: (input: ListCommunityTrainingQueueInput) =>
+    [
+      "community",
+      input.slug,
+      "insights",
+      "training-queue",
+      input.limit ?? 20,
+      input.offset ?? 0,
+    ] as const,
+  flairs: (input: ListCommunityFlairsInput) =>
+    ["community", input.slug, "moderation", "flairs", input.kind] as const,
+  flairsAll: (slug: string) =>
+    ["community", slug, "moderation", "flairs"] as const,
+  scheduledPosts: (input: ListScheduledPostsInput) =>
+    [
+      "community",
+      input.slug,
+      "scheduled-posts",
+      input.limit ?? 20,
+      input.offset ?? 0,
+    ] as const,
+  scheduledPostsAll: (slug: string) =>
+    ["community", slug, "scheduled-posts"] as const,
+  guides: (input: ListCommunityGuidesInput) =>
+    [
+      "community",
+      input.slug,
+      "guides",
+      input.limit ?? 20,
+      input.offset ?? 0,
+    ] as const,
+  guidesAll: (slug: string) => ["community", slug, "guides"] as const,
   moderationUserProfile: (input: GetCommunityModerationUserProfileInput) =>
     [
       "community",
@@ -265,6 +383,7 @@ export function useToggleCommunityFollowMutation() {
       isFollowing,
       slug,
     }: {
+      community: Community;
       isFollowing: boolean;
       slug: string;
     }) => {
@@ -275,7 +394,9 @@ export function useToggleCommunityFollowMutation() {
 
       await followCommunity(slug);
     },
-    onSuccess: async (_result, { slug }) => {
+    onSuccess: async (_result, { community, isFollowing, slug }) => {
+      syncFollowedCommunityCaches(queryClient, community, isFollowing);
+
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: communityQueryKeys.all,
@@ -295,6 +416,61 @@ export function useToggleCommunityFollowMutation() {
       ]);
     },
   });
+}
+
+function syncFollowedCommunityCaches(
+  queryClient: QueryClient,
+  community: Community,
+  wasFollowing: boolean,
+) {
+  queryClient.setQueriesData<ListFollowedCommunitiesResponse>(
+    { queryKey: ["me", "followed-communities"] },
+    (current) => {
+      if (!current) {
+        return current;
+      }
+
+      if (wasFollowing) {
+        return {
+          ...current,
+          communities: current.communities.filter(
+            (item) => item.slug !== community.slug,
+          ),
+          next_offset: Math.max(
+            current.offset,
+            current.next_offset -
+              (current.communities.some((item) => item.slug === community.slug)
+                ? 1
+                : 0),
+          ),
+        };
+      }
+
+      if (current.communities.some((item) => item.slug === community.slug)) {
+        return {
+          ...current,
+          communities: current.communities.map((item) =>
+            item.slug === community.slug
+              ? { ...community, viewer_is_following: true }
+              : item,
+          ),
+        };
+      }
+
+      const limit = current.limit || 5;
+      const nextCommunities = [
+        { ...community, viewer_is_following: true },
+        ...current.communities,
+      ].slice(0, limit);
+
+      return {
+        ...current,
+        communities: nextCommunities,
+        has_more: current.has_more || current.communities.length + 1 > limit,
+        next_offset: current.offset + nextCommunities.length,
+      };
+    },
+  );
 }
 
 export function useCommunityManageContextQuery(slug: string, enabled = true) {
@@ -735,6 +911,360 @@ export function useCommunityModLogsQuery(
   });
 }
 
+export function useAutomodConfigQuery(slug: string, enabled = true) {
+  return useQuery({
+    queryKey: communityQueryKeys.automodConfig(slug),
+    queryFn: () => getAutomodConfig(slug),
+    enabled: enabled && Boolean(slug.trim()),
+  });
+}
+
+export function useUpdateAutomodConfigMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateAutomodConfigInput) => updateAutomodConfig(input),
+    onSuccess: (_result, variables) => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.automodConfig(variables.slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["community", variables.slug, "moderation", "automod"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.modLogsAll(variables.slug),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useAutomodVersionsQuery(
+  input: ListAutomodVersionsInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.automodVersions(input),
+    queryFn: () => listAutomodVersions(input),
+    enabled: enabled && Boolean(input.slug.trim()),
+  });
+}
+
+export function useAutomodDryRunMutation() {
+  return useMutation({
+    mutationFn: (input: AutomodDryRunInput) => dryRunAutomod(input),
+  });
+}
+
+export function useContentControlsQuery(slug: string, enabled = true) {
+  return useQuery({
+    queryKey: communityQueryKeys.contentControls(slug),
+    queryFn: () => getContentControls(slug),
+    enabled: enabled && Boolean(slug.trim()),
+  });
+}
+
+export function useUpdateContentControlsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateContentControlsInput) =>
+      updateContentControls(input),
+    onSuccess: (_result, variables) => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.contentControls(variables.slug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.modLogsAll(variables.slug),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useModmailConversationsQuery(
+  input: ListModmailConversationsInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.modmailConversations(input),
+    queryFn: () => listModmailConversations(input),
+    enabled: enabled && Boolean(input.slug.trim()),
+  });
+}
+
+export function useModmailConversationQuery(
+  slug: string,
+  conversationId: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.modmailConversation(slug, conversationId),
+    queryFn: () => getModmailConversation(slug, conversationId),
+    enabled: enabled && Boolean(slug.trim()) && Boolean(conversationId.trim()),
+  });
+}
+
+export function useCreateModmailConversationMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateModmailConversationInput) =>
+      createModmailConversation(input),
+    onSuccess: (_result, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: communityQueryKeys.modmailConversationsAll(variables.slug),
+      });
+    },
+  });
+}
+
+export function useAddModmailMessageMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: ModmailMessageInput) => addModmailMessage(input),
+    onSuccess: (result, variables) => {
+      queryClient.setQueryData(
+        communityQueryKeys.modmailConversation(
+          variables.slug,
+          variables.conversation_id,
+        ),
+        result,
+      );
+      void queryClient.invalidateQueries({
+        queryKey: communityQueryKeys.modmailConversationsAll(variables.slug),
+      });
+    },
+  });
+}
+
+export function useAddModmailInternalNoteMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: ModmailMessageInput) => addModmailInternalNote(input),
+    onSuccess: (result, variables) => {
+      queryClient.setQueryData(
+        communityQueryKeys.modmailConversation(
+          variables.slug,
+          variables.conversation_id,
+        ),
+        result,
+      );
+      void queryClient.invalidateQueries({
+        queryKey: communityQueryKeys.modmailConversationsAll(variables.slug),
+      });
+    },
+  });
+}
+
+export function useUpdateModmailConversationMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateModmailConversationInput) =>
+      updateModmailConversation(input),
+    onSuccess: (_result, variables) => {
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.modmailConversation(
+            variables.slug,
+            variables.conversation_id,
+          ),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.modmailConversationsAll(variables.slug),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useCommunityInsightsSummaryQuery(
+  slug: string,
+  range: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.insightsSummary(slug, range),
+    queryFn: () => getCommunityInsightsSummary(slug, range),
+    enabled: enabled && Boolean(slug.trim()),
+  });
+}
+
+export function useCommunityModerationInsightsQuery(
+  slug: string,
+  range: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.insightsModeration(slug, range),
+    queryFn: () => getCommunityModerationInsights(slug, range),
+    enabled: enabled && Boolean(slug.trim()),
+  });
+}
+
+export function useCommunityTrainingQueueQuery(
+  input: ListCommunityTrainingQueueInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.trainingQueue(input),
+    queryFn: () => listCommunityTrainingQueue(input),
+    enabled: enabled && Boolean(input.slug.trim()),
+  });
+}
+
+export function useCommunityFlairsQuery(
+  input: ListCommunityFlairsInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.flairs(input),
+    queryFn: () => listCommunityFlairs(input),
+    enabled: enabled && Boolean(input.slug.trim()),
+  });
+}
+
+export function useCreateCommunityFlairMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: WriteCommunityFlairInput) => createCommunityFlair(input),
+    onSuccess: (_result, variables) => {
+      invalidateCommunityFlairCaches(queryClient, variables.slug);
+    },
+  });
+}
+
+export function useUpdateCommunityFlairMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: WriteCommunityFlairInput & { flair_id: string }) =>
+      updateCommunityFlair(input),
+    onSuccess: (_result, variables) => {
+      invalidateCommunityFlairCaches(queryClient, variables.slug);
+    },
+  });
+}
+
+export function useDeleteCommunityFlairMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: DeleteCommunityFlairInput) => deleteCommunityFlair(input),
+    onSuccess: (_result, variables) => {
+      invalidateCommunityFlairCaches(queryClient, variables.slug);
+    },
+  });
+}
+
+export function useReorderCommunityFlairsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: ReorderCommunityFlairsInput) =>
+      reorderCommunityFlairs(input),
+    onSuccess: (_result, variables) => {
+      invalidateCommunityFlairCaches(queryClient, variables.slug);
+    },
+  });
+}
+
+export function useScheduledPostsQuery(
+  input: ListScheduledPostsInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.scheduledPosts(input),
+    queryFn: () => listScheduledPosts(input),
+    enabled: enabled && Boolean(input.slug.trim()),
+  });
+}
+
+export function useCreateScheduledPostMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: WriteScheduledPostInput) => createScheduledPost(input),
+    onSuccess: (_result, variables) => {
+      invalidateScheduledPostCaches(queryClient, variables.slug);
+    },
+  });
+}
+
+export function useUpdateScheduledPostMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: WriteScheduledPostInput & { scheduled_post_id: string }) =>
+      updateScheduledPost(input),
+    onSuccess: (_result, variables) => {
+      invalidateScheduledPostCaches(queryClient, variables.slug);
+    },
+  });
+}
+
+export function useDeleteScheduledPostMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: DeleteScheduledPostInput) => deleteScheduledPost(input),
+    onSuccess: (_result, variables) => {
+      invalidateScheduledPostCaches(queryClient, variables.slug);
+    },
+  });
+}
+
+export function useCommunityGuidesQuery(
+  input: ListCommunityGuidesInput,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: communityQueryKeys.guides(input),
+    queryFn: () => listCommunityGuides(input),
+    enabled: enabled && Boolean(input.slug.trim()),
+  });
+}
+
+export function useCreateCommunityGuideMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: WriteCommunityGuideInput) => createCommunityGuide(input),
+    onSuccess: (_result, variables) => {
+      invalidateCommunityGuideCaches(queryClient, variables.slug);
+    },
+  });
+}
+
+export function useUpdateCommunityGuideMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: WriteCommunityGuideInput & { guide_id: string }) =>
+      updateCommunityGuide(input),
+    onSuccess: (_result, variables) => {
+      invalidateCommunityGuideCaches(queryClient, variables.slug);
+    },
+  });
+}
+
+export function useDeleteCommunityGuideMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: DeleteCommunityGuideInput) => deleteCommunityGuide(input),
+    onSuccess: (_result, variables) => {
+      invalidateCommunityGuideCaches(queryClient, variables.slug);
+    },
+  });
+}
+
 export function useCommunityModerationUserProfileQuery(
   input: GetCommunityModerationUserProfileInput,
   enabled = true,
@@ -922,4 +1452,37 @@ function invalidateApplicationLists(queryClient: ReturnType<typeof useQueryClien
       queryKey: ["community-applications", status],
     });
   });
+}
+
+function invalidateCommunityFlairCaches(queryClient: QueryClient, slug: string) {
+  void Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: communityQueryKeys.flairsAll(slug),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: communityQueryKeys.modLogsAll(slug),
+    }),
+  ]);
+}
+
+function invalidateScheduledPostCaches(queryClient: QueryClient, slug: string) {
+  void Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: communityQueryKeys.scheduledPostsAll(slug),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: communityQueryKeys.modLogsAll(slug),
+    }),
+  ]);
+}
+
+function invalidateCommunityGuideCaches(queryClient: QueryClient, slug: string) {
+  void Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: communityQueryKeys.guidesAll(slug),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: communityQueryKeys.modLogsAll(slug),
+    }),
+  ]);
 }

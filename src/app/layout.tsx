@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 
 import { Providers } from "@/app/providers";
 import { Toaster } from "@/components/ui/sonner";
 import { getSiteUrl } from "@/lib/site-url";
 
-import "./globals.css";
+import "katex/dist/katex.min.css";
 import "yet-another-react-lightbox/styles.css";
 import "yet-another-react-lightbox/plugins/thumbnails.css";
+import "./globals.css";
+import "./lightbox-overrides.css";
 
 const siteUrl = getSiteUrl();
 const siteDescription = "面向校园社区的讨论、发帖和社区申请工作区。";
@@ -73,7 +76,9 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" className="dark" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
+        <Script id="theme-boot" strategy="beforeInteractive">
+          {themeBootScript}
+        </Script>
       </head>
       <body>
         <Providers>

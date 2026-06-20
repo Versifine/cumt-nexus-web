@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Bookmark } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,7 +26,6 @@ export function PostSaveButton({
   const { isReady, token } = useAuthSession();
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const mutation = useTogglePostSaveMutation({
     onError: (error) => {
       toast.error(getSaveError(error));
@@ -43,7 +42,7 @@ export function PostSaveButton({
     }
 
     if (!token) {
-      router.push(`/login?next=${encodeURIComponent(getCurrentPath(pathname, searchParams))}`);
+      router.push(`/login?next=${encodeURIComponent(pathname || "/")}`);
       return;
     }
 
@@ -77,15 +76,6 @@ export function PostSaveButton({
       {error ? <span className="sr-only">{error}</span> : null}
     </button>
   );
-}
-
-function getCurrentPath(
-  pathname: string,
-  searchParams: { toString(): string },
-) {
-  const query = searchParams.toString();
-
-  return query ? `${pathname}?${query}` : pathname;
 }
 
 function formatCompactNumber(value: number) {

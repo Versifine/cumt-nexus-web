@@ -7,6 +7,6 @@ export const metadata: Metadata = {
   description: "按最高分查看 CUMT Nexus 校园社区公开帖子。",
 };
 
-export default async function TopFeed() {
-  return <HomeFeedPage contextLabel="最高" sort="top" />;
+export default function TopFeed() {
+  return <HomeFeedPage sort="top" />;
 }

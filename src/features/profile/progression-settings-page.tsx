@@ -3,11 +3,19 @@
 import { useState } from "react";
 import { Check, Coins, Sparkles, Trophy } from "lucide-react";
 
+import {
+  RightRail,
+  RightRailAction,
+  RightRailActionList,
+  RightRailInfoList,
+  RightRailInfoRow,
+  RightRailSection,
+} from "@/components/app-shell/right-rail";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
-import { InfoRow, MetricBlock, StatusToken } from "@/components/ui/data-display";
+import { MetricBlock, StatusToken } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 import { AuthRequired } from "@/features/auth/auth-required";
 import { useCurrentUserQuery, useMyPointsQuery } from "@/features/auth/queries";
@@ -722,48 +730,37 @@ function ProgressionRail({
   user: PublicUser;
 }) {
   return (
-    <aside className="hidden min-w-0 border-l border-border pl-5 xl:block">
-      <div className="sticky top-20 right-rail-scroll space-y-6">
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">账户概览</h2>
-          <dl className="mt-3 divide-y divide-border border-t border-border">
-            <InfoRow label="等级" value={`Lv.${progression.level}`} />
-            <InfoRow label="积分余额" value={formatCount(points.balance)} />
-            <InfoRow
-              label="展示头衔"
-              value={progression.active_title?.name ?? "未展示"}
-            />
-            <InfoRow label="加入时间" value={formatDate(user.created_at)} />
-          </dl>
-        </section>
+    <RightRail className="hidden min-w-0 xl:block">
+      <RightRailSection title="账户概览">
+        <RightRailInfoList>
+          <RightRailInfoRow label="等级" value={`Lv.${progression.level}`} />
+          <RightRailInfoRow label="积分余额" value={formatCount(points.balance)} />
+          <RightRailInfoRow
+            label="展示头衔"
+            value={progression.active_title?.name ?? "未展示"}
+          />
+          <RightRailInfoRow label="加入时间" value={formatDate(user.created_at)} />
+        </RightRailInfoList>
+      </RightRailSection>
 
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">可用操作</h2>
-          <div className="mt-3 flex flex-col border-t border-border">
-            <TextAction href="/settings/profile" variant="bar">
-              编辑主页
-            </TextAction>
-            <TextAction href="/settings/security" variant="bar">
-              账号安全
-            </TextAction>
-            <TextAction href="/saved" variant="bar">
-              我的收藏
-            </TextAction>
-          </div>
-        </section>
+      <RightRailSection title="可用操作">
+        <RightRailActionList>
+          <RightRailAction href="/settings/profile">编辑主页</RightRailAction>
+          <RightRailAction href="/settings/security">账号安全</RightRailAction>
+          <RightRailAction href="/saved">我的收藏</RightRailAction>
+        </RightRailActionList>
+      </RightRailSection>
 
-        <section>
-          <h2 className="text-sm font-semibold">积分用途</h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            当前积分可用于评论特殊互动。消费成功后，以账户余额和评论效果刷新为准。
-          </p>
-          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-            <Trophy className="size-4 text-primary" aria-hidden="true" />
-            <span>等级只看经验，不购买权重。</span>
-          </div>
-        </section>
-      </div>
-    </aside>
+      <RightRailSection title="积分用途">
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          当前积分可用于评论特殊互动。消费成功后，以账户余额和评论效果刷新为准。
+        </p>
+        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <Trophy className="size-4 text-primary" aria-hidden="true" />
+          <span>等级只看经验，不购买权重。</span>
+        </div>
+      </RightRailSection>
+    </RightRail>
   );
 }
 

@@ -41,20 +41,20 @@
   --background: #f7f8fa;
   --background-soft: #eef2f4;
   --surface: #ffffff;
-  --surface-raised: #fbfcfd;
-  --surface-hover: #edf3f4;
+  --surface-raised: #f2f5f7;
+  --surface-hover: #e8eef1;
   --foreground: #111719;
   --muted: #edf2f4;
   --muted-foreground: #5b666d;
   --subtle-foreground: #7c878e;
   --card: #ffffff;
   --card-foreground: #111719;
-  --border: #dbe3e6;
-  --border-strong: #aebbc2;
-  --input: #c8d4d9;
-  --ring: #0d9488;
-  --primary: #0f766e;
-  --primary-muted: #d8f0ec;
+  --border: #e2e8eb;
+  --border-strong: #b7c3c9;
+  --input: #d7e0e4;
+  --ring: #14b8a6;
+  --primary: #0e8077;
+  --primary-muted: #ddf4f1;
   --primary-foreground: #f8fffd;
   --secondary: #e8eef1;
   --secondary-foreground: #172026;
@@ -66,7 +66,7 @@
   --info: #0369a1;
   --body-gradient-start: rgb(255 255 255 / 0.95);
   --body-gradient-end: rgb(247 248 250);
-  --selection: rgb(13 148 136 / 0.18);
+  --selection: rgb(14 128 119 / 0.18);
   --selection-foreground: #111719;
   --radius: 0.625rem;
 }
@@ -84,12 +84,12 @@
   --subtle-foreground: #71717a;
   --card: #111113;
   --card-foreground: #fafafa;
-  --border: #27272a;
-  --border-strong: #3f3f46;
-  --input: #27272a;
-  --ring: #2dd4bf;
-  --primary: #2dd4bf;
-  --primary-muted: #134e4a;
+  --border: #202024;
+  --border-strong: #323238;
+  --input: #242428;
+  --ring: #5eead4;
+  --primary: #22c7b8;
+  --primary-muted: #123f3d;
   --primary-foreground: #042f2e;
   --secondary: #18181b;
   --secondary-foreground: #fafafa;
@@ -101,7 +101,7 @@
   --info: #38bdf8;
   --body-gradient-start: rgb(13 13 16 / 0.9);
   --body-gradient-end: rgb(9 9 11);
-  --selection: rgb(45 212 191 / 0.28);
+  --selection: rgb(34 199 184 / 0.28);
   --selection-foreground: #fafafa;
 }
 
@@ -129,10 +129,147 @@ body {
   color: var(--selection-foreground);
 }
 
+@keyframes nexus-skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @layer utilities {
+  .nexus-soft-transition {
+    transition-duration: 160ms;
+    transition-property:
+      background-color,
+      border-color,
+      box-shadow,
+      color,
+      opacity,
+      transform;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .nexus-micro-lift {
+    transform: translateY(0);
+    transition-duration: 150ms;
+    transition-property:
+      background-color,
+      border-color,
+      box-shadow,
+      color,
+      opacity,
+      transform;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .nexus-micro-lift:hover {
+      transform: translateY(-1px);
+    }
+  }
+
+  .nexus-micro-lift:active {
+    transform: translateY(1px);
+    transition-duration: 90ms;
+  }
+
+  .nexus-menu-item-motion {
+    transform: translateX(0);
+    transition-duration: 140ms;
+    transition-property:
+      background-color,
+      color,
+      opacity,
+      transform;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .nexus-menu-item-motion:focus {
+    transform: translateX(2px);
+  }
+
+  .nexus-skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface-raised);
+  }
+
+  .nexus-skeleton-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--foreground) 8%, transparent),
+      transparent
+    );
+    animation: nexus-skeleton-shimmer 1400ms ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nexus-soft-transition,
+    .nexus-micro-lift,
+    .nexus-menu-item-motion {
+      transition-duration: 0.01ms;
+      transform: none;
+    }
+
+    .nexus-micro-lift:hover,
+    .nexus-micro-lift:active,
+    .nexus-menu-item-motion:focus {
+      transform: none;
+    }
+
+    .nexus-skeleton-shimmer::after {
+      animation: none;
+      opacity: 0;
+    }
+  }
+
   .app-sidebar-scroll,
   .right-rail-scroll {
     scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    overscroll-behavior: contain;
+  }
+
+  .app-sidebar-scroll:hover,
+  .app-sidebar-scroll:focus-within,
+  .right-rail-scroll:hover,
+  .right-rail-scroll:focus-within {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .app-sidebar-scroll::-webkit-scrollbar,
+  .right-rail-scroll::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .app-sidebar-scroll::-webkit-scrollbar-track,
+  .right-rail-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .app-sidebar-scroll::-webkit-scrollbar-thumb,
+  .right-rail-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  .app-sidebar-scroll:hover::-webkit-scrollbar-thumb,
+  .app-sidebar-scroll:focus-within::-webkit-scrollbar-thumb,
+  .right-rail-scroll:hover::-webkit-scrollbar-thumb,
+  .right-rail-scroll:focus-within::-webkit-scrollbar-thumb {
+    background: var(--border);
+  }
+
+  .app-sidebar-scroll::-webkit-scrollbar-thumb:hover,
+  .right-rail-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--border-strong);
   }
 
   .right-rail-scroll {

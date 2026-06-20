@@ -5,6 +5,7 @@ import type {
   MouseEvent,
   PointerEvent as ReactPointerEvent,
   ReactNode,
+  WheelEvent as ReactWheelEvent,
 } from "react";
 import {
   createContext,
@@ -14,8 +15,9 @@ import {
   useRef,
   useState,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowUp,
@@ -44,6 +46,7 @@ import {
   X,
 } from "lucide-react";
 
+import { NexusBrandMark } from "@/components/brand/nexus-brand-mark";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,7 +56,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { TextAction } from "@/components/ui/text-action";
 import {
   AuthDialog,
@@ -65,6 +67,7 @@ import { useCurrentUserQuery, useMyPointsQuery } from "@/features/auth/queries";
 import { getSafeAuthRedirectPath } from "@/features/auth/redirect";
 import { useFollowedCommunitiesQuery } from "@/features/community/queries";
 import type { Community } from "@/features/community/types";
+import { getFeedContextLabel } from "@/features/feed/source";
 import {
   getNotificationCategoryHref,
   notificationCategoryOptions,
@@ -91,6 +94,9 @@ import type {
 } from "@/features/message/types";
 import { useNotificationsQuery } from "@/features/notification/queries";
 import { resolveNotificationTarget } from "@/features/notification/targets";
+import { prefetchInfiniteLatestPostsQuery } from "@/features/post/queries";
+import { isPostSort } from "@/features/post/sort";
+import type { FeedSource, PostSort } from "@/features/post/types";
 import { useMyProgressionQuery } from "@/features/progression/queries";
 import type { ProgressionSummary } from "@/features/progression/types";
 import { usePublicUserQuery } from "@/features/profile/queries";
@@ -110,7 +116,7 @@ type AppShellProps = {
   backTarget?: AppShellBackTarget | null;
   children: ReactNode;
   className?: string;
-  contextLabel: string;
+  contextLabel?: string;
 };
 
 export type AppShellBackTarget = {
@@ -132,11 +138,46 @@ const AppShellBackActionContext = createContext<
   ((target: AppShellBackTarget | null) => void) | null
 >(null);
 const APP_LAYOUT_SYNC_EVENT = "cumt-nexus:app-layout-sync";
+const APP_SIDEBAR_COLLAPSED_KEY = "cumt-nexus:sidebar-collapsed";
+const HEADER_TOOL_BUTTON_CLASS =
+  "nexus-micro-lift relative inline-flex size-8 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface sm:size-9";
+const HEADER_TOOL_BADGE_CLASS =
+  "absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-primary px-1 font-mono text-[9px] font-semibold leading-4 text-primary-foreground";
+const HEADER_DROPDOWN_PANEL_CLASS =
+  "absolute right-0 top-full z-50 mt-2 origin-top-right overflow-hidden rounded-lg bg-surface text-foreground shadow-[0_18px_48px_rgb(0_0_0/0.38)] ring-1 ring-border/70 transition duration-150 ease-out";
+const HEADER_MENU_ITEM_CLASS =
+  "flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:bg-surface-raised focus-visible:text-foreground";
+const HEADER_MENU_SPACER_CLASS = "my-1 h-1";
 
-const primaryNavItems = [
-  { href: "/", icon: Home, label: "首页" },
-  { href: "/all", icon: Globe2, label: "全站" },
-  { href: "/following", icon: Users, label: "关注" },
+type FeedNavigationTarget = {
+  source: FeedSource;
+  sort: PostSort;
+};
+
+const primaryNavItems: Array<{
+  feedTarget?: FeedNavigationTarget;
+  href: string;
+  icon: typeof Home;
+  label: string;
+}> = [
+  {
+    feedTarget: { source: "recommended", sort: "best" },
+    href: "/",
+    icon: Home,
+    label: "首页",
+  },
+  {
+    feedTarget: { source: "all", sort: "best" },
+    href: "/all",
+    icon: Globe2,
+    label: "全站",
+  },
+  {
+    feedTarget: { source: "following", sort: "best" },
+    href: "/following",
+    icon: Users,
+    label: "关注",
+  },
   { href: "/communities", icon: Hash, label: "社区" },
 ];
 
@@ -176,13 +217,114 @@ function requestAppLayoutSync() {
   }, 240);
 }
 
+function getBrowserCurrentPath(fallbackPathname: string) {
+  if (typeof window === "undefined") {
+    return fallbackPathname || "/";
+  }
+
+  return `${window.location.pathname}${window.location.search}` || "/";
+}
+
+function getBrowserSearchParams() {
+  if (typeof window === "undefined") {
+    return new URLSearchParams();
+  }
+
+  return new URLSearchParams(window.location.search);
+}
+
+function stopLocalScrollPropagation(event: ReactWheelEvent<HTMLDivElement>) {
+  event.stopPropagation();
+}
+
+function readStoredSidebarCollapsed() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.localStorage.getItem(APP_SIDEBAR_COLLAPSED_KEY) === "true";
+}
+
+function writeStoredSidebarCollapsed(value: boolean) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(APP_SIDEBAR_COLLAPSED_KEY, String(value));
+}
+
+function getAppShellContextLabel(pathname: string) {
+  if (pathname === "/") {
+    return "首页";
+  }
+
+  const recommendedSort = getRecommendedFeedSort(pathname);
+
+  if (recommendedSort) {
+    return getFeedContextLabel("recommended", recommendedSort);
+  }
+
+  const sourcedFeed = getSourcedFeedContext(pathname);
+
+  if (sourcedFeed) {
+    return getFeedContextLabel(sourcedFeed.source, sourcedFeed.sort);
+  }
+
+  return "CUMT Nexus";
+}
+
+function getRecommendedFeedSort(pathname: string): PostSort | null {
+  switch (pathname) {
+    case "/best":
+      return "best";
+    case "/hot":
+      return "hot";
+    case "/new":
+      return "new";
+    case "/top":
+      return "top";
+    case "/rising":
+      return "rising";
+    default:
+      return null;
+  }
+}
+
+function getSourcedFeedContext(
+  pathname: string,
+): { source: FeedSource; sort: PostSort } | null {
+  const [, sourceSegment, sortSegment] = pathname.split("/");
+
+  if (sourceSegment !== "all" && sourceSegment !== "following") {
+    return null;
+  }
+
+  if (!sortSegment) {
+    return {
+      source: sourceSegment,
+      sort: "best",
+    };
+  }
+
+  if (!isPostSort(sortSegment)) {
+    return null;
+  }
+
+  return {
+    source: sourceSegment,
+    sort: sortSegment,
+  };
+}
+
 export function AppShell({
   backTarget = null,
   children,
   className,
   contextLabel,
 }: AppShellProps) {
-  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
+  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(
+    readStoredSidebarCollapsed,
+  );
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [authDialog, setAuthDialog] = useState<AuthDialogState | null>(null);
@@ -190,10 +332,11 @@ export function AppShell({
   const [registeredBackTarget, setRegisteredBackTarget] =
     useState<RegisteredBackTarget | null>(null);
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const currentSearch = searchParams.toString();
-  const currentPath = `${pathname}${currentSearch ? `?${currentSearch}` : ""}`;
+  const currentPath = pathname || "/";
+  const resolvedContextLabel =
+    contextLabel ?? getAppShellContextLabel(pathname);
   const { isReady: isAuthReady, token } = useAuthSession();
+  const queryClient = useQueryClient();
   const currentUserQuery = useCurrentUserQuery();
   const platformRole = resolvePlatformRole(currentUserQuery.data);
   const followedCommunitiesQuery = useFollowedCommunitiesQuery(
@@ -201,6 +344,11 @@ export function AppShell({
     isAuthReady && Boolean(token),
   );
   const followedCommunities = followedCommunitiesQuery.data?.communities ?? [];
+  const followedCommunitiesState = {
+    isError: followedCommunitiesQuery.isError,
+    isLoading: followedCommunitiesQuery.isLoading,
+    refetch: followedCommunitiesQuery.refetch,
+  };
   const setScopedBackTarget = useCallback(
     (target: AppShellBackTarget | null) => {
       setRegisteredBackTarget({ pathname, target });
@@ -211,6 +359,25 @@ export function AppShell({
   const activeBackTarget = hasRegisteredBackTarget
     ? registeredBackTarget.target
     : backTarget;
+  const warmFeedNavigation = useCallback(
+    (target?: FeedNavigationTarget) => {
+      if (!target) {
+        return;
+      }
+
+      if (target.source === "following" && !token) {
+        return;
+      }
+
+      void prefetchInfiniteLatestPostsQuery(queryClient, {
+        limit: 20,
+        offset: 0,
+        source: target.source,
+        sort: target.sort,
+      });
+    },
+    [queryClient, token],
+  );
   const handleAuthLinkClick = useCallback(
     (event: MouseEvent<HTMLElement>) => {
       if (
@@ -260,10 +427,10 @@ export function AppShell({
         mode: url.pathname === "/register" ? "register" : "login",
         nextPath: url.searchParams.has("next")
           ? getSafeAuthRedirectPath(url.search)
-          : currentPath,
+          : getBrowserCurrentPath(pathname),
       });
     },
-    [currentPath],
+    [pathname],
   );
 
   useEffect(() => {
@@ -324,7 +491,7 @@ export function AppShell({
         >
           <aside
             className={cn(
-              "hidden border-r border-border bg-background transition-[width] duration-200 ease-out lg:fixed lg:left-[max(0px,calc((100vw-1440px)/2))] lg:top-0 lg:z-30 lg:block lg:h-dvh lg:overflow-visible",
+              "hidden border-r border-border/70 bg-background-soft/75 transition-[width] duration-200 ease-out lg:fixed lg:left-[max(0px,calc((100vw-1440px)/2))] lg:top-0 lg:z-30 lg:block lg:h-dvh lg:overflow-visible",
               isDesktopSidebarCollapsed ? "lg:w-[72px]" : "lg:w-[248px]",
             )}
           >
@@ -333,10 +500,11 @@ export function AppShell({
                 "app-sidebar-scroll h-full overflow-y-auto py-5 transition-[padding] duration-200 ease-out",
                 isDesktopSidebarCollapsed ? "px-3" : "px-5",
               )}
+              onWheel={stopLocalScrollPropagation}
             >
               <div
                 className={cn(
-                  "border-b border-border pb-4",
+                  "px-0",
                   isDesktopSidebarCollapsed ? "text-center" : "",
                 )}
               >
@@ -345,25 +513,32 @@ export function AppShell({
                   withBorder={false}
                 />
               </div>
-              <ShellNav
-                collapsed={isDesktopSidebarCollapsed}
-                followedCommunities={followedCommunities}
-                isAuthenticated={Boolean(token)}
-                isFollowedCommunitiesLoading={followedCommunitiesQuery.isPending}
-                pathname={pathname}
-                platformRole={platformRole}
+                <ShellNav
+                  collapsed={isDesktopSidebarCollapsed}
+                  followedCommunities={followedCommunities}
+                  followedCommunitiesState={followedCommunitiesState}
+                  isAuthenticated={Boolean(token)}
+                  onWarmFeed={warmFeedNavigation}
+                  pathname={pathname}
+                  platformRole={platformRole}
                 recentCommunities={recentCommunities}
               />
             </div>
             <button
               type="button"
-              className="absolute right-0 top-[88px] z-40 inline-flex size-7 translate-x-1/2 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-[0_10px_28px_rgb(0_0_0/0.32)] transition-colors hover:border-primary/50 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="absolute right-0 top-[88px] z-40 inline-flex size-7 translate-x-1/2 items-center justify-center rounded-md bg-background-soft text-muted-foreground ring-1 ring-border/70 transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               aria-label={
                 isDesktopSidebarCollapsed ? "展开左侧栏" : "收起左侧栏"
               }
               aria-expanded={!isDesktopSidebarCollapsed}
               onClick={() => {
-                setIsDesktopSidebarCollapsed((value) => !value);
+                setIsDesktopSidebarCollapsed((value) => {
+                  const nextValue = !value;
+
+                  writeStoredSidebarCollapsed(nextValue);
+
+                  return nextValue;
+                });
                 requestAppLayoutSync();
               }}
               title={isDesktopSidebarCollapsed ? "展开左侧栏" : "收起左侧栏"}
@@ -377,11 +552,11 @@ export function AppShell({
           </aside>
 
           <section className="flex min-w-0 flex-col lg:col-start-2">
-            <header className="sticky top-0 z-20 border-b border-border bg-background/95 px-2 py-3 backdrop-blur sm:px-3 md:px-4 lg:px-6">
-              <div className="flex min-w-0 items-center gap-1 sm:gap-2 lg:gap-4">
+            <header className="sticky top-0 z-20 bg-background-soft/88 px-2 py-2 backdrop-blur sm:px-3 md:px-4 lg:px-6">
+              <div className="mx-auto flex h-12 min-w-0 max-w-[1180px] items-center gap-2 sm:gap-3">
                 <button
                   type="button"
-                  className="inline-flex size-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10 lg:hidden"
+                  className={cn(HEADER_TOOL_BUTTON_CLASS, "shrink-0 lg:hidden")}
                   aria-label={isMobileNavOpen ? "收起导航" : "打开导航"}
                   aria-expanded={isMobileNavOpen}
                   onClick={() => setIsMobileNavOpen((value) => !value)}
@@ -393,17 +568,21 @@ export function AppShell({
                   )}
                 </button>
 
-                <TopBackAction contextLabel={contextLabel} target={activeBackTarget} />
+                <TopBackAction
+                  contextLabel={resolvedContextLabel}
+                  target={activeBackTarget}
+                />
                 <TopSearch />
                 <TopActions />
               </div>
 
               {isMobileNavOpen ? (
-                <div className="mt-3 max-h-[calc(100vh-72px)] overflow-y-auto border-t border-border pt-3 lg:hidden">
+                <div className="mt-2 max-h-[calc(100vh-72px)] overflow-y-auto rounded-lg bg-surface px-3 py-3 shadow-[inset_0_0_0_1px_var(--border)] lg:hidden">
                   <ShellNav
                     followedCommunities={followedCommunities}
+                    followedCommunitiesState={followedCommunitiesState}
                     isAuthenticated={Boolean(token)}
-                    isFollowedCommunitiesLoading={followedCommunitiesQuery.isPending}
+                    onWarmFeed={warmFeedNavigation}
                     pathname={pathname}
                     platformRole={platformRole}
                     recentCommunities={recentCommunities}
@@ -462,8 +641,11 @@ function TopBackAction({
 }) {
   if (!target) {
     return (
-      <div className="hidden min-w-0 shrink-0 lg:block lg:w-[180px]">
-        <div className="truncate text-xs font-medium text-muted-foreground">
+      <div className="hidden min-w-0 shrink-0 lg:flex lg:w-[176px] lg:flex-col lg:justify-center">
+        <div className="font-mono text-[10px] uppercase leading-4 text-subtle-foreground">
+          当前
+        </div>
+        <div className="truncate text-sm font-semibold leading-5 text-foreground">
           {contextLabel}
         </div>
       </div>
@@ -471,14 +653,17 @@ function TopBackAction({
   }
 
   return (
-    <div className="min-w-0 shrink-0 lg:w-[180px]">
+    <div className="min-w-0 shrink-0 lg:w-[176px]">
       <Link
         href={target.href}
-        className="inline-flex h-10 max-w-[42vw] items-center gap-2 border-b border-transparent px-1 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:max-w-[220px] lg:max-w-full"
+        className="group inline-flex h-9 max-w-[42vw] items-center gap-2 rounded-md px-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface sm:max-w-[220px] lg:max-w-full"
         aria-label={target.label}
         title={target.label}
       >
-        <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+        <ArrowLeft
+          className="size-4 shrink-0 transition-transform duration-150 ease-out group-hover:-translate-x-0.5 motion-reduce:transform-none"
+          aria-hidden="true"
+        />
         <span className="hidden min-w-0 truncate sm:inline">{target.label}</span>
       </Link>
     </div>
@@ -503,8 +688,8 @@ function ShellBrand({
       aria-label={collapsed ? "返回首页" : undefined}
       title={collapsed ? "CUMT Nexus" : undefined}
     >
-      <div className="inline-flex size-9 items-center justify-center rounded-lg border border-border text-sm font-semibold text-primary transition-colors hover:border-primary/50">
-        CN
+      <div className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-surface text-foreground transition-colors hover:border-primary/50 hover:bg-surface-hover">
+        <NexusBrandMark className="size-5" />
       </div>
       <div className={cn("mt-4 text-sm font-semibold", collapsed ? "hidden" : "")}>
         CUMT Nexus
@@ -524,8 +709,9 @@ function ShellBrand({
 function ShellNav({
   collapsed = false,
   followedCommunities,
+  followedCommunitiesState,
   isAuthenticated,
-  isFollowedCommunitiesLoading,
+  onWarmFeed,
   pathname,
   platformRole,
   recentCommunities,
@@ -533,8 +719,9 @@ function ShellNav({
 }: {
   collapsed?: boolean;
   followedCommunities: Community[];
+  followedCommunitiesState: FollowedCommunitiesState;
   isAuthenticated: boolean;
-  isFollowedCommunitiesLoading: boolean;
+  onWarmFeed?: (target?: FeedNavigationTarget) => void;
   pathname: string;
   platformRole: ReturnType<typeof resolvePlatformRole>;
   recentCommunities: RecentCommunity[];
@@ -552,7 +739,11 @@ function ShellNav({
 
       <nav
         aria-label="主导航"
-        className="divide-y divide-border border-t border-border"
+        className={cn(
+          "space-y-1",
+          isCollapsedDesktop ? "" : "",
+          variant === "mobile" ? "mt-4" : "",
+        )}
       >
         {primaryNavItems.map((item, index) => {
           const isActive = isActivePath(pathname, item.href);
@@ -563,9 +754,11 @@ function ShellNav({
               href={item.href}
               aria-label={isCollapsedDesktop ? item.label : undefined}
               title={isCollapsedDesktop ? item.label : undefined}
+              onFocus={() => onWarmFeed?.(item.feedTarget)}
+              onMouseEnter={() => onWarmFeed?.(item.feedTarget)}
               className={cn(
-                "group flex items-center py-3 text-sm transition-colors",
-                isCollapsedDesktop ? "justify-center" : "justify-between",
+                "group flex min-h-10 items-center text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                isCollapsedDesktop ? "justify-center px-0" : "justify-between px-0",
                 isActive
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground",
@@ -581,11 +774,21 @@ function ShellNav({
                   className={cn(
                     "w-6 shrink-0 font-mono text-xs text-muted-foreground",
                     isCollapsedDesktop ? "hidden" : "",
+                    isActive ? "text-primary" : "",
                   )}
                 >
                   {isCollapsedDesktop ? null : String(index + 1).padStart(2, "0")}
                 </span>
-                <item.icon className="size-4 shrink-0" aria-hidden="true" />
+                <span
+                  className={cn(
+                    "inline-flex size-7 shrink-0 items-center justify-center transition-colors",
+                    isActive
+                      ? "text-primary"
+                      : "text-muted-foreground group-hover:text-foreground",
+                  )}
+                >
+                  <item.icon className="size-4 shrink-0" aria-hidden="true" />
+                </span>
                 {isCollapsedDesktop ? null : (
                   <span className="truncate">{item.label}</span>
                 )}
@@ -605,75 +808,72 @@ function ShellNav({
         })}
       </nav>
 
-      <section className={cn("mt-6", isCollapsedDesktop ? "hidden" : "")}>
-        <div className="font-mono text-[11px] uppercase text-muted-foreground">
-          工具
-        </div>
-        <div className="mt-3 divide-y divide-border border-t border-border">
-          <ShellNavLink
-            active={isActivePath(pathname, "/style-guide")}
-            href="/style-guide"
-            icon={Palette}
-            label="组件台账"
-          />
-        </div>
-      </section>
+      <SidebarSection title="工具" hidden={isCollapsedDesktop}>
+        <ShellNavLink
+          active={isActivePath(pathname, "/style-guide")}
+          href="/style-guide"
+          icon={Palette}
+          label="组件台账"
+        />
+      </SidebarSection>
 
       {isAuthenticated && platformRole ? (
-        <section className={cn("mt-6", isCollapsedDesktop ? "hidden" : "")}>
-          <div className="font-mono text-[11px] uppercase text-muted-foreground">
-            管理
-          </div>
-          <div className="mt-3 divide-y divide-border border-t border-border">
-            <ShellNavLink
-              active={isActivePath(pathname, "/admin")}
-              href="/admin"
-              icon={ShieldAlert}
-              label="平台管理"
-            />
-          </div>
-        </section>
+        <SidebarSection title="管理" hidden={isCollapsedDesktop}>
+          <ShellNavLink
+            active={isActivePath(pathname, "/admin")}
+            href="/admin"
+            icon={ShieldAlert}
+            label="平台管理"
+          />
+        </SidebarSection>
       ) : null}
 
-      <section className={cn("mt-6", isCollapsedDesktop ? "hidden" : "")}>
-        <div className="font-mono text-[11px] uppercase text-muted-foreground">
-          关注社区
-        </div>
-        <div className="mt-3 divide-y divide-border border-t border-border">
-          <FollowedCommunitiesNav
-            communities={followedCommunities}
-            isAuthenticated={isAuthenticated}
-            isLoading={isFollowedCommunitiesLoading}
-          />
-        </div>
-      </section>
+      <SidebarSection title="关注社区" hidden={isCollapsedDesktop}>
+        <FollowedCommunitiesNav
+          communities={followedCommunities}
+          isAuthenticated={isAuthenticated}
+          state={followedCommunitiesState}
+        />
+      </SidebarSection>
 
-      <section className={cn("mt-6", isCollapsedDesktop ? "hidden" : "")}>
-        <div className="font-mono text-[11px] uppercase text-muted-foreground">
-          最近访问
-        </div>
-        <div className="mt-3 divide-y divide-border border-t border-border">
-          {recentCommunities.length > 0 ? (
-            recentCommunities.map((community) => (
-              <Link
-                key={community.slug}
-                href={`/communities/${community.slug}`}
-                className="flex min-w-0 items-center justify-between gap-3 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <span className="truncate">{community.name}</span>
-                <span className="shrink-0 font-mono text-xs text-primary">
-                  /{community.slug}
-                </span>
-              </Link>
-            ))
-          ) : (
-            <div className="py-3 text-sm leading-6 text-muted-foreground">
-              还没有最近访问社区。
-            </div>
-          )}
-        </div>
-      </section>
+      <SidebarSection title="最近访问" hidden={isCollapsedDesktop}>
+        {recentCommunities.length > 0 ? (
+          recentCommunities.map((community) => (
+            <SidebarCommunityLink
+              key={community.slug}
+              href={`/communities/${community.slug}`}
+              name={community.name}
+              slug={community.slug}
+            />
+          ))
+        ) : (
+          <div className="px-2 py-3 text-sm leading-6 text-muted-foreground">
+            还没有最近访问社区。
+          </div>
+        )}
+      </SidebarSection>
     </div>
+  );
+}
+
+function SidebarSection({
+  children,
+  hidden = false,
+  title,
+}: {
+  children: ReactNode;
+  hidden?: boolean;
+  title: string;
+}) {
+  return (
+    <section className={cn("mt-7", hidden ? "hidden" : "")}>
+      <div className="font-mono text-[11px] uppercase text-subtle-foreground">
+        {title}
+      </div>
+      <div className="mt-2 space-y-1">
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -692,16 +892,54 @@ function ShellNavLink({
     <Link
       href={href}
       className={cn(
-        "flex min-w-0 items-center justify-between gap-3 py-3 text-sm transition-colors hover:text-foreground",
-        active ? "text-foreground" : "text-muted-foreground",
+        "group flex min-h-10 min-w-0 items-center justify-between gap-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        active
+          ? "text-foreground"
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
       <span className="inline-flex min-w-0 items-center gap-3">
-        <Icon className="size-4 shrink-0" aria-hidden="true" />
+        <span
+          className={cn(
+            "inline-flex size-7 shrink-0 items-center justify-center transition-colors",
+            active
+              ? "text-primary"
+              : "text-muted-foreground group-hover:text-foreground",
+          )}
+        >
+          <Icon className="size-4 shrink-0" aria-hidden="true" />
+        </span>
         <span className="truncate">{label}</span>
       </span>
-      <span className="shrink-0 font-mono text-xs text-primary">
+      <span
+        className={cn(
+          "shrink-0 font-mono text-xs transition-colors",
+          active ? "text-primary" : "text-subtle-foreground group-hover:text-primary",
+        )}
+      >
         {active ? "当前" : "进入"}
+      </span>
+    </Link>
+  );
+}
+
+function SidebarCommunityLink({
+  href,
+  name,
+  slug,
+}: {
+  href: string;
+  name: string;
+  slug: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex min-h-10 min-w-0 items-center justify-between gap-3 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    >
+      <span className="min-w-0 truncate">{name}</span>
+      <span className="shrink-0 font-mono text-xs text-primary">
+        /{slug}
       </span>
     </Link>
   );
@@ -710,56 +948,77 @@ function ShellNavLink({
 function FollowedCommunitiesNav({
   communities,
   isAuthenticated,
-  isLoading,
+  state,
 }: {
   communities: Community[];
   isAuthenticated: boolean;
-  isLoading: boolean;
+  state: FollowedCommunitiesState;
 }) {
   if (!isAuthenticated) {
     return (
-      <div className="py-3 text-sm leading-6 text-muted-foreground">
+      <div className="px-2 py-3 text-sm leading-6 text-muted-foreground">
         登录后同步关注社区。
       </div>
     );
   }
 
-  if (isLoading) {
+  if (state.isLoading && communities.length === 0) {
     return (
-      <div className="py-3 text-sm leading-6 text-muted-foreground">
+      <div className="px-2 py-3 text-sm leading-6 text-muted-foreground">
         正在同步关注社区。
+      </div>
+    );
+  }
+
+  if (communities.length > 0) {
+    return communities.map((community) => (
+      <SidebarCommunityLink
+        key={community.slug}
+        href={`/communities/${community.slug}`}
+        name={community.name}
+        slug={community.slug}
+      />
+    ));
+  }
+
+  if (state.isError) {
+    return (
+      <div className="px-2 py-3 text-sm leading-6 text-muted-foreground">
+        <div>关注列表同步失败。</div>
+        <button
+          type="button"
+          className="mt-1 font-semibold text-primary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          onClick={() => {
+            void state.refetch();
+          }}
+        >
+          重试
+        </button>
       </div>
     );
   }
 
   if (communities.length === 0) {
     return (
-      <div className="py-3 text-sm leading-6 text-muted-foreground">
+      <div className="px-2 py-3 text-sm leading-6 text-muted-foreground">
         还没有关注社区。
       </div>
     );
   }
-
-  return communities.map((community) => (
-    <Link
-      key={community.slug}
-      href={`/communities/${community.slug}`}
-      className="flex min-w-0 items-center justify-between gap-3 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
-    >
-      <span className="truncate">{community.name}</span>
-      <span className="shrink-0 font-mono text-xs text-primary">
-        /{community.slug}
-      </span>
-    </Link>
-  ));
 }
+
+type FollowedCommunitiesState = {
+  isError: boolean;
+  isLoading: boolean;
+  refetch: () => Promise<unknown>;
+};
 
 function TopSearch() {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const urlQuery = searchParams.get("q") ?? "";
-  const urlScope = searchParams.get("scope") ?? "all";
+  const browserSearchParams = getBrowserSearchParams();
+  const urlQuery = browserSearchParams.get("q") ?? "";
+  const urlScope = browserSearchParams.get("scope") ?? "all";
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   function goToSearch() {
@@ -785,33 +1044,31 @@ function TopSearch() {
 
   return (
     <form
-      className="min-w-0 flex-1 basis-0 max-w-[calc(100vw-188px)] sm:max-w-none"
+      className="group relative flex h-9 min-w-[96px] flex-1 basis-0 items-center bg-transparent px-0 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-border/70 after:transition-[height,background-color] after:duration-150 hover:after:bg-muted-foreground/45 focus-within:after:h-0.5 focus-within:after:bg-primary sm:h-10 sm:max-w-none"
       role="search"
       onSubmit={submitSearch}
     >
       <label className="sr-only" htmlFor="app-shell-search">
         全站搜索
       </label>
-      <div className="relative min-w-0">
-        <Search
-          className="pointer-events-none absolute left-0 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <Input
-          id="app-shell-search"
-          key={urlQuery}
-          ref={inputRef}
-          defaultValue={urlQuery}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              goToSearch();
-            }
-          }}
-          placeholder="搜索用户、社区、帖子"
-          className="h-9 min-w-0 rounded-none border-x-0 border-t-0 bg-transparent pl-6 pr-0 text-sm focus-visible:ring-0 sm:h-10"
-        />
-      </div>
+      <Search
+        className="ml-0.5 size-4 shrink-0 text-subtle-foreground transition-colors group-focus-within:text-primary"
+        aria-hidden="true"
+      />
+      <input
+        id="app-shell-search"
+        key={urlQuery}
+        ref={inputRef}
+        defaultValue={urlQuery}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            goToSearch();
+          }
+        }}
+        placeholder="搜索用户、社区、帖子"
+        className="h-full min-w-0 flex-1 bg-transparent pl-2 pr-0 text-sm text-foreground outline-none placeholder:text-subtle-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:pl-3"
+      />
     </form>
   );
 }
@@ -823,10 +1080,10 @@ function TopActions() {
     : `/login?next=${encodeURIComponent("/posts/new")}`;
 
   return (
-    <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+    <div className="flex shrink-0 items-center gap-1">
       <Link
         href={submitHref}
-        className="inline-flex h-9 w-9 items-center justify-center gap-2 text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:h-10 sm:w-auto sm:px-2"
+        className="nexus-micro-lift inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-sm text-primary transition-colors hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface sm:w-auto sm:px-2.5"
         aria-label="发帖"
       >
         <Send className="size-4" aria-hidden="true" />
@@ -835,14 +1092,7 @@ function TopActions() {
       <HeaderThemeMenu />
       <HeaderMessageEntry isReady={isReady} token={token} />
       <HeaderNotificationMenu isReady={isReady} token={token} />
-      {!isReady ? (
-        <div
-          className="hidden h-10 w-20 animate-pulse border border-border bg-muted sm:block"
-          aria-label="正在加载用户"
-        />
-      ) : (
-        <HeaderUserMenu />
-      )}
+      {!isReady ? <HeaderUserPlaceholder /> : <HeaderUserMenu />}
     </div>
   );
 }
@@ -891,7 +1141,7 @@ function HeaderMessageEntry({
     return (
       <Link
         href={messageHref}
-        className="relative inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10"
+        className={HEADER_TOOL_BUTTON_CLASS}
         aria-label="私信"
         title="私信"
       >
@@ -904,13 +1154,13 @@ function HeaderMessageEntry({
     <>
       <Link
         href={messageHref}
-        className="relative inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:hidden"
+        className={cn(HEADER_TOOL_BUTTON_CLASS, "sm:hidden")}
         aria-label="私信"
         title="私信"
       >
         <MessageCircle className="size-4" aria-hidden="true" />
         {unreadTotal > 0 ? (
-          <span className="absolute right-0 top-0 min-w-4 bg-primary px-1 font-mono text-[9px] font-semibold leading-4 text-primary-foreground">
+          <span className={HEADER_TOOL_BADGE_CLASS}>
             {unreadTotal > 99 ? "99+" : unreadTotal}
           </span>
         ) : null}
@@ -931,7 +1181,7 @@ function HeaderMessageEntry({
     >
       <button
         type="button"
-        className="relative inline-flex size-10 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className={cn(HEADER_TOOL_BUTTON_CLASS, isMenuOpen && "bg-surface text-primary")}
         aria-expanded={isMenuOpen}
         aria-haspopup="menu"
         aria-label="私信"
@@ -939,20 +1189,21 @@ function HeaderMessageEntry({
       >
         <MessageCircle className="size-4" aria-hidden="true" />
         {unreadTotal > 0 ? (
-          <span className="absolute right-0 top-0 min-w-4 bg-primary px-1 font-mono text-[9px] font-semibold leading-4 text-primary-foreground">
+          <span className={HEADER_TOOL_BADGE_CLASS}>
             {unreadTotal > 99 ? "99+" : unreadTotal}
           </span>
         ) : null}
       </button>
       <div
         className={cn(
-          "absolute right-0 top-full z-50 mt-2 w-80 origin-top-right overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_18px_48px_rgb(0_0_0/0.38)] transition duration-150 ease-out",
+          HEADER_DROPDOWN_PANEL_CLASS,
+          "w-80",
           isMenuOpen
             ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
             : "pointer-events-none -translate-y-1 scale-[0.98] opacity-0",
         )}
       >
-        <div className="border-b border-border bg-background p-3">
+        <div className="bg-surface-raised p-3">
           <div className="flex min-w-0 items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -976,11 +1227,12 @@ function HeaderMessageEntry({
             </Link>
           </div>
         </div>
-        <div className="divide-y divide-border">
+        <div className="space-y-1 p-1">
           {conversationsQuery.isPending ? (
-            <div className="space-y-2 p-3" aria-label="正在加载私信">
-              <div className="h-12 animate-pulse bg-muted" />
-              <div className="h-12 animate-pulse bg-muted" />
+            <div className="space-y-2 p-2" aria-label="正在加载私信">
+              <div className="rounded-md bg-surface-raised px-3 py-3 text-sm text-muted-foreground">
+                正在同步私信。
+              </div>
             </div>
           ) : conversationsQuery.data?.conversations.length ? (
             conversationsQuery.data.conversations.map((conversation) => (
@@ -991,7 +1243,7 @@ function HeaderMessageEntry({
               />
             ))
           ) : (
-            <div className="p-3 text-sm leading-6 text-muted-foreground">
+            <div className="rounded-md px-3 py-3 text-sm leading-6 text-muted-foreground">
               暂无私信会话。
             </div>
           )}
@@ -1016,7 +1268,7 @@ function HeaderMessageMenuItem({
   return (
     <Link
       href={`/messages/${encodeURIComponent(conversation.id)}`}
-      className="grid grid-cols-[36px_minmax(0,1fr)_auto] gap-3 px-3 py-3 text-sm transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="grid grid-cols-[36px_minmax(0,1fr)_auto] gap-3 rounded-md px-3 py-3 text-sm transition-colors hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={onClose}
     >
       <HeaderMessageAvatar
@@ -1085,7 +1337,7 @@ function HeaderMessageAvatar({
       {onlineVisible ? (
         <span
           className={cn(
-            "absolute bottom-0 right-0 size-2.5 rounded-full border border-card",
+            "absolute bottom-0 right-0 size-2.5 rounded-full border border-surface",
             online ? "bg-success" : "bg-muted-foreground",
           )}
         />
@@ -1208,22 +1460,29 @@ function HeaderThemeMenu() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10"
+          className={HEADER_TOOL_BUTTON_CLASS}
           aria-label="切换主题"
           title="切换主题"
         >
           <TriggerIcon className="size-4" aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent
+        align="end"
+        className="w-56 border-border/70 bg-surface text-foreground shadow-[0_18px_48px_rgb(0_0_0/0.38)]"
+      >
         <DropdownMenuLabel>界面主题</DropdownMenuLabel>
-        <DropdownMenuSeparator />
+        <DropdownMenuSeparator className="bg-border/60" />
         <DropdownMenuRadioGroup
           value={theme}
           onValueChange={(value) => setTheme(value as ThemePreference)}
         >
           {themeOptions.map((option) => (
-            <DropdownMenuRadioItem key={option.value} value={option.value}>
+            <DropdownMenuRadioItem
+              key={option.value}
+              value={option.value}
+              className="rounded-sm focus:bg-surface-raised"
+            >
               <option.icon className="size-4 text-muted-foreground" aria-hidden="true" />
               <span className="min-w-0">
                 <span className="block text-sm">{option.label}</span>
@@ -1297,7 +1556,7 @@ function HeaderNotificationMenu({
     >
       <button
         type="button"
-        className="relative inline-flex size-10 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className={cn(HEADER_TOOL_BUTTON_CLASS, isMenuOpen && "bg-surface text-primary")}
         aria-expanded={isMenuOpen}
         aria-haspopup="menu"
         aria-label="消息中心"
@@ -1307,13 +1566,14 @@ function HeaderNotificationMenu({
       </button>
       <div
         className={cn(
-          "absolute right-0 top-full z-50 mt-2 w-80 origin-top-right overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_18px_48px_rgb(0_0_0/0.38)] transition duration-150 ease-out",
+          HEADER_DROPDOWN_PANEL_CLASS,
+          "w-80",
           isMenuOpen
             ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
             : "pointer-events-none -translate-y-1 scale-[0.98] opacity-0",
         )}
       >
-        <div className="border-b border-border bg-background p-3">
+        <div className="bg-surface-raised p-3">
           <div className="flex min-w-0 items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -1371,9 +1631,9 @@ function NotificationMenuBody({
   if (!isReady) {
     return (
       <div className="space-y-2 p-3" aria-label="正在加载消息">
-        <div className="h-12 animate-pulse bg-muted" />
-        <div className="h-12 animate-pulse bg-muted" />
-        <div className="h-12 animate-pulse bg-muted" />
+        <div className="rounded-md bg-surface-raised px-3 py-3 text-sm text-muted-foreground">
+          正在同步消息。
+        </div>
       </div>
     );
   }
@@ -1381,7 +1641,7 @@ function NotificationMenuBody({
   if (!canLoadNotifications) {
     return (
       <div className="p-3">
-        <div className="border-l border-border px-3 py-2">
+        <div className="rounded-md bg-surface-raised px-3 py-3">
           <h3 className="text-sm font-semibold text-foreground">登录即可同步消息</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             回复、@、赞和系统消息会跟随账号同步。
@@ -1397,9 +1657,9 @@ function NotificationMenuBody({
   if (notificationsPending) {
     return (
       <div className="space-y-2 p-3" aria-label="正在加载消息">
-        <div className="h-14 animate-pulse bg-muted" />
-        <div className="h-14 animate-pulse bg-muted" />
-        <div className="h-14 animate-pulse bg-muted" />
+        <div className="rounded-md bg-surface-raised px-3 py-3 text-sm text-muted-foreground">
+          正在同步最新消息。
+        </div>
       </div>
     );
   }
@@ -1407,7 +1667,7 @@ function NotificationMenuBody({
   if (notificationsError) {
     return (
       <div className="p-3">
-        <div className="border-l border-border px-3 py-2">
+        <div className="rounded-md bg-surface-raised px-3 py-3">
           <h3 className="text-sm font-semibold text-foreground">暂时无法加载消息</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             可以进入完整消息中心重新加载。
@@ -1424,7 +1684,7 @@ function NotificationMenuBody({
     return (
       <div className="p-3">
         <NotificationCategorySummary onClose={onClose} />
-        <div className="border-l border-border px-3 py-2">
+        <div className="rounded-md bg-surface-raised px-3 py-3">
           <h3 className="text-sm font-semibold text-foreground">暂时没有消息</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             有新的回复、@、赞或系统消息时，会显示在这里。
@@ -1439,10 +1699,10 @@ function NotificationMenuBody({
       <div className="p-3">
         <NotificationCategorySummary onClose={onClose} />
       </div>
-      <div className="border-b border-border px-3 py-2">
-        <p className="text-xs font-semibold text-foreground">最新消息</p>
+      <div className="px-3 pb-2">
+        <p className="text-xs font-semibold text-subtle-foreground">最新消息</p>
       </div>
-      <div className="max-h-[360px] overflow-y-auto">
+      <div className="max-h-[360px] space-y-1 overflow-y-auto px-1 pb-1">
         {notifications.map((notification) => (
           <NotificationMenuItem
             key={notification.id}
@@ -1461,13 +1721,13 @@ function NotificationCategorySummary({
   onClose: () => void;
 }) {
   return (
-    <div className="grid grid-cols-2 border border-border">
+    <div className="grid grid-cols-2 gap-2">
       {notificationCategoryOptions.map((option) => {
         return (
           <Link
             key={option.value}
             href={getNotificationCategoryHref(option.value)}
-            className="min-w-0 border-b border-r border-border px-3 py-2 text-left transition-colors odd:border-r even:border-r-0 last:border-b-0 hover:bg-muted/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-w-0 rounded-md bg-background-soft px-3 py-2 text-left shadow-[inset_0_0_0_1px_var(--border)] transition-colors hover:bg-surface-raised hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={onClose}
           >
             <span className="block truncate text-xs text-muted-foreground">
@@ -1518,7 +1778,7 @@ function NotificationMenuItem({
 
   if (!target.href) {
     return (
-      <div className="grid grid-cols-[minmax(0,1fr)_32px] gap-3 border-b border-border px-3 py-3 last:border-b-0">
+      <div className="grid grid-cols-[minmax(0,1fr)_32px] gap-3 rounded-md px-3 py-3">
         {content}
       </div>
     );
@@ -1527,7 +1787,7 @@ function NotificationMenuItem({
   return (
     <Link
       href={target.href}
-      className="grid grid-cols-[minmax(0,1fr)_32px] gap-3 border-b border-border px-3 py-3 transition-colors last:border-b-0 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="grid grid-cols-[minmax(0,1fr)_32px] gap-3 rounded-md px-3 py-3 transition-colors hover:bg-surface-raised hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={onClose}
     >
       {content}
@@ -1550,6 +1810,17 @@ function NotificationMenuAvatar({ actor }: { actor: NotificationActorView }) {
   return (
     <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-[11px] font-semibold text-primary">
       {actor.initial}
+    </div>
+  );
+}
+
+function HeaderUserPlaceholder() {
+  return (
+    <div
+      className="inline-flex size-8 items-center justify-center rounded-sm text-muted-foreground sm:size-9"
+      aria-label="账号同步中"
+    >
+      <User className="size-4 shrink-0" aria-hidden="true" />
     </div>
   );
 }
@@ -1636,12 +1907,7 @@ function HeaderUserMenu() {
   useEffect(() => clearCloseTimer, [clearCloseTimer]);
 
   if (token && currentUserQuery.isLoading) {
-    return (
-      <div
-        className="hidden h-10 w-20 animate-pulse border border-border bg-muted sm:block"
-        aria-label="正在加载用户"
-      />
-    );
+    return <HeaderUserPlaceholder />;
   }
 
   if (!token || !currentUserQuery.data) {
@@ -1649,12 +1915,12 @@ function HeaderUserMenu() {
       <>
         <Link
           href="/login"
-          className="inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:hidden"
+          className={cn(HEADER_TOOL_BUTTON_CLASS, "sm:hidden")}
           aria-label="登录"
         >
           <User className="size-4" aria-hidden="true" />
         </Link>
-        <div className="hidden items-center gap-2 sm:flex">
+        <div className="hidden items-center gap-2 px-1 sm:flex">
           <TextAction href="/login">登录</TextAction>
           <TextAction href="/register" tone="primary">
             注册
@@ -1687,8 +1953,8 @@ function HeaderUserMenu() {
       <Link
         href={profileHref}
         className={cn(
-          "group relative z-[60] inline-flex size-9 origin-top items-center justify-center text-sm font-semibold text-primary transition duration-150 ease-out hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:size-10",
-          isMenuOpen ? "-translate-y-0.5 scale-125 text-foreground" : "",
+          "group relative z-[60] inline-flex size-8 origin-top items-center justify-center rounded-sm text-sm font-semibold text-primary transition duration-150 ease-out hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface sm:size-9",
+          isMenuOpen ? "bg-surface text-foreground" : "",
         )}
         aria-expanded={isMenuOpen}
         aria-haspopup="menu"
@@ -1710,13 +1976,14 @@ function HeaderUserMenu() {
       />
       <div
         className={cn(
-          "absolute right-0 top-full z-50 mt-2 w-72 origin-top-right overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_18px_48px_rgb(0_0_0/0.38)] transition duration-150 ease-out",
+          HEADER_DROPDOWN_PANEL_CLASS,
+          "w-72",
           isMenuOpen
             ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
             : "pointer-events-none -translate-y-1 scale-[0.98] opacity-0",
         )}
       >
-        <div className="border-b border-border bg-background-soft/80 p-3">
+        <div className="bg-surface-raised p-3">
           <div className="flex min-w-0 items-center gap-3">
             <HeaderAvatar
               avatarUrl={avatarUrl}
@@ -1751,7 +2018,7 @@ function HeaderUserMenu() {
           </div>
           <Link
             href={profileHref}
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+            className={HEADER_MENU_ITEM_CLASS}
             onClick={closeMenu}
           >
             <User className="size-4" aria-hidden="true" />
@@ -1759,7 +2026,7 @@ function HeaderUserMenu() {
           </Link>
           <Link
             href="/saved"
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+            className={HEADER_MENU_ITEM_CLASS}
             onClick={closeMenu}
           >
             <Bookmark className="size-4" aria-hidden="true" />
@@ -1767,19 +2034,19 @@ function HeaderUserMenu() {
           </Link>
           <Link
             href="/settings/progression"
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+            className={HEADER_MENU_ITEM_CLASS}
             onClick={closeMenu}
           >
             <Coins className="size-4" aria-hidden="true" />
             成长与积分
           </Link>
-          <div className="-mx-1 my-1 h-px bg-border" />
+          <div className={HEADER_MENU_SPACER_CLASS} />
           <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
             设置
           </div>
           <Link
             href="/settings/profile"
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+            className={HEADER_MENU_ITEM_CLASS}
             onClick={closeMenu}
           >
             <Settings className="size-4" aria-hidden="true" />
@@ -1787,7 +2054,7 @@ function HeaderUserMenu() {
           </Link>
           <Link
             href="/settings/privacy"
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+            className={HEADER_MENU_ITEM_CLASS}
             onClick={closeMenu}
           >
             <MessageCircle className="size-4" aria-hidden="true" />
@@ -1795,7 +2062,7 @@ function HeaderUserMenu() {
           </Link>
           <Link
             href="/settings/security"
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+            className={HEADER_MENU_ITEM_CLASS}
             onClick={closeMenu}
           >
             <ShieldCheck className="size-4" aria-hidden="true" />
@@ -1803,13 +2070,13 @@ function HeaderUserMenu() {
           </Link>
           {platformRole ? (
             <>
-              <div className="-mx-1 my-1 h-px bg-border" />
+              <div className={HEADER_MENU_SPACER_CLASS} />
               <div className="px-2 py-1.5 text-xs font-normal text-muted-foreground">
                 管理入口
               </div>
               <Link
                 href="/admin"
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
+                className={HEADER_MENU_ITEM_CLASS}
                 onClick={closeMenu}
               >
                 <ShieldAlert className="size-4" aria-hidden="true" />
@@ -1817,10 +2084,10 @@ function HeaderUserMenu() {
               </Link>
             </>
           ) : null}
-          <div className="-mx-1 my-1 h-px bg-border" />
+          <div className={HEADER_MENU_SPACER_CLASS} />
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground outline-none transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:bg-destructive/10 focus-visible:text-destructive"
+            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-muted-foreground outline-none transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:bg-destructive/10 focus-visible:text-destructive"
             onClick={signOut}
           >
             <LogOut className="size-4" aria-hidden="true" />
@@ -1843,7 +2110,7 @@ function AccountProgressionSummary({
 }) {
   if (isError) {
     return (
-      <div className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
+      <div className="mt-3 rounded-md bg-background-soft px-3 py-2 text-xs text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
         等级暂时无法同步。
       </div>
     );
@@ -1851,9 +2118,8 @@ function AccountProgressionSummary({
 
   if (isLoading) {
     return (
-      <div className="mt-3 border-t border-border pt-3">
-        <div className="h-4 w-28 animate-pulse bg-muted" />
-        <div className="mt-2 h-[3px] animate-pulse bg-muted" />
+      <div className="mt-3 rounded-md bg-background-soft px-3 py-2 text-xs text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
+        等级正在同步。
       </div>
     );
   }
@@ -1863,7 +2129,7 @@ function AccountProgressionSummary({
   }
 
   return (
-    <div className="mt-3 border-t border-border pt-3">
+    <div className="mt-3 rounded-md bg-background-soft px-3 py-2 shadow-[inset_0_0_0_1px_var(--border)]">
       <div className="flex min-w-0 items-center gap-2">
         <UserLevelBadge level={progression} size="sm" />
         <span className="min-w-0 truncate text-xs font-semibold text-foreground">
@@ -1890,14 +2156,14 @@ function AccountPointsSummary({
 }) {
   if (isError) {
     return (
-      <div className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
+      <div className="mt-2 rounded-md bg-background-soft px-3 py-2 text-xs text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
         积分暂时无法同步。
       </div>
     );
   }
 
   return (
-    <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3">
+    <div className="mt-2 grid grid-cols-3 gap-2 rounded-md bg-background-soft px-3 py-2 shadow-[inset_0_0_0_1px_var(--border)]">
       <AccountPointsMetric
         icon={<Coins className="size-3.5" aria-hidden="true" />}
         label="积分"

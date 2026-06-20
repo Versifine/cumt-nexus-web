@@ -6,6 +6,8 @@ import type {
   ListModQueueResponse,
   ListReportsInput,
   ListReportsResponse,
+  ModQueueItemDetailResponse,
+  ModQueueSummaryResponse,
   ModerationBulkActionInput,
   ModerationBulkActionResponse,
   RemoveContentResponse,
@@ -96,6 +98,20 @@ export function listAdminModQueue({
 
   return apiRequest<ListModQueueResponse>(
     `/api/v1/admin/mod-queues?${params.toString()}`,
+    { cache: "no-store" },
+  );
+}
+
+export function getAdminModQueueItem(itemId: string) {
+  return apiRequest<ModQueueItemDetailResponse>(
+    `/api/v1/admin/mod-queues/${encodeURIComponent(itemId)}`,
+    { cache: "no-store" },
+  );
+}
+
+export function getAdminModQueueSummary() {
+  return apiRequest<ModQueueSummaryResponse>(
+    "/api/v1/admin/mod-queues/summary",
     { cache: "no-store" },
   );
 }

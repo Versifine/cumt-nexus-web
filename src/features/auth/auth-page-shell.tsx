@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { MailCheck, MessageSquareText, ShieldCheck } from "lucide-react";
 
+import { NexusBrandMark } from "@/components/brand/nexus-brand-mark";
 import { StatusToken } from "@/components/ui/data-display";
 import { TextAction } from "@/components/ui/text-action";
 
@@ -48,8 +49,8 @@ export function AuthPageShell({
             href="/"
             className="group flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <span className="flex size-10 items-center justify-center border border-border bg-surface text-sm font-semibold text-primary transition-colors group-hover:border-primary/50">
-              CN
+            <span className="flex size-10 items-center justify-center border border-border bg-surface text-foreground transition-colors group-hover:border-primary/50 group-hover:bg-surface-hover">
+              <NexusBrandMark className="size-6" />
             </span>
             <span>
               <span className="block text-sm font-semibold">CUMT Nexus</span>

@@ -1,0 +1,69 @@
+html .yarl__container {
+  --yarl__color_backdrop: color-mix(in srgb, var(--background) 94%, black) !important;
+  --yarl__container_background_color: color-mix(
+    in srgb,
+    var(--background) 94%,
+    black
+  ) !important;
+  --yarl__color_button: var(--muted-foreground) !important;
+  --yarl__color_button_active: var(--foreground) !important;
+  --yarl__color_button_disabled: var(--subtle-foreground) !important;
+  --yarl__button_filter: none !important;
+  --yarl__icon_size: 22px !important;
+  --yarl__toolbar_padding: 12px !important;
+  --yarl__navigation_button_padding: 0 !important;
+  --yarl__thumbnails_container_background_color: var(--surface-raised) !important;
+  --yarl__thumbnails_thumbnail_background: var(--background) !important;
+  --yarl__thumbnails_thumbnail_border_color: transparent !important;
+  --yarl__thumbnails_thumbnail_active_border_color: var(--primary) !important;
+  --yarl__thumbnails_thumbnail_border_radius: var(--radius) !important;
+  --yarl__thumbnails_thumbnail_focus_box_shadow: inset 0 0 0 2px var(--primary) !important;
+}
+
+html .yarl__toolbar {
+  gap: 0.5rem;
+}
+
+html .yarl__button {
+  border-radius: var(--radius) !important;
+  background-color: color-mix(in srgb, var(--surface) 88%, transparent) !important;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+html .yarl__button:hover,
+html .yarl__button:focus-visible {
+  background-color: var(--surface-hover) !important;
+}
+
+html .yarl__navigation_prev,
+html .yarl__navigation_next {
+  width: 44px;
+  height: 44px;
+  margin: 0 1rem;
+}
+
+html .yarl__thumbnails_container {
+  background-color: var(--surface-raised) !important;
+  padding: 0.75rem !important;
+}
+
+html .yarl__thumbnails_thumbnail {
+  border-color: transparent !important;
+  border-radius: var(--radius) !important;
+  background-color: var(--background) !important;
+  opacity: 0.7;
+  transition:
+    opacity 160ms ease,
+    border-color 160ms ease;
+}
+
+html .yarl__thumbnails_thumbnail:hover,
+html .yarl__thumbnails_thumbnail_active {
+  opacity: 1;
+}
+
+html .yarl__thumbnails_thumbnail_active {
+  border-color: var(--primary) !important;
+}

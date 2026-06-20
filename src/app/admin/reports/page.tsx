@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import { AppShell } from "@/components/app-shell/app-shell";
 import { AdminModQueuePage } from "@/features/admin/admin-mod-queue-page";
-import { AdminShell } from "@/features/admin/admin-shell";
 
 export const metadata: Metadata = {
   title: "全站队列 | CUMT Nexus",
@@ -18,12 +17,7 @@ export default function AdminReportsRoute() {
       }}
       contextLabel="全站队列"
     >
-      <AdminShell
-        title="全站队列"
-        description="按 Reddit Mod Queue 模型处理全站举报、垃圾、已移除、已编辑、未审核和需要关注内容。"
-      >
-        <AdminModQueuePage />
-      </AdminShell>
+      <AdminModQueuePage />
     </AppShell>
   );
 }

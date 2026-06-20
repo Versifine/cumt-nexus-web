@@ -142,7 +142,7 @@ export function PostForm({
 
   return (
     <form
-      className={cn("space-y-5", className)}
+      className={cn("space-y-4", className)}
       onSubmit={form.handleSubmit((values) => {
         if (isSubmitDisabled) {
           return;
@@ -162,7 +162,12 @@ export function PostForm({
         </div>
       ) : null}
 
-      <div className="space-y-2">
+      <div className="space-y-3 rounded-lg bg-surface-raised p-4">
+        <FieldLabel
+          index="01"
+          title="社区"
+          description="帖子会发布到选中的社区，权限由后端确认。"
+        />
         <PostCommunityPicker
           disabled={postMutation.isPending || isUploadingImage}
           isSelectedCommunityLoading={isSelectedCommunityLoading}
@@ -184,14 +189,19 @@ export function PostForm({
         />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3 rounded-lg bg-surface-raised p-4">
+        <FieldLabel
+          index="02"
+          title="标题"
+          description="用一句话说清讨论主题。"
+        />
         <Input
           id="title"
           autoComplete="off"
           aria-invalid={Boolean(form.formState.errors.title)}
           disabled={postMutation.isPending}
           placeholder="标题"
-          className="h-12 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:border-primary focus-visible:ring-0"
+          className="h-12 bg-surface text-base font-semibold hover:bg-surface focus-visible:bg-surface-hover"
           {...form.register("title")}
         />
         <FieldMeta
@@ -200,15 +210,19 @@ export function PostForm({
         />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3 rounded-lg bg-surface-raised p-4">
+        <FieldLabel
+          index="03"
+          title="正文"
+          description="支持 Markdown、图片、链接和基础排版。"
+        />
         <MarkdownComposerField
           disabled={postMutation.isPending}
           maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerPost}
           onChange={setBodyValue}
           fieldProps={{
             "aria-invalid": Boolean(form.formState.errors.body),
-            className:
-              "min-h-64 bg-background text-base leading-7 sm:min-h-80",
+            className: "min-h-64 text-base leading-7 sm:min-h-80",
             id: "body",
             placeholder: "正文",
           }}
@@ -226,7 +240,7 @@ export function PostForm({
         />
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-lg bg-surface-raised px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-h-5 text-xs text-muted-foreground">
           {getSubmitStatusText(
             isSelectedCommunityLoading,
@@ -253,6 +267,28 @@ export function PostForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function FieldLabel({
+  description,
+  index,
+  title,
+}: {
+  description: string;
+  index: string;
+  title: string;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="font-mono text-[11px] font-semibold text-primary">
+          {index}
+        </span>
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+      </div>
+      <p className="text-xs leading-5 text-muted-foreground">{description}</p>
+    </div>
   );
 }
 

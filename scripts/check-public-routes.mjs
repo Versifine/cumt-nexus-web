@@ -162,7 +162,7 @@ const routes = [
       ...appShellHrefMarkers,
       "/login?next=%2Fadmin%2Fcommunity-applications",
     ],
-    markers: ["CUMT Nexus", "社区申请", "登录后进入平台管理", "登录"],
+    markers: ["CUMT Nexus", "社区审批工作台", "登录后审核社区申请", "登录"],
     path: "/admin/community-applications",
   },
   {
@@ -170,7 +170,7 @@ const routes = [
       ...appShellHrefMarkers,
       "/login?next=%2Fadmin%2Freports",
     ],
-    markers: ["CUMT Nexus", "全站举报", "登录后进入平台管理", "登录"],
+    markers: ["CUMT Nexus", "全站审核队列", "登录后进入全站队列", "登录"],
     path: "/admin/reports",
   },
   {
@@ -178,7 +178,7 @@ const routes = [
       ...appShellHrefMarkers,
       "/login?next=%2Fadmin%2Freports%2Froute-smoke-report",
     ],
-    markers: ["CUMT Nexus", "举报详情", "登录后进入平台管理", "登录"],
+    markers: ["CUMT Nexus", "队列详情", "登录后查看队列详情", "登录"],
     path: "/admin/reports/route-smoke-report",
   },
   {
@@ -233,7 +233,7 @@ const routes = [
       "需要登录",
     ],
     hrefMarkers: [...appShellHrefMarkers],
-    markers: ["CUMT Nexus", "搜索：public", "顶部搜索框", "范围"],
+    markers: ["CUMT Nexus", "搜索：public", "当前搜索", "范围"],
     path: "/search?q=public&scope=all",
   },
   {
@@ -297,7 +297,7 @@ const routes = [
       "/login?next=%2Fcommunities%2Fpublic%2Fnew",
       "/register?next=%2Fcommunities%2Fpublic%2Fnew",
     ],
-    markers: ["CUMT Nexus", "发布帖子", "需要登录", "登录后发起讨论", "去登录"],
+    markers: ["CUMT Nexus", "发布 /public", "需要登录", "登录后发起讨论", "去登录"],
     path: "/communities/public/new",
   },
   {
