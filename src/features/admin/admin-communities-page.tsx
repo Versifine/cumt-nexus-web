@@ -156,7 +156,7 @@ export function AdminCommunitiesPage() {
 
       {communities.length > 0 ? (
         <>
-          <div className="border-b border-border">
+          <div className="space-y-2">
             {communities.map((community, index) => (
               <AdminResourceRow
                 key={community.id}
@@ -244,7 +244,7 @@ function CommunityDetailRail({
                 {community.description || "暂无简介。"}
               </p>
             </div>
-            <dl className="divide-y divide-border border-y border-border">
+            <dl className="grid gap-1 rounded-md bg-surface px-3">
               <InfoRow label="类型" value={community.kind} />
               <InfoRow label="创建" value={formatDateTime(community.created_at)} />
               <InfoRow label="更新" value={formatDateTime(community.updated_at)} />
@@ -270,7 +270,7 @@ function CommunityDetailRail({
       </AdminRailSection>
 
       <AdminRailSection title="相关入口">
-        <div className="flex flex-col border-t border-border">
+        <div className="grid gap-1 rounded-md bg-surface p-2">
           {community ? (
             <>
               <TextAction

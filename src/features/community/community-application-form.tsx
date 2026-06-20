@@ -31,6 +31,9 @@ type CommunityApplicationFormProps = {
   className?: string;
 };
 
+const applicationControlClass =
+  "rounded-lg border-transparent bg-surface-raised text-base shadow-[inset_0_0_0_1px_var(--input)] hover:bg-surface-hover focus-visible:border-primary/50 focus-visible:bg-surface-hover focus-visible:ring-2 focus-visible:ring-primary/25";
+
 export function CommunityApplicationForm({
   className,
 }: CommunityApplicationFormProps) {
@@ -59,7 +62,7 @@ export function CommunityApplicationForm({
 
   if (applicationMutation.isSuccess) {
     return (
-      <div className={cn("rounded-md bg-surface px-4 py-5 ring-1 ring-border/60", className)}>
+      <div className={cn("space-y-4", className)}>
         <Alert variant="success">
           <AlertTitle>申请已提交</AlertTitle>
           <AlertDescription>
@@ -68,8 +71,8 @@ export function CommunityApplicationForm({
             。平台审核通过后才会创建社区。
           </AlertDescription>
         </Alert>
-        <div className="mt-5 border-t border-border">
-          <TextAction href="/communities" tone="primary" variant="bar">
+        <div>
+          <TextAction href="/communities" tone="primary">
             浏览社区
           </TextAction>
         </div>
@@ -79,7 +82,7 @@ export function CommunityApplicationForm({
 
   return (
     <form
-      className={cn("space-y-0", className)}
+      className={cn("space-y-5", className)}
       onSubmit={form.handleSubmit((values) => applicationMutation.mutate(values))}
     >
       {submitError ? (
@@ -89,7 +92,7 @@ export function CommunityApplicationForm({
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 border-b border-border py-5 md:grid-cols-[160px_minmax(0,1fr)]">
+      <div className="grid gap-3 md:grid-cols-[144px_minmax(0,1fr)]">
         <FieldLabel
           description="这会成为社区页面地址的一部分。"
           htmlFor="requested_slug"
@@ -103,7 +106,7 @@ export function CommunityApplicationForm({
             aria-invalid={Boolean(form.formState.errors.requested_slug)}
             disabled={applicationMutation.isPending}
             placeholder="campus-life"
-            className="h-12 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
+            className={cn(applicationControlClass, "h-12 font-semibold")}
             {...form.register("requested_slug")}
           />
           <FieldMeta
@@ -114,7 +117,7 @@ export function CommunityApplicationForm({
         </div>
       </div>
 
-      <div className="grid gap-4 border-b border-border py-5 md:grid-cols-[160px_minmax(0,1fr)]">
+      <div className="grid gap-3 md:grid-cols-[144px_minmax(0,1fr)]">
         <FieldLabel
           description="给用户看到的社区名称。"
           htmlFor="requested_name"
@@ -128,7 +131,7 @@ export function CommunityApplicationForm({
             aria-invalid={Boolean(form.formState.errors.requested_name)}
             disabled={applicationMutation.isPending}
             placeholder="校园生活"
-            className="h-12 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
+            className={cn(applicationControlClass, "h-12 font-semibold")}
             {...form.register("requested_name")}
           />
           <FieldMeta
@@ -139,7 +142,7 @@ export function CommunityApplicationForm({
         </div>
       </div>
 
-      <div className="grid gap-4 border-b border-border py-5 md:grid-cols-[160px_minmax(0,1fr)]">
+      <div className="grid gap-3 md:grid-cols-[144px_minmax(0,1fr)]">
         <FieldLabel
           description="说明这个社区要解决什么讨论需求。"
           htmlFor="reason"
@@ -152,7 +155,7 @@ export function CommunityApplicationForm({
             aria-invalid={Boolean(form.formState.errors.reason)}
             disabled={applicationMutation.isPending}
             placeholder="说明谁会使用这个社区、为什么需要它、你准备如何维护讨论秩序。"
-            className="min-h-48 border-border bg-background text-base leading-7 sm:min-h-56"
+            className={cn(applicationControlClass, "min-h-48 leading-7 sm:min-h-56")}
             {...form.register("reason")}
           />
           <FieldMeta
@@ -163,13 +166,13 @@ export function CommunityApplicationForm({
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-muted-foreground">
           {form.formState.isDirty
             ? "申请尚未提交。"
             : "开始输入后会在这里保留草稿状态。"}
         </div>
-        <Button type="submit" disabled={applicationMutation.isPending}>
+        <Button className="h-10 px-5" type="submit" disabled={applicationMutation.isPending}>
           {applicationMutation.isPending ? "正在提交..." : "提交申请"}
         </Button>
       </div>

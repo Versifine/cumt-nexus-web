@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { MessageSquare, Share2 } from "lucide-react";
 
 import { useAppShellBackAction } from "@/components/app-shell/app-shell";
@@ -11,8 +11,15 @@ import {
   usePostNavigationSource,
   type PostNavigationSource,
 } from "@/components/app-shell/post-navigation-source";
+import {
+  RightRail,
+  RightRailInfoList,
+  RightRailInfoRow,
+  RightRailSection,
+} from "@/components/app-shell/right-rail";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
+import { InfiniteListStatus } from "@/components/feedback/infinite-list-status";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
 import { SortMenu } from "@/components/ui/sort-menu";
@@ -22,7 +29,7 @@ import { resolvePlatformRole } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { CommentForm } from "@/features/comment/comment-form";
 import { CommentTree } from "@/features/comment/comment-tree";
-import { usePostCommentsQuery } from "@/features/comment/queries";
+import { useInfinitePostCommentsQuery } from "@/features/comment/queries";
 import {
   commentSortItems,
   DEFAULT_COMMENT_SORT,
@@ -47,6 +54,7 @@ import { ModerationQuickActions } from "@/features/moderation/moderation-quick-a
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { ApiError } from "@/lib/api/client";
+import { useInfiniteScrollTrigger } from "@/lib/hooks/use-infinite-scroll-trigger";
 import { cn } from "@/lib/utils";
 
 import {
@@ -79,7 +87,6 @@ export function PostDetail({
   const { isReady, token } = useAuthSession();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const navigationSource = usePostNavigationSource(id);
   const commentColumnRef = useRef<HTMLDivElement | null>(null);
   const commentComposerAnchorRef = useRef<HTMLDivElement | null>(null);
@@ -93,28 +100,49 @@ export function PostDetail({
     left: number;
     width: number;
   } | null>(null);
+  const isAuthenticated = Boolean(token);
   const currentUserQuery = useCurrentUserQuery();
-  const postQuery = usePostQuery(id, isReady, initialPostData);
+  const postQuery = usePostQuery(
+    id,
+    isReady,
+    isAuthenticated ? undefined : initialPostData,
+  );
   const canRequestComments =
     isReady && postQuery.isSuccess && Boolean(postQuery.data?.post);
-  const commentsQuery = usePostCommentsQuery(
+  const commentsQuery = useInfinitePostCommentsQuery(
     id,
     20,
-    0,
     "tree",
     initialCommentSort,
     6,
     canRequestComments,
-    initialCommentsData,
+    isAuthenticated ? undefined : initialCommentsData,
   );
+  const commentPages = commentsQuery.data?.pages ?? [];
+  const firstCommentPage = commentPages[0];
   const commentSortFallbackNotice = formatCommentSortFallbackNotice(
-    commentsQuery.data?.requested_sort,
-    commentsQuery.data?.effective_sort,
+    firstCommentPage?.requested_sort,
+    firstCommentPage?.effective_sort,
   );
   const post = postQuery.data?.post;
-  const comments = canRequestComments ? (commentsQuery.data?.comments ?? []) : [];
+  const comments = canRequestComments ? getUniqueComments(commentPages) : [];
+  const isInitialCommentsLoading =
+    commentsQuery.isLoading && comments.length === 0;
+  const hasNextCommentsPage = Boolean(commentsQuery.hasNextPage);
+  const isFetchingNextCommentsPage = commentsQuery.isFetchingNextPage;
+  const fetchNextCommentsPage = commentsQuery.fetchNextPage;
+  const loadMoreComments = useCallback(() => {
+    void fetchNextCommentsPage();
+  }, [fetchNextCommentsPage]);
+  const loadMoreRef = useInfiniteScrollTrigger({
+    enabled:
+      canRequestComments &&
+      comments.length > 0 &&
+      hasNextCommentsPage &&
+      !isFetchingNextCommentsPage,
+    onLoadMore: loadMoreComments,
+  });
   const currentUserId = currentUserQuery.data?.id ?? null;
-  const isAuthenticated = Boolean(token);
   const platformRole = resolvePlatformRole(currentUserQuery.data);
   const canModerate = Boolean(platformRole);
   const postCommunitySlug = post ? getPostCommunitySlug(post) : null;
@@ -362,12 +390,10 @@ export function PostDetail({
                   {commentCount} 条评论
                 </span>
                 <CommentSortMenu
-                  disabled={!canRequestComments || commentsQuery.isFetching}
+                  disabled={!canRequestComments || isInitialCommentsLoading}
                   onSortChange={(nextSort) => {
                     if (nextSort !== initialCommentSort) {
-                      router.push(
-                        getCommentSortHref(pathname, searchParams, nextSort),
-                      );
+                      router.push(getCommentSortHref(pathname, nextSort));
                     }
                   }}
                   sort={initialCommentSort}
@@ -411,13 +437,13 @@ export function PostDetail({
             </div>
 
             <div className="mt-4">
-              {commentsQuery.isLoading ? (
+              {isInitialCommentsLoading ? (
                 <div className="rounded-md bg-surface-raised px-4 py-4">
                   <LoadingState rows={3} />
                 </div>
               ) : null}
 
-              {commentsQuery.isError ? (
+              {commentsQuery.isError && comments.length === 0 ? (
                 <div className="rounded-md bg-surface-raised px-4 py-4">
                   <ErrorState
                     title={getErrorTitle(commentsQuery.error, "无法加载评论")}
@@ -441,7 +467,9 @@ export function PostDetail({
                 </div>
               ) : null}
 
-              {commentsQuery.isSuccess && comments.length === 0 ? (
+              {commentsQuery.isSuccess &&
+              !commentsQuery.isFetching &&
+              comments.length === 0 ? (
                 <div className="rounded-md bg-surface-raised px-4 py-4">
                   <EmptyState
                     title="还没有评论"
@@ -450,22 +478,34 @@ export function PostDetail({
                 </div>
               ) : null}
 
-              {commentsQuery.isSuccess && comments.length > 0 ? (
-                <CommentTree
-                  canModerate={canModerate || canUseCommunityManage}
-                  comments={comments}
-                  communityModerationSlug={
-                    canUseCommunityManage ? (postCommunitySlug ?? undefined) : undefined
-                  }
-                  currentUserId={currentUserId}
-                  isAuthenticated={isAuthenticated}
-                  maxDepth={6}
-                  onCommentSubmitted={handleCommentSubmitted}
-                  onReplyChange={setReplyingCommentId}
-                  platformAuditEnabled={canModerate}
-                  postId={id}
-                  replyingTo={replyingCommentId}
-                />
+              {comments.length > 0 ? (
+                <div className="space-y-3">
+                  <CommentTree
+                    canModerate={canModerate || canUseCommunityManage}
+                    comments={comments}
+                    communityModerationSlug={
+                      canUseCommunityManage
+                        ? (postCommunitySlug ?? undefined)
+                        : undefined
+                    }
+                    currentUserId={currentUserId}
+                    isAuthenticated={isAuthenticated}
+                    maxDepth={6}
+                    onCommentSubmitted={handleCommentSubmitted}
+                    onReplyChange={setReplyingCommentId}
+                    platformAuditEnabled={canModerate}
+                    postId={id}
+                    replyingTo={replyingCommentId}
+                  />
+                  <InfiniteListStatus
+                    ref={loadMoreRef}
+                    hasNextPage={hasNextCommentsPage}
+                    isFetching={isFetchingNextCommentsPage}
+                    loadingLabel="正在加载更多评论"
+                    loadMoreLabel="加载更多评论"
+                    onLoadMore={loadMoreComments}
+                  />
+                </div>
               ) : null}
             </div>
           </section>
@@ -484,6 +524,24 @@ export function PostDetail({
 
 function getCommentElementId(commentId: string) {
   return `comment-${commentId}`;
+}
+
+function getUniqueComments(pages: ListCommentsResponse[]) {
+  const seenCommentIds = new Set<string>();
+  const comments: Comment[] = [];
+
+  for (const page of pages) {
+    for (const comment of page.comments) {
+      if (seenCommentIds.has(comment.id)) {
+        continue;
+      }
+
+      seenCommentIds.add(comment.id);
+      comments.push(comment);
+    }
+  }
+
+  return comments;
 }
 
 function CommentSortMenu({
@@ -508,11 +566,9 @@ function CommentSortMenu({
 
 function getCommentSortHref(
   pathname: string,
-  searchParams: { toString(): string },
   sort: CommentSort,
 ) {
-  const params = new URLSearchParams(searchParams.toString());
-  params.delete("comment_sort");
+  const params = new URLSearchParams();
 
   if (sort === DEFAULT_COMMENT_SORT) {
     params.delete("sort");
@@ -728,120 +784,121 @@ function PostRail({
   const author = getPostAuthorIdentity(post);
 
   return (
-    <aside className="px-0 lg:pl-1">
-      <div className="sticky top-20 right-rail-scroll space-y-4">
-        <section className="rounded-lg bg-surface p-4">
-          <h2 className="text-sm font-semibold">所在社区</h2>
-          <div className="mt-3 flex min-w-0 items-start gap-3">
-            <CommunityHoverPreview
-              community={{
-                avatarUrl: community.avatarUrl,
-                description: post.community?.description,
-                href: community.href,
-                label: community.label,
-                memberCount: post.community?.member_count,
-                name: community.name,
-                postCount: post.community?.post_count,
-                slug: community.slug,
-                viewerIsFollowing: post.community?.viewer_is_following,
-              }}
-              panelClassName="w-80"
-            >
-              {community.href ? (
-                <Link
-                  href={community.href}
-                  className="block shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  aria-label={`进入${community.name}`}
-                >
-                  <CommunityHoverAvatar
-                    avatarUrl={community.avatarUrl}
-                    label={community.name}
-                  />
-                </Link>
-              ) : (
+    <RightRail className="px-0 lg:pl-1">
+      <RightRailSection title="所在社区">
+        <div className="mt-3 flex min-w-0 items-start gap-3">
+          <CommunityHoverPreview
+            community={{
+              avatarUrl: community.avatarUrl,
+              description: post.community?.description,
+              href: community.href,
+              label: community.label,
+              memberCount: post.community?.member_count,
+              name: community.name,
+              postCount: post.community?.post_count,
+              slug: community.slug,
+              viewerIsFollowing: post.community?.viewer_is_following,
+            }}
+            panelClassName="w-80"
+          >
+            {community.href ? (
+              <Link
+                href={community.href}
+                className="block shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                aria-label={`进入${community.name}`}
+              >
                 <CommunityHoverAvatar
                   avatarUrl={community.avatarUrl}
                   label={community.name}
                 />
-              )}
-            </CommunityHoverPreview>
-            <div className="min-w-0">
-              {community.href ? (
-                <Link
-                  href={community.href}
-                  className="block truncate text-lg font-semibold tracking-normal hover:text-primary"
-                >
-                  {community.name}
-                </Link>
-              ) : (
-                <span className="block truncate text-lg font-semibold tracking-normal">
-                  {community.name}
-                </span>
-              )}
-              {community.slug ? (
-                <span className="mt-1 block truncate font-mono text-xs text-muted-foreground">
-                  /{community.slug}
-                </span>
-              ) : null}
-            </div>
+              </Link>
+            ) : (
+              <CommunityHoverAvatar
+                avatarUrl={community.avatarUrl}
+                label={community.name}
+              />
+            )}
+          </CommunityHoverPreview>
+          <div className="min-w-0">
+            {community.href ? (
+              <Link
+                href={community.href}
+                className="block truncate text-lg font-semibold tracking-normal hover:text-primary"
+              >
+                {community.name}
+              </Link>
+            ) : (
+              <span className="block truncate text-lg font-semibold tracking-normal">
+                {community.name}
+              </span>
+            )}
+            {community.slug ? (
+              <span className="mt-1 block truncate font-mono text-xs text-muted-foreground">
+                /{community.slug}
+              </span>
+            ) : null}
           </div>
-          {post.community?.description ? (
-            <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">
-              {post.community.description}
-            </p>
-          ) : null}
-          <p className="mt-3 font-mono text-xs text-muted-foreground">
-            {formatCommunityStats(post, commentCount)}
+        </div>
+        {post.community?.description ? (
+          <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">
+            {post.community.description}
           </p>
-        </section>
+        ) : null}
+        <p className="mt-3 font-mono text-xs text-muted-foreground">
+          {formatCommunityStats(post, commentCount)}
+        </p>
+      </RightRailSection>
 
-        <section className="rounded-lg bg-surface p-4">
-          <h2 className="text-sm font-semibold">作者</h2>
-          <div className="mt-3 flex min-w-0 items-center gap-3">
-            <PostAuthorAvatar avatarUrl={author.avatarUrl} name={author.name} />
-            <div className="min-w-0">
-              {author.href ? (
-                <Link
-                  href={author.href}
-                  className="block truncate font-semibold hover:text-primary"
-                >
-                  {author.name}
-                </Link>
-              ) : (
-                <span className="block truncate font-semibold">{author.name}</span>
-              )}
-            </div>
+      <RightRailSection title="作者">
+        <div className="mt-3 flex min-w-0 items-center gap-3">
+          <PostAuthorAvatar avatarUrl={author.avatarUrl} name={author.name} />
+          <div className="min-w-0">
+            {author.href ? (
+              <Link
+                href={author.href}
+                className="block truncate font-semibold hover:text-primary"
+              >
+                {author.name}
+              </Link>
+            ) : (
+              <span className="block truncate font-semibold">{author.name}</span>
+            )}
           </div>
-          {post.author?.headline ? (
-            <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">
-              {post.author.headline}
-            </p>
+        </div>
+        {post.author?.headline ? (
+          <p className="mt-3 line-clamp-3 text-sm leading-6 text-muted-foreground">
+            {post.author.headline}
+          </p>
+        ) : null}
+      </RightRailSection>
+
+      <RightRailSection title="发布时间">
+        <RightRailInfoList>
+          {post.status !== "visible" ? (
+            <RightRailInfoRow
+              columnsClassName="grid-cols-[72px_minmax(0,1fr)]"
+              label="状态"
+              value={formatPostStatus(post.status)}
+              valueClassName="truncate text-right font-normal"
+            />
           ) : null}
-        </section>
-
-        <section className="rounded-lg bg-surface p-4">
-          <h2 className="text-sm font-semibold">发布时间</h2>
-          <dl className="mt-3 space-y-2 rounded-md bg-surface-raised p-3 text-sm">
-            {post.status !== "visible" ? (
-              <RailRow label="状态" value={formatPostStatus(post.status)} />
-            ) : null}
-            <RailRow label="发布" value={formatDate(post.created_at)} />
-            {post.updated_at !== post.created_at ? (
-              <RailRow label="更新" value={formatDate(post.updated_at)} />
-            ) : null}
-          </dl>
-        </section>
-      </div>
-    </aside>
-  );
-}
-
-function RailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-3">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 truncate text-right">{value}</dd>
-    </div>
+          <RightRailInfoRow
+            columnsClassName="grid-cols-[72px_minmax(0,1fr)]"
+            label="发布"
+            value={formatDate(post.created_at)}
+            valueClassName="truncate text-right font-normal"
+          />
+          {post.updated_at !== post.created_at ? (
+            <RightRailInfoRow
+              columnsClassName="grid-cols-[72px_minmax(0,1fr)]"
+              label="更新"
+              value={formatDate(post.updated_at)}
+              valueClassName="truncate text-right font-normal"
+            />
+          ) : null}
+        </RightRailInfoList>
+      </RightRailSection>
+    </RightRail>
   );
 }
 

@@ -43,8 +43,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  useCommunityModerationTemplatesQuery,
   useCommunityModerationUserProfileQuery,
   useCommunityModeratorNotesQuery,
+  useCommunityRulesQuery,
   useCreateCommunityModeratorNoteMutation,
   useUpsertCommunityUserStateMutation,
 } from "@/features/community/queries";
@@ -188,11 +190,16 @@ const commentQuickActions: QuickActionDefinition[] = [
   },
 ];
 
+type QuickCommunityUserStateKind = Extract<
+  CommunityUserStateKind,
+  "banned" | "muted"
+>;
+
 type QuickUserStateDefinition = {
   confirmLabel: string;
   description: string;
   icon: typeof Ban;
-  kind: CommunityUserStateKind;
+  kind: QuickCommunityUserStateKind;
   label: string;
 };
 
@@ -212,6 +219,66 @@ const communityUserStateActions: QuickUserStateDefinition[] = [
     label: "禁言作者",
   },
 ];
+
+type CommunityUserStateDurationPreset = {
+  description: string;
+  hours?: number;
+  label: string;
+  value: string;
+};
+
+type CommunityUserStateReasonOption = {
+  label: string;
+  meta?: string;
+  value: string;
+};
+
+const communityUserStateDurationPresets: Record<
+  QuickCommunityUserStateKind,
+  CommunityUserStateDurationPreset[]
+> = {
+  banned: [
+    { description: "短期冷却，适合首次违规。", hours: 24, label: "1 天", value: "1d" },
+    { description: "明确警告，适合重复违规。", hours: 72, label: "3 天", value: "3d" },
+    { description: "常规处罚，适合明显破坏讨论秩序。", hours: 168, label: "7 天", value: "7d" },
+    { description: "长期限制，适合严重或多次违规。", hours: 720, label: "30 天", value: "30d" },
+    { description: "不设到期时间，需要人工解除。", label: "永久", value: "permanent" },
+    { description: "手动指定准确到期时间。", label: "自定义", value: "custom" },
+  ],
+  muted: [
+    { description: "轻量冷却，适合临时争吵。", hours: 1, label: "1 小时", value: "1h" },
+    { description: "当天暂停互动。", hours: 24, label: "1 天", value: "1d" },
+    { description: "连续违规后的短期禁言。", hours: 72, label: "3 天", value: "3d" },
+    { description: "长期限制，适合反复扰乱讨论。", hours: 168, label: "7 天", value: "7d" },
+    { description: "不设到期时间，需要人工解除。", label: "永久", value: "permanent" },
+    { description: "手动指定准确到期时间。", label: "自定义", value: "custom" },
+  ],
+};
+
+const communityUserStateDefaultDuration: Record<QuickCommunityUserStateKind, string> = {
+  banned: "7d",
+  muted: "1h",
+};
+
+const defaultCommunityUserStateReasons: Record<
+  QuickCommunityUserStateKind,
+  CommunityUserStateReasonOption[]
+> = {
+  banned: [
+    { label: "人身攻击", value: "人身攻击或骚扰他人，破坏社区讨论秩序。" },
+    { label: "广告垃圾", value: "发布广告、垃圾信息或重复刷屏内容。" },
+    { label: "恶意引战", value: "持续引战、挑衅或诱导无意义冲突。" },
+    { label: "违规内容", value: "发布违反社区规则的内容，经提醒后仍未改正。" },
+    { label: "规避处置", value: "规避已有社区处置或重复扰乱社区治理。" },
+  ],
+  muted: [
+    { label: "冷静期", value: "讨论情绪升级，临时禁言作为冷静期。" },
+    { label: "刷屏", value: "短时间内重复发布相似内容，影响正常阅读。" },
+    { label: "跑题争吵", value: "持续跑题争吵，干扰当前讨论。" },
+    { label: "轻度骚扰", value: "存在轻度骚扰或挑衅，需要暂停互动。" },
+    { label: "提醒无效", value: "已提醒仍继续违反社区互动规则。" },
+  ],
+};
 
 const unsupportedActions: Array<{
   icon: typeof Mail;
@@ -728,19 +795,51 @@ function CommunityUserStateMenuItem({
 }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
+  const [duration, setDuration] = useState(
+    communityUserStateDefaultDuration[action.kind],
+  );
+  const [customExpiresAt, setCustomExpiresAt] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const slug = communitySlug?.trim() ?? "";
+  const canLoadCommunityReasons = open && Boolean(slug);
+  const reasonTemplatesQuery = useCommunityModerationTemplatesQuery(
+    { kind: "removal-reasons", slug },
+    canLoadCommunityReasons,
+  );
+  const rulesQuery = useCommunityRulesQuery(slug, canLoadCommunityReasons);
   const mutation = useUpsertCommunityUserStateMutation();
   const Icon = action.icon;
   const isSubmitted = disabled && !mutation.error;
   const isPending = mutation.isPending;
   const submitError = formError ?? getErrorDescription(mutation.error);
+  const durationPresets = communityUserStateDurationPresets[action.kind];
+  const selectedDuration = durationPresets.find((item) => item.value === duration);
+  const ruleTitles = new Map(
+    (rulesQuery.data?.rules ?? []).map((rule) => [rule.id, rule.title]),
+  );
+  const communityReasonOptions = (reasonTemplatesQuery.data?.items ?? [])
+    .filter((template) => template.is_active)
+    .sort((current, next) => current.position - next.position)
+    .map<CommunityUserStateReasonOption>((template) => ({
+      label: template.title,
+      meta: template.rule_id
+        ? `规则：${ruleTitles.get(template.rule_id) ?? "已关联"}`
+        : "社区维护",
+      value: template.body.trim() || template.title,
+    }));
+  const reasonOptions =
+    communityReasonOptions.length > 0
+      ? communityReasonOptions
+      : defaultCommunityUserStateReasons[action.kind];
+  const durationSummary = getCommunityUserStateDurationSummary(
+    selectedDuration,
+    customExpiresAt,
+  );
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
 
-    const slug = communitySlug?.trim();
     const userId = targetAuthorId?.trim();
     const trimmedReason = reason.trim();
 
@@ -754,8 +853,18 @@ function CommunityUserStateMenuItem({
       return;
     }
 
+    const expiresAt = getCommunityUserStateExpiresAt({
+      customExpiresAt,
+      preset: selectedDuration,
+    });
+
+    if (expiresAt.status === "invalid") {
+      setFormError(expiresAt.message);
+      return;
+    }
+
     await mutation.mutateAsync({
-      expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+      expires_at: expiresAt.value,
       kind: action.kind,
       reason: trimmedReason,
       slug,
@@ -780,7 +889,7 @@ function CommunityUserStateMenuItem({
         {disabled ? <DropdownMenuShortcut>已提交</DropdownMenuShortcut> : null}
       </DropdownMenuItem>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{action.label}</DialogTitle>
             <DialogDescription>
@@ -788,17 +897,82 @@ function CommunityUserStateMenuItem({
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={submit}>
-            <Input
-              type="datetime-local"
-              value={expiresAt}
-              onChange={(event) => setExpiresAt(event.target.value)}
-              disabled={isPending || isSubmitted}
-              aria-label="可选到期时间"
-            />
+            <section className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-xs font-semibold">处置档位</label>
+                <span className="text-xs text-muted-foreground">
+                  {durationSummary}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {durationPresets.map((preset) => (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    aria-pressed={duration === preset.value}
+                    className={
+                      duration === preset.value
+                        ? "min-h-11 rounded-md bg-primary/10 px-3 py-2 text-left text-sm font-semibold text-primary shadow-[inset_0_0_0_1px_var(--primary)] transition-colors"
+                        : "min-h-11 rounded-md bg-surface-raised px-3 py-2 text-left text-sm text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)] transition-colors hover:bg-surface-hover hover:text-foreground"
+                    }
+                    disabled={isPending || isSubmitted}
+                    onClick={() => setDuration(preset.value)}
+                    title={preset.description}
+                  >
+                    <span className="block">{preset.label}</span>
+                    <span className="mt-0.5 block truncate text-[11px] font-normal text-muted-foreground">
+                      {preset.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {duration === "custom" ? (
+                <Input
+                  type="datetime-local"
+                  value={customExpiresAt}
+                  onChange={(event) => setCustomExpiresAt(event.target.value)}
+                  disabled={isPending || isSubmitted}
+                  aria-label="自定义到期时间"
+                />
+              ) : null}
+            </section>
+
+            <section className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-xs font-semibold">处理依据</label>
+                <span className="text-xs text-muted-foreground">
+                  {communityReasonOptions.length > 0 ? "社区维护" : "默认依据"}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {reasonOptions.map((option) => (
+                  <button
+                    key={option.label}
+                    type="button"
+                    className="rounded-md bg-surface-raised px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)] transition-colors hover:bg-surface-hover hover:text-foreground"
+                    disabled={isPending || isSubmitted}
+                    onClick={() => setReason(option.value)}
+                  >
+                    <span className="block">{option.label}</span>
+                    {option.meta ? (
+                      <span className="mt-0.5 block text-[11px] font-normal opacity-70">
+                        {option.meta}
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+              {reasonTemplatesQuery.isError ? (
+                <p className="text-xs text-muted-foreground">
+                  社区依据暂时无法加载，可以继续手填处置原因。
+                </p>
+              ) : null}
+            </section>
+
             <Textarea
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              placeholder="填写处置原因"
+              placeholder="填写处置原因，可选择上方处理依据后再补充细节。"
               disabled={isPending || isSubmitted}
               aria-label="处置原因"
             />
@@ -838,6 +1012,90 @@ function CommunityUserStateMenuItem({
       </Dialog>
     </>
   );
+}
+
+function getCommunityUserStateExpiresAt({
+  customExpiresAt,
+  preset,
+}: {
+  customExpiresAt: string;
+  preset?: CommunityUserStateDurationPreset;
+}): { status: "valid"; value: string | null } | { message: string; status: "invalid" } {
+  if (!preset) {
+    return {
+      message: "请选择处置档位。",
+      status: "invalid",
+    };
+  }
+
+  if (preset.value === "permanent") {
+    return {
+      status: "valid",
+      value: null,
+    };
+  }
+
+  const expiresAt =
+    preset.value === "custom"
+      ? parseCustomCommunityUserStateExpiresAt(customExpiresAt)
+      : new Date(Date.now() + (preset.hours ?? 0) * 60 * 60 * 1000);
+
+  if (!expiresAt) {
+    return {
+      message: "请选择自定义到期时间。",
+      status: "invalid",
+    };
+  }
+
+  if (Number.isNaN(expiresAt.getTime())) {
+    return {
+      message: "到期时间格式不正确。",
+      status: "invalid",
+    };
+  }
+
+  if (expiresAt.getTime() <= Date.now()) {
+    return {
+      message: "到期时间必须晚于当前时间。",
+      status: "invalid",
+    };
+  }
+
+  return {
+    status: "valid",
+    value: expiresAt.toISOString(),
+  };
+}
+
+function parseCustomCommunityUserStateExpiresAt(value: string) {
+  const trimmedValue = value.trim();
+
+  return trimmedValue ? new Date(trimmedValue) : null;
+}
+
+function getCommunityUserStateDurationSummary(
+  preset: CommunityUserStateDurationPreset | undefined,
+  customExpiresAt: string,
+) {
+  if (!preset) {
+    return "未选择";
+  }
+
+  if (preset.value === "permanent") {
+    return "永久，需人工解除";
+  }
+
+  if (preset.value === "custom") {
+    const expiresAt = parseCustomCommunityUserStateExpiresAt(customExpiresAt);
+
+    if (!expiresAt || Number.isNaN(expiresAt.getTime())) {
+      return "自定义到期时间";
+    }
+
+    return `至 ${formatShortDateTime(expiresAt.toISOString())}`;
+  }
+
+  return preset.description;
 }
 
 function CommunityUserProfileMenuItem({

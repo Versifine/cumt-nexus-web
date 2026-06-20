@@ -47,11 +47,5 @@ export function FeedRoutePage({
   source: FeedSource;
   sort: PostSort;
 }) {
-  return (
-    <HomeFeedPage
-      contextLabel={getFeedContextLabel(source, sort)}
-      source={source}
-      sort={sort}
-    />
-  );
+  return <HomeFeedPage source={source} sort={sort} />;
 }

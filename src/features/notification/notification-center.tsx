@@ -3,6 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 
+import {
+  ReviewDesk,
+  ReviewDeskBoard,
+  ReviewDeskInspector,
+} from "@/components/app-shell/review-desk";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -64,114 +69,126 @@ export function NotificationCenter({
   const previousOffset = Math.max(0, offset - PAGE_SIZE);
 
   return (
-    <section className="mx-auto w-full max-w-3xl bg-background">
+    <ReviewDesk className="max-w-[1120px]">
       <NotificationHeader category={category} />
-      <NotificationCategoryNav category={category} />
-
-      {!isReady ? (
-        <div className="border-b border-border p-4">
-          <LoadingState rows={3} />
-        </div>
-      ) : null}
-
-      {isReady && !token ? (
-        <div className="border-b border-border p-4">
-          <EmptyState
-            title="登录后查看消息"
-            description="回复、@、赞和系统通知会跟随账号同步。"
-            action={
-              <TextAction href={loginHref} tone="primary">
-                登录
-              </TextAction>
-            }
-          />
-        </div>
-      ) : null}
-
-      {isLoadingFirstPage ? (
-        <div className="border-b border-border p-4">
-          <LoadingState rows={6} />
-        </div>
-      ) : null}
-
-      {canLoadNotifications && notificationsQuery.isError ? (
-        <div className="border-b border-border p-4">
-          <ErrorState
-            title={getErrorTitle(notificationsQuery.error, category)}
-            description={getErrorDescription(notificationsQuery.error, category)}
-            action={
-              isUnauthenticated(notificationsQuery.error) ? (
-                <TextAction href={loginHref} tone="primary">
-                  登录
-                </TextAction>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => notificationsQuery.refetch()}
-                >
-                  重试
-                </Button>
-              )
-            }
-          />
-        </div>
-      ) : null}
-
-      {canLoadNotifications &&
-      notificationsQuery.isSuccess &&
-      notifications.length === 0 ? (
-        <div className="border-b border-border p-4">
-          <EmptyState
-            title={`还没有${formatNotificationCategory(category)}`}
-            description={getEmptyDescription(category)}
-            action={<TextAction href="/">回到信息流</TextAction>}
-          />
-        </div>
-      ) : null}
-
-      {canLoadNotifications && notifications.length > 0 ? (
-        <>
-          <div className="border-b border-border">
-            {notifications.map((notification) => (
-              <NotificationRow
-                key={notification.id}
-                notification={notification}
-              />
-            ))}
-          </div>
-
-          <NotificationPagination
+      <ReviewDeskBoard
+        className="xl:grid-cols-[minmax(0,1fr)_320px]"
+        inspector={
+          <NotificationRail
+            category={category}
             hasMore={hasMore}
-            hasPrevious={hasPrevious}
-            isLoadingPage={isLoadingPage}
-            offset={offset}
             pageCount={notifications.length}
-            onNext={() => setOffset(nextOffset)}
-            onPrevious={() => setOffset(previousOffset)}
           />
-        </>
-      ) : null}
-    </section>
+        }
+      >
+        <section className="min-w-0 rounded-lg bg-surface px-4 py-4 sm:px-5">
+          <NotificationCategoryNav category={category} />
+
+          <div className="mt-4">
+            {!isReady ? (
+              <LoadingState rows={3} />
+            ) : null}
+
+            {isReady && !token ? (
+              <EmptyState
+                className="bg-surface-raised"
+                title="登录后查看消息"
+                description="回复、@、赞和系统通知会跟随账号同步。"
+                action={
+                  <TextAction href={loginHref} tone="primary">
+                    登录
+                  </TextAction>
+                }
+              />
+            ) : null}
+
+            {isLoadingFirstPage ? (
+              <LoadingState rows={6} />
+            ) : null}
+
+            {canLoadNotifications && notificationsQuery.isError ? (
+              <ErrorState
+                title={getErrorTitle(notificationsQuery.error, category)}
+                description={getErrorDescription(
+                  notificationsQuery.error,
+                  category,
+                )}
+                action={
+                  isUnauthenticated(notificationsQuery.error) ? (
+                    <TextAction href={loginHref} tone="primary">
+                      登录
+                    </TextAction>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="px-1 hover:bg-transparent hover:text-primary"
+                      onClick={() => notificationsQuery.refetch()}
+                    >
+                      重试
+                    </Button>
+                  )
+                }
+              />
+            ) : null}
+
+            {canLoadNotifications &&
+            notificationsQuery.isSuccess &&
+            notifications.length === 0 ? (
+              <EmptyState
+                className="bg-surface-raised"
+                title={`还没有${formatNotificationCategory(category)}`}
+                description={getEmptyDescription(category)}
+                action={<TextAction href="/">回到信息流</TextAction>}
+              />
+            ) : null}
+
+            {canLoadNotifications && notifications.length > 0 ? (
+              <>
+                <div className="space-y-2">
+                  {notifications.map((notification) => (
+                    <NotificationRow
+                      key={notification.id}
+                      notification={notification}
+                    />
+                  ))}
+                </div>
+
+                <NotificationPagination
+                  hasMore={hasMore}
+                  hasPrevious={hasPrevious}
+                  isLoadingPage={isLoadingPage}
+                  offset={offset}
+                  pageCount={notifications.length}
+                  onNext={() => setOffset(nextOffset)}
+                  onPrevious={() => setOffset(previousOffset)}
+                />
+              </>
+            ) : null}
+          </div>
+        </section>
+      </ReviewDeskBoard>
+    </ReviewDesk>
   );
 }
 
 function NotificationHeader({ category }: { category: NotificationCategory }) {
   return (
-    <header className="border-b border-border py-4">
-      <div className="flex min-w-0 items-end justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold leading-8 tracking-normal text-foreground">
-            消息
-          </h1>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            {formatNotificationCategory(category)}
-          </p>
+    <header className="flex min-w-0 flex-col gap-3 py-1 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <div className="font-mono text-[11px] font-semibold uppercase text-primary">
+          /notifications
         </div>
-        <TextAction href="/" variant="bar">
-          返回信息流
-        </TextAction>
+        <h1 className="mt-1 text-2xl font-semibold leading-8 tracking-normal text-foreground">
+          消息中心
+        </h1>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          当前范围：{formatNotificationCategory(category)}。
+        </p>
       </div>
+      <TextAction className="shrink-0" href="/" tone="primary">
+        返回信息流
+      </TextAction>
     </header>
   );
 }
@@ -184,7 +201,7 @@ function NotificationCategoryNav({
   return (
     <nav
       aria-label="消息类型"
-      className="flex min-w-0 items-center gap-2 overflow-x-auto border-b border-border py-3"
+      className="flex min-w-0 items-center gap-2 overflow-x-auto"
     >
       {notificationCategoryOptions.map((option) => {
         const isActive = option.value === category;
@@ -194,10 +211,10 @@ function NotificationCategoryNav({
             key={option.value}
             href={getNotificationCategoryHref(option.value)}
             className={cn(
-              "inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "inline-flex h-9 shrink-0 items-center gap-2 rounded-md px-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               isActive
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-surface-raised hover:text-foreground",
             )}
           >
             {renderNotificationCategoryIcon(option.value)}
@@ -206,6 +223,64 @@ function NotificationCategoryNav({
         );
       })}
     </nav>
+  );
+}
+
+function NotificationRail({
+  category,
+  hasMore,
+  pageCount,
+}: {
+  category: NotificationCategory;
+  hasMore: boolean;
+  pageCount: number;
+}) {
+  return (
+    <div className="space-y-4">
+      <ReviewDeskInspector
+        title="消息范围"
+        description={
+          category === "system"
+            ? "系统通知只展示平台和社区治理相关状态。"
+            : "互动消息包含回复、提及、点赞和其他与你有关的动态。"
+        }
+      >
+        <dl className="grid gap-2">
+          <NotificationRailStat
+            label="当前分类"
+            value={formatNotificationCategory(category)}
+          />
+          <NotificationRailStat
+            label="本页数量"
+            value={`${pageCount} 条`}
+          />
+          <NotificationRailStat
+            label="更多"
+            value={hasMore ? "还有下一页" : "已到末尾"}
+          />
+        </dl>
+      </ReviewDeskInspector>
+
+      <ReviewDeskInspector
+        title="阅读建议"
+        description="优先处理回复和提及；系统通知通常用于账号、社区和审核状态变化。"
+      />
+    </div>
+  );
+}
+
+function NotificationRailStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded-md px-1.5 py-2">
+      <dt className="font-mono text-[11px] text-muted-foreground">{label}</dt>
+      <dd className="truncate text-sm font-semibold text-foreground">{value}</dd>
+    </div>
   );
 }
 
@@ -244,7 +319,7 @@ function NotificationRow({
 
   if (!target.href) {
     return (
-      <article className="grid grid-cols-[48px_minmax(0,1fr)] gap-3 border-b border-border px-1 py-4 last:border-b-0">
+      <article className="grid grid-cols-[48px_minmax(0,1fr)] gap-3 rounded-md bg-surface-raised px-3 py-3">
         {content}
       </article>
     );
@@ -253,7 +328,7 @@ function NotificationRow({
   return (
     <Link
       href={target.href}
-      className="grid grid-cols-[48px_minmax(0,1fr)] gap-3 border-b border-border px-1 py-4 transition-colors last:border-b-0 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="grid grid-cols-[48px_minmax(0,1fr)] gap-3 rounded-md bg-surface-raised px-3 py-3 transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {content}
     </Link>
@@ -267,13 +342,13 @@ function NotificationAvatar({ actor }: { actor: NotificationActorView }) {
       <img
         src={actor.avatarUrl}
         alt={`${actor.displayName}头像`}
-        className="size-12 shrink-0 rounded-full border border-border object-cover"
+        className="size-11 shrink-0 rounded-full bg-background object-cover"
       />
     );
   }
 
   return (
-    <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-border bg-muted/40 text-sm font-semibold text-primary">
+    <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
       {actor.initial}
     </div>
   );
@@ -304,8 +379,9 @@ function NotificationPagination({
       <div className="flex items-center gap-2">
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
+          className="px-1 hover:bg-transparent hover:text-primary"
           disabled={!hasPrevious || isLoadingPage}
           onClick={onPrevious}
         >
@@ -313,8 +389,9 @@ function NotificationPagination({
         </Button>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
+          className="px-1 hover:bg-transparent hover:text-primary"
           disabled={!hasMore || isLoadingPage}
           onClick={onNext}
         >

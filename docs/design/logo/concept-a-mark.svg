@@ -1,0 +1,10 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">CUMT Nexus mark concept A</title>
+  <desc id="desc">A low-radius CN monogram with an open C and a teal nexus diagonal.</desc>
+  <rect x="12" y="12" width="104" height="104" rx="14" fill="#0E1418"/>
+  <rect x="12.5" y="12.5" width="103" height="103" rx="13.5" stroke="#243038"/>
+  <path d="M82 33H51C34.8 33 26 45.1 26 64C26 82.9 34.8 95 51 95H82" stroke="#EEF5F4" stroke-width="11" stroke-linecap="square" stroke-linejoin="miter"/>
+  <path d="M50 94V34L79 94V34" stroke="#18B7A5" stroke-width="9" stroke-linecap="square" stroke-linejoin="miter"/>
+  <rect x="45" y="28" width="10" height="10" rx="2" fill="#18B7A5"/>
+  <rect x="74" y="90" width="10" height="10" rx="2" fill="#18B7A5"/>
+</svg>

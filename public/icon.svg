@@ -1,7 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="CUMT Nexus">
-  <rect width="512" height="512" fill="#09090B"/>
-  <rect x="48" y="48" width="416" height="416" fill="#FAFAFA"/>
-  <rect x="72" y="72" width="368" height="368" fill="#09090B"/>
-  <path d="M118 158h94v42h-48v112h48v42h-94V158Zm181 0 92 152V158h46v196h-59L286 202v152h-46V158h59Z" fill="#FAFAFA"/>
-  <rect x="72" y="392" width="368" height="24" fill="#2DD4BF"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CUMT Nexus pickaxe mark">
+  <rect width="64" height="64" fill="#09090B"/>
+  <rect x="8" y="8" width="48" height="48" rx="8" fill="#111113"/>
+  <defs>
+    <mask id="pickaxe-cutout" maskUnits="userSpaceOnUse">
+      <rect width="64" height="64" fill="white"/>
+      <path fill="black" d="M34.2 23.4 39.6 17.9 45 23.4 39.6 28.8Z"/>
+    </mask>
+  </defs>
+  <g mask="url(#pickaxe-cutout)">
+    <path fill="#FAFAFA" d="M8.8 27.2C17.2 16.3 31.7 11.6 49.1 14.1L56 18.4 52.6 24.1C38.1 18 24.6 21.2 14.1 32.7Z"/>
+    <path fill="none" stroke="#FAFAFA" stroke-linecap="round" stroke-width="5.8" d="M39.6 22.8 21 53"/>
+  </g>
 </svg>

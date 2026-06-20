@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   Archive,
   ArchiveRestore,
@@ -86,8 +86,30 @@ import type {
 type MessageCenterPageProps = {
   activeConversationId?: string;
   fullscreen?: boolean;
+  initialSearchParams?: MessageCenterSearchParams;
   showRequestInbox?: boolean;
 };
+
+type MessageCenterSearchParams = Record<string, string | string[] | undefined>;
+
+function createUrlSearchParams(input: MessageCenterSearchParams = {}) {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof value === "string") {
+      params.set(key, value);
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        params.append(key, item);
+      }
+    }
+  }
+
+  return params;
+}
 
 const MESSAGE_EMOJI_OPTIONS = [
   "😀",
@@ -119,10 +141,14 @@ const MESSAGE_EMOJI_OPTIONS = [
 export function MessageCenterPage({
   activeConversationId,
   fullscreen = false,
+  initialSearchParams,
   showRequestInbox = false,
 }: MessageCenterPageProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useMemo(
+    () => createUrlSearchParams(initialSearchParams),
+    [initialSearchParams],
+  );
   const { isReady, token } = useAuthSession();
   const canLoad = isReady && Boolean(token);
   const isThreadRoute = Boolean(activeConversationId);

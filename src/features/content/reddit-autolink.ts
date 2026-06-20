@@ -18,8 +18,10 @@ const skippedNodeTypes = new Set([
   "image",
   "imageReference",
   "inlineCode",
+  "inlineMath",
   "link",
   "linkReference",
+  "math",
 ]);
 
 export function remarkRedditAutolink() {

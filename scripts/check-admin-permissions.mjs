@@ -56,42 +56,52 @@ function checkAdminRouteRoles() {
     {
       path: "src/app/admin/page.tsx",
       roles: null,
+      shell: "AppShell",
     },
     {
       path: "src/app/admin/reports/page.tsx",
       roles: null,
+      shell: "AppShell",
     },
     {
       path: "src/app/admin/reports/[id]/page.tsx",
       roles: null,
+      shell: "AppShell",
     },
     {
       path: "src/app/admin/community-applications/page.tsx",
       roles: null,
+      shell: "AppShell",
     },
     {
       path: "src/app/admin/users/page.tsx",
       roles: 'allowedRoles={["owner", "admin"]}',
+      shell: "AdminShell",
     },
     {
       path: "src/app/admin/owner-transfer/page.tsx",
       roles: 'allowedRoles={["owner", "admin"]}',
+      shell: "AdminShell",
     },
     {
       path: "src/app/admin/communities/page.tsx",
       roles: 'allowedRoles={["owner", "admin"]}',
+      shell: "AdminShell",
     },
     {
       path: "src/app/admin/settings/page.tsx",
       roles: 'allowedRoles={["owner", "admin"]}',
+      shell: "AdminShell",
     },
     {
       path: "src/app/admin/audit-logs/page.tsx",
       roles: 'allowedRoles={["owner", "admin"]}',
+      shell: "AdminShell",
     },
     {
       path: "src/app/admin/growth/page.tsx",
       roles: 'allowedRoles={["owner", "admin"]}',
+      shell: "AdminShell",
     },
   ];
   const problems = [];
@@ -103,8 +113,8 @@ function checkAdminRouteRoles() {
       continue;
     }
 
-    if (!file.includes("<AdminShell")) {
-      problems.push(`${expectation.path} must render through AdminShell`);
+    if (!file.includes(`<${expectation.shell}`)) {
+      problems.push(`${expectation.path} must render through ${expectation.shell}`);
     }
 
     if (expectation.roles) {
@@ -127,6 +137,7 @@ function checkAdminRouteRoles() {
 function checkLegacyStaffDoesNotBypassRoles() {
   const gate = readSourceFile("src/features/admin/permission-gate.tsx");
   const shell = readSourceFile("src/features/admin/admin-shell.tsx");
+  const toolsNav = readSourceFile("src/features/admin/admin-tools-nav.tsx");
   const dashboard = readSourceFile("src/features/admin/admin-dashboard.tsx");
   const modQueue = readSourceFile("src/features/admin/admin-mod-queue-page.tsx");
   const problems = [];
@@ -139,12 +150,19 @@ function checkLegacyStaffDoesNotBypassRoles() {
     problems.push("AdminPermissionGate still bypasses allowedRoles for legacy staff");
   }
 
-  if (/items:\s*platformRole\s*&&\s*!hasOnlyLegacyStaffFlag/.test(shell)) {
-    problems.push("AdminShell must not show all nav groups for legacy staff-only users");
+  if (/hasOnlyLegacyStaffFlag/.test(toolsNav)) {
+    problems.push("AdminToolsNav must not use legacy staff flag to unlock nav groups");
   }
 
-  if (!shell.includes("items: platformRole") || !shell.includes("item.roles.includes(platformRole)")) {
-    problems.push("AdminShell must filter nav items by explicit resolved platform role");
+  if (!shell.includes("platformRole={platformRole}")) {
+    problems.push("AdminShell must pass the resolved platform role into AdminToolsNav");
+  }
+
+  if (
+    !toolsNav.includes("item.roles.includes(platformRole)") ||
+    !toolsNav.includes('item.roles.includes("staff")')
+  ) {
+    problems.push("AdminToolsNav must filter nav items by explicit resolved platform role");
   }
 
   if (!dashboard.includes('platformRole === "owner" || platformRole === "admin"')) {
@@ -167,7 +185,7 @@ function checkAdminQueueLayoutDoesNotUseRailProp() {
   const queue = readSourceFile("src/features/admin/admin-queue.tsx");
   const problems = [];
 
-  if (/\brail\b/.test(queue)) {
+  if (/\brail\??:/.test(queue) || /AdminQueueLayout\(\{[^}]*\brail\b/.test(queue)) {
     problems.push("AdminQueueLayout module must not expose or render a rail prop");
   }
 
@@ -204,10 +222,10 @@ function checkOwnerTransferFlowBoundaries() {
   }
 
   for (const required of [
-    'const isOwner = platformRole === "owner"',
+    'platformRole === "owner"',
     "isOwner ? (",
     "ReadOnlyOwnerTransferNotice",
-    "useAdminUsersQuery",
+    "AdminUserPicker",
     "selectedUser.id",
     "currentUser?.id === transfer.target_user_id",
     "currentUser?.username === transfer.target_username",
@@ -254,7 +272,7 @@ function checkCommunityTakeoverUsesUserSearch() {
   const problems = [];
 
   for (const required of [
-    "useAdminUsersQuery",
+    "AdminUserPicker",
     "selectedUser.id",
     "user_id: selectedUser.id",
     "请先搜索并选择新版主账号",

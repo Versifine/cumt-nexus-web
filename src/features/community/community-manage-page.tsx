@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -21,11 +21,19 @@ import {
   Settings2,
   ShieldAlert,
   Users,
-  Wand2,
   X,
 } from "lucide-react";
 import { useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { z } from "zod";
+import {
+  ReviewDesk,
+  ReviewDeskBoard,
+  ReviewDeskInspector,
+  ReviewDeskMasthead,
+  ReviewDeskPanel,
+  ReviewDeskState,
+} from "@/components/app-shell/review-desk";
+import { ManagementSearchField } from "@/components/app-shell/management-search-field";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -33,6 +41,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   IndexedInfoRow,
+  MetricBlock,
   StatusToken,
   type StatusTokenTone,
 } from "@/components/ui/data-display";
@@ -65,6 +74,8 @@ import {
 } from "@/features/moderation/moderation-bulk-actions";
 import { ModerationQuickActions } from "@/features/moderation/moderation-quick-actions";
 import type { ModQueueItem } from "@/features/moderation/types";
+import { useSearchQuery } from "@/features/search/queries";
+import type { SearchUserResult } from "@/features/search/types";
 import { ApiError } from "@/lib/api/client";
 
 import {
@@ -74,25 +85,53 @@ import {
 } from "./permissions";
 import {
   useAppointCommunityModeratorMutation,
+  useAddModmailInternalNoteMutation,
+  useAddModmailMessageMutation,
+  useAutomodConfigQuery,
+  useAutomodDryRunMutation,
+  useAutomodVersionsQuery,
+  useCommunityFlairsQuery,
+  useCommunityGuidesQuery,
+  useCommunityInsightsSummaryQuery,
   useCommunityModLogsQuery,
+  useCommunityModerationInsightsQuery,
   useCommunityModerationTemplatesQuery,
   useCommunityModerationUserProfileQuery,
   useCommunityModeratorNotesQuery,
   useCommunityOwnerTransferQuery,
+  useCommunityTrainingQueueQuery,
   useCommunityUserStatesQuery,
+  useContentControlsQuery,
+  useCreateCommunityFlairMutation,
+  useCreateCommunityGuideMutation,
   useCreateCommunityModeratorNoteMutation,
   useCreateCommunityModerationTemplateMutation,
   useCreateCommunityRuleMutation,
   useCreateCommunityOwnerTransferMutation,
+  useCreateModmailConversationMutation,
+  useCreateScheduledPostMutation,
+  useDeleteCommunityFlairMutation,
+  useDeleteCommunityGuideMutation,
   useCancelCommunityOwnerTransferMutation,
   useDeleteCommunityModerationTemplateMutation,
   useDeleteCommunityModeratorNoteMutation,
   useDeleteCommunityUserStateMutation,
   useDeleteCommunityRuleMutation,
+  useDeleteScheduledPostMutation,
+  useModmailConversationQuery,
+  useModmailConversationsQuery,
+  useReorderCommunityFlairsMutation,
   useRemoveCommunityModeratorMutation,
+  useScheduledPostsQuery,
   useUpdateCommunityModerationTemplateMutation,
   useUpdateCommunityManageSettingsMutation,
   useUpdateCommunityRuleMutation,
+  useUpdateAutomodConfigMutation,
+  useUpdateCommunityFlairMutation,
+  useUpdateCommunityGuideMutation,
+  useUpdateContentControlsMutation,
+  useUpdateModmailConversationMutation,
+  useUpdateScheduledPostMutation,
   useUpsertCommunityUserStateMutation,
   useCommunityManageSettingsQuery,
   useCommunityManageCommentsQuery,
@@ -105,18 +144,30 @@ import {
 } from "./queries";
 import type {
   Community,
+  AutomodConfig,
+  AutomodDryRunResponse,
   CommunityModLog,
+  CommunityFlair,
+  CommunityGuide,
+  CommunityInsightsSummary,
   CommunityMember,
   CommunityManageSettings,
   CommunityManageComment,
   CommunityManagePost,
   CommunityManageReport,
+  CommunityModerationInsights,
   CommunityModerationTemplate,
   CommunityRule,
+  CommunityTrainingQueueItem,
   CommunityUserState,
   CommunityUserStateKind,
+  ContentControls,
+  ModmailConversation,
+  ModmailFolder,
+  ModmailMessage,
   ModeratorNote,
   ModerationUserProfile,
+  ScheduledPost,
 } from "./types";
 
 const settingsSchema = z.object({
@@ -204,7 +255,7 @@ const communityToolGroups: Array<{
         value: "content",
       },
       {
-        description: "版主、社区管理员、成员、封禁、禁言和批准用户。",
+        description: "版主、社区管理员、成员、封禁、禁言和准入用户。",
         icon: Users,
         label: "用户",
         value: "users",
@@ -331,31 +382,57 @@ export function CommunityManagePage({
     isReady && isAuthenticated && communityQuery.isSuccess && canManageCommunity;
   const manageQuery = useCommunityManageContextQuery(slug, canLoadManage);
   const canLoadLists = canLoadManage && manageQuery.isSuccess;
+  const isOverviewTool = activeTool === "overview";
+  const isQueuesTool = activeTool === "queues";
+  const isContentTool = activeTool === "content";
+  const isUsersTool = activeTool === "users";
+  const isRulesTool = activeTool === "rules";
+  const isSettingsTool = activeTool === "settings";
+  const isLogTool = activeTool === "log";
+  const shouldLoadPosts =
+    canLoadLists &&
+    (isOverviewTool ||
+      isContentTool ||
+      (isQueuesTool && activeQueue === "posts"));
+  const shouldLoadComments =
+    canLoadLists &&
+    (isOverviewTool ||
+      isContentTool ||
+      (isQueuesTool && activeQueue === "comments"));
+  const shouldLoadReports = canLoadLists && isOverviewTool;
+  const shouldLoadMembers = canLoadLists && (isOverviewTool || isUsersTool);
+  const shouldLoadSettings = canLoadLists && (isOverviewTool || isSettingsTool);
+  const shouldLoadRules = canLoadLists && (isOverviewTool || isRulesTool);
+  const shouldLoadTemplates = canLoadLists && isRulesTool;
+  const shouldLoadUserStates = canLoadLists && isUsersTool;
+  const shouldLoadModLogs = canLoadLists && isLogTool;
+  const shouldLoadModQueue =
+    canLoadLists && isQueuesTool && isModToolsQueue(activeQueue);
   const postsQuery = useCommunityManagePostsQuery(
     { limit: MANAGE_PAGE_SIZE, offset: postsOffset, slug, status: "all" },
-    canLoadLists,
+    shouldLoadPosts,
   );
   const commentsQuery = useCommunityManageCommentsQuery(
     { limit: MANAGE_PAGE_SIZE, offset: commentsOffset, slug, status: "all" },
-    canLoadLists,
+    shouldLoadComments,
   );
   const reportsQuery = useCommunityManageReportsQuery(
     { limit: MANAGE_PAGE_SIZE, offset: reportsOffset, slug, status: "pending" },
-    canLoadLists,
+    shouldLoadReports,
   );
   const membersQuery = useCommunityMembersQuery(
     { limit: MANAGE_PAGE_SIZE, offset: membersOffset, slug },
-    canLoadLists,
+    shouldLoadMembers,
   );
-  const settingsQuery = useCommunityManageSettingsQuery(slug, canLoadLists);
-  const rulesQuery = useCommunityRulesQuery(slug, canLoadLists);
+  const settingsQuery = useCommunityManageSettingsQuery(slug, shouldLoadSettings);
+  const rulesQuery = useCommunityRulesQuery(slug, shouldLoadRules);
   const removalReasonsQuery = useCommunityModerationTemplatesQuery(
     { kind: "removal-reasons", slug },
-    canLoadLists,
+    shouldLoadTemplates,
   );
   const savedResponsesQuery = useCommunityModerationTemplatesQuery(
     { kind: "saved-responses", slug },
-    canLoadLists,
+    shouldLoadTemplates,
   );
   const bannedUsersQuery = useCommunityUserStatesQuery(
     {
@@ -364,7 +441,7 @@ export function CommunityManagePage({
       offset: userStateOffsets.banned,
       slug,
     },
-    canLoadLists,
+    shouldLoadUserStates,
   );
   const mutedUsersQuery = useCommunityUserStatesQuery(
     {
@@ -373,7 +450,7 @@ export function CommunityManagePage({
       offset: userStateOffsets.muted,
       slug,
     },
-    canLoadLists,
+    shouldLoadUserStates,
   );
   const approvedUsersQuery = useCommunityUserStatesQuery(
     {
@@ -382,7 +459,7 @@ export function CommunityManagePage({
       offset: userStateOffsets.approved,
       slug,
     },
-    canLoadLists,
+    shouldLoadUserStates,
   );
   const modLogsQuery = useCommunityModLogsQuery(
     {
@@ -394,7 +471,7 @@ export function CommunityManagePage({
       target_id: modLogFilters.targetId,
       target_type: modLogFilters.targetType,
     },
-    canLoadLists,
+    shouldLoadModLogs,
   );
   const modQueueQuery = useCommunityModQueueQuery(
     {
@@ -403,7 +480,7 @@ export function CommunityManagePage({
       queue: activeQueue,
       slug,
     },
-    canLoadLists && isModToolsQueue(activeQueue),
+    shouldLoadModQueue,
   );
   const community = manageQuery.data?.community ?? viewerCommunity;
   const showToolNav = Boolean(community && manageQuery.isSuccess);
@@ -442,32 +519,28 @@ export function CommunityManagePage({
   }
 
   return (
-    <div className="min-w-0 py-3">
-        <section className="bg-background">
-          <ManageHeader
-            canManageCommunity={canManageCommunity}
-            community={community}
-            hasPlatformOwnerOverride={hasPlatformOwnerOverride}
-            platformRole={platformRole}
-            platformRoleIsInferred={platformRoleIsInferred}
-            slug={slug}
-            tool={activeTool}
-          />
-        </section>
+    <ReviewDesk className="max-w-[1320px]">
+      <ManageHeader
+        canManageCommunity={canManageCommunity}
+        community={community}
+        hasPlatformOwnerOverride={hasPlatformOwnerOverride}
+        platformRole={platformRole}
+        platformRoleIsInferred={platformRoleIsInferred}
+        slug={slug}
+        tool={activeTool}
+      />
 
-        {showToolNav ? (
-          <CommunityToolsNav activeTool={activeTool} slug={slug} />
-        ) : null}
-
-        <section className="bg-background">
-          <div className="border-b border-border py-3">
-            <h2 className="text-sm font-semibold">
-              {getCommunityToolMeta(activeTool).label}
-            </h2>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              {getCommunityToolMeta(activeTool).description}
-            </p>
-          </div>
+      <ReviewDeskBoard
+        inspector={
+          showToolNav ? (
+            <CommunityToolsNav activeTool={activeTool} slug={slug} />
+          ) : undefined
+        }
+      >
+        <ReviewDeskPanel
+          title={getCommunityToolMeta(activeTool).label}
+          description={getCommunityToolMeta(activeTool).description}
+        >
 
           {!isReady ? (
             <StatePanel>
@@ -726,8 +799,9 @@ export function CommunityManagePage({
               slug={slug}
             />
           ) : null}
-        </section>
-      </div>
+        </ReviewDeskPanel>
+      </ReviewDeskBoard>
+    </ReviewDesk>
   );
 }
 
@@ -874,24 +948,27 @@ function CommunityToolsNav({
   slug: string;
 }) {
   return (
-    <section className="border-b border-border py-3">
+    <ReviewDeskInspector
+      title="社区工具"
+      description="按 Reddit Mod Tools 的使用顺序组织入口。"
+    >
       <div className="flex flex-wrap items-center gap-2">
         <StatusToken tone="primary">Mod Tools</StatusToken>
         <StatusToken>社区级</StatusToken>
       </div>
       <nav
         aria-label="社区管理工具"
-        className="mt-3 flex gap-3 overflow-x-auto pb-1 xl:grid xl:grid-cols-3 xl:overflow-visible xl:pb-0"
+        className="mt-4 space-y-4"
       >
         {communityToolGroups.map((group, groupIndex) => (
           <div
             key={group.label}
-            className="min-w-[220px] shrink-0 border-r border-border pr-3 last:border-r-0 xl:min-w-0"
+            className="min-w-0"
           >
-            <div className="pb-2 font-mono text-[11px] text-muted-foreground">
+            <div className="font-mono text-[11px] text-muted-foreground">
               {String(groupIndex + 1).padStart(2, "0")} {group.label}
             </div>
-            <div className="border-t border-border">
+            <div className="mt-2 space-y-1">
               {group.items.map((item, itemIndex) => {
                 const active = activeTool === item.value;
 
@@ -899,14 +976,14 @@ function CommunityToolsNav({
                   <Link
                     key={item.value}
                     href={getCommunityManageToolHref(slug, item.value)}
-                    className={`group flex min-h-12 w-full items-center justify-between gap-3 border-b border-border px-2 py-2 text-left text-sm transition-colors xl:px-2 ${
+                    className={`group flex min-h-11 w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors ${
                       active
-                        ? "text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "bg-primary/10 text-primary ring-1 ring-primary/20"
+                        : "bg-surface-raised text-muted-foreground hover:bg-surface-hover hover:text-foreground"
                     }`}
                   >
                     <span className="flex min-w-0 items-center gap-2">
-                      <span className="w-8 shrink-0 font-mono text-[11px] text-muted-foreground">
+                      <span className="w-8 shrink-0 font-mono text-[11px]">
                         {groupIndex + 1}.{itemIndex + 1}
                       </span>
                       <item.icon className="size-4 shrink-0" aria-hidden="true" />
@@ -928,7 +1005,7 @@ function CommunityToolsNav({
           </div>
         ))}
       </nav>
-    </section>
+    </ReviewDeskInspector>
   );
 }
 
@@ -1210,7 +1287,7 @@ function CommunityModToolsWorkspace({
       ) : null}
 
       {activeTool === "settings" ? (
-        <div className="border-b border-border">
+        <div className="space-y-4">
           <ManagePreviewSection
             description="基础名称、简介、头像和背景图按社区资料合同保存。"
             emptyText="暂无社区资料。"
@@ -1228,44 +1305,16 @@ function CommunityModToolsWorkspace({
               />
             ) : null}
           </ManagePreviewSection>
-          <UnsupportedToolList
-            title="社区设置待前端接入"
-            items={[
-              "发帖和评论内容控制",
-              "安全过滤",
-              "post flair / user flair",
-              "定时帖",
-              "wiki / 指南",
-              "社区训练队列",
-            ]}
-          />
+          <ManageAdvancedSettingsPanel canEdit={canEditSettings} slug={slug} />
         </div>
       ) : null}
 
       {activeTool === "automations" ? (
-        <UnavailableToolPanel
-          icon={<Bot className="size-4" aria-hidden="true" />}
-          title="Automod 与自动化"
-          items={[
-            "Automod 配置读取、保存和版本历史",
-            "规则测试和 dry-run",
-            "关键词、链接、账号年龄和频率条件",
-            "Post / Comment Guidance",
-          ]}
-        />
+        <ManageAutomodPanel canEdit={canEditSettings} slug={slug} />
       ) : null}
 
       {activeTool === "modmail" ? (
-        <UnavailableToolPanel
-          icon={<Inbox className="size-4" aria-hidden="true" />}
-          title="Modmail"
-          items={[
-            "收件箱、待回复、处理中、已归档和管理团队讨论文件夹",
-            "以团队身份回复、内部 note、保存回复",
-            "分配会话、过滤和归档",
-            "从用户卡片或举报打开会话",
-          ]}
-        />
+        <ManageModmailPanel canEdit={canModerateContent} slug={slug} />
       ) : null}
 
       {activeTool === "log" ? (
@@ -1279,16 +1328,7 @@ function CommunityModToolsWorkspace({
       ) : null}
 
       {activeTool === "insights" ? (
-        <UnavailableToolPanel
-          icon={<BarChart3 className="size-4" aria-hidden="true" />}
-          title="数据摘要"
-          items={[
-            "Community Digest",
-            "队列处理时长和待处理量趋势",
-            "举报采纳率、移除原因分布",
-            "训练队列和新手社区管理员任务",
-          ]}
-        />
+        <ManageInsightsPanel slug={slug} />
       ) : null}
     </>
   );
@@ -1364,7 +1404,7 @@ function CommunityOverviewWorkspace({
       tool: "content",
     },
     {
-      description: "维护版主、社区管理员、封禁/禁言/批准用户和用户画像。",
+      description: "维护版主、社区管理员、封禁/禁言/准入用户和用户画像。",
       meta: membersQuery.isLoading
         ? "成员读取中"
         : membersQuery.isError
@@ -1417,8 +1457,8 @@ function CommunityOverviewWorkspace({
 
   return (
     <>
-      <section className="border-b border-border py-5">
-        <div className="grid grid-cols-1 border-y border-border sm:grid-cols-2 xl:grid-cols-4">
+      <section className="space-y-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <OverviewStatusCell
             label="待处理举报"
             value={reportsQuery.isLoading ? "读取中" : String(reports.length)}
@@ -1458,14 +1498,14 @@ function CommunityOverviewWorkspace({
         </div>
       </section>
 
-      <section className="border-b border-border py-5">
+      <section className="mt-4 rounded-md bg-surface-raised p-4">
         <div className="max-w-3xl">
           <h3 className="text-sm font-semibold">常用工作区</h3>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             总览只保留状态和入口；具体处理放到独立页面，避免把管理表单和队列挤在同一屏。
           </p>
         </div>
-        <div className="mt-4 divide-y divide-border border-y border-border">
+        <div className="mt-4 space-y-2">
           {toolRows.map((row, index) => (
             <OverviewToolRow
               description={row.description}
@@ -1481,7 +1521,7 @@ function CommunityOverviewWorkspace({
         </div>
       </section>
 
-      <section className="border-b border-border py-5">
+      <section className="mt-4 rounded-md bg-surface-raised p-4">
         <h3 className="text-sm font-semibold">待接入工具位</h3>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
           这些入口保留 Reddit 式信息架构，但不会伪造后端未完成的提交能力。
@@ -1491,7 +1531,7 @@ function CommunityOverviewWorkspace({
             <Link
               key={row.tool}
               href={getCommunityManageToolHref(slug, row.tool)}
-              className="group min-w-0 border-y border-border py-3 text-sm transition-colors hover:text-primary"
+              className="group min-w-0 rounded-md bg-background px-3 py-3 text-sm transition-colors hover:bg-surface-hover hover:text-primary"
             >
               <span className="flex min-w-0 items-center justify-between gap-3">
                 <span className="min-w-0 break-words font-semibold [overflow-wrap:anywhere]">
@@ -1520,7 +1560,7 @@ function OverviewStatusCell({
   value: string;
 }) {
   return (
-    <div className="min-w-0 border-b border-border px-3 py-4 last:border-b-0 sm:border-r sm:[&:nth-child(2n)]:border-r-0 xl:border-b-0 xl:[&:nth-child(2n)]:border-r xl:last:border-r-0">
+    <div className="min-w-0 rounded-md bg-surface-raised px-4 py-4">
       <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
       <div className="mt-2 flex min-w-0 items-center justify-between gap-3">
         <span className="min-w-0 break-words text-lg font-semibold [overflow-wrap:anywhere]">
@@ -1552,7 +1592,7 @@ function OverviewToolRow({
   return (
     <Link
       href={href}
-      className="grid min-w-0 gap-3 px-1 py-4 text-sm transition-colors hover:bg-background-soft/35 sm:grid-cols-[40px_minmax(0,1fr)_auto]"
+      className="grid min-w-0 gap-3 rounded-md bg-background px-3 py-3 text-sm transition-colors hover:bg-surface-hover sm:grid-cols-[40px_minmax(0,1fr)_auto]"
     >
       <span className="font-mono text-xs text-muted-foreground">
         {String(index).padStart(2, "0")}
@@ -1610,15 +1650,15 @@ function CommunityQueueWorkspace({
 
   return (
     <>
-      <div className="flex gap-2 overflow-x-auto border-b border-border py-3">
+      <div className="mb-4 flex gap-2 overflow-x-auto rounded-md bg-surface-raised p-2">
         {communityQueueTabs.map((queue) => (
           <button
             key={queue.value}
             type="button"
-            className={`min-h-9 shrink-0 border-b px-2 text-xs font-semibold transition-colors ${
+            className={`min-h-9 shrink-0 rounded px-3 text-xs font-semibold transition-colors ${
               activeQueue === queue.value
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-surface-hover hover:text-foreground"
             }`}
             onClick={() => onQueueChange(queue.value)}
           >
@@ -1726,33 +1766,503 @@ function CommunityQueueWorkspace({
   );
 }
 
-function UnsupportedToolList({
-  items,
-  title,
+function ManageAdvancedSettingsPanel({
+  canEdit,
+  slug,
 }: {
-  items: string[];
-  title: string;
+  canEdit: boolean;
+  slug: string;
 }) {
+  const controlsQuery = useContentControlsQuery(slug);
+  const postFlairsQuery = useCommunityFlairsQuery({ kind: "post", slug });
+  const userFlairsQuery = useCommunityFlairsQuery({ kind: "user", slug });
+  const [scheduledOffset, setScheduledOffset] = useState(0);
+  const [guideOffset, setGuideOffset] = useState(0);
+  const scheduledQuery = useScheduledPostsQuery({
+    limit: MANAGE_PAGE_SIZE,
+    offset: scheduledOffset,
+    slug,
+  });
+  const guidesQuery = useCommunityGuidesQuery({
+    limit: MANAGE_PAGE_SIZE,
+    offset: guideOffset,
+    slug,
+  });
+
   return (
-    <section className="min-w-0 border-b border-border py-5 last:border-b-0">
-      <div className="flex items-center gap-2">
-        <Wand2 className="size-4 text-primary" aria-hidden="true" />
-        <h3 className="text-sm font-semibold">{title}</h3>
+    <div className="space-y-4">
+      <ManagePreviewSection
+        description="关键词、域名、账号年龄、发帖/评论频率和链接过滤。"
+        emptyText="暂无内容控制配置。"
+        isError={controlsQuery.isError}
+        isEmpty={!controlsQuery.data?.controls}
+        isLoading={controlsQuery.isPending}
+        onRetry={controlsQuery.refetch}
+        title="内容控制"
+      >
+        {controlsQuery.data?.controls ? (
+          <ContentControlsEditor
+            key={controlsQuery.data.controls.updated_at}
+            canEdit={canEdit}
+            controls={controlsQuery.data.controls}
+            slug={slug}
+          />
+        ) : null}
+      </ManagePreviewSection>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <ManagePreviewSection
+          description="帖子 flair 用于内容分类，可被审核动作设置到帖子上。"
+          emptyText="暂无帖子 flair。"
+          isError={postFlairsQuery.isError}
+          isEmpty={false}
+          isLoading={postFlairsQuery.isPending}
+          onRetry={postFlairsQuery.refetch}
+          title="帖子 flair"
+        >
+          <FlairManager
+            canEdit={canEdit}
+            flairs={postFlairsQuery.data?.items ?? []}
+            kind="post"
+            slug={slug}
+          />
+        </ManagePreviewSection>
+        <ManagePreviewSection
+          description="用户 flair 用于社区内用户身份或贡献标识。"
+          emptyText="暂无用户 flair。"
+          isError={userFlairsQuery.isError}
+          isEmpty={false}
+          isLoading={userFlairsQuery.isPending}
+          onRetry={userFlairsQuery.refetch}
+          title="用户 flair"
+        >
+          <FlairManager
+            canEdit={canEdit}
+            flairs={userFlairsQuery.data?.items ?? []}
+            kind="user"
+            slug={slug}
+          />
+        </ManagePreviewSection>
       </div>
-      <p className="mt-2 text-xs leading-5 text-muted-foreground">
-        这些是 Reddit Mod Tools 对应体验，当前后端没有正式合同，前端只展示位置和缺口。
-      </p>
-      <div className="mt-4 divide-y divide-border border-t border-border">
-        {items.map((item, index) => (
-          <div
-            key={item}
-            className="grid grid-cols-[40px_minmax(0,1fr)_auto] gap-3 py-3 text-sm"
-          >
-            <span className="font-mono text-xs text-muted-foreground">
-              {String(index + 1).padStart(2, "0")}
+
+      <ManagePreviewSection
+        description="按计划发布社区帖子，支持暂停、取消和重复规则文本。"
+        emptyText="暂无定时帖。"
+        isError={scheduledQuery.isError}
+        isEmpty={
+          (scheduledQuery.data?.items ?? []).length === 0 && scheduledOffset === 0
+        }
+        isLoading={scheduledQuery.isPending}
+        onRetry={scheduledQuery.refetch}
+        title="定时帖"
+      >
+        <ScheduledPostsManager
+          canEdit={canEdit}
+          posts={scheduledQuery.data?.items ?? []}
+          slug={slug}
+        />
+        <ManagePagination
+          hasMore={scheduledQuery.data?.has_more ?? false}
+          isFetching={scheduledQuery.isFetching}
+          nextOffset={
+            scheduledQuery.data?.next_offset ?? scheduledOffset + MANAGE_PAGE_SIZE
+          }
+          offset={scheduledOffset}
+          onOffsetChange={setScheduledOffset}
+        />
+      </ManagePreviewSection>
+
+      <ManagePreviewSection
+        description="社区指南或 wiki 条目，按顺序展示，供管理团队维护。"
+        emptyText="暂无指南。"
+        isError={guidesQuery.isError}
+        isEmpty={(guidesQuery.data?.items ?? []).length === 0 && guideOffset === 0}
+        isLoading={guidesQuery.isPending}
+        onRetry={guidesQuery.refetch}
+        title="指南 / Wiki"
+      >
+        <GuidesManager
+          canEdit={canEdit}
+          guides={guidesQuery.data?.items ?? []}
+          slug={slug}
+        />
+        <ManagePagination
+          hasMore={guidesQuery.data?.has_more ?? false}
+          isFetching={guidesQuery.isFetching}
+          nextOffset={guidesQuery.data?.next_offset ?? guideOffset + MANAGE_PAGE_SIZE}
+          offset={guideOffset}
+          onOffsetChange={setGuideOffset}
+        />
+      </ManagePreviewSection>
+    </div>
+  );
+}
+
+function ContentControlsEditor({
+  canEdit,
+  controls,
+  slug,
+}: {
+  canEdit: boolean;
+  controls: ContentControls;
+  slug: string;
+}) {
+  const mutation = useUpdateContentControlsMutation();
+  const [blockedKeywords, setBlockedKeywords] = useState(() =>
+    joinLines(controls.blocked_keywords),
+  );
+  const [blockedDomains, setBlockedDomains] = useState(() =>
+    joinLines(controls.blocked_domains),
+  );
+  const [minAccountAgeDays, setMinAccountAgeDays] = useState(
+    controls.min_account_age_days,
+  );
+  const [postRateLimitPerHour, setPostRateLimitPerHour] = useState(
+    controls.post_rate_limit_per_hour,
+  );
+  const [commentRateLimitPerHour, setCommentRateLimitPerHour] = useState(
+    controls.comment_rate_limit_per_hour,
+  );
+  const [blockNewAccounts, setBlockNewAccounts] = useState(
+    controls.block_new_accounts,
+  );
+  const [filterLinks, setFilterLinks] = useState(controls.filter_links);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await mutation.mutateAsync({
+      block_new_accounts: blockNewAccounts,
+      blocked_domains: parseLines(blockedDomains),
+      blocked_keywords: parseLines(blockedKeywords),
+      comment_rate_limit_per_hour: Math.max(0, commentRateLimitPerHour),
+      filter_links: filterLinks,
+      min_account_age_days: Math.max(0, minAccountAgeDays),
+      post_rate_limit_per_hour: Math.max(0, postRateLimitPerHour),
+      slug,
+    });
+  }
+
+  return (
+    <form className="space-y-4" onSubmit={submit}>
+      {mutation.error ? (
+        <Alert variant="destructive">
+          <AlertTitle>内容控制保存失败</AlertTitle>
+          <AlertDescription>{getErrorDescription(mutation.error)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {mutation.isSuccess ? (
+        <Alert variant="success">
+          <AlertTitle>内容控制已保存</AlertTitle>
+          <AlertDescription>新规则已写入社区管理日志。</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <LabeledTextarea
+          disabled={!canEdit || mutation.isPending}
+          hint="每行一个关键词。"
+          label="屏蔽关键词"
+          value={blockedKeywords}
+          onChange={setBlockedKeywords}
+        />
+        <LabeledTextarea
+          disabled={!canEdit || mutation.isPending}
+          hint="每行一个域名，不需要协议。"
+          label="屏蔽域名"
+          value={blockedDomains}
+          onChange={setBlockedDomains}
+        />
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <LabeledNumberInput
+          disabled={!canEdit || mutation.isPending}
+          label="账号最小天数"
+          value={minAccountAgeDays}
+          onChange={setMinAccountAgeDays}
+        />
+        <LabeledNumberInput
+          disabled={!canEdit || mutation.isPending}
+          label="每小时发帖"
+          value={postRateLimitPerHour}
+          onChange={setPostRateLimitPerHour}
+        />
+        <LabeledNumberInput
+          disabled={!canEdit || mutation.isPending}
+          label="每小时评论"
+          value={commentRateLimitPerHour}
+          onChange={setCommentRateLimitPerHour}
+        />
+      </div>
+      <div className="flex flex-wrap gap-4">
+        <ToggleLine
+          checked={blockNewAccounts}
+          disabled={!canEdit || mutation.isPending}
+          label="过滤新账号"
+          onChange={setBlockNewAccounts}
+        />
+        <ToggleLine
+          checked={filterLinks}
+          disabled={!canEdit || mutation.isPending}
+          label="过滤链接"
+          onChange={setFilterLinks}
+        />
+      </div>
+      {canEdit ? (
+        <Button type="submit" size="sm" disabled={mutation.isPending}>
+          {mutation.isPending ? "正在保存..." : "保存内容控制"}
+        </Button>
+      ) : null}
+    </form>
+  );
+}
+
+function ManageAutomodPanel({
+  canEdit,
+  slug,
+}: {
+  canEdit: boolean;
+  slug: string;
+}) {
+  const configQuery = useAutomodConfigQuery(slug);
+  const versionsQuery = useAutomodVersionsQuery({
+    limit: MANAGE_PAGE_SIZE,
+    offset: 0,
+    slug,
+  });
+
+  return (
+    <div className="space-y-4">
+      <ManagePreviewSection
+        description="Automod 配置、结构化规则和版本历史已接入后端。"
+        emptyText="暂无 Automod 配置。"
+        isError={configQuery.isError}
+        isEmpty={!configQuery.data?.config}
+        isLoading={configQuery.isPending}
+        onRetry={configQuery.refetch}
+        title="Automod 配置"
+      >
+        {configQuery.data?.config ? (
+          <AutomodEditor
+            key={configQuery.data.config.version}
+            canEdit={canEdit}
+            config={configQuery.data.config}
+            slug={slug}
+          />
+        ) : null}
+      </ManagePreviewSection>
+      <AutomodDryRunPanel slug={slug} />
+      <ManagePreviewSection
+        description="每次保存 Automod 都会形成版本。"
+        emptyText="暂无版本历史。"
+        isError={versionsQuery.isError}
+        isEmpty={(versionsQuery.data?.versions ?? []).length === 0}
+        isLoading={versionsQuery.isPending}
+        onRetry={versionsQuery.refetch}
+        title="版本历史"
+      >
+        <div className="divide-y divide-border border-t border-border">
+          {(versionsQuery.data?.versions ?? []).map((version) => (
+            <div
+              key={version.id}
+              className="grid gap-2 py-3 md:grid-cols-[80px_minmax(0,1fr)_auto]"
+            >
+              <span className="font-mono text-xs text-primary">
+                v{version.version}
+              </span>
+              <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">
+                {version.config_text || "空配置"}
+              </p>
+              <span className="text-xs text-muted-foreground">
+                {formatDateTime(version.created_at)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </ManagePreviewSection>
+    </div>
+  );
+}
+
+function AutomodEditor({
+  canEdit,
+  config,
+  slug,
+}: {
+  canEdit: boolean;
+  config: AutomodConfig;
+  slug: string;
+}) {
+  const mutation = useUpdateAutomodConfigMutation();
+  const [configText, setConfigText] = useState(config.config_text);
+  const [rulesText, setRulesText] = useState(() =>
+    JSON.stringify(config.rules ?? {}, null, 2),
+  );
+  const [jsonError, setJsonError] = useState<string | null>(null);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setJsonError(null);
+    let parsedRules: unknown;
+    try {
+      parsedRules = rulesText.trim() ? JSON.parse(rulesText) : {};
+    } catch {
+      setJsonError("结构化规则必须是合法 JSON。");
+      return;
+    }
+
+    await mutation.mutateAsync({
+      config_text: configText,
+      rules: parsedRules,
+      slug,
+    });
+  }
+
+  return (
+    <form className="space-y-4" onSubmit={submit}>
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusToken tone="primary">v{config.version}</StatusToken>
+        <StatusToken>更新 {formatDateTime(config.updated_at)}</StatusToken>
+      </div>
+      {mutation.error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Automod 保存失败</AlertTitle>
+          <AlertDescription>{getErrorDescription(mutation.error)}</AlertDescription>
+        </Alert>
+      ) : null}
+      {jsonError ? (
+        <Alert variant="destructive">
+          <AlertTitle>规则格式错误</AlertTitle>
+          <AlertDescription>{jsonError}</AlertDescription>
+        </Alert>
+      ) : null}
+      <LabeledTextarea
+        disabled={!canEdit || mutation.isPending}
+        hint="可写成团队约定的配置文本。"
+        label="配置文本"
+        minHeightClassName="min-h-36"
+        value={configText}
+        onChange={setConfigText}
+      />
+      <LabeledTextarea
+        disabled={!canEdit || mutation.isPending}
+        hint="后端会原样保存 JSON 规则。"
+        label="结构化规则 JSON"
+        minHeightClassName="min-h-44 font-mono"
+        value={rulesText}
+        onChange={setRulesText}
+      />
+      {canEdit ? (
+        <Button type="submit" size="sm" disabled={mutation.isPending}>
+          {mutation.isPending ? "正在保存..." : "保存 Automod"}
+        </Button>
+      ) : null}
+    </form>
+  );
+}
+
+function AutomodDryRunPanel({ slug }: { slug: string }) {
+  const mutation = useAutomodDryRunMutation();
+  const [targetType, setTargetType] = useState<"post" | "comment">("post");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [authorId, setAuthorId] = useState("");
+  const [links, setLinks] = useState("");
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await mutation.mutateAsync({
+      author_id: authorId.trim() || undefined,
+      body,
+      links: parseLines(links),
+      slug,
+      target_type: targetType,
+      title,
+    });
+  }
+
+  return (
+    <ReviewDeskPanel title="规则测试" description="用真实 dry-run 接口测试输入。">
+      <form className="mt-4 space-y-3" onSubmit={submit}>
+        {mutation.error ? (
+          <Alert variant="destructive">
+            <AlertTitle>测试失败</AlertTitle>
+            <AlertDescription>{getErrorDescription(mutation.error)}</AlertDescription>
+          </Alert>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {(["post", "comment"] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              className={`rounded px-3 py-2 text-xs font-semibold transition-colors ${
+                targetType === value
+                  ? "bg-primary/10 text-primary"
+                  : "bg-surface-raised text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setTargetType(value)}
+            >
+              {formatTargetType(value)}
+            </button>
+          ))}
+        </div>
+        <Input
+          className="border-border bg-background"
+          placeholder="标题"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+        />
+        <Textarea
+          className="min-h-28 border-border bg-background"
+          placeholder="正文"
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
+        />
+        <div className="grid gap-3 md:grid-cols-2">
+          <Input
+            className="border-border bg-background"
+            placeholder="作者 ID，可留空"
+            value={authorId}
+            onChange={(event) => setAuthorId(event.target.value)}
+          />
+          <Input
+            className="border-border bg-background"
+            placeholder="链接，用逗号或换行分隔"
+            value={links}
+            onChange={(event) => setLinks(event.target.value)}
+          />
+        </div>
+        <Button type="submit" size="sm" disabled={mutation.isPending}>
+          {mutation.isPending ? "正在测试..." : "运行 dry-run"}
+        </Button>
+      </form>
+      {mutation.data ? <AutomodDryRunResult result={mutation.data} /> : null}
+    </ReviewDeskPanel>
+  );
+}
+
+function AutomodDryRunResult({ result }: { result: AutomodDryRunResponse }) {
+  return (
+    <section className="mt-4 rounded-md bg-surface-raised p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusToken tone={result.suggested_action ? "primary" : "default"}>
+          建议 {result.suggested_action || "无动作"}
+        </StatusToken>
+        <StatusToken>{result.matches.length} 条命中</StatusToken>
+      </div>
+      {result.reasons.length ? (
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {result.reasons.join("；")}
+        </p>
+      ) : null}
+      <div className="mt-3 divide-y divide-border border-t border-border">
+        {result.matches.map((match, index) => (
+          <div key={`${match.rule}-${index}`} className="grid gap-2 py-3 md:grid-cols-[120px_minmax(0,1fr)]">
+            <span className="text-sm font-semibold text-foreground">
+              {match.rule}
             </span>
-            <span className="text-muted-foreground">{item}</span>
-            <StatusToken>待接入</StatusToken>
+            <span className="text-sm leading-6 text-muted-foreground">
+              {match.action} · {match.reason}
+            </span>
           </div>
         ))}
       </div>
@@ -1760,41 +2270,1099 @@ function UnsupportedToolList({
   );
 }
 
-function UnavailableToolPanel({
-  icon,
-  items,
-  title,
+function ManageModmailPanel({
+  canEdit,
+  slug,
 }: {
-  icon: ReactNode;
-  items: string[];
-  title: string;
+  canEdit: boolean;
+  slug: string;
+}) {
+  const [folder, setFolder] = useState<ModmailFolder>("inbox");
+  const [offset, setOffset] = useState(0);
+  const [selectedId, setSelectedId] = useState("");
+  const conversationsQuery = useModmailConversationsQuery({
+    folder,
+    limit: MANAGE_PAGE_SIZE,
+    offset,
+    slug,
+  });
+  const conversations = conversationsQuery.data?.conversations ?? [];
+  const selectedConversationId =
+    selectedId && conversations.some((conversation) => conversation.id === selectedId)
+      ? selectedId
+      : conversations[0]?.id || "";
+  const detailQuery = useModmailConversationQuery(
+    slug,
+    selectedConversationId,
+    Boolean(selectedConversationId),
+  );
+
+  function changeFolder(nextFolder: ModmailFolder) {
+    setFolder(nextFolder);
+    setOffset(0);
+    setSelectedId("");
+  }
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+      <ReviewDeskPanel
+        title="Modmail 会话"
+        description="团队收件箱、待回复、处理中和归档文件夹。"
+      >
+        <div className="mb-3 flex flex-wrap gap-2">
+          {modmailFolders.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={`rounded px-3 py-2 text-xs font-semibold transition-colors ${
+                folder === item.value
+                  ? "bg-primary/10 text-primary"
+                  : "bg-surface-raised text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => changeFolder(item.value)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        {conversationsQuery.isPending ? <LoadingState rows={4} /> : null}
+        {conversationsQuery.isError ? (
+          <ErrorState
+            title="无法加载 Modmail"
+            description={getErrorDescription(conversationsQuery.error)}
+            action={<Button size="sm" variant="ghost" onClick={() => conversationsQuery.refetch()}>重试</Button>}
+          />
+        ) : null}
+        {!conversationsQuery.isPending && !conversationsQuery.isError ? (
+          <div className="space-y-2">
+            {conversations.length === 0 ? (
+              <p className="text-sm leading-6 text-muted-foreground">
+                当前文件夹没有会话。
+              </p>
+            ) : null}
+            {conversations.map((conversation) => (
+              <ModmailConversationRow
+                key={conversation.id}
+                conversation={conversation}
+                selected={selectedConversationId === conversation.id}
+                onSelect={() => setSelectedId(conversation.id)}
+              />
+            ))}
+            <ManagePagination
+              hasMore={conversationsQuery.data?.has_more ?? false}
+              isFetching={conversationsQuery.isFetching}
+              nextOffset={conversationsQuery.data?.next_offset ?? offset + MANAGE_PAGE_SIZE}
+              offset={offset}
+              onOffsetChange={setOffset}
+            />
+          </div>
+        ) : null}
+        {canEdit ? <CreateModmailConversationForm slug={slug} /> : null}
+      </ReviewDeskPanel>
+      <ReviewDeskPanel title="会话详情" description="回复用户、写内部 note 或更新归档状态。">
+        {selectedConversationId ? (
+          <ModmailConversationDetail
+            canEdit={canEdit}
+            detail={detailQuery.data}
+            error={detailQuery.error}
+            isError={detailQuery.isError}
+            isLoading={detailQuery.isPending}
+            slug={slug}
+            onRetry={detailQuery.refetch}
+          />
+        ) : (
+          <p className="text-sm leading-6 text-muted-foreground">
+            选择左侧会话后查看详情。
+          </p>
+        )}
+      </ReviewDeskPanel>
+    </div>
+  );
+}
+
+function ModmailConversationRow({
+  conversation,
+  onSelect,
+  selected,
+}: {
+  conversation: ModmailConversation;
+  onSelect: () => void;
+  selected: boolean;
 }) {
   return (
-    <section className="border-b border-border py-5">
-      <div className="flex items-center gap-2">
-        <span className="text-primary">{icon}</span>
-        <h3 className="text-sm font-semibold">{title}</h3>
-        <StatusToken>待接入</StatusToken>
+    <button
+      type="button"
+      className={`block w-full rounded-md px-3 py-3 text-left transition-colors ${
+        selected ? "bg-primary/10 text-primary" : "bg-surface-raised hover:bg-surface-hover"
+      }`}
+      onClick={onSelect}
+    >
+      <span className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold">{conversation.subject}</span>
+        {conversation.unread_count > 0 ? (
+          <StatusToken tone="warning">{conversation.unread_count} 未读</StatusToken>
+        ) : null}
+      </span>
+      <span className="mt-2 block text-xs text-muted-foreground">
+        用户 {formatShortId(conversation.user_id)} · {formatModmailFolder(conversation.folder)} · {formatDateTime(conversation.updated_at)}
+      </span>
+    </button>
+  );
+}
+
+function CreateModmailConversationForm({ slug }: { slug: string }) {
+  const mutation = useCreateModmailConversationMutation();
+  const [userId, setUserId] = useState("");
+  const [selectedUser, setSelectedUser] = useState<SearchUserResult | null>(null);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await mutation.mutateAsync({
+      body,
+      slug,
+      subject,
+      user_id: userId,
+    });
+    setUserId("");
+    setSelectedUser(null);
+    setSubject("");
+    setBody("");
+  }
+
+  return (
+    <form className="mt-4 space-y-3 border-t border-border pt-4" onSubmit={submit}>
+      <h4 className="text-sm font-semibold">新建会话</h4>
+      {mutation.error ? (
+        <Alert variant="destructive">
+          <AlertTitle>会话创建失败</AlertTitle>
+          <AlertDescription>{getErrorDescription(mutation.error)}</AlertDescription>
+        </Alert>
+      ) : null}
+      <CommunityUserSearchPicker
+        label="收件用户"
+        value={userId}
+        onValueChange={setUserId}
+        selectedUser={selectedUser}
+        onSelectedUserChange={setSelectedUser}
+        placeholder="搜索用户、昵称或粘贴用户 ID"
+        description="搜索后选择账号，系统会用后端用户 ID 创建 Modmail 会话。"
+        preventEnterSubmit={false}
+      />
+      <Input className="border-border bg-background" placeholder="主题" value={subject} onChange={(event) => setSubject(event.target.value)} />
+      <Textarea className="min-h-24 border-border bg-background" placeholder="首条消息" value={body} onChange={(event) => setBody(event.target.value)} />
+      <Button type="submit" size="sm" disabled={mutation.isPending || !userId.trim() || !subject.trim() || !body.trim()}>
+        {mutation.isPending ? "正在创建..." : "创建会话"}
+      </Button>
+    </form>
+  );
+}
+
+function ModmailConversationDetail({
+  canEdit,
+  detail,
+  error,
+  isError,
+  isLoading,
+  onRetry,
+  slug,
+}: {
+  canEdit: boolean;
+  detail?: { conversation: ModmailConversation; messages: ModmailMessage[] };
+  error: Error | null;
+  isError: boolean;
+  isLoading: boolean;
+  onRetry: () => void;
+  slug: string;
+}) {
+  const replyMutation = useAddModmailMessageMutation();
+  const noteMutation = useAddModmailInternalNoteMutation();
+  const patchMutation = useUpdateModmailConversationMutation();
+  const [reply, setReply] = useState("");
+  const [note, setNote] = useState("");
+
+  if (isLoading) {
+    return <LoadingState rows={5} />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        title="无法加载会话"
+        description={getErrorDescription(error)}
+        action={<Button size="sm" variant="ghost" onClick={onRetry}>重试</Button>}
+      />
+    );
+  }
+
+  if (!detail) {
+    return (
+      <p className="text-sm leading-6 text-muted-foreground">暂无会话详情。</p>
+    );
+  }
+
+  const conversation = detail.conversation;
+  const messages = detail.messages;
+
+  async function submitReply(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!reply.trim()) {
+      return;
+    }
+    await replyMutation.mutateAsync({
+      body: reply,
+      conversation_id: conversation.id,
+      slug,
+    });
+    setReply("");
+  }
+
+  async function submitNote(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!note.trim()) {
+      return;
+    }
+    await noteMutation.mutateAsync({
+      body: note,
+      conversation_id: conversation.id,
+      slug,
+    });
+    setNote("");
+  }
+
+  async function patchConversation(input: Partial<Pick<ModmailConversation, "folder" | "status">> & { mark_read?: boolean }) {
+    await patchMutation.mutateAsync({
+      conversation_id: conversation.id,
+      slug,
+      ...input,
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusToken tone="primary">{formatModmailFolder(conversation.folder)}</StatusToken>
+        <StatusToken>{conversation.status}</StatusToken>
+        <StatusToken>{messages.length} 条消息</StatusToken>
       </div>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-        这里保留 Reddit 式工具位置和信息架构，但不会提交假动作；未完成前只展示不可提交状态。
-      </p>
-      <div className="mt-4 divide-y divide-border border-t border-border">
-        {items.map((item, index) => (
-          <div
-            key={item}
-            className="grid grid-cols-[40px_minmax(0,1fr)] gap-3 py-3 text-sm"
-          >
-            <span className="font-mono text-xs text-primary">
-              {String(index + 1).padStart(2, "0")}
-            </span>
-            <span className="text-muted-foreground">{item}</span>
+      <div className="divide-y divide-border border-t border-border">
+        {messages.map((message) => (
+          <div key={message.id} className="py-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-xs text-muted-foreground">
+                {formatShortId(message.author_id)}
+              </span>
+              {message.is_internal ? (
+                <StatusToken tone="warning">内部 note</StatusToken>
+              ) : null}
+              <span className="text-xs text-muted-foreground">
+                {formatDateTime(message.created_at)}
+              </span>
+            </div>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6">
+              {message.body}
+            </p>
           </div>
         ))}
       </div>
-    </section>
+      {canEdit ? (
+        <>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={patchMutation.isPending}
+              onClick={() => patchConversation({ mark_read: true })}
+            >
+              标记已读
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={patchMutation.isPending}
+              onClick={() => patchConversation({ folder: "in_progress", status: "in_progress" })}
+            >
+              处理中
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={patchMutation.isPending}
+              onClick={() => patchConversation({ folder: "archived", status: "archived" })}
+            >
+              归档
+            </Button>
+          </div>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <form className="space-y-3" onSubmit={submitReply}>
+              <Textarea className="min-h-24 border-border bg-background" placeholder="回复用户" value={reply} onChange={(event) => setReply(event.target.value)} />
+              <Button type="submit" size="sm" disabled={replyMutation.isPending || !reply.trim()}>
+                {replyMutation.isPending ? "正在发送..." : "发送回复"}
+              </Button>
+            </form>
+            <form className="space-y-3" onSubmit={submitNote}>
+              <Textarea className="min-h-24 border-border bg-background" placeholder="内部 note" value={note} onChange={(event) => setNote(event.target.value)} />
+              <Button type="submit" size="sm" disabled={noteMutation.isPending || !note.trim()}>
+                {noteMutation.isPending ? "正在保存..." : "保存内部 note"}
+              </Button>
+            </form>
+          </div>
+        </>
+      ) : null}
+    </div>
   );
 }
+
+function ManageInsightsPanel({ slug }: { slug: string }) {
+  const [range, setRange] = useState<"7d" | "30d" | "90d">("30d");
+  const [trainingOffset, setTrainingOffset] = useState(0);
+  const summaryQuery = useCommunityInsightsSummaryQuery(slug, range);
+  const moderationQuery = useCommunityModerationInsightsQuery(slug, range);
+  const trainingQuery = useCommunityTrainingQueueQuery({
+    limit: MANAGE_PAGE_SIZE,
+    offset: trainingOffset,
+    slug,
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {(["7d", "30d", "90d"] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            className={`rounded px-3 py-2 text-xs font-semibold transition-colors ${
+              range === value
+                ? "bg-primary/10 text-primary"
+                : "bg-surface-raised text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setRange(value)}
+          >
+            {value}
+          </button>
+        ))}
+      </div>
+      <ManagePreviewSection
+        description="成员、发帖、评论和活跃作者。"
+        emptyText="暂无摘要。"
+        isError={summaryQuery.isError}
+        isEmpty={!summaryQuery.data?.summary}
+        isLoading={summaryQuery.isPending}
+        onRetry={summaryQuery.refetch}
+        title="社区摘要"
+      >
+        {summaryQuery.data?.summary ? (
+          <InsightsSummaryGrid summary={summaryQuery.data.summary} />
+        ) : null}
+      </ManagePreviewSection>
+      <ManagePreviewSection
+        description="待处理、已处理、移除、垃圾和动作计数。"
+        emptyText="暂无治理指标。"
+        isError={moderationQuery.isError}
+        isEmpty={!moderationQuery.data?.moderation}
+        isLoading={moderationQuery.isPending}
+        onRetry={moderationQuery.refetch}
+        title="治理指标"
+      >
+        {moderationQuery.data?.moderation ? (
+          <ModerationInsightsGrid moderation={moderationQuery.data.moderation} />
+        ) : null}
+      </ManagePreviewSection>
+      <ManagePreviewSection
+        description="需要管理团队复核的训练样本。"
+        emptyText="暂无训练队列。"
+        isError={trainingQuery.isError}
+        isEmpty={(trainingQuery.data?.items ?? []).length === 0 && trainingOffset === 0}
+        isLoading={trainingQuery.isPending}
+        onRetry={trainingQuery.refetch}
+        title="训练队列"
+      >
+        <TrainingQueueList items={trainingQuery.data?.items ?? []} />
+        <ManagePagination
+          hasMore={trainingQuery.data?.has_more ?? false}
+          isFetching={trainingQuery.isFetching}
+          nextOffset={trainingQuery.data?.next_offset ?? trainingOffset + MANAGE_PAGE_SIZE}
+          offset={trainingOffset}
+          onOffsetChange={setTrainingOffset}
+        />
+      </ManagePreviewSection>
+    </div>
+  );
+}
+
+function FlairManager({
+  canEdit,
+  flairs,
+  kind,
+  slug,
+}: {
+  canEdit: boolean;
+  flairs: CommunityFlair[];
+  kind: "post" | "user";
+  slug: string;
+}) {
+  const createMutation = useCreateCommunityFlairMutation();
+  const updateMutation = useUpdateCommunityFlairMutation();
+  const deleteMutation = useDeleteCommunityFlairMutation();
+  const reorderMutation = useReorderCommunityFlairsMutation();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [color, setColor] = useState("#008c8c");
+  const [isUserSelectable, setIsUserSelectable] = useState(true);
+  const [isEnabled, setIsEnabled] = useState(true);
+
+  const editingFlair = flairs.find((flair) => flair.id === editingId);
+
+  function resetForm() {
+    setEditingId(null);
+    setTitle("");
+    setColor("#008c8c");
+    setIsUserSelectable(true);
+    setIsEnabled(true);
+  }
+
+  function startEdit(flair: CommunityFlair) {
+    setEditingId(flair.id);
+    setTitle(flair.title);
+    setColor(flair.color || "#008c8c");
+    setIsUserSelectable(flair.is_user_selectable);
+    setIsEnabled(flair.is_enabled);
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const input = {
+      color,
+      is_enabled: isEnabled,
+      is_user_selectable: isUserSelectable,
+      kind,
+      position: editingFlair?.position ?? getNextPosition(flairs),
+      slug,
+      title,
+    };
+
+    if (editingFlair) {
+      await updateMutation.mutateAsync({
+        ...input,
+        flair_id: editingFlair.id,
+      });
+    } else {
+      await createMutation.mutateAsync(input);
+    }
+    resetForm();
+  }
+
+  async function move(flair: CommunityFlair, direction: -1 | 1) {
+    const currentIndex = flairs.findIndex((item) => item.id === flair.id);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= flairs.length) {
+      return;
+    }
+    const ids = flairs.map((item) => item.id);
+    const [removed] = ids.splice(currentIndex, 1);
+    ids.splice(nextIndex, 0, removed);
+    await reorderMutation.mutateAsync({ ids, kind, slug });
+  }
+
+  const isPending =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending ||
+    reorderMutation.isPending;
+  const error =
+    createMutation.error ??
+    updateMutation.error ??
+    deleteMutation.error ??
+    reorderMutation.error;
+
+  return (
+    <div className="space-y-4">
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Flair 更新失败</AlertTitle>
+          <AlertDescription>{getErrorDescription(error)}</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="divide-y divide-border border-t border-border">
+        {flairs.length === 0 ? (
+          <p className="py-3 text-sm leading-6 text-muted-foreground">
+            暂无 flair。
+          </p>
+        ) : null}
+        {flairs.map((flair) => (
+          <div
+            key={flair.id}
+            className="grid gap-3 py-3 md:grid-cols-[minmax(0,1fr)_auto]"
+          >
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className="inline-flex min-h-6 items-center rounded px-2 text-xs font-semibold"
+                  style={{
+                    backgroundColor: flair.color || "var(--surface-hover)",
+                    color: "var(--foreground)",
+                  }}
+                >
+                  {flair.title}
+                </span>
+                <StatusToken>{flair.is_enabled ? "启用" : "停用"}</StatusToken>
+                {flair.is_user_selectable ? (
+                  <StatusToken tone="primary">用户可选</StatusToken>
+                ) : null}
+              </div>
+              <p className="mt-2 font-mono text-xs text-muted-foreground">
+                {String(flair.position).padStart(2, "0")} · 更新 {formatDateTime(flair.updated_at)}
+              </p>
+            </div>
+            {canEdit ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => move(flair, -1)}
+                >
+                  上移
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => move(flair, 1)}
+                >
+                  下移
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => startEdit(flair)}
+                >
+                  编辑
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() =>
+                    deleteMutation.mutate({
+                      flair_id: flair.id,
+                      kind,
+                      slug,
+                    })
+                  }
+                >
+                  删除
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      {canEdit ? (
+        <form className="space-y-3 border-t border-border pt-3" onSubmit={submit}>
+          <h4 className="text-sm font-semibold">
+            {editingFlair ? "编辑 flair" : "新增 flair"}
+          </h4>
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
+            <Input
+              className="border-border bg-background"
+              placeholder="flair 标题"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+            />
+            <Input
+              className="border-border bg-background"
+              placeholder="#008c8c"
+              value={color}
+              onChange={(event) => setColor(event.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap gap-4">
+            <ToggleLine
+              checked={isUserSelectable}
+              disabled={isPending}
+              label="用户可选"
+              onChange={setIsUserSelectable}
+            />
+            <ToggleLine
+              checked={isEnabled}
+              disabled={isPending}
+              label="启用"
+              onChange={setIsEnabled}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" size="sm" disabled={isPending || !title.trim()}>
+              {isPending ? "正在保存..." : editingFlair ? "保存 flair" : "新增 flair"}
+            </Button>
+            {editingFlair ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={isPending}
+                onClick={resetForm}
+              >
+                取消
+              </Button>
+            ) : null}
+          </div>
+        </form>
+      ) : null}
+    </div>
+  );
+}
+
+function ScheduledPostsManager({
+  canEdit,
+  posts,
+  slug,
+}: {
+  canEdit: boolean;
+  posts: ScheduledPost[];
+  slug: string;
+}) {
+  const createMutation = useCreateScheduledPostMutation();
+  const updateMutation = useUpdateScheduledPostMutation();
+  const deleteMutation = useDeleteScheduledPostMutation();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [repeatRule, setRepeatRule] = useState("");
+  const [status, setStatus] = useState("scheduled");
+  const editingPost = posts.find((post) => post.id === editingId);
+
+  function resetForm() {
+    setEditingId(null);
+    setTitle("");
+    setBody("");
+    setScheduledAt("");
+    setRepeatRule("");
+    setStatus("scheduled");
+  }
+
+  function startEdit(post: ScheduledPost) {
+    setEditingId(post.id);
+    setTitle(post.title);
+    setBody(post.body);
+    setScheduledAt(toDateTimeLocalValue(post.scheduled_at));
+    setRepeatRule(post.repeat_rule);
+    setStatus(post.status || "scheduled");
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const input = {
+      body,
+      repeat_rule: repeatRule,
+      scheduled_at: new Date(scheduledAt).toISOString(),
+      slug,
+      status,
+      title,
+    };
+    if (editingPost) {
+      await updateMutation.mutateAsync({
+        ...input,
+        scheduled_post_id: editingPost.id,
+      });
+    } else {
+      await createMutation.mutateAsync(input);
+    }
+    resetForm();
+  }
+
+  const isPending =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending;
+  const error = createMutation.error ?? updateMutation.error ?? deleteMutation.error;
+
+  return (
+    <div className="space-y-4">
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>定时帖更新失败</AlertTitle>
+          <AlertDescription>{getErrorDescription(error)}</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="divide-y divide-border border-t border-border">
+        {posts.map((post) => (
+          <div
+            key={post.id}
+            className="grid gap-3 py-3 md:grid-cols-[minmax(0,1fr)_auto]"
+          >
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="break-words text-sm font-semibold">
+                  {post.title}
+                </span>
+                <StatusToken>{formatScheduledStatus(post.status)}</StatusToken>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                计划 {formatDateTime(post.scheduled_at)}
+                {post.repeat_rule ? ` · ${post.repeat_rule}` : ""}
+              </p>
+              {post.body ? (
+                <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
+                  {post.body}
+                </p>
+              ) : null}
+            </div>
+            {canEdit ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => startEdit(post)}
+                >
+                  编辑
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() =>
+                    deleteMutation.mutate({
+                      scheduled_post_id: post.id,
+                      slug,
+                    })
+                  }
+                >
+                  删除
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      {canEdit ? (
+        <form className="space-y-3 border-t border-border pt-3" onSubmit={submit}>
+          <h4 className="text-sm font-semibold">
+            {editingPost ? "编辑定时帖" : "新增定时帖"}
+          </h4>
+          <Input
+            className="border-border bg-background"
+            placeholder="标题"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+          />
+          <Textarea
+            className="min-h-28 border-border bg-background"
+            placeholder="正文"
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+          />
+          <div className="grid gap-3 md:grid-cols-3">
+            <Input
+              className="border-border bg-background"
+              type="datetime-local"
+              value={scheduledAt}
+              onChange={(event) => setScheduledAt(event.target.value)}
+            />
+            <Input
+              className="border-border bg-background"
+              placeholder="重复规则，可留空"
+              value={repeatRule}
+              onChange={(event) => setRepeatRule(event.target.value)}
+            />
+            <Input
+              className="border-border bg-background"
+              placeholder="scheduled / paused / cancelled"
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" size="sm" disabled={isPending || !title.trim() || !scheduledAt}>
+              {isPending ? "正在保存..." : editingPost ? "保存定时帖" : "新增定时帖"}
+            </Button>
+            {editingPost ? (
+              <Button type="button" size="sm" variant="ghost" onClick={resetForm}>
+                取消
+              </Button>
+            ) : null}
+          </div>
+        </form>
+      ) : null}
+    </div>
+  );
+}
+
+function GuidesManager({
+  canEdit,
+  guides,
+  slug,
+}: {
+  canEdit: boolean;
+  guides: CommunityGuide[];
+  slug: string;
+}) {
+  const createMutation = useCreateCommunityGuideMutation();
+  const updateMutation = useUpdateCommunityGuideMutation();
+  const deleteMutation = useDeleteCommunityGuideMutation();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [position, setPosition] = useState(0);
+  const [visibility, setVisibility] = useState("public");
+  const editingGuide = guides.find((guide) => guide.id === editingId);
+
+  function resetForm() {
+    setEditingId(null);
+    setTitle("");
+    setBody("");
+    setPosition(getNextPosition(guides));
+    setVisibility("public");
+  }
+
+  function startEdit(guide: CommunityGuide) {
+    setEditingId(guide.id);
+    setTitle(guide.title);
+    setBody(guide.body);
+    setPosition(guide.position);
+    setVisibility(guide.visibility || "public");
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const input = {
+      body,
+      position,
+      slug,
+      title,
+      visibility,
+    };
+    if (editingGuide) {
+      await updateMutation.mutateAsync({
+        ...input,
+        guide_id: editingGuide.id,
+      });
+    } else {
+      await createMutation.mutateAsync(input);
+    }
+    resetForm();
+  }
+
+  const isPending =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending;
+  const error = createMutation.error ?? updateMutation.error ?? deleteMutation.error;
+
+  return (
+    <div className="space-y-4">
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>指南更新失败</AlertTitle>
+          <AlertDescription>{getErrorDescription(error)}</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="divide-y divide-border border-t border-border">
+        {guides.map((guide) => (
+          <div
+            key={guide.id}
+            className="grid gap-3 py-3 md:grid-cols-[minmax(0,1fr)_auto]"
+          >
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold">{guide.title}</span>
+                <StatusToken>{guide.visibility}</StatusToken>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                顺序 {guide.position} · 更新 {formatDateTime(guide.updated_at)}
+              </p>
+              <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
+                {guide.body || "暂无正文。"}
+              </p>
+            </div>
+            {canEdit ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="ghost" size="sm" disabled={isPending} onClick={() => startEdit(guide)}>
+                  编辑
+                </Button>
+                <Button type="button" variant="destructive" size="sm" disabled={isPending} onClick={() => deleteMutation.mutate({ guide_id: guide.id, slug })}>
+                  删除
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      {canEdit ? (
+        <form className="space-y-3 border-t border-border pt-3" onSubmit={submit}>
+          <h4 className="text-sm font-semibold">
+            {editingGuide ? "编辑指南" : "新增指南"}
+          </h4>
+          <Input className="border-border bg-background" placeholder="标题" value={title} onChange={(event) => setTitle(event.target.value)} />
+          <Textarea className="min-h-28 border-border bg-background" placeholder="正文" value={body} onChange={(event) => setBody(event.target.value)} />
+          <div className="grid gap-3 md:grid-cols-[120px_minmax(0,1fr)]">
+            <Input className="border-border bg-background" type="number" value={position} onChange={(event) => setPosition(Number(event.target.value))} />
+            <Input className="border-border bg-background" placeholder="public / private" value={visibility} onChange={(event) => setVisibility(event.target.value)} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" size="sm" disabled={isPending || !title.trim()}>
+              {isPending ? "正在保存..." : editingGuide ? "保存指南" : "新增指南"}
+            </Button>
+            {editingGuide ? (
+              <Button type="button" size="sm" variant="ghost" onClick={resetForm}>
+                取消
+              </Button>
+            ) : null}
+          </div>
+        </form>
+      ) : null}
+    </div>
+  );
+}
+
+function InsightsSummaryGrid({ summary }: { summary: CommunityInsightsSummary }) {
+  return (
+    <div className="grid gap-3 md:grid-cols-4">
+      <MetricBlock label="成员总数" value={summary.members_total} />
+      <MetricBlock label="发帖" value={summary.posts_created} />
+      <MetricBlock label="评论" value={summary.comments_made} />
+      <MetricBlock label="活跃作者" value={summary.active_authors} />
+    </div>
+  );
+}
+
+function ModerationInsightsGrid({
+  moderation,
+}: {
+  moderation: CommunityModerationInsights;
+}) {
+  return (
+    <div className="grid gap-3 md:grid-cols-4">
+      <MetricBlock label="待处理举报" value={moderation.pending_reports} />
+      <MetricBlock label="已处理举报" value={moderation.resolved_reports} />
+      <MetricBlock label="移除内容" value={moderation.removed_posts + moderation.removed_comments} />
+      <MetricBlock label="审核动作" value={moderation.actions_count} />
+    </div>
+  );
+}
+
+function TrainingQueueList({ items }: { items: CommunityTrainingQueueItem[] }) {
+  return (
+    <div className="divide-y divide-border border-t border-border">
+      {items.map((item) => (
+        <div key={item.id} className="grid gap-3 py-3 md:grid-cols-[120px_minmax(0,1fr)]">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusToken>{formatTargetType(item.target_type)}</StatusToken>
+            <StatusToken tone="primary">{item.suggested_action || "复核"}</StatusToken>
+          </div>
+          <div className="min-w-0">
+            <p className="break-words text-sm font-semibold leading-6">
+              {item.preview || formatShortId(item.target_id)}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              {item.reason || "暂无原因。"} · {formatDateTime(item.created_at)}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LabeledTextarea({
+  disabled,
+  hint,
+  label,
+  minHeightClassName = "min-h-28",
+  onChange,
+  value,
+}: {
+  disabled?: boolean;
+  hint: string;
+  label: string;
+  minHeightClassName?: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-semibold text-foreground">{label}</label>
+      <Textarea
+        className={`border-border bg-background ${minHeightClassName}`}
+        disabled={disabled}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <p className="text-xs leading-5 text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+
+function LabeledNumberInput({
+  disabled,
+  label,
+  onChange,
+  value,
+}: {
+  disabled?: boolean;
+  label: string;
+  onChange: (value: number) => void;
+  value: number;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-semibold text-foreground">{label}</label>
+      <Input
+        className="border-border bg-background"
+        disabled={disabled}
+        min={0}
+        type="number"
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </div>
+  );
+}
+
+function ToggleLine({
+  checked,
+  disabled,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  label: string;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="inline-flex items-center gap-2 text-sm font-semibold">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        className="size-4 accent-primary"
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      {label}
+    </label>
+  );
+}
+
+const modmailFolders: Array<{ label: string; value: ModmailFolder }> = [
+  { label: "收件箱", value: "inbox" },
+  { label: "待回复", value: "needs_reply" },
+  { label: "处理中", value: "in_progress" },
+  { label: "已归档", value: "archived" },
+];
 
 function getCommunityToolMeta(tool: CommunityManageTool) {
   for (const group of communityToolGroups) {
@@ -1825,15 +3393,11 @@ function ManageHeader({
   tool: CommunityManageTool;
 }) {
   return (
-    <div className="border-b border-border py-4">
-      <div className="min-w-0">
-        <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
-          社区管理
-        </h1>
-        <p className="mt-1 break-words font-mono text-xs text-primary [overflow-wrap:anywhere]">
-          {getCommunityManageToolHref(slug, tool)}
-        </p>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+    <ReviewDeskMasthead
+      eyebrow={getCommunityManageToolHref(slug, tool)}
+      title={community ? `${community.name} 管理` : "社区管理"}
+      description={
+        <>
           {community && canManageCommunity
             ? `${community.name} 的社区管理入口。当前角色 ${formatViewerRole(community.viewer_role)}，成员 ${formatCount(community.member_count)}，帖子 ${formatCount(community.post_count)}。${hasPlatformOwnerOverride ? "当前通过平台 owner 覆盖进入，真实社区角色不变。" : ""}所有写操作仍由后端权限校验。`
             : null}
@@ -1845,10 +3409,33 @@ function ManageHeader({
               })
             : null}
           {!community ? "读取社区管理上下文后会显示权限和待处理内容。" : null}
-        </p>
-      </div>
-
-    </div>
+        </>
+      }
+      meta={
+        <>
+          <MetricBlock
+            label="当前工具"
+            value={getCommunityToolMeta(tool).label}
+            variant="compact"
+          />
+          <MetricBlock
+            label="社区角色"
+            value={community ? formatViewerRole(community.viewer_role) : "读取中"}
+            variant="compact"
+          />
+          <MetricBlock
+            label="成员"
+            value={community ? formatCount(community.member_count) : "--"}
+            variant="compact"
+          />
+          <MetricBlock
+            label="权限"
+            value={canManageCommunity ? "可管理" : "待确认"}
+            variant="compact"
+          />
+        </>
+      }
+    />
   );
 }
 
@@ -1872,7 +3459,7 @@ function ManagePreviewSection({
   title: string;
 }) {
   return (
-    <section className="min-w-0 border-b border-border py-5 last:border-b-0">
+    <section className="min-w-0 rounded-md bg-surface-raised p-4">
       <div className="min-w-0">
         <h3 className="text-sm font-semibold">{title}</h3>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -1921,7 +3508,7 @@ function ManagePostList({
   }
 
   return (
-    <div>
+    <div className="space-y-2">
       {posts.map((post, index) => (
         <ManageContentRow
           action={
@@ -1962,7 +3549,7 @@ function ManageCommentList({
   }
 
   return (
-    <div>
+    <div className="space-y-2">
       {comments.map((comment, index) => (
         <ManageContentRow
           action={
@@ -2051,9 +3638,9 @@ function ModQueueItemList({
   }
 
   return (
-    <div>
+    <div className="space-y-2">
       {canModerate ? (
-        <div className="mb-3 flex flex-col gap-3 border-b border-border pb-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-md bg-surface-raised p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <StatusToken tone={selectedTargets.length > 0 ? "primary" : "default"}>
               已选 {selectedTargets.length}
@@ -2163,10 +3750,10 @@ function ManageUserStatesPanel({
   return (
     <section className="min-w-0 border-b border-border py-5 last:border-b-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <div className="space-y-2">
           <h3 className="text-sm font-semibold">社区用户治理</h3>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            封禁、禁言和批准用户走社区级合同，不改变平台账号状态。
+            封禁、禁言和准入用户走社区级合同，不改变平台账号状态。
           </p>
         </div>
         <StatusToken tone={canModerate ? "success" : "default"}>
@@ -2223,6 +3810,7 @@ function CommunityUserStateForm({
   slug: string;
 }) {
   const [userId, setUserId] = useState("");
+  const [selectedUser, setSelectedUser] = useState<SearchUserResult | null>(null);
   const [reason, setReason] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -2257,6 +3845,7 @@ function CommunityUserStateForm({
       user_id: userId.trim(),
     });
     setUserId("");
+    setSelectedUser(null);
     setReason("");
     setExpiresAt("");
   }
@@ -2265,15 +3854,16 @@ function CommunityUserStateForm({
     <form className="mt-4 grid gap-3 border-b border-border pb-4" onSubmit={submit}>
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-2">
-          <label className="text-xs font-semibold" htmlFor={`${kind}-user-id`}>
-            用户 ID
-          </label>
-          <Input
-            id={`${kind}-user-id`}
+          <CommunityUserSearchPicker
             value={userId}
-            onChange={(event) => setUserId(event.target.value)}
-            placeholder="粘贴后端用户 ID"
+            onValueChange={setUserId}
+            selectedUser={selectedUser}
+            onSelectedUserChange={setSelectedUser}
+            label="目标用户"
+            description="搜索用户后选择，系统会自动提交后端用户 ID；也可以粘贴后端用户 ID。"
+            placeholder="搜索用户、昵称或粘贴用户 ID"
             disabled={mutation.isPending}
+            preventEnterSubmit={false}
           />
         </div>
         <div className="space-y-2">
@@ -2475,6 +4065,8 @@ function ManageUserProfilePanel({
 }) {
   const [inputUserId, setInputUserId] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [selectedSearchUser, setSelectedSearchUser] =
+    useState<SearchUserResult | null>(null);
   const [noteBody, setNoteBody] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -2499,6 +4091,7 @@ function ManageUserProfilePanel({
   function selectUser(userId: string) {
     setSelectedUserId(userId);
     setInputUserId(userId);
+    setSelectedSearchUser(null);
     setFormError(null);
     setSuccessMessage(null);
   }
@@ -2564,28 +4157,26 @@ function ManageUserProfilePanel({
         </p>
       ) : (
         <>
-          <form
-            className="mt-4 grid gap-3 border-b border-border pb-4 lg:grid-cols-[minmax(0,1fr)_auto]"
+          <CommunityUserSearchPicker
+            className="mt-4"
+            label="目标用户"
+            value={inputUserId}
+            onValueChange={setInputUserId}
+            selectedUser={selectedSearchUser}
+            onSelectedUserChange={setSelectedSearchUser}
             onSubmit={submitLookup}
-          >
-            <Input
-              value={inputUserId}
-              onChange={(event) => setInputUserId(event.target.value)}
-              placeholder="用户 ID"
-              aria-label="用户 ID"
-            />
-            <Button type="submit" size="sm">
-              查看画像
-            </Button>
-          </form>
+            submitLabel="查看画像"
+            placeholder="搜索用户、昵称或粘贴用户 ID"
+            description="搜索后选择账号，系统会用后端用户 ID 读取社区画像。"
+          />
 
           {candidates.length > 0 ? (
-            <div className="flex gap-2 overflow-x-auto border-b border-border py-3">
+            <div className="mt-3 flex gap-2 overflow-x-auto rounded-md bg-surface-raised p-2">
               {candidates.slice(0, 12).map((candidate) => (
                 <button
                   key={candidate.userId}
                   type="button"
-                  className="min-h-9 shrink-0 border border-border px-2 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                  className="min-h-9 shrink-0 rounded bg-background px-3 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-primary"
                   onClick={() => selectUser(candidate.userId)}
                 >
                   {candidate.label}
@@ -2721,7 +4312,7 @@ function ModerationUserProfileBlock({
         {profile.is_banned ? <StatusToken tone="danger">已封禁</StatusToken> : null}
         {profile.is_muted ? <StatusToken tone="warning">已禁言</StatusToken> : null}
         {profile.is_approved ? (
-          <StatusToken tone="success">批准用户</StatusToken>
+          <StatusToken tone="success">准入用户</StatusToken>
         ) : null}
       </div>
       <h4 className="mt-3 text-base font-semibold">
@@ -3463,7 +5054,7 @@ function ManageContentRow({
 }) {
   return (
     <div
-      className={`grid gap-3 border-b border-border py-4 last:border-b-0 ${
+      className={`grid gap-3 rounded-md bg-surface-raised p-3 ${
         selection ? "grid-cols-[auto_minmax(0,1fr)]" : "grid-cols-1"
       }`}
     >
@@ -3497,6 +5088,8 @@ function ManageMemberGovernance({
   slug: string;
 }) {
   const [username, setUsername] = useState("");
+  const [selectedModeratorUser, setSelectedModeratorUser] =
+    useState<SearchUserResult | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const appointMutation = useAppointCommunityModeratorMutation();
@@ -3523,9 +5116,15 @@ function ManageMemberGovernance({
       });
       setMessage(`已提交社区管理员任命：@${username.trim()}。`);
       setUsername("");
+      setSelectedModeratorUser(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "社区管理员任命失败。");
     }
+  }
+
+  function submitModeratorAppointment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void appointModerator();
   }
 
   return (
@@ -3572,7 +5171,7 @@ function ManageMemberGovernance({
       )}
 
       {canManageModerators ? (
-        <div className="space-y-4 border-t border-border pt-4">
+        <div className="space-y-4 rounded-md bg-surface-raised p-4">
           <section className="space-y-3">
             <div>
               <h4 className="text-sm font-semibold">任命社区管理员</h4>
@@ -3580,22 +5179,19 @@ function ManageMemberGovernance({
                 社区管理员可以处理社区内举报和内容处置，不能任命其他社区管理员。
               </p>
             </div>
-            <Input
+            <CommunityUserSearchPicker
+              label="目标账号"
               value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              placeholder="用户名，不含 @"
+              onValueChange={setUsername}
+              selectedUser={selectedModeratorUser}
+              onSelectedUserChange={setSelectedModeratorUser}
+              getValueFromUser={getSearchUserUsername}
+              onSubmit={submitModeratorAppointment}
+              submitLabel="任命"
+              placeholder="搜索用户名或昵称"
+              description="搜索后选择账号，提交时按当前社区接口使用用户名。"
               disabled={!canAddModerator || appointMutation.isPending}
-              aria-label="社区管理员用户名"
             />
-            <Button
-              type="button"
-              size="sm"
-              className="h-auto min-h-9 whitespace-normal text-left"
-              disabled={!canAddModerator || appointMutation.isPending}
-              onClick={appointModerator}
-            >
-              {appointMutation.isPending ? "提交中..." : "任命社区管理员"}
-            </Button>
           </section>
         </div>
       ) : (
@@ -3619,6 +5215,8 @@ function ManageOwnerTransferPanel({
   slug: string;
 }) {
   const [transferUsername, setTransferUsername] = useState("");
+  const [selectedTransferUser, setSelectedTransferUser] =
+    useState<SearchUserResult | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
@@ -3652,10 +5250,16 @@ function ManageOwnerTransferPanel({
       });
 
       setTransferUsername("");
+      setSelectedTransferUser(null);
       setMessage(`已创建交接给 @${getTransferTargetLabel(result.transfer)}。`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "版主交接创建失败。");
     }
+  }
+
+  function submitOwnerTransfer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void createOwnerTransfer();
   }
 
   async function cancelOwnerTransfer() {
@@ -3836,22 +5440,19 @@ function ManageOwnerTransferPanel({
 
         {canCreateOwnerTransfer ? (
           <div className="space-y-3 border-t border-border pt-4">
-            <Input
+            <CommunityUserSearchPicker
+              label="新版主账号"
               value={transferUsername}
-              onChange={(event) => setTransferUsername(event.target.value)}
-              placeholder="新版主用户名，不含 @"
+              onValueChange={setTransferUsername}
+              selectedUser={selectedTransferUser}
+              onSelectedUserChange={setSelectedTransferUser}
+              getValueFromUser={getSearchUserUsername}
+              onSubmit={submitOwnerTransfer}
+              submitLabel="创建交接"
+              placeholder="搜索新版主的用户名或昵称"
+              description="搜索后选择账号，提交时按当前交接接口使用用户名。"
               disabled={transferMutation.isPending || Boolean(pendingTransfer)}
-              aria-label="新版主用户名"
             />
-            <Button
-              type="button"
-              size="sm"
-              className="h-auto min-h-9 whitespace-normal text-left"
-              disabled={transferMutation.isPending || Boolean(pendingTransfer)}
-              onClick={createOwnerTransfer}
-            >
-              {transferMutation.isPending ? "提交中..." : "创建版主交接"}
-            </Button>
           </div>
         ) : (
           <p className="border-t border-border pt-3 text-xs leading-5 text-muted-foreground">
@@ -3995,6 +5596,176 @@ function TransferFact({ label, value }: { label: string; value: string }) {
   );
 }
 
+function CommunityUserSearchPicker({
+  className,
+  description,
+  disabled = false,
+  getValueFromUser = (user) => user.id,
+  label,
+  onSelectedUserChange,
+  onSubmit,
+  onValueChange,
+  placeholder = "搜索用户、昵称或简介",
+  preventEnterSubmit = true,
+  selectedUser,
+  submitLabel = "选择",
+  value,
+}: {
+  className?: string;
+  description?: ReactNode;
+  disabled?: boolean;
+  getValueFromUser?: (user: SearchUserResult) => string;
+  label: string;
+  onSelectedUserChange: (user: SearchUserResult | null) => void;
+  onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+  preventEnterSubmit?: boolean;
+  selectedUser: SearchUserResult | null;
+  submitLabel?: string;
+  value: string;
+}) {
+  const inputId = useId();
+  const normalizedQuery = value.trim();
+  const usersQuery = useSearchQuery(
+    { limit: 6, q: normalizedQuery, scope: "users" },
+    Boolean(normalizedQuery) && !selectedUser,
+  );
+  const users = usersQuery.data?.users ?? [];
+
+  function changeQuery(nextQuery: string) {
+    onValueChange(nextQuery);
+    onSelectedUserChange(null);
+  }
+
+  function selectUser(user: SearchUserResult) {
+    onValueChange(getValueFromUser(user));
+    onSelectedUserChange(user);
+  }
+
+  return (
+    <div className={className}>
+      <label className="text-xs font-semibold text-foreground" htmlFor={inputId}>
+        {label}
+      </label>
+      {description ? (
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          {description}
+        </p>
+      ) : null}
+      <ManagementSearchField
+        id={inputId}
+        className="mt-2"
+        ariaLabel={label}
+        clearLabel="清空用户选择"
+        disabled={disabled}
+        isSearching={usersQuery.isFetching}
+        onClear={() => changeQuery("")}
+        onSubmit={onSubmit}
+        onValueChange={changeQuery}
+        placeholder={placeholder}
+        preventEnterSubmit={preventEnterSubmit}
+        submitLabel={submitLabel}
+        value={value}
+      />
+
+      {selectedUser ? (
+        <div className="mt-2 flex min-w-0 flex-col gap-3 rounded-md bg-primary/5 px-3 py-3 ring-1 ring-primary/30 md:flex-row md:items-start md:justify-between">
+          <SearchUserIdentity user={selectedUser} />
+          <span className="flex flex-wrap items-center gap-2 md:justify-end">
+            <StatusToken tone="primary">已选择</StatusToken>
+            <span className="font-mono text-[11px] text-muted-foreground">
+              {getValueFromUser(selectedUser)}
+            </span>
+          </span>
+        </div>
+      ) : null}
+
+      {usersQuery.isFetching && normalizedQuery && !selectedUser ? (
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">
+          正在搜索用户...
+        </p>
+      ) : null}
+
+      {usersQuery.isError ? (
+        <Alert className="mt-2" variant="destructive">
+          <AlertTitle>搜索失败</AlertTitle>
+          <AlertDescription>{getErrorDescription(usersQuery.error)}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {usersQuery.isSuccess && normalizedQuery && users.length === 0 && !selectedUser ? (
+        <div className="mt-2 rounded-md bg-surface-raised px-3 py-3 text-sm text-muted-foreground">
+          没有匹配用户。可以继续输入，或粘贴后端用户 ID。
+        </div>
+      ) : null}
+
+      {users.length > 0 && !selectedUser ? (
+        <div className="mt-2 space-y-2">
+          {users.map((user) => (
+            <button
+              key={user.id}
+              type="button"
+              className="nexus-micro-lift flex w-full min-w-0 flex-col gap-3 rounded-md bg-surface-raised px-3 py-3 text-left transition-colors hover:bg-surface-hover md:flex-row md:items-start md:justify-between"
+              disabled={disabled}
+              onClick={() => selectUser(user)}
+            >
+              <SearchUserIdentity user={user} />
+              <span className="flex flex-wrap items-center gap-2 md:justify-end">
+                <StatusToken tone={user.status === "active" ? "success" : "default"}>
+                  {user.status === "active" ? "有效" : user.status}
+                </StatusToken>
+                <span className="text-xs font-semibold text-primary">选择</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SearchUserIdentity({ user }: { user: SearchUserResult }) {
+  const displayName = user.display_name?.trim() || user.username;
+  const avatarUrl = user.avatar_url?.trim();
+
+  return (
+    <span className="flex min-w-0 items-start gap-3">
+      <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-semibold text-primary ring-1 ring-primary/20">
+        {avatarUrl ? (
+          <span
+            className="size-full bg-cover bg-center"
+            style={{ backgroundImage: `url(${JSON.stringify(avatarUrl)})` }}
+            role="img"
+            aria-label={`${displayName} 的头像`}
+          />
+        ) : (
+          getSearchUserInitial(displayName)
+        )}
+      </span>
+      <span className="min-w-0">
+        <span className="block break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
+          {displayName}
+        </span>
+        <span className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
+          <span>@{user.username}</span>
+          <span className="font-mono">{formatShortId(user.id)}</span>
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function getSearchUserUsername(user: SearchUserResult) {
+  return user.username;
+}
+
+function getSearchUserInitial(displayName: string) {
+  const trimmed = displayName.trim();
+
+  return trimmed ? trimmed.slice(0, 1).toUpperCase() : "#";
+}
+
 function ResponsiveActionRow({
   children,
   className,
@@ -4034,7 +5805,7 @@ function ManageMemberRow({
   }
 
   return (
-    <div className="grid gap-3 border-b border-border py-4 last:border-b-0 lg:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="grid gap-3 rounded-md bg-surface-raised p-3 lg:grid-cols-[minmax(0,1fr)_auto]">
       <IndexedInfoRow
         className="border-b-0 py-0"
         index={String(index + 1).padStart(2, "0")}
@@ -4162,9 +5933,9 @@ function ManageSettingsEditor({
 
   if (!canEdit) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         <CommunityMediaPreview settings={settings} />
-        <dl className="space-y-3 border-t border-border pt-3 text-sm">
+        <dl className="grid gap-2 text-sm sm:grid-cols-2">
           <SettingsReadOnlyRow label="名称" value={settings.name || "--"} />
           <SettingsReadOnlyRow
             label="简介"
@@ -4300,21 +6071,20 @@ function CommunityMediaPreview({
   const bannerUrl = settings.banner_url?.trim();
 
   return (
-    <section className="min-w-0 overflow-hidden border-y border-border">
-      <div className="relative aspect-[16/6] min-h-28 bg-background-soft">
-        {bannerUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
+    <section className="min-w-0 rounded-md bg-background px-3 py-3 shadow-[inset_0_0_0_1px_var(--border)]">
+      {bannerUrl ? (
+        <div className="relative mb-3 aspect-[16/5] max-h-56 overflow-hidden rounded-md bg-background-soft">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={bannerUrl}
             alt={`${displayName} 的社区背景图`}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain"
           />
-        ) : (
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(45,212,191,0.14)_0_1px,transparent_1px_100%),linear-gradient(0deg,rgba(255,255,255,0.035)_0_1px,transparent_1px_100%)] bg-[size:24px_24px]" />
-        )}
-      </div>
-      <div className="grid gap-3 border-t border-border p-3 sm:grid-cols-[72px_minmax(0,1fr)]">
-        <div className="-mt-10 flex size-16 items-center justify-center overflow-hidden rounded-full border border-border bg-background text-primary">
+        </div>
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-[64px_minmax(0,1fr)] sm:items-center">
+        <div className="flex size-14 items-center justify-center overflow-hidden rounded-md bg-primary-muted text-primary shadow-[inset_0_0_0_1px_var(--border)] sm:size-16">
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -4330,9 +6100,13 @@ function CommunityMediaPreview({
           <div className="break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
             {displayName}
           </div>
-          <div className="mt-1 break-words font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]">
-            头像 {avatarUrl ? "已设置" : "未设置"} / 背景图{" "}
-            {bannerUrl ? "已设置" : "未设置"}
+          <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <span className="rounded-full bg-surface-raised px-2 py-1">
+              头像{avatarUrl ? "已设置" : "未设置"}
+            </span>
+            <span className="rounded-full bg-surface-raised px-2 py-1">
+              背景图{bannerUrl ? "已设置" : "未设置"}
+            </span>
           </div>
           {actions ? <div className="mt-3">{actions}</div> : null}
         </div>
@@ -4349,7 +6123,7 @@ function SettingsReadOnlyRow({
   value: string;
 }) {
   return (
-    <div className="grid gap-1 border-b border-border pb-3 last:border-b-0 last:pb-0">
+    <div className="grid min-w-0 gap-1 rounded-md bg-background px-3 py-2">
       <dt className="text-xs font-semibold text-muted-foreground">{label}</dt>
       <dd className="break-words text-sm leading-6 text-foreground">{value}</dd>
     </div>
@@ -4805,7 +6579,7 @@ function FieldMeta({
 }
 
 function StatePanel({ children }: { children: ReactNode }) {
-  return <div className="border-b border-border py-4">{children}</div>;
+  return <ReviewDeskState className="bg-surface-raised shadow-none">{children}</ReviewDeskState>;
 }
 
 function isUnauthenticated(error: Error | null) {
@@ -4993,7 +6767,7 @@ function getModeratorLimit(memberCount?: number) {
 function formatUserStateKind(kind: CommunityUserStateKind) {
   switch (kind) {
     case "approved":
-      return "批准用户";
+      return "准入用户";
     case "banned":
       return "封禁用户";
     case "muted":
@@ -5098,7 +6872,7 @@ function formatModAction(action: string) {
     case "muted":
       return "禁言用户";
     case "approved":
-      return "批准用户";
+      return "准入用户";
     default:
       return action;
   }
@@ -5139,6 +6913,65 @@ function getNextRulePosition(rules: CommunityRule[]) {
   }
 
   return Math.max(...rules.map((rule) => rule.position)) + 1;
+}
+
+function getNextPosition(items: Array<{ position: number }>) {
+  if (items.length === 0) {
+    return 1;
+  }
+
+  return Math.max(...items.map((item) => item.position)) + 1;
+}
+
+function parseLines(value: string) {
+  return value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function joinLines(values: string[] = []) {
+  return values.join("\n");
+}
+
+function toDateTimeLocalValue(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatModmailFolder(folder: string) {
+  switch (folder) {
+    case "inbox":
+      return "收件箱";
+    case "needs_reply":
+      return "待回复";
+    case "in_progress":
+      return "处理中";
+    case "archived":
+      return "已归档";
+    default:
+      return folder || "未知";
+  }
+}
+
+function formatScheduledStatus(status: string) {
+  switch (status) {
+    case "scheduled":
+      return "已排期";
+    case "paused":
+      return "已暂停";
+    case "published":
+      return "已发布";
+    case "cancelled":
+      return "已取消";
+    default:
+      return status || "未知";
+  }
 }
 
 function formatDate(value: string) {

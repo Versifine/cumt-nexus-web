@@ -2,8 +2,15 @@
 
 import { Children, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, RefreshCw, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 
+import { ManagementSearchField } from "@/components/app-shell/management-search-field";
+import {
+  ReviewDeskBoard,
+  ReviewDeskPanel,
+  ReviewDeskState,
+} from "@/components/app-shell/review-desk";
+import { RightRail, RightRailSection } from "@/components/app-shell/right-rail";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -33,11 +40,10 @@ export function AdminQueueLayout({ children, detail }: AdminQueueLayoutProps) {
   const [toolbar, ...content] = childItems;
 
   return (
-    <section className="min-w-0">
+    <ReviewDeskBoard inspector={detail ? <RightRail>{detail}</RightRail> : undefined}>
       {toolbar}
-      {detail ? <div className="border-b border-border py-4">{detail}</div> : null}
       {content}
-    </section>
+    </ReviewDeskBoard>
   );
 }
 
@@ -79,51 +85,55 @@ export function AdminQueueToolbar({
   const hasSearch = Boolean(onSearchSubmit && onSearchValueChange);
 
   return (
-    <div className="flex min-h-12 flex-col gap-3 border-b border-border py-3 lg:flex-row lg:items-center lg:justify-between">
-      <div className="min-w-0">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          {description}
-        </p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+    <ReviewDeskPanel
+      title={title}
+      description={description}
+      headerAction={
+        actions || onRefresh ? (
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            {actions}
+
+            {onRefresh ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={isRefreshing}
+                onClick={onRefresh}
+              >
+                <RefreshCw
+                  className={isRefreshing ? "size-4 animate-spin" : "size-4"}
+                  aria-hidden="true"
+                />
+                {isRefreshing ? "刷新中" : "刷新"}
+              </Button>
+            ) : null}
+          </div>
+        ) : null
+      }
+    >
+      <div className="space-y-3">
         {hasSearch ? (
-          <form
-            className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 sm:w-[360px]"
+          <ManagementSearchField
+            ariaLabel={searchAriaLabel ?? "搜索"}
+            disabled={searchDisabled}
+            isSearching={isRefreshing}
+            onClear={onSearchClear}
             onSubmit={onSearchSubmit}
-          >
-            <Input
-              value={searchValue ?? ""}
-              onChange={(event) => onSearchValueChange?.(event.target.value)}
-              placeholder={searchPlaceholder}
-              aria-label={searchAriaLabel}
-              disabled={searchDisabled}
-            />
-            <Button type="submit" variant="ghost" size="sm" disabled={searchDisabled}>
-              <Search className="size-4" aria-hidden="true" />
-              搜索
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={searchDisabled || !searchValue}
-              onClick={onSearchClear}
-              aria-label="清空搜索"
-            >
-              <X className="size-4" aria-hidden="true" />
-            </Button>
-          </form>
+            onValueChange={(value) => onSearchValueChange?.(value)}
+            placeholder={searchPlaceholder}
+            value={searchValue ?? ""}
+          />
         ) : null}
 
         {tabs && activeTab && onTabChange ? (
           <Tabs value={activeTab} onValueChange={onTabChange}>
-            <TabsList className="h-9 rounded-none bg-transparent p-0">
+            <TabsList className="h-auto flex-wrap justify-start rounded-md bg-surface-raised p-1">
               {tabs.map((tab) => (
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="h-9 rounded-none border-b border-transparent px-3 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
+                  className="h-8 rounded px-3 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
                 >
                   {tab.label}
                 </TabsTrigger>
@@ -131,26 +141,8 @@ export function AdminQueueToolbar({
             </TabsList>
           </Tabs>
         ) : null}
-
-        {actions}
-
-        {onRefresh ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={isRefreshing}
-            onClick={onRefresh}
-          >
-            <RefreshCw
-              className={isRefreshing ? "size-4 animate-spin" : "size-4"}
-              aria-hidden="true"
-            />
-            {isRefreshing ? "刷新中" : "刷新"}
-          </Button>
-        ) : null}
       </div>
-    </div>
+    </ReviewDeskPanel>
   );
 }
 
@@ -208,13 +200,13 @@ export function AdminResourceRow({
     </span>
   );
   const rowClassName = cn(
-    "grid w-full gap-3 border-b border-l-2 border-b-border px-3 py-4 transition-colors",
+    "grid w-full gap-3 rounded-md bg-surface-raised px-3 py-4 transition-colors",
     selection
       ? "grid-cols-[auto_minmax(0,1fr)] sm:grid-cols-[auto_minmax(0,1fr)_auto]"
       : "grid-cols-[minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_auto]",
     isSelected
-      ? "border-l-primary bg-background-soft/40"
-      : "border-l-transparent hover:bg-background-soft/35",
+      ? "bg-primary/10 ring-1 ring-primary/30"
+      : "hover:bg-surface-hover",
   );
   const contentClassName = "min-w-0";
   const content = href ? (
@@ -258,8 +250,7 @@ export function AdminDetailRail({
   title,
 }: AdminDetailRailProps) {
   return (
-    <section className="border-b border-border pb-5">
-      <h2 className="text-sm font-semibold">{title}</h2>
+    <RightRailSection title={title}>
       {children ? (
         <div className="mt-3">{children}</div>
       ) : (
@@ -267,7 +258,7 @@ export function AdminDetailRail({
           <EmptyState title={emptyTitle} description={emptyDescription} />
         </div>
       )}
-    </section>
+    </RightRailSection>
   );
 }
 
@@ -279,10 +270,9 @@ export function AdminRailSection({
   title: ReactNode;
 }) {
   return (
-    <section className="border-b border-border pb-5 last:border-b-0">
-      <h2 className="text-sm font-semibold">{title}</h2>
+    <RightRailSection title={title}>
       <div className="mt-3">{children}</div>
-    </section>
+    </RightRailSection>
   );
 }
 
@@ -435,7 +425,7 @@ export function AdminPagination({
   }
 
   return (
-    <div className="flex flex-col gap-3 border-b border-border py-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex flex-col gap-3 rounded-lg bg-surface p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
       <div className="flex flex-wrap items-center gap-2">
         {onJump ? (
           <Button
@@ -505,7 +495,7 @@ export function AdminPagination({
 }
 
 export function AdminStatePanel({ children }: { children: ReactNode }) {
-  return <div className="border-b border-border py-4">{children}</div>;
+  return <ReviewDeskState>{children}</ReviewDeskState>;
 }
 
 export function AdminLoadingPanel({ rows = 5 }: { rows?: number }) {

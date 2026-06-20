@@ -7,6 +7,6 @@ export const metadata: Metadata = {
   description: "查看 CUMT Nexus 校园社区中正在上升的公开帖子。",
 };
 
-export default async function RisingFeed() {
-  return <HomeFeedPage contextLabel="上升" sort="rising" />;
+export default function RisingFeed() {
+  return <HomeFeedPage sort="rising" />;
 }

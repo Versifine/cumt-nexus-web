@@ -1,12 +1,11 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Search, UserRound, X } from "lucide-react";
+import { UserRound } from "lucide-react";
 
+import { ManagementSearchField } from "@/components/app-shell/management-search-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { StatusToken } from "@/components/ui/data-display";
-import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +20,16 @@ type AdminUserPickerProps = {
   onChange: (user: AdminUser | null) => void;
   placeholder?: string;
   value: AdminUser | null;
+};
+
+type AdminUserSearchPanelProps = {
+  className?: string;
+  description?: string;
+  limit?: number;
+  onSelect?: (user: AdminUser) => void;
+  placeholder?: string;
+  status?: "active" | "suspended" | "banned" | "all";
+  title?: string;
 };
 
 export function AdminUserPicker({
@@ -50,38 +59,22 @@ export function AdminUserPicker({
       <label className="text-xs font-semibold text-foreground" htmlFor={inputId}>
         {label}
       </label>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-        <div className="relative min-w-0">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
-            id={inputId}
-            value={query}
-            disabled={disabled}
-            placeholder={placeholder}
-            className="pl-9"
-            onChange={(event) => {
-              setQuery(event.target.value);
-              onChange(null);
-            }}
-          />
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled={disabled || (!query && !value)}
-          onClick={() => {
-            setQuery("");
-            onChange(null);
-          }}
-          aria-label="清空用户选择"
-        >
-          <X className="size-4" aria-hidden="true" />
-        </Button>
-      </div>
+      <ManagementSearchField
+        id={inputId}
+        ariaLabel={label}
+        clearLabel="清空用户选择"
+        disabled={disabled}
+        onClear={() => {
+          setQuery("");
+          onChange(null);
+        }}
+        onValueChange={(nextQuery) => {
+          setQuery(nextQuery);
+          onChange(null);
+        }}
+        placeholder={placeholder}
+        value={query}
+      />
 
       {value ? (
         <SelectedUserPanel
@@ -106,32 +99,24 @@ export function AdminUserPicker({
       ) : null}
 
       {usersQuery.isSuccess && searchQuery && users.length === 0 && !value ? (
-        <div className="border-y border-border py-3 text-sm text-muted-foreground">
+        <div className="rounded-md bg-surface-raised px-3 py-3 text-sm text-muted-foreground">
           没有匹配用户。请检查用户名或昵称是否完整。
         </div>
       ) : null}
 
       {users.length > 0 && !value ? (
-        <div className="divide-y divide-border border-y border-border">
+        <div className="space-y-2">
           {users.map((user) => (
-            <button
+            <AdminUserResultButton
               key={user.id}
-              type="button"
-              className="grid w-full min-w-0 gap-3 px-3 py-3 text-left transition-colors hover:bg-background-soft sm:grid-cols-[minmax(0,1fr)_auto]"
+              user={user}
               disabled={disabled}
+              actionLabel="选择此人"
               onClick={() => {
                 onChange(user);
                 setQuery(getAdminUserDisplayName(user));
               }}
-            >
-              <AdminUserIdentity user={user} />
-              <span className="flex flex-wrap items-center gap-2 sm:justify-end">
-                <StatusToken tone={getAdminUserStatusTone(user.status)}>
-                  {formatAdminUserStatus(user.status)}
-                </StatusToken>
-                <span className="text-xs font-semibold text-primary">选择此人</span>
-              </span>
-            </button>
+            />
           ))}
         </div>
       ) : null}
@@ -139,22 +124,168 @@ export function AdminUserPicker({
   );
 }
 
-export function AdminUserIdentity({ user }: { user: AdminUser }) {
+export function AdminUserSearchPanel({
+  className,
+  description = "按用户名、昵称或用户资料定位账号，结果直接展示头像、用户名和昵称。",
+  limit = 6,
+  onSelect,
+  placeholder = "搜索用户、昵称或简介",
+  status = "all",
+  title = "用户搜索",
+}: AdminUserSearchPanelProps) {
+  const inputId = useId();
+  const [query, setQuery] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const searchQuery = query.trim();
+  const usersQuery = useAdminUsersQuery(
+    {
+      limit,
+      offset: 0,
+      q: searchQuery,
+      status,
+    },
+    Boolean(searchQuery),
+  );
+  const users = usersQuery.data?.users ?? [];
+
+  function handleSelect(user: AdminUser) {
+    setSelectedUserId(user.id);
+    onSelect?.(user);
+  }
+
+  return (
+    <section className={cn("rounded-md bg-surface-raised p-3", className)}>
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {description}
+          </p>
+        </div>
+        {usersQuery.isFetching && searchQuery ? (
+          <StatusToken tone="primary">搜索中</StatusToken>
+        ) : null}
+      </div>
+
+      <ManagementSearchField
+        id={inputId}
+        className="mt-3"
+        ariaLabel={title}
+        clearLabel="清空用户搜索"
+        onClear={() => {
+          setQuery("");
+          setSelectedUserId(null);
+        }}
+        onValueChange={(nextQuery) => {
+          setQuery(nextQuery);
+          setSelectedUserId(null);
+        }}
+        placeholder={placeholder}
+        value={query}
+      />
+
+      {usersQuery.isError ? (
+        <Alert className="mt-3" variant="destructive">
+          <AlertTitle>搜索失败</AlertTitle>
+          <AlertDescription>{getErrorDescription(usersQuery.error)}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {usersQuery.isSuccess && searchQuery && users.length === 0 ? (
+        <div className="mt-3 rounded-md bg-surface px-3 py-3 text-sm text-muted-foreground">
+          没有匹配用户。
+        </div>
+      ) : null}
+
+      {users.length > 0 ? (
+        <div className="mt-3 space-y-2">
+          {users.map((user) => (
+            <AdminUserResultButton
+              key={user.id}
+              user={user}
+              selected={selectedUserId === user.id}
+              actionLabel={selectedUserId === user.id ? "已选中" : "查看"}
+              onClick={() => handleSelect(user)}
+            />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function AdminUserResultButton({
+  actionLabel,
+  disabled,
+  onClick,
+  selected = false,
+  user,
+}: {
+  actionLabel: string;
+  disabled?: boolean;
+  onClick: () => void;
+  selected?: boolean;
+  user: AdminUser;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "nexus-micro-lift grid w-full min-w-0 gap-3 rounded-md bg-surface px-3 py-3 text-left transition-colors sm:grid-cols-[minmax(0,1fr)_auto]",
+        selected
+          ? "bg-primary/10 ring-1 ring-primary/30"
+          : "hover:bg-surface-hover",
+      )}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <AdminUserIdentity user={user} />
+      <span className="flex flex-wrap items-center gap-2 sm:justify-end">
+        <StatusToken tone={getAdminUserStatusTone(user.status)}>
+          {formatAdminUserStatus(user.status)}
+        </StatusToken>
+        <span className="text-xs font-semibold text-primary">{actionLabel}</span>
+      </span>
+    </button>
+  );
+}
+
+export function AdminUserIdentity({
+  avatarSize = "md",
+  user,
+}: {
+  avatarSize?: "sm" | "md";
+  user: AdminUser;
+}) {
   const displayName = getAdminUserDisplayName(user);
-  const hasDisplayName = displayName !== user.username;
+  const hasDisplayName = Boolean(user.display_name?.trim());
+  const avatarUrl = user.avatar_url?.trim();
 
   return (
     <span className="flex min-w-0 items-start gap-3">
-      <span className="flex size-9 shrink-0 items-center justify-center border border-border bg-background-soft text-xs font-semibold text-primary">
-        {getAdminUserInitial(displayName)}
+      <span
+        className={cn(
+          "flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xs font-semibold text-primary ring-1 ring-primary/20",
+          avatarSize === "sm" ? "size-8" : "size-10",
+        )}
+      >
+        {avatarUrl ? (
+          <span
+            className="size-full bg-cover bg-center"
+            style={{ backgroundImage: `url(${JSON.stringify(avatarUrl)})` }}
+            role="img"
+            aria-label={`${displayName} 的头像`}
+          />
+        ) : (
+          getAdminUserInitial(displayName)
+        )}
       </span>
       <span className="min-w-0">
         <span className="block break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
-          {displayName}
+          @{user.username}
         </span>
         <span className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground">
-          <span>@{user.username}</span>
-          {hasDisplayName ? <span>昵称匹配</span> : null}
+          <span>{hasDisplayName ? displayName : "未设置昵称"}</span>
           <span className="font-mono">{user.id}</span>
         </span>
       </span>
@@ -176,7 +307,7 @@ function SelectedUserPanel({
   user: AdminUser;
 }) {
   return (
-    <div className="grid gap-3 border border-primary/50 bg-primary/5 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="grid gap-3 rounded-md bg-primary/5 px-3 py-3 ring-1 ring-primary/30 sm:grid-cols-[minmax(0,1fr)_auto]">
       <AdminUserIdentity user={user} />
       <span className="flex flex-wrap items-center gap-2 sm:justify-end">
         <StatusToken tone="primary">已选择</StatusToken>

@@ -1,17 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 
 import { rememberPostNavigationSource } from "@/components/app-shell/post-navigation-source";
+import {
+  RightRailRaisedList,
+  RightRailSection,
+} from "@/components/app-shell/right-rail";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
+import { InfiniteListStatus } from "@/components/feedback/infinite-list-status";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { PostSortMenu } from "@/features/post/post-sort-menu";
-import { useUserPostsQuery } from "@/features/post/queries";
+import { useInfiniteUserPostsQuery } from "@/features/post/queries";
 import { RedditPostListItem } from "@/features/post/reddit-post-list-item";
 import {
   formatPostSortFallbackNotice,
@@ -19,6 +24,7 @@ import {
 } from "@/features/post/sort";
 import type { ListPostsResponse, Post, PostSort } from "@/features/post/types";
 import { ApiError } from "@/lib/api/client";
+import { useInfiniteScrollTrigger } from "@/lib/hooks/use-infinite-scroll-trigger";
 
 import {
   PublicUserLayout,
@@ -42,24 +48,40 @@ export function PublicUserPosts({
   sourceLabel,
   username,
 }: PublicUserPostsProps) {
-  const { isReady } = useAuthSession();
+  const { isReady, token } = useAuthSession();
   const [sort, setSort] = useState<PostSort>("new");
   const profileQuery = usePublicUserQuery(username, isReady, initialProfileData);
   const user = profileQuery.data?.user;
   const canRequestPosts = isReady && profileQuery.isSuccess && Boolean(user);
-  const postsQuery = useUserPostsQuery(
+  const postsQuery = useInfiniteUserPostsQuery(
     username,
     20,
-    0,
     canRequestPosts,
     sort,
-    sort === "new" ? initialPostsData : undefined,
+    sort === "new" && !token ? initialPostsData : undefined,
   );
-  const posts = canRequestPosts ? (postsQuery.data?.posts ?? []) : [];
+  const postPages = postsQuery.data?.pages ?? [];
+  const firstPostPage = postPages[0];
+  const posts = canRequestPosts ? getUniquePosts(postPages) : [];
   const sortFallbackNotice = formatPostSortFallbackNotice(
-    postsQuery.data?.requested_sort,
-    postsQuery.data?.effective_sort,
+    firstPostPage?.requested_sort,
+    firstPostPage?.effective_sort,
   );
+  const isInitialPostsLoading = postsQuery.isLoading && posts.length === 0;
+  const hasNextPostsPage = Boolean(postsQuery.hasNextPage);
+  const isFetchingNextPostsPage = postsQuery.isFetchingNextPage;
+  const fetchNextPostsPage = postsQuery.fetchNextPage;
+  const loadMorePosts = useCallback(() => {
+    void fetchNextPostsPage();
+  }, [fetchNextPostsPage]);
+  const loadMoreRef = useInfiniteScrollTrigger({
+    enabled:
+      canRequestPosts &&
+      posts.length > 0 &&
+      hasNextPostsPage &&
+      !isFetchingNextPostsPage,
+    onLoadMore: loadMorePosts,
+  });
 
   if (!isReady || profileQuery.isPending) {
     return (
@@ -129,25 +151,25 @@ export function PublicUserPosts({
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-foreground">公开帖子</h2>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              当前页 {posts.length} 篇 / 共 {user.stats.post_count} 篇
+              已加载 {posts.length} 篇 / 共 {user.stats.post_count} 篇
               {sortFallbackNotice ? ` · ${sortFallbackNotice}` : ""}
             </p>
           </div>
           <PostSortMenu
             aria-label="选择用户帖子排序方式"
-            disabled={postsQuery.isFetching}
+            disabled={isInitialPostsLoading}
             onSortChange={setSort}
             sort={sort}
           />
         </div>
 
-        {postsQuery.isPending ? (
+        {isInitialPostsLoading ? (
           <div className="p-4">
             <LoadingState rows={5} />
           </div>
         ) : null}
 
-        {postsQuery.isError ? (
+        {postsQuery.isError && posts.length === 0 ? (
           <div className="p-4">
             <ErrorState
               title={getErrorTitle(postsQuery.error, "无法加载公开帖子")}
@@ -171,7 +193,7 @@ export function PublicUserPosts({
           </div>
         ) : null}
 
-        {postsQuery.isSuccess && posts.length === 0 ? (
+        {postsQuery.isSuccess && !postsQuery.isFetching && posts.length === 0 ? (
           <div className="p-4">
             <EmptyState
               title="还没有公开帖子"
@@ -185,8 +207,9 @@ export function PublicUserPosts({
           </div>
         ) : null}
 
-        {postsQuery.isSuccess && posts.length > 0
-          ? posts.map((post) => (
+        {posts.length > 0 ? (
+          <div className="space-y-2">
+            {posts.map((post) => (
               <RedditPostListItem
                 key={post.id}
                 post={post}
@@ -202,11 +225,38 @@ export function PublicUserPosts({
                   username: user.username,
                 }}
               />
-            ))
-          : null}
+            ))}
+            <InfiniteListStatus
+              ref={loadMoreRef}
+              hasNextPage={hasNextPostsPage}
+              isFetching={isFetchingNextPostsPage}
+              loadingLabel="正在加载更多帖子"
+              loadMoreLabel="加载更多帖子"
+              onLoadMore={loadMorePosts}
+            />
+          </div>
+        ) : null}
       </section>
     </PublicUserLayout>
   );
+}
+
+function getUniquePosts(pages: ListPostsResponse[]) {
+  const seenPostIds = new Set<string>();
+  const posts: Post[] = [];
+
+  for (const page of pages) {
+    for (const post of page.posts) {
+      if (seenPostIds.has(post.id)) {
+        continue;
+      }
+
+      seenPostIds.add(post.id);
+      posts.push(post);
+    }
+  }
+
+  return posts;
 }
 
 function UserPostsRail({
@@ -226,24 +276,17 @@ function UserPostsRail({
 
   return (
     <>
-      <section className="border-b border-border pb-5">
-        <h2 className="text-sm font-semibold">当前内容</h2>
+      <RightRailSection title="当前内容">
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          按 {formatPostSortLabel(sort)} 排序，当前页展示{" "}
+          按 {formatPostSortLabel(sort)} 排序，已加载{" "}
           <span className="font-mono text-foreground">{posts.length}</span>{" "}
           篇公开帖子。
         </p>
-      </section>
+      </RightRailSection>
 
-      <section className="border-b border-border pb-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold">本页高分帖子</h2>
-          <span className="font-mono text-xs text-muted-foreground">
-            {topPosts.length}
-          </span>
-        </div>
+      <RightRailSection title="本页高分帖子" meta={topPosts.length}>
         {topPosts.length > 0 ? (
-          <div className="mt-2">
+          <RightRailRaisedList>
             {topPosts.map((post) => (
               <Link
                 key={post.id}
@@ -255,7 +298,7 @@ function UserPostsRail({
                     postId: post.id,
                   })
                 }
-                className="block py-3 text-sm transition-colors hover:text-primary"
+                className="block px-3 py-2.5 text-sm transition-colors first:rounded-t-md last:rounded-b-md hover:bg-surface-hover hover:text-primary"
               >
                 <div className="font-mono text-xs text-muted-foreground">
                   {post.score} 分 / {post.comment_count} 条评论
@@ -263,13 +306,13 @@ function UserPostsRail({
                 <div className="mt-1 line-clamp-2 font-medium">{post.title}</div>
               </Link>
             ))}
-          </div>
+          </RightRailRaisedList>
         ) : (
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             暂无可展示的公开帖子。
           </p>
         )}
-      </section>
+      </RightRailSection>
     </>
   );
 }

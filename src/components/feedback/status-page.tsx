@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
+import { NexusBrandMark } from "@/components/brand/nexus-brand-mark";
 import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
 
@@ -29,8 +30,8 @@ export function StatusPage({
             href="/"
             className="group flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <span className="flex size-9 items-center justify-center rounded-md bg-surface-raised text-sm font-semibold text-primary transition-colors group-hover:bg-surface-hover">
-              CN
+            <span className="flex size-9 items-center justify-center rounded-md bg-surface-raised text-foreground transition-colors group-hover:bg-surface-hover">
+              <NexusBrandMark className="size-5" />
             </span>
             <span>
               <span className="block text-sm font-semibold">CUMT Nexus</span>

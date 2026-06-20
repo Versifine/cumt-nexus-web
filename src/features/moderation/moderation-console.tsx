@@ -10,12 +10,22 @@ import {
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import {
+  ReviewDesk,
+  ReviewDeskBoard,
+  ReviewDeskInspector,
+  ReviewDeskMasthead,
+  ReviewDeskPanel,
+  ReviewDeskState,
+} from "@/components/app-shell/review-desk";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
+  IndexedInfoRow,
+  MetricBlock,
   StatusToken,
   type StatusTokenTone,
 } from "@/components/ui/data-display";
@@ -31,8 +41,9 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
+import { AdminToolsNav } from "@/features/admin/admin-tools-nav";
 import { useAuthSession } from "@/features/auth/auth-session";
-import { resolvePlatformRole } from "@/features/auth/platform-role";
+import { resolvePlatformRole, type PlatformRole } from "@/features/auth/platform-role";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
 import { ApiError } from "@/lib/api/client";
@@ -304,6 +315,7 @@ export function ModerationReportDetail({ id }: { id: string }) {
           ) : null}
         </>
       }
+      platformRole={platformRole}
       report={report}
       reportId={id}
     />
@@ -328,63 +340,65 @@ function ModerationLayout({
   status: ReportStatusFilter;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
-      <div className="min-w-0">
-        <section className="bg-background">
-          <ModerationHeader
-            offset={offset}
-            reportCount={reportCount}
-            status={status}
-          />
-        </section>
+    <ReviewDesk>
+      <ModerationHeader
+        isFetching={isFetching}
+        offset={offset}
+        onRefresh={onRefresh}
+        onStatusChange={onStatusChange}
+        reportCount={reportCount}
+        status={status}
+      />
 
-        <section className="bg-background">
-          <div className="flex min-h-12 flex-col gap-3 border-b border-border py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold">举报列表</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                当前查看{formatReportStatus(status)}举报
-              </p>
-            </div>
-            <ModerationToolbar
-              disabled={isFetching}
-              onRefresh={onRefresh}
-              onStatusChange={onStatusChange}
-              status={status}
-            />
-          </div>
-          {body}
-        </section>
-      </div>
-
-      <ModerationRail reportCount={reportCount} status={status} />
-    </div>
+      <ReviewDeskBoard
+        inspector={<ModerationContextPanel reportCount={reportCount} status={status} />}
+      >
+        {body}
+      </ReviewDeskBoard>
+    </ReviewDesk>
   );
 }
 
 function ModerationHeader({
+  isFetching,
   offset,
+  onRefresh,
+  onStatusChange,
   reportCount,
   status,
 }: {
+  isFetching: boolean;
   offset: number;
+  onRefresh: () => void;
+  onStatusChange: (status: ReportStatusFilter) => void;
   reportCount: number;
   status: ReportStatusFilter;
 }) {
   return (
-    <div className="border-b border-border py-4">
-      <div className="min-w-0">
-        <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
-          举报审核
-        </h1>
-        <p className="mt-1 truncate font-mono text-xs text-primary">
-          /admin/reports
-        </p>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          当前查看{formatReportStatus(status)}举报，本页 {reportCount} 条，偏移 {offset}。
-        </p>
-      </div>
-    </div>
+    <ReviewDeskMasthead
+      actions={
+        <ModerationToolbar
+          disabled={isFetching}
+          onRefresh={onRefresh}
+          onStatusChange={onStatusChange}
+          status={status}
+        />
+      }
+      eyebrow="/admin/reports"
+      title="举报审核工作台"
+      description="集中处理平台举报。队列用于扫读和定位，详情页负责目标预览、举报理由和最终处理动作。"
+      meta={
+        <>
+          <MetricBlock
+            label="当前状态"
+            value={formatReportStatus(status)}
+            variant="compact"
+          />
+          <MetricBlock label="本页举报" value={reportCount} variant="compact" />
+          <MetricBlock label="页偏移" value={offset} variant="compact" />
+        </>
+      }
+    />
   );
 }
 
@@ -405,13 +419,13 @@ function ModerationToolbar({
         value={status}
         onValueChange={(value) => onStatusChange(value as ReportStatusFilter)}
       >
-        <TabsList className="h-9 rounded-none bg-transparent p-0">
+        <TabsList className="h-9 rounded-md bg-surface-raised p-1">
           {statusOptions.map((option) => (
             <TabsTrigger
               key={option.value}
               value={option.value}
               disabled={disabled}
-              className="h-9 rounded-none border-b border-transparent px-3 text-xs data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
+              className="h-7 rounded px-3 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
             >
               {option.label}
             </TabsTrigger>
@@ -435,7 +449,7 @@ function ModerationToolbar({
   );
 }
 
-function ModerationRail({
+function ModerationContextPanel({
   reportCount,
   status,
 }: {
@@ -443,48 +457,57 @@ function ModerationRail({
   status: ReportStatusFilter;
 }) {
   return (
-    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 right-rail-scroll space-y-6">
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">审核上下文</h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            当前从平台管理进入举报审核，正在查看{formatReportStatus(status)}
-            举报，本页 {reportCount} 条。
-          </p>
-        </section>
-
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">处理规则</h2>
-          <ol className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
-            <li><span className="font-mono text-primary">01</span> 详情页以目标预览和举报理由共同判断。</li>
-            <li><span className="font-mono text-primary">02</span> 驳回和移除目标都会记录审核动作。</li>
-            <li><span className="font-mono text-primary">03</span> 入口显隐不替代后端平台权限校验。</li>
-          </ol>
-        </section>
-
-        <section>
-          <h2 className="text-sm font-semibold">其他入口</h2>
-          <div className="mt-3 flex flex-col border-t border-border">
-            <TextAction href="/admin/community-applications" variant="bar">
-              社区审批
-            </TextAction>
-            <TextAction href="/" variant="bar">
-              信息流首页
-            </TextAction>
-          </div>
-        </section>
+    <ReviewDeskInspector
+      title="审核上下文"
+      description={`正在查看${formatReportStatus(status)}举报。`}
+    >
+      <div className="grid grid-cols-2 gap-2">
+        <ContextMetric label="本页" value={`${reportCount} 条`} />
+        <ContextMetric label="状态" value={formatReportStatus(status)} />
       </div>
-    </aside>
+
+      <section className="mt-4">
+        <h3 className="text-sm font-semibold">处理规则</h3>
+        <div className="mt-3 space-y-2">
+          <IndexedInfoRow
+            index="01"
+            title="详情判断"
+            text="以目标预览、举报理由和当前内容状态一起判断。"
+          />
+          <IndexedInfoRow
+            index="02"
+            title="动作留痕"
+            text="驳回和移除目标都会记录审核动作，不能用入口状态替代后端权限。"
+          />
+          <IndexedInfoRow
+            index="03"
+            title="避免重复"
+            text="已处理举报只展示结果，不再暴露重复处理入口。"
+          />
+        </div>
+      </section>
+
+      <div className="mt-4 flex flex-wrap gap-3 rounded-md bg-surface-raised p-3">
+        <TextAction href="/admin/community-applications">社区审批</TextAction>
+        <TextAction href="/">信息流首页</TextAction>
+      </div>
+    </ReviewDeskInspector>
   );
 }
 
 function ReportList({ reports }: { reports: ContentReport[] }) {
   return (
-    <div className="border-b border-border">
-      {reports.map((report, index) => (
-        <ReportRow key={report.id} index={index} report={report} />
-      ))}
-    </div>
+    <ReviewDeskPanel
+      title="举报队列"
+      description="选择一条举报进入详情页处理。"
+      headerAction={<StatusToken>{reports.length} 条</StatusToken>}
+    >
+      <div className="space-y-2">
+        {reports.map((report, index) => (
+          <ReportRow key={report.id} index={index} report={report} />
+        ))}
+      </div>
+    </ReviewDeskPanel>
   );
 }
 
@@ -497,7 +520,7 @@ function ReportRow({ index, report }: { index: number; report: ContentReport }) 
   return (
     <Link
       href={`/admin/reports/${report.id}`}
-      className="group grid grid-cols-[40px_minmax(0,1fr)] gap-3 border-b border-border px-3 py-3 last:border-b-0 sm:px-4"
+      className="group grid grid-cols-[40px_minmax(0,1fr)] gap-3 rounded-md bg-surface-raised px-3 py-3 transition-colors hover:bg-surface-hover"
     >
       <span className="font-mono text-xs text-muted-foreground">
         {String(index + 1).padStart(2, "0")}
@@ -525,35 +548,35 @@ function ReportRow({ index, report }: { index: number; report: ContentReport }) 
 
 function ReportDetailLayout({
   body,
+  platformRole,
   report,
   reportId,
 }: {
   body: ReactNode;
+  platformRole: PlatformRole | null;
   report?: ContentReport;
   reportId: string;
 }) {
   const shortId = formatShortId(reportId);
 
   return (
-    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
-      <div className="min-w-0">
-        <section className="bg-background">
-          <ReportHeader report={report} shortId={shortId} />
-        </section>
-
-        <section className="bg-background">
-          <div className="border-b border-border py-3">
-            <h2 className="text-sm font-semibold">举报详情</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              目标预览、举报理由和处理动作。
-            </p>
+    <ReviewDesk>
+      <ReportHeader report={report} shortId={shortId} />
+      <ReviewDeskBoard
+        inspector={
+          <div className="space-y-4">
+            <AdminToolsNav
+              activePath="/admin/reports"
+              platformRole={platformRole}
+              variant="compact"
+            />
+            <ReportContextPanel report={report} shortId={shortId} />
           </div>
-          {body}
-        </section>
-      </div>
-
-      <ReportRail report={report} shortId={shortId} />
-    </div>
+        }
+      >
+        {body}
+      </ReviewDeskBoard>
+    </ReviewDesk>
   );
 }
 
@@ -565,31 +588,31 @@ function ReportHeader({
   shortId: string;
 }) {
   return (
-    <div className="border-b border-border py-4">
-      <div className="min-w-0">
-        <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl">
-          举报 {shortId}
-        </h1>
-        <p className="mt-1 truncate font-mono text-xs text-primary">
-          /admin/reports/{shortId}
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {report ? (
-            <>
-              <StatusToken tone={getReportStatusTone(report.status)}>
-                {formatReportStatus(report.status)}
-              </StatusToken>
-              <StatusToken>{formatTargetType(report.target_type)}</StatusToken>
-            </>
-          ) : (
-            <StatusToken>读取中</StatusToken>
-          )}
-        </div>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          {report?.reason || "读取举报详情后会显示举报理由和目标预览。"}
-        </p>
-      </div>
-    </div>
+    <ReviewDeskMasthead
+      eyebrow={`/admin/reports/${shortId}`}
+      title={`举报 ${shortId}`}
+      description={report?.reason || "读取举报详情后会显示举报理由和目标预览。"}
+      meta={
+        <>
+          <MetricBlock
+            label="处理状态"
+            value={report ? formatReportStatus(report.status) : "读取中"}
+            variant="compact"
+          />
+          <MetricBlock
+            label="目标类型"
+            value={report ? formatTargetType(report.target_type) : "--"}
+            variant="compact"
+          />
+          <MetricBlock
+            label="举报编号"
+            value={shortId}
+            valueClassName="font-mono"
+            variant="compact"
+          />
+        </>
+      }
+    />
   );
 }
 
@@ -601,7 +624,7 @@ function ReportDetailBody({
   report: ContentReport;
 }) {
   return (
-    <article className="border-b border-border">
+    <article className="space-y-4">
       <TargetPreviewPanel preview={report.target_preview} />
       <ReportDecisionPanel onAfterAction={onAfterAction} report={report} />
     </article>
@@ -615,8 +638,7 @@ function TargetPreviewPanel({ preview }: { preview?: ReportTargetPreview | null 
   );
 
   return (
-    <section className="border-b border-border px-3 py-4 sm:px-4">
-      <h3 className="text-sm font-semibold">目标预览</h3>
+    <ReviewDeskPanel title="目标预览">
       {preview ? (
         <div className="mt-3 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -632,7 +654,7 @@ function TargetPreviewPanel({ preview }: { preview?: ReportTargetPreview | null 
           <p className="break-words text-sm leading-7 text-muted-foreground">
             {previewText}
           </p>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 rounded-md bg-surface-raised p-3">
             {preview.post_id ? (
               <TextAction href={`/posts/${preview.post_id}`}>打开帖子</TextAction>
             ) : null}
@@ -648,7 +670,7 @@ function TargetPreviewPanel({ preview }: { preview?: ReportTargetPreview | null 
           后端没有返回目标预览，仍可根据举报编号执行处理。
         </p>
       )}
-    </section>
+    </ReviewDeskPanel>
   );
 }
 
@@ -669,9 +691,8 @@ function ReportDecisionPanel({
   }
 
   return (
-    <section className="px-3 py-4 sm:px-4">
+    <ReviewDeskPanel title="审核处理">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold">审核处理</h3>
         <StatusToken tone={isPending ? "primary" : "default"}>
           {isPending ? "可处理" : "已结束"}
         </StatusToken>
@@ -702,7 +723,7 @@ function ReportDecisionPanel({
           report={report}
         />
       </div>
-    </section>
+    </ReviewDeskPanel>
   );
 }
 
@@ -818,7 +839,7 @@ function RemoveTargetDialog({
   );
 }
 
-function ReportRail({
+function ReportContextPanel({
   report,
   shortId,
 }: {
@@ -826,48 +847,63 @@ function ReportRail({
   shortId: string;
 }) {
   return (
-    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 right-rail-scroll space-y-6">
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">举报信息</h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            编号 <span className="font-mono text-foreground">{shortId}</span>，
-            目标 {report ? formatTargetType(report.target_type) : "--"}，
-            状态 {report ? formatReportStatus(report.status) : "--"}。
-          </p>
-          {report ? (
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              创建 {formatDate(report.created_at)}，更新 {formatDate(report.updated_at)}。
-            </p>
-          ) : null}
-        </section>
-
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">处理规则</h2>
-          <ol className="mt-3 space-y-3 text-sm leading-6 text-muted-foreground">
-            <li><span className="font-mono text-primary">01</span> 举报不成立时只关闭举报。</li>
-            <li><span className="font-mono text-primary">02</span> 目标违规时填写原因并移除帖子或评论。</li>
-          </ol>
-        </section>
-
-        <section>
-          <h2 className="text-sm font-semibold">稳定出口</h2>
-          <div className="mt-3 flex flex-col border-t border-border">
-            <TextAction href="/admin/reports" variant="bar">
-              举报审核
-            </TextAction>
-            <TextAction href="/" variant="bar">
-              信息流首页
-            </TextAction>
-          </div>
-        </section>
+    <ReviewDeskInspector title="举报信息">
+      <div className="grid grid-cols-2 gap-2">
+        <ContextMetric label="编号" value={shortId} />
+        <ContextMetric
+          label="目标"
+          value={report ? formatTargetType(report.target_type) : "--"}
+        />
+        <ContextMetric
+          label="状态"
+          value={report ? formatReportStatus(report.status) : "--"}
+        />
       </div>
-    </aside>
+      <section className="mt-4 rounded-md bg-surface-raised p-3">
+        {report ? (
+          <p className="text-xs leading-5 text-muted-foreground">
+            创建 {formatDate(report.created_at)}，更新 {formatDate(report.updated_at)}。
+          </p>
+        ) : null}
+      </section>
+
+      <section className="mt-4">
+        <h3 className="text-sm font-semibold">处理规则</h3>
+        <div className="mt-3 space-y-2">
+          <IndexedInfoRow
+            index="01"
+            title="关闭举报"
+            text="举报不成立时只关闭举报，不改动原内容。"
+          />
+          <IndexedInfoRow
+            index="02"
+            title="移除目标"
+            text="目标违规时填写原因并移除帖子或评论。"
+          />
+        </div>
+      </section>
+
+      <div className="mt-4 flex flex-wrap gap-3 rounded-md bg-surface-raised p-3">
+        <TextAction href="/admin/reports">举报审核</TextAction>
+        <TextAction href="/">信息流首页</TextAction>
+      </div>
+    </ReviewDeskInspector>
   );
 }
 
 function StatePanel({ children }: { children: ReactNode }) {
-  return <div className="border-b border-border p-4">{children}</div>;
+  return <ReviewDeskState>{children}</ReviewDeskState>;
+}
+
+function ContextMetric({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-md bg-surface-raised px-3 py-3">
+      <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
+      <div className="mt-1 truncate text-sm font-semibold text-foreground">
+        {value}
+      </div>
+    </div>
+  );
 }
 
 function formatShortId(value: string) {

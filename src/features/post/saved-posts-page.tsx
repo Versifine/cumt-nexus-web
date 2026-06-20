@@ -1,22 +1,52 @@
 ﻿"use client";
 
+import { useCallback } from "react";
+
+import {
+  RightRail,
+  RightRailAction,
+  RightRailActionList,
+  RightRailSection,
+} from "@/components/app-shell/right-rail";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
+import { InfiniteListStatus } from "@/components/feedback/infinite-list-status";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Button } from "@/components/ui/button";
 import { TextAction } from "@/components/ui/text-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { ApiError } from "@/lib/api/client";
+import { useInfiniteScrollTrigger } from "@/lib/hooks/use-infinite-scroll-trigger";
 
 import { RedditPostListItem } from "./reddit-post-list-item";
-import { useSavedPostsQuery } from "./queries";
-import type { Post } from "./types";
+import { useInfiniteSavedPostsQuery } from "./queries";
+import type { ListPostsResponse, Post } from "./types";
 
 export function SavedPostsPage() {
   const { isReady, token } = useAuthSession();
   const isAuthenticated = Boolean(token);
-  const savedPostsQuery = useSavedPostsQuery(20, 0, isReady && isAuthenticated);
-  const posts = savedPostsQuery.data?.posts ?? [];
+  const savedPostsQuery = useInfiniteSavedPostsQuery(
+    20,
+    isReady && isAuthenticated,
+  );
+  const postPages = savedPostsQuery.data?.pages ?? [];
+  const posts = getUniquePosts(postPages);
+  const isInitialPostsLoading = savedPostsQuery.isLoading && posts.length === 0;
+  const hasNextPostsPage = Boolean(savedPostsQuery.hasNextPage);
+  const isFetchingNextPostsPage = savedPostsQuery.isFetchingNextPage;
+  const fetchNextPostsPage = savedPostsQuery.fetchNextPage;
+  const loadMorePosts = useCallback(() => {
+    void fetchNextPostsPage();
+  }, [fetchNextPostsPage]);
+  const loadMoreRef = useInfiniteScrollTrigger({
+    enabled:
+      isReady &&
+      isAuthenticated &&
+      posts.length > 0 &&
+      hasNextPostsPage &&
+      !isFetchingNextPostsPage,
+    onLoadMore: loadMorePosts,
+  });
 
   return (
     <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
@@ -56,13 +86,13 @@ export function SavedPostsPage() {
             </div>
           ) : null}
 
-          {isAuthenticated && savedPostsQuery.isLoading ? (
+          {isAuthenticated && isInitialPostsLoading ? (
             <div className="border-b border-border p-4">
               <LoadingState rows={5} />
             </div>
           ) : null}
 
-          {isAuthenticated && savedPostsQuery.isError ? (
+          {isAuthenticated && savedPostsQuery.isError && posts.length === 0 ? (
             <div className="border-b border-border p-4">
               <ErrorState
                 title={getErrorTitle(savedPostsQuery.error)}
@@ -88,6 +118,7 @@ export function SavedPostsPage() {
 
           {isAuthenticated &&
           savedPostsQuery.isSuccess &&
+          !savedPostsQuery.isFetching &&
           posts.length === 0 ? (
             <div className="border-b border-border p-4">
               <EmptyState
@@ -102,8 +133,9 @@ export function SavedPostsPage() {
             </div>
           ) : null}
 
-          {isAuthenticated && savedPostsQuery.isSuccess && posts.length > 0
-            ? posts.map((post) => (
+          {isAuthenticated && posts.length > 0 ? (
+            <div className="space-y-2">
+              {posts.map((post) => (
                 <RedditPostListItem
                   key={post.id}
                   post={post}
@@ -112,18 +144,45 @@ export function SavedPostsPage() {
                     label: "返回收藏",
                   }}
                 />
-              ))
-            : null}
+              ))}
+              <InfiniteListStatus
+                ref={loadMoreRef}
+                hasNextPage={hasNextPostsPage}
+                isFetching={isFetchingNextPostsPage}
+                loadingLabel="正在加载更多收藏"
+                loadMoreLabel="加载更多收藏"
+                onLoadMore={loadMorePosts}
+              />
+            </div>
+          ) : null}
         </section>
       </section>
 
       <SavedPostsRail
         isAuthenticated={isAuthenticated}
-        isLoading={!isReady || savedPostsQuery.isLoading}
+        isLoading={!isReady || isInitialPostsLoading}
         posts={posts}
       />
     </div>
   );
+}
+
+function getUniquePosts(pages: ListPostsResponse[]) {
+  const seenPostIds = new Set<string>();
+  const posts: Post[] = [];
+
+  for (const page of pages) {
+    for (const post of page.posts) {
+      if (seenPostIds.has(post.id)) {
+        continue;
+      }
+
+      seenPostIds.add(post.id);
+      posts.push(post);
+    }
+  }
+
+  return posts;
 }
 
 function SavedPostsRail({
@@ -136,32 +195,25 @@ function SavedPostsRail({
   posts: Post[];
 }) {
   return (
-    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 right-rail-scroll space-y-6">
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">收藏上下文</h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+    <RightRail>
+      <RightRailSection
+        title="收藏上下文"
+        description={
+          <>
             {isAuthenticated ? "当前账号" : "未登录状态"}的收藏列表
-            {isLoading ? "正在加载" : `当前页有 ${posts.length} 篇帖子`}。
-          </p>
-        </section>
+            {isLoading ? "正在加载" : `已加载 ${posts.length} 篇帖子`}。
+          </>
+        }
+      />
 
-        <section>
-          <h2 className="text-sm font-semibold">继续浏览</h2>
-          <div className="mt-3 flex flex-col border-t border-border">
-            <TextAction href="/" variant="bar">
-              信息流首页
-            </TextAction>
-            <TextAction href="/all" variant="bar">
-              浏览全站
-            </TextAction>
-            <TextAction href="/communities" variant="bar">
-              浏览社区
-            </TextAction>
-          </div>
-        </section>
-      </div>
-    </aside>
+      <RightRailSection title="继续浏览">
+        <RightRailActionList>
+          <RightRailAction href="/">信息流首页</RightRailAction>
+          <RightRailAction href="/all">浏览全站</RightRailAction>
+          <RightRailAction href="/communities">浏览社区</RightRailAction>
+        </RightRailActionList>
+      </RightRailSection>
+    </RightRail>
   );
 }
 

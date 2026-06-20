@@ -8,7 +8,13 @@ export const metadata: Metadata = {
   description: "搜索 CUMT Nexus 中可见的社区和帖子。",
 };
 
-export default function SearchRoute() {
+type SearchRouteProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function SearchRoute({ searchParams }: SearchRouteProps) {
+  const initialSearchParams = await searchParams;
+
   return (
     <AppShell
       backTarget={{
@@ -17,7 +23,7 @@ export default function SearchRoute() {
       }}
       contextLabel="搜索"
     >
-      <SearchPage />
+      <SearchPage initialSearchParams={initialSearchParams} />
     </AppShell>
   );
 }

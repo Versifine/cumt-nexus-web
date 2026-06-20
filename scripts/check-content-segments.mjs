@@ -719,6 +719,11 @@ function checkRedditAutolink() {
         ],
         type: "paragraph",
       },
+      {
+        children: [{ type: "inlineMath", value: "r/math + u/math" }],
+        type: "paragraph",
+      },
+      { type: "math", value: "r/block + u/block" },
     ],
     type: "root",
   };
@@ -743,6 +748,8 @@ function checkRedditAutolink() {
       tree.children[1].children[0].children[0].value,
       tree.children[2].value,
       tree.children[3].children.map(summarizeMarkdownNode),
+      tree.children[4].children.map(summarizeMarkdownNode),
+      tree.children[5].value,
     ],
     [
       "r/inside-link",
@@ -751,6 +758,8 @@ function checkRedditAutolink() {
         "inlineCode:u/inline-code",
         "text: https://example.com/r/path /u/not-a-ref wordu/nope",
       ],
+      ["inlineMath:r/math + u/math"],
+      "r/block + u/block",
     ],
   );
 }

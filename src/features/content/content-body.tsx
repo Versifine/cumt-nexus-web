@@ -6,8 +6,10 @@ import {
   useMemo,
   useState,
 } from "react";
+import rehypeKatex from "rehype-katex";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 
 import {
   getAttachmentIdFromMarkdownUrl,
@@ -60,12 +62,15 @@ export function ContentBody({
         "min-w-0 break-words text-foreground",
         "prose-headings:tracking-normal",
         "[&_strong]:font-semibold [&_strong]:text-foreground",
+        "[&_.katex-display]:my-4 [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.katex-display]:py-1",
+        "[&_.katex-display>.katex]:text-left",
         className,
       )}
     >
       <ReactMarkdown
         components={components}
-        remarkPlugins={[remarkGfm, remarkRedditAutolink]}
+        rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
+        remarkPlugins={[remarkGfm, remarkMath, remarkRedditAutolink]}
         skipHtml
         urlTransform={normalizeMarkdownHref}
       >

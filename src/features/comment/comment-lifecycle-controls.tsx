@@ -311,9 +311,9 @@ const TextCommand = forwardRef<HTMLButtonElement, TextCommandProps>(
         {...props}
         className={cn(
           tone === "danger"
-            ? "text-destructive focus-visible:ring-destructive/40"
-            : "text-muted-foreground hover:text-primary focus-visible:ring-ring",
-          "inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            ? "text-destructive hover:bg-destructive/10 focus-visible:ring-destructive/40"
+            : "text-muted-foreground hover:bg-surface-hover hover:text-foreground focus-visible:ring-ring",
+          "inline-flex h-7 items-center gap-1.5 rounded-sm px-1.5 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           className,
         )}
       >

@@ -35,19 +35,31 @@ type OwnerTransferAcceptPageProps = {
 export function AdminOwnerTransferPage() {
   const { isReady, token } = useAuthSession();
   const currentUserQuery = useCurrentUserQuery();
-  const ownerTransferQuery = useAdminOwnerTransferQuery(isReady && Boolean(token));
   const effectivePlatformRole = useEffectiveAdminPlatformRole(currentUserQuery.data);
   const platformRole = effectivePlatformRole.role;
+  const isRoleCheckPending =
+    isReady &&
+    Boolean(token) &&
+    (currentUserQuery.isLoading || effectivePlatformRole.isResolving);
+  const canLoadOwnerTransfer =
+    isReady &&
+    Boolean(token) &&
+    !isRoleCheckPending &&
+    !currentUserQuery.isError &&
+    Boolean(platformRole);
+  const ownerTransferQuery = useAdminOwnerTransferQuery(canLoadOwnerTransfer);
   const transfer = ownerTransferQuery.data?.transfer ?? null;
-  const isOwner = platformRole === "owner";
+  const isOwner = !isRoleCheckPending && platformRole === "owner";
 
   return (
     <OwnerTransferLayout>
-      <div className="border-b border-border py-4">
+      <div className="rounded-lg bg-surface p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           <KeyRound className="size-4 text-primary" aria-hidden="true" />
           <StatusToken tone="danger">独立交接合同</StatusToken>
-          <StatusToken>{formatPlatformRole(platformRole)}</StatusToken>
+          <StatusToken>
+            {isRoleCheckPending ? "确认负责人权限中" : formatPlatformRole(platformRole)}
+          </StatusToken>
         </div>
         <h2 className="mt-3 text-base font-semibold leading-6">
           站点负责人交接
@@ -72,15 +84,36 @@ export function AdminOwnerTransferPage() {
         />
       ) : null}
 
-      {isReady &&
-      token &&
-      (ownerTransferQuery.isPending || effectivePlatformRole.isResolving) ? (
-        <div className="border-b border-border py-4">
+      {isReady && token && isRoleCheckPending ? (
+        <div className="rounded-lg bg-surface p-4 shadow-sm">
           <LoadingState rows={4} />
         </div>
       ) : null}
 
-      {isReady && token && ownerTransferQuery.isError ? (
+      {isReady && token && !isRoleCheckPending && currentUserQuery.isError ? (
+        <ErrorState
+          title="无法确认负责人权限"
+          description={getErrorDescription(currentUserQuery.error)}
+          action={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => currentUserQuery.refetch()}
+            >
+              重试
+            </Button>
+          }
+        />
+      ) : null}
+
+      {isReady && token && !isRoleCheckPending && ownerTransferQuery.isPending ? (
+        <div className="rounded-lg bg-surface p-4 shadow-sm">
+          <LoadingState rows={4} />
+        </div>
+      ) : null}
+
+      {isReady && token && !isRoleCheckPending && ownerTransferQuery.isError ? (
         <ErrorState
           title="无法读取负责人交接"
           description={getErrorDescription(ownerTransferQuery.error)}
@@ -97,8 +130,8 @@ export function AdminOwnerTransferPage() {
         />
       ) : null}
 
-      {ownerTransferQuery.isSuccess && !effectivePlatformRole.isResolving ? (
-        <div className="grid gap-4 border-b border-border py-4">
+      {ownerTransferQuery.isSuccess && !isRoleCheckPending ? (
+        <div className="grid gap-4 rounded-lg bg-surface p-4 shadow-sm">
           {transfer ? <OwnerTransferSummary transfer={transfer} /> : null}
           {transfer?.status === "pending" ? (
             isOwner ? (
@@ -107,7 +140,7 @@ export function AdminOwnerTransferPage() {
               <ReadOnlyOwnerTransferNotice />
             )
           ) : isOwner ? (
-            <CreateOwnerTransferForm />
+            <CreateOwnerTransferForm currentUser={currentUserQuery.data} />
           ) : (
             <Alert>
               <ShieldAlert className="size-4" aria-hidden="true" />
@@ -148,7 +181,7 @@ export function OwnerTransferAcceptPage({
 
   return (
     <OwnerTransferLayout>
-      <div className="border-b border-border py-4">
+      <div className="rounded-lg bg-surface p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           <KeyRound className="size-4 text-primary" aria-hidden="true" />
           <StatusToken tone="danger">接受负责人交接</StatusToken>
@@ -182,7 +215,7 @@ export function OwnerTransferAcceptPage({
       {isReady &&
       token &&
       (transferQuery.isPending || currentUserQuery.isLoading) ? (
-        <div className="border-b border-border py-4">
+        <div className="rounded-lg bg-surface p-4 shadow-sm">
           <LoadingState rows={4} />
         </div>
       ) : null}
@@ -247,7 +280,11 @@ function ReadOnlyOwnerTransferNotice() {
   );
 }
 
-function CreateOwnerTransferForm() {
+function CreateOwnerTransferForm({
+  currentUser,
+}: {
+  currentUser?: { id?: string; username?: string } | null;
+}) {
   const mutation = useCreateAdminOwnerTransferMutation();
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [previousOwnerRole, setPreviousOwnerRole] = useState<"admin" | "none">(
@@ -269,6 +306,15 @@ function CreateOwnerTransferForm() {
 
     if (!confirmed) {
       setFormError("请先确认这会创建站点负责人交接请求。");
+      return;
+    }
+
+    if (
+      currentUser?.id === selectedUser.id ||
+      (currentUser?.username &&
+        currentUser.username.toLowerCase() === selectedUser.username.toLowerCase())
+    ) {
+      setFormError("目标账号不能是当前站点负责人，请选择另一个账号。");
       return;
     }
 
@@ -335,6 +381,9 @@ function CreateOwnerTransferForm() {
         disabled={mutation.isPending}
         aria-label="当前 owner 密码"
       />
+      <p className="text-xs leading-5 text-muted-foreground">
+        这里校验的是当前登录的站点负责人密码，不是目标账号密码。
+      </p>
       <label className="flex items-start gap-2 text-sm leading-6 text-muted-foreground">
         <input
           type="checkbox"
@@ -370,7 +419,7 @@ function CancelOwnerTransferPanel({
   const mutation = useCancelAdminOwnerTransferMutation();
 
   return (
-    <div className="grid gap-3 border-t border-border pt-4">
+    <div className="grid gap-3 rounded-md bg-surface-raised p-3">
       <div>
         <h3 className="text-sm font-semibold">取消 pending 交接</h3>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -485,16 +534,15 @@ function OwnerTransferAcceptWorkArea({
     currentUser?.id === transfer.target_user_id ||
     currentUser?.username === transfer.target_username;
   const canAccept = isPendingTransfer && isTargetUser;
+  const terminalNotice = getOwnerTransferTerminalNotice(transfer.status);
 
   return (
-    <div className="grid gap-4 border-b border-border py-4">
+    <div className="grid gap-4 rounded-lg bg-surface p-4 shadow-sm">
       <OwnerTransferSummary transfer={transfer} />
       {!isPendingTransfer ? (
         <Alert>
-          <AlertTitle>交接不可接受</AlertTitle>
-          <AlertDescription>
-            当前交接状态为{formatOwnerTransferStatus(transfer.status)}，页面不再显示提交入口。
-          </AlertDescription>
+          <AlertTitle>{terminalNotice.title}</AlertTitle>
+          <AlertDescription>{terminalNotice.description}</AlertDescription>
         </Alert>
       ) : null}
       {isPendingTransfer && !isTargetUser ? (
@@ -525,9 +573,9 @@ function OwnerTransferSummary({
         </StatusToken>
         <span className="font-mono text-xs text-primary">{transfer.id}</span>
       </div>
-      <dl className="mt-4 grid grid-cols-1 border-y border-border sm:grid-cols-2">
+      <dl className="mt-4 grid grid-cols-1 gap-x-4 rounded-md bg-surface-raised px-3 sm:grid-cols-2">
         <InfoRow
-          className="px-3 sm:border-r sm:border-border"
+          className="px-3"
           label="发起人"
           value={`@${transfer.initiated_by_username}`}
         />
@@ -537,7 +585,7 @@ function OwnerTransferSummary({
           value={`@${transfer.target_username}`}
         />
         <InfoRow
-          className="px-3 sm:border-r sm:border-border"
+          className="px-3"
           label="原 owner 后续角色"
           value={formatPlatformRole(transfer.previous_owner_role || null)}
         />
@@ -551,7 +599,7 @@ function OwnerTransferSummary({
         {transfer.reason}
       </p>
       {transfer.status === "pending" ? (
-        <div className="mt-3 border-t border-border pt-3">
+        <div className="mt-3">
           <TextAction
             href={`/owner-transfer/${encodeURIComponent(transfer.id)}`}
             tone="primary"
@@ -569,15 +617,53 @@ function OwnerTransferLayout({
 }: {
   children: ReactNode;
 }) {
-  return <section className="min-w-0">{children}</section>;
+  return <section className="min-w-0 space-y-4">{children}</section>;
 }
 
 function getErrorDescription(error: Error | null) {
   if (error instanceof ApiError) {
-    return error.message;
+    return getOwnerTransferApiErrorDescription(error);
   }
 
   return "请求失败，请稍后重试。";
+}
+
+function getOwnerTransferApiErrorDescription(error: ApiError) {
+  const serverMessage = error.serverMessage.toLowerCase();
+
+  if (serverMessage.includes("current password is invalid")) {
+    return "当前密码不正确。这里需要输入当前登录账号的密码，不是目标账号密码。";
+  }
+
+  if (serverMessage.includes("platform owner required")) {
+    return "后端确认当前账号不是 active 站点负责人，不能发起或取消负责人交接。请重新登录后再试；如果页面仍显示站点负责人，需要检查后端当前会话和平台角色是否一致。";
+  }
+
+  if (serverMessage.includes("target user must be different from current owner")) {
+    return "目标账号不能是当前站点负责人。请重新选择要交接给的账号。";
+  }
+
+  if (serverMessage.includes("target user must be active")) {
+    return "目标账号不是正常状态，不能接受站点负责人交接。请换一个 active 账号。";
+  }
+
+  if (serverMessage.includes("target user is already platform owner")) {
+    return "目标账号已经是站点负责人，不能重复发起交接。";
+  }
+
+  if (serverMessage.includes("owner transfer already pending")) {
+    return "当前已经有一条待接受的负责人交接。请先取消或等待它完成后再发起新的交接。";
+  }
+
+  if (serverMessage.includes("only target user can accept owner transfer")) {
+    return "当前账号不是这次负责人交接的目标账号，请切换到目标账号后接受。";
+  }
+
+  if (serverMessage.includes("owner transfer is not pending")) {
+    return "这条负责人交接已经不在待接受状态，不能继续操作。";
+  }
+
+  return error.message;
 }
 
 function formatOwnerTransferStatus(status: string) {
@@ -592,6 +678,34 @@ function formatOwnerTransferStatus(status: string) {
       return "已过期";
     default:
       return status || "未知";
+  }
+}
+
+function getOwnerTransferTerminalNotice(status: string) {
+  switch (status) {
+    case "accepted":
+      return {
+        title: "交接已完成",
+        description:
+          "这次站点负责人交接已经被目标账号接受，负责人权限已完成切换；同一链接不能再次提交。",
+      };
+    case "cancelled":
+      return {
+        title: "交接已取消",
+        description:
+          "这次站点负责人交接已由发起人或当前站点负责人取消。如果仍需要交接，请由当前站点负责人重新发起。",
+      };
+    case "expired":
+      return {
+        title: "交接已过期",
+        description:
+          "这次站点负责人交接已经超过有效期，不能再接受。需要交接时请让当前站点负责人重新发起。",
+      };
+    default:
+      return {
+        title: "交接不能继续",
+        description: `当前交接状态为${formatOwnerTransferStatus(status)}，不能再提交接受操作。`,
+      };
   }
 }
 

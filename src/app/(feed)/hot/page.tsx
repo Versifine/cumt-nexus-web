@@ -7,6 +7,6 @@ export const metadata: Metadata = {
   description: "按热度查看 CUMT Nexus 校园社区公开帖子。",
 };
 
-export default async function HotFeed() {
-  return <HomeFeedPage contextLabel="热门" sort="hot" />;
+export default function HotFeed() {
+  return <HomeFeedPage sort="hot" />;
 }

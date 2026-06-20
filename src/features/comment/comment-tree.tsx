@@ -175,26 +175,26 @@ function CommentBranch({
         id={getCommentElementId(comment.id)}
         data-comment-id={comment.id}
         className={cn(
-          "grid scroll-mt-24 grid-cols-[30px_minmax(0,1fr)] overflow-hidden rounded-md transition-[background-color,box-shadow] data-[focus-comment=true]:ring-2 data-[focus-comment=true]:ring-primary/40",
-          visualDepth > 0 && "pl-2 sm:pl-4",
+          "grid scroll-mt-24 grid-cols-[44px_minmax(0,1fr)] overflow-hidden rounded-lg ring-1 ring-border/45 transition-[background-color,box-shadow] data-[focus-comment=true]:ring-2 data-[focus-comment=true]:ring-primary/40",
           visualDepth > 0
-            ? "bg-surface-raised/50 hover:bg-surface-hover"
+            ? "bg-surface-raised/65 hover:bg-surface-hover"
             : "bg-surface-raised",
-          isReplying && "bg-surface-hover ring-1 ring-primary/25",
+          isReplying && "bg-surface-hover ring-primary/30",
         )}
       >
-        <RedditVoteControl
-          className="bg-surface-raised/70 py-3"
-          downvoteCount={comment.downvote_count ?? 0}
-          myVote={comment.my_vote ?? 0}
-          postId={postId}
-          score={score}
-          targetId={comment.id}
-          targetType="comment"
-          upvoteCount={comment.upvote_count ?? 0}
-        />
+        <CommentVoteRail vote={comment.my_vote ?? 0}>
+          <RedditVoteControl
+            downvoteCount={comment.downvote_count ?? 0}
+            myVote={comment.my_vote ?? 0}
+            postId={postId}
+            score={score}
+            targetId={comment.id}
+            targetType="comment"
+            upvoteCount={comment.upvote_count ?? 0}
+          />
+        </CommentVoteRail>
 
-        <div className="grid min-w-0 grid-cols-[28px_minmax(0,1fr)] gap-2 py-3 pl-2 sm:gap-3 sm:pl-3">
+        <div className="grid min-w-0 grid-cols-[32px_minmax(0,1fr)] gap-2.5 py-3 pl-2 pr-3 sm:grid-cols-[36px_minmax(0,1fr)] sm:gap-3 sm:pl-3 sm:pr-4">
           <CommentAuthorAvatar
             comment={comment}
             name={getCommentAuthorName(comment)}
@@ -225,13 +225,13 @@ function CommentBranch({
             <ContentBody
               attachments={comment.attachments}
               value={comment.body}
-              className="mt-2 text-sm leading-7"
+              className="mt-2 text-sm leading-7 [&_blockquote]:my-3 [&_blockquote]:bg-background-soft/70 [&_blockquote]:px-3 [&_blockquote]:py-2.5 [&_blockquote]:ring-border/50 [&_pre]:my-3 [&_pre]:bg-background [&_table]:text-xs"
             />
 
             <CommentEffectSummary effects={comment.effects} />
 
             <div className="mt-2 space-y-1.5 text-xs">
-              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-md bg-background/35 px-1 py-1">
                 <TextCommand
                   active={isReplying}
                   onClick={() => onReply(isReplying ? null : comment.id)}
@@ -397,8 +397,10 @@ function TextCommand({
     <button
       type="button"
       className={cn(
-        "inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        active ? "text-primary" : "text-muted-foreground hover:text-primary",
+        "inline-flex h-7 items-center gap-1.5 rounded-sm px-1.5 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        active
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-surface-hover hover:text-foreground",
       )}
       onClick={onClick}
     >
@@ -409,7 +411,27 @@ function TextCommand({
 
 function ReplyComposerFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="min-w-0 rounded-md bg-surface px-2 py-2 ring-1 ring-primary/20">
+    <div className="min-w-0 rounded-lg bg-background-soft p-2 ring-1 ring-border/60">
+      {children}
+    </div>
+  );
+}
+
+function CommentVoteRail({
+  children,
+  vote,
+}: {
+  children: ReactNode;
+  vote: number;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-h-full items-start justify-center bg-background-soft/70 px-1.5 py-3 transition-colors",
+        vote === 1 && "bg-primary/[0.08]",
+        vote === -1 && "bg-destructive/[0.08]",
+      )}
+    >
       {children}
     </div>
   );
@@ -433,15 +455,15 @@ function ThreadRail({
       className={cn(
         "relative",
         depth === 0
-          ? "ml-6 pl-2 sm:ml-7"
+          ? "ml-[22px] pl-3 sm:ml-6"
           : depth === 1
-            ? "ml-4 pl-2 sm:ml-5"
-            : "ml-3 pl-2 sm:ml-4",
+            ? "ml-4 pl-3"
+            : "ml-3 pl-3",
         className,
       )}
     >
       <span
-        className="absolute bottom-2 left-1 top-2 w-px rounded-full bg-border-strong/45"
+        className="absolute bottom-4 left-1 top-1 w-px rounded-full bg-border/70"
         aria-hidden="true"
       />
       {children}
@@ -456,7 +478,15 @@ function ThreadRailItem({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cn("relative", className)}>{children}</div>;
+  return (
+    <div className={cn("relative", className)}>
+      <span
+        className="pointer-events-none absolute -left-2.5 top-0 h-6 w-2.5 rounded-bl-[10px] border-b border-l border-border/70"
+        aria-hidden="true"
+      />
+      {children}
+    </div>
+  );
 }
 
 function buildCommentTree(comments: Comment[]) {

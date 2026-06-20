@@ -8,6 +8,13 @@ import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { useAppShellBackAction } from "@/components/app-shell/app-shell";
+import {
+  RightRail,
+  RightRailAction,
+  RightRailActionList,
+  RightRailRaisedList,
+  RightRailSection,
+} from "@/components/app-shell/right-rail";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -353,68 +360,54 @@ function ProfileSettingsRail({
   user: PublicUser;
 }) {
   return (
-    <aside className="hidden min-w-0 xl:block">
-      <div className="sticky top-20 right-rail-scroll space-y-6 rounded-md bg-background-soft p-4">
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">保存状态</h2>
-          <div className="mt-3 space-y-3">
-            <SaveStateRow
-              active={!isSaving}
-              label="头像"
-              text="在预览头像角落单独保存"
-            />
-            <SaveStateRow
-              active={!isSaving}
-              label="背景图"
-              text="在头图右下角单独保存"
-            />
-            <SaveStateRow
-              active={!isDirty}
-              label="文字"
-              text={isDirty ? "还有未保存修改" : "已同步到后端"}
-            />
-          </div>
-        </section>
+    <RightRail className="hidden min-w-0 xl:block">
+      <RightRailSection title="保存状态">
+        <RightRailRaisedList className="space-y-3 p-3">
+          <SaveStateRow
+            active={!isSaving}
+            label="头像"
+            text="在预览头像角落单独保存"
+          />
+          <SaveStateRow
+            active={!isSaving}
+            label="背景图"
+            text="在头图右下角单独保存"
+          />
+          <SaveStateRow
+            active={!isDirty}
+            label="文字"
+            text={isDirty ? "还有未保存修改" : "已同步到后端"}
+          />
+        </RightRailRaisedList>
+      </RightRailSection>
 
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">文字预览</h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            展示名为{" "}
-            <span className="font-medium text-foreground">
-              {user.display_name || user.username}
-            </span>
-            ，签名{user.headline ? `是「${user.headline}」` : "未设置"}。
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            加入时间：{formatDate(user.created_at)}
-          </p>
-        </section>
+      <RightRailSection title="文字预览">
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          展示名为{" "}
+          <span className="font-medium text-foreground">
+            {user.display_name || user.username}
+          </span>
+          ，签名{user.headline ? `是「${user.headline}」` : "未设置"}。
+        </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          加入时间：{formatDate(user.created_at)}
+        </p>
+      </RightRailSection>
 
-        <section>
-          <h2 className="text-sm font-semibold">入口</h2>
-          <div className="mt-3 flex flex-col border-t border-border">
-            <TextAction
-              href={`/users/${encodeURIComponent(user.username)}`}
-              variant="bar"
-            >
-              查看个人主页
-            </TextAction>
-            <TextAction href="/saved" variant="bar">
-              我的收藏
-            </TextAction>
-            <TextAction href="/settings/progression" variant="bar">
-              成长与积分
-            </TextAction>
-            <TextAction href="/settings/security#password" tone="primary" variant="bar">
-              修改密码
-            </TextAction>
-            <TextAction href="/settings/security" variant="bar">
-              账号安全
-            </TextAction>
-          </div>
-        </section>
-      </div>
-    </aside>
+      <RightRailSection title="入口">
+        <RightRailActionList>
+          <RightRailAction href={`/users/${encodeURIComponent(user.username)}`}>
+            查看个人主页
+          </RightRailAction>
+          <RightRailAction href="/saved">我的收藏</RightRailAction>
+          <RightRailAction href="/settings/progression">成长与积分</RightRailAction>
+          <RightRailAction href="/settings/security#password" tone="primary">
+            修改密码
+          </RightRailAction>
+          <RightRailAction href="/settings/security">账号安全</RightRailAction>
+        </RightRailActionList>
+      </RightRailSection>
+    </RightRail>
   );
 }
 

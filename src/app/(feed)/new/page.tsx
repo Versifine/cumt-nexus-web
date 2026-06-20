@@ -7,6 +7,6 @@ export const metadata: Metadata = {
   description: "按最新发布时间查看 CUMT Nexus 校园社区公开帖子。",
 };
 
-export default async function NewFeed() {
-  return <HomeFeedPage contextLabel="最新" sort="new" />;
+export default function NewFeed() {
+  return <HomeFeedPage sort="new" />;
 }

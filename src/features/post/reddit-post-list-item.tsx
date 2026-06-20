@@ -120,13 +120,13 @@ export function RedditPostListItem({
   return (
     <article
       className={cn(
-        "group flex min-w-0 gap-0 overflow-hidden transition-colors hover:bg-surface-hover",
+        "group flex min-w-0 gap-0 overflow-hidden rounded-lg bg-surface transition-colors hover:bg-surface-hover",
         className,
       )}
     >
       <div
         className={cn(
-          "flex w-10 shrink-0 flex-col items-center bg-surface-raised/75 pt-3 transition-colors sm:w-11",
+          "flex w-10 shrink-0 flex-col items-center bg-background-soft pt-3 transition-colors sm:w-11",
           post.my_vote === 1 && "bg-primary/10",
           post.my_vote === -1 && "bg-destructive/10",
         )}

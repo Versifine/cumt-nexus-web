@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { ReviewDeskState } from "@/components/app-shell/review-desk";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
@@ -35,15 +36,15 @@ export function AdminPermissionGate({
     (token && effectivePlatformRole.isResolving)
   ) {
     return (
-      <div className="border-b border-border py-4">
+      <ReviewDeskState>
         <LoadingState rows={5} />
-      </div>
+      </ReviewDeskState>
     );
   }
 
   if (!token) {
     return (
-      <div className="border-b border-border py-4">
+      <ReviewDeskState>
         <EmptyState
           title="登录后进入平台管理"
           description="平台管理需要账号具备平台权限。登录后会自动确认权限。"
@@ -53,13 +54,13 @@ export function AdminPermissionGate({
             </TextAction>
           }
         />
-      </div>
+      </ReviewDeskState>
     );
   }
 
   if (currentUserQuery.isError) {
     return (
-      <div className="border-b border-border py-4">
+      <ReviewDeskState>
         <ErrorState
           title="无法确认用户身份"
           description={getErrorDescription(currentUserQuery.error)}
@@ -73,7 +74,7 @@ export function AdminPermissionGate({
             </Button>
           }
         />
-      </div>
+      </ReviewDeskState>
     );
   }
 
@@ -81,13 +82,13 @@ export function AdminPermissionGate({
 
   if (!platformRole) {
     return (
-      <div className="border-b border-border py-4">
+      <ReviewDeskState>
         <EmptyState
           title="需要平台权限"
           description="当前账号没有平台管理权限，不能查看后台数据或执行平台操作。"
           action={<TextAction href="/">信息流首页</TextAction>}
         />
-      </div>
+      </ReviewDeskState>
     );
   }
 
@@ -96,13 +97,13 @@ export function AdminPermissionGate({
     !allowedRoles.includes(platformRole)
   ) {
     return (
-      <div className="border-b border-border py-4">
+      <ReviewDeskState>
         <EmptyState
           title="当前平台角色不能访问"
           description={`${formatPlatformRole(platformRole)}不能查看这个后台页面。`}
           action={<TextAction href="/admin">返回平台管理</TextAction>}
         />
-      </div>
+      </ReviewDeskState>
     );
   }
 

@@ -188,7 +188,9 @@ function checkRedditVoteControlFeedback() {
 
   for (const token of [
     'import { toast } from "sonner"',
-    "onError: (error) =>",
+    "onError: async (error, _nextVote, context) =>",
+    "applyOptimisticVote(context.previousVote)",
+    "reconcileVoteAfterError({",
     "toast.error(getVoteError(error))",
     "aria-pressed={active}",
     'aria-label={`${label}，当前 ${count}`}',
@@ -222,7 +224,8 @@ function checkRedditVoteControlFeedStability() {
   for (const token of [
     "updateCachedPostVote({",
     "queryClient.setQueryData<GetPostResponse>",
-    "queryClient.getQueriesData<ListPostsResponse>",
+    "queryClient.getQueriesData<PostListCacheData>",
+    "isInfinitePostListData(current)",
     "patchPostListQueries(queryClient, postQueryKeys.latestPrefix(), postId, patch)",
     "patchPostListQueries(queryClient, postQueryKeys.communityPostsAll(), postId, patch)",
     "patchPostListQueries(queryClient, postQueryKeys.userPostsAll(), postId, patch)",

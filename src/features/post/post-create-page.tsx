@@ -1,7 +1,15 @@
-﻿"use client";
+"use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { ArrowRight, Hash, ImagePlus, ShieldCheck } from "lucide-react";
 
+import {
+  ReviewDesk,
+  ReviewDeskBoard,
+  ReviewDeskInspector,
+  ReviewDeskPanel,
+} from "@/components/app-shell/review-desk";
 import { AuthRequired } from "@/features/auth/auth-required";
 import { useAuthSession } from "@/features/auth/auth-session";
 import {
@@ -9,19 +17,26 @@ import {
   useFollowedCommunitiesQuery,
 } from "@/features/community/queries";
 import type { Community } from "@/features/community/types";
-import { TextAction } from "@/components/ui/text-action";
+import { cn } from "@/lib/utils";
 
 import { PostForm } from "./post-form";
 
 type PostCreatePageProps = {
+  authNextPath?: string;
   defaultCommunitySlug?: string;
 };
 
-export function PostCreatePage({ defaultCommunitySlug = "" }: PostCreatePageProps) {
+export function PostCreatePage({
+  authNextPath,
+  defaultCommunitySlug = "",
+}: PostCreatePageProps) {
   const { isReady, token } = useAuthSession();
   const [communitySlug, setCommunitySlug] = useState(
     normalizeCommunitySlug(defaultCommunitySlug),
   );
+  const resolvedAuthNextPath = authNextPath ?? (communitySlug
+    ? `/posts/new?community=${encodeURIComponent(communitySlug)}`
+    : "/posts/new");
   const canLoadViewerData = isReady && Boolean(token);
   const selectedCommunityQuery = useCommunityQuery(
     communitySlug,
@@ -40,20 +55,32 @@ export function PostCreatePage({ defaultCommunitySlug = "" }: PostCreatePageProp
       ),
     [followedCommunitiesQuery.data?.communities, selectedCommunity],
   );
+  const createContext = getCreateContext({
+    isLoading: selectedCommunityQuery.isLoading,
+    selectedCommunity,
+    selectedCommunitySlug: communitySlug,
+  });
 
   return (
-    <div className="grid grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
-      <section className="min-w-0 bg-background">
-        <PostCreateHeader
-          isLoading={selectedCommunityQuery.isLoading}
-          selectedCommunitySlug={communitySlug}
-          selectedCommunity={selectedCommunity}
-        />
-
-        <div className="py-5">
+    <ReviewDesk className="max-w-[1120px]">
+      <ReviewDeskBoard
+        className="xl:grid-cols-[minmax(0,1fr)_320px]"
+        inspector={
+          <PostCreateRail
+            context={createContext}
+            selectedCommunity={selectedCommunity}
+            selectedCommunitySlug={communitySlug}
+          />
+        }
+      >
+        <ReviewDeskPanel
+          title="内容编辑"
+          description="选择社区后填写标题和正文；正文支持 Markdown、图片和基础排版。"
+        >
           <AuthRequired
             title="登录后发起讨论"
             description="登录后会回到本页继续编辑。"
+            nextPath={resolvedAuthNextPath}
           >
             <PostForm
               communitySlug={communitySlug}
@@ -64,48 +91,136 @@ export function PostCreatePage({ defaultCommunitySlug = "" }: PostCreatePageProp
               suggestedCommunities={suggestedCommunities}
             />
           </AuthRequired>
-        </div>
-      </section>
+        </ReviewDeskPanel>
+      </ReviewDeskBoard>
+    </ReviewDesk>
+  );
+}
 
-      <PostCreateRail
-        isLoading={selectedCommunityQuery.isLoading}
-        selectedCommunitySlug={communitySlug}
-        selectedCommunity={selectedCommunity}
-      />
+type PostCreateContext = {
+  communityLabel: string;
+  permissionLabel: string;
+};
+
+function PostCreateRail({
+  context,
+  selectedCommunity,
+  selectedCommunitySlug,
+}: {
+  context: PostCreateContext;
+  selectedCommunity: Community | null;
+  selectedCommunitySlug: string;
+}) {
+  return (
+    <div className="space-y-4">
+      <ReviewDeskInspector
+        title="发布上下文"
+        description="发布前会按当前账号和社区状态确认权限。"
+      >
+        <div className="grid overflow-hidden rounded-md bg-surface-raised">
+          <RailStat
+            icon={<Hash className="size-4" aria-hidden="true" />}
+            label="社区"
+            value={context.communityLabel}
+          />
+          <RailStat
+            icon={<ShieldCheck className="size-4" aria-hidden="true" />}
+            label="权限"
+            value={context.permissionLabel}
+          />
+          <RailStat
+            icon={<ImagePlus className="size-4" aria-hidden="true" />}
+            label="图片"
+            value="正文内插入"
+          />
+        </div>
+      </ReviewDeskInspector>
+
+      <ReviewDeskInspector
+        title="发帖提示"
+        description="标题直接写讨论主题；正文里先给结论、背景和你希望别人回应的点。"
+      >
+        <div className="space-y-3 text-sm leading-6 text-muted-foreground">
+          <p>
+            发布成功后会进入帖子详情页，并刷新对应社区和信息流缓存。
+          </p>
+          <p>
+            图片必须保留在正文里，未引用的上传图片不会随帖子绑定。
+          </p>
+        </div>
+      </ReviewDeskInspector>
+
+      <ReviewDeskInspector title="其他入口">
+        <div className="space-y-1">
+          {selectedCommunity ? (
+            <RailActionLink
+              href={`/communities/${encodeURIComponent(selectedCommunity.slug)}`}
+            >
+              社区主页
+            </RailActionLink>
+          ) : selectedCommunitySlug ? (
+            <RailActionLink
+              href={`/communities/${encodeURIComponent(selectedCommunitySlug)}`}
+            >
+              返回 /{selectedCommunitySlug}
+            </RailActionLink>
+          ) : null}
+          <RailActionLink href="/communities">浏览社区</RailActionLink>
+        </div>
+      </ReviewDeskInspector>
     </div>
   );
 }
 
-function PostCreateHeader({
-  isLoading,
-  selectedCommunitySlug,
-  selectedCommunity,
+function RailStat({
+  icon,
+  label,
+  value,
 }: {
-  isLoading: boolean;
-  selectedCommunitySlug: string;
-  selectedCommunity: Community | null;
+  icon: ReactNode;
+  label: string;
+  value: string;
 }) {
-  const targetLabel = getCreateTargetLabel(
-    isLoading,
-    selectedCommunitySlug,
-    selectedCommunity,
-  );
-
   return (
-    <div className="flex flex-col gap-2 border-b border-border py-4">
+    <div className="flex min-w-0 items-center gap-3 px-3 py-3">
+      <span className="text-primary">{icon}</span>
       <div className="min-w-0">
-        <h1 className="break-words text-xl font-semibold leading-7 tracking-normal text-foreground">
-          发布帖子
-        </h1>
-        <p className="mt-1 truncate text-sm text-muted-foreground">
-          {targetLabel}
-        </p>
+        <div className="font-mono text-[11px] text-muted-foreground">{label}</div>
+        <div className="mt-1 truncate text-sm font-semibold text-foreground">
+          {value}
+        </div>
       </div>
     </div>
   );
 }
 
-function PostCreateRail({
+function RailActionLink({
+  children,
+  className,
+  href,
+}: {
+  children: ReactNode;
+  className?: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "group flex min-h-10 items-center justify-between gap-3 rounded-md px-1.5 py-2 text-sm font-semibold text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        className,
+      )}
+    >
+      <span>{children}</span>
+      <ArrowRight
+        className="size-4 text-muted-foreground transition duration-150 group-hover:translate-x-1 group-hover:text-primary motion-reduce:transform-none"
+        aria-hidden="true"
+      />
+    </Link>
+  );
+}
+
+function getCreateContext({
   isLoading,
   selectedCommunitySlug,
   selectedCommunity,
@@ -113,7 +228,7 @@ function PostCreateRail({
   isLoading: boolean;
   selectedCommunitySlug: string;
   selectedCommunity: Community | null;
-}) {
+}): PostCreateContext {
   const communityLabel = selectedCommunity
     ? `/${selectedCommunity.slug}`
     : isLoading
@@ -129,67 +244,31 @@ function PostCreateRail({
       ? "确认中"
       : "待确认";
 
-  return (
-    <aside className="border-t border-border py-5 xl:border-l xl:border-t-0 xl:pl-5">
-      <div className="sticky top-20 right-rail-scroll space-y-6">
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">发布位置</h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            当前目标是{" "}
-            <span className="font-mono text-foreground">{communityLabel}</span>
-            ，发布前会确认社区权限。
-          </p>
-          <p className="mt-2 text-xs font-mono text-muted-foreground">
-            权限：{permissionLabel}
-          </p>
-        </section>
-
-        <section className="border-b border-border pb-5">
-          <h2 className="text-sm font-semibold">发帖提示</h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            标题直接写讨论主题；正文支持 Markdown、图片和基础排版。发布成功后会进入帖子详情页。
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-sm font-semibold">其他入口</h2>
-          <div className="mt-3 flex flex-col border-t border-border">
-            {selectedCommunity ? (
-              <TextAction
-                href={`/communities/${encodeURIComponent(selectedCommunity.slug)}`}
-                variant="bar"
-              >
-                社区主页
-              </TextAction>
-            ) : null}
-            <TextAction href="/communities" variant="bar">
-              浏览社区
-            </TextAction>
-          </div>
-        </section>
-      </div>
-    </aside>
-  );
-}
-
-function getCreateTargetLabel(
-  isLoading: boolean,
-  selectedCommunitySlug: string,
-  selectedCommunity: Community | null,
-) {
   if (isLoading) {
-    return "正在确认社区。";
+    return {
+      communityLabel,
+      permissionLabel,
+    };
   }
 
   if (selectedCommunity) {
-    return `发布到 /${selectedCommunity.slug}`;
+    return {
+      communityLabel,
+      permissionLabel,
+    };
   }
 
   if (selectedCommunitySlug) {
-    return `正在确认 /${selectedCommunitySlug}`;
+    return {
+      communityLabel,
+      permissionLabel,
+    };
   }
 
-  return "先选择社区，再写标题和正文。";
+  return {
+    communityLabel,
+    permissionLabel,
+  };
 }
 
 function canPublishToCommunity(community: Community) {
@@ -226,4 +305,3 @@ function mergeSuggestedCommunities(
 
   return communities;
 }
-

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { StatusToken } from "@/components/ui/data-display";
@@ -14,6 +14,7 @@ type AuthRequiredProps = {
   children: ReactNode;
   className?: string;
   description: string;
+  nextPath?: string;
   title: string;
 };
 
@@ -21,14 +22,13 @@ export function AuthRequired({
   children,
   className,
   description,
+  nextPath,
   title,
 }: AuthRequiredProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { token } = useAuthSession();
   const currentUserQuery = useCurrentUserQuery();
-  const query = searchParams.toString();
-  const next = `${pathname || "/"}${query ? `?${query}` : ""}`;
+  const next = nextPath ?? pathname ?? "/";
   const loginHref = `/login?next=${encodeURIComponent(next)}`;
   const registerHref = `/register?next=${encodeURIComponent(next)}`;
 

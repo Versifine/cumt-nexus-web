@@ -38,6 +38,7 @@
 ## Engineering
 
 - `engineering/workflow.md`：阶段推进、分支、文档和验证规则。
+- `engineering/linux-development.md`：Linux / WSL2 开发环境迁移、依赖安装、前后端联调和验收顺序。
 - `engineering/launch-readiness.md`：上线前自检、阻塞项和人工 QA 范围。
 - `engineering/deployment.md`：生产部署、环境变量、CORS、发布后验证和回滚标准。
 - `engineering/browser-qa.md`：真实浏览器人工 QA 步骤、失败分级和记录模板。
