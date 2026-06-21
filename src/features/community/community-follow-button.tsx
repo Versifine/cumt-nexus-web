@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, type ComponentProps } from "react";
-import Link from "next/link";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Check, Plus } from "lucide-react";
 
+import {
+  FollowActionButton,
+  FollowActionLink,
+  getFollowActionErrorMessage,
+  getFollowActionLabel,
+} from "@/components/social/follow-action";
 import { useAuthSession } from "@/features/auth/auth-session";
-import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 import { useToggleCommunityFollowMutation } from "./queries";
@@ -58,7 +62,7 @@ export function CommunityFollowButton({
     );
   }
 
-  const label = getFollowLabel({
+  const label = getFollowActionLabel({
     isFollowing,
     isPending: mutation.isPending,
   });
@@ -81,7 +85,7 @@ export function CommunityFollowButton({
             },
             {
               onError: (error) => {
-                setSubmitError(getFollowErrorMessage(error));
+                setSubmitError(getFollowActionErrorMessage(error));
               },
             },
           );
@@ -99,75 +103,4 @@ export function CommunityFollowButton({
       ) : null}
     </div>
   );
-}
-
-function FollowActionLink({
-  children,
-  className,
-  compact = false,
-  ...props
-}: ComponentProps<typeof Link> & {
-  compact?: boolean;
-}) {
-  return (
-    <Link
-      {...props}
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 border-b border-transparent px-0.5 font-semibold text-primary transition-colors hover:border-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        compact ? "h-7 text-xs" : "h-9 text-sm",
-        className,
-      )}
-    >
-      {children}
-    </Link>
-  );
-}
-
-function FollowActionButton({
-  children,
-  className,
-  compact = false,
-  isFollowing = false,
-  ...props
-}: ComponentProps<"button"> & {
-  compact?: boolean;
-  isFollowing?: boolean;
-}) {
-  return (
-    <button
-      {...props}
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 border-b border-transparent px-0.5 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60",
-        compact ? "h-7 text-xs" : "h-9 text-sm",
-        isFollowing
-          ? "text-muted-foreground hover:border-border-strong hover:text-foreground"
-          : "text-primary hover:border-primary hover:text-foreground",
-        className,
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function getFollowLabel({
-  isFollowing,
-  isPending,
-}: {
-  isFollowing: boolean;
-  isPending: boolean;
-}) {
-  if (isPending) {
-    return isFollowing ? "取消中" : "关注中";
-  }
-
-  return isFollowing ? "已关注" : "关注";
-}
-
-function getFollowErrorMessage(error: Error) {
-  if (error instanceof ApiError) {
-    return error.message;
-  }
-
-  return "关注状态更新失败，请稍后重试。";
 }

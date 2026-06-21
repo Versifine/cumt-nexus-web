@@ -264,7 +264,7 @@ created_at
 ```text
 获得 +5：发布帖子
 获得 +1：评论被点赞
-消费 -20：给评论送出感谢牌
+消费 -8：给帖子标记经典
 获得 +20：内容被标记优质
 ```
 
@@ -276,8 +276,7 @@ created_at
 
 允许消费：
 
-- 评论效果。
-- 感谢牌。
+- 内容互动（帖子和评论）。
 - 个人主页装饰。
 - 头像框。
 - 资料卡背景。
@@ -295,24 +294,35 @@ created_at
 - 认证身份。
 - 官方、管理员等权威头衔。
 
-首版只做评论效果，避免系统过早膨胀。
+首版消费互动改为帖子和评论共用的内容互动，不再只做评论效果，不买热度、排序和权重。
 
-首版效果建议：
+首版互动建议：
 
-| 效果 | 消耗 |
-|---|---:|
-| 灵感灯 | 10 |
-| 感谢牌 | 20 |
-| 重点标记 | 30 |
-| 实用资料 | 50 |
+| 互动 | Emoji | 建议 ID | 消耗 |
+|---|---|---|---:|
+| 有用 | 👍 | `useful` | 5 |
+| 难绷 | 😂 | `cant_hold` | 5 |
+| 经典 | 🏆 | `classic` | 8 |
+| 蹲后续 | 👀 | `following_up` | 5 |
+| 鉴定为真 | ✅ | `verified_true` | 8 |
+| 抽象 | 🌀 | `abstract` | 5 |
+| 神 | 👑 | `godlike` | 12 |
+| 小丑 | 🤡 | `clown` | 5 |
+| FakeNews | 📰 | `fake_news` | 8 |
+| 幽默 | 🎭 | `humor` | 5 |
+| 笑了 | 😆 | `laughed` | 5 |
 
-评论展示必须克制，例如：
+首版所有内容互动都使用 emoji 图标，不使用图片资产或复杂动效。图标应由后端目录返回，前端只负责渲染目录里的 `emoji`。
+
+这些互动不做反向羞辱，不替代 downvote，不允许演化成攻击性标签；“小丑”尤其不能用于定向羞辱用户。后续如果要加“离谱”“破防”等更强表达，需要单独评估社区氛围。
+
+内容互动展示必须克制，例如：
 
 ```text
-感谢牌 x12 · 灵感灯 x3
+👍 有用 x12 · 🏆 经典 x3 · 👀 蹲后续 x2
 ```
 
-不要做大动画，不要遮挡正文，不要让效果比评论内容更重要。
+不要做大动画，不要遮挡正文，不要让互动比内容本身更重要。
 
 ## 页面落点
 
@@ -349,15 +359,15 @@ Nexus Lv.16
 
 积分明细可以后续单独进入 `/settings/points` 或 `/points`，不放在普通资料设置首屏。
 
-### 评论树
+### 帖子和评论
 
-评论动作栏新增特殊互动入口：
+帖子动作栏和评论动作栏都提供积分互动入口：
 
 - 未登录：进入登录门禁。
 - 余额不足：展示不可用原因。
-- 效果停用：隐藏或禁用。
+- 互动停用：隐藏或禁用。
 - 提交中：禁用重复点击。
-- 成功：更新当前积分余额，并刷新评论效果摘要。
+- 成功：更新当前积分余额，并刷新对应帖子或评论的互动摘要。
 
 ### 管理入口
 
@@ -377,7 +387,7 @@ src/features/community/
   社区关注 API、query、mutation
 
 src/features/progression/
-  等级、经验、积分、头衔、效果目录、评论效果
+  等级、经验、积分、头衔、互动目录、内容互动
 
 src/features/profile/
   公开用户成长摘要、头衔选择
@@ -390,12 +400,15 @@ src/components/identity/
 
 ### 已可直接接入
 
+当前后端已可直接接入帖子 / 评论共用内容互动合同，目录由后端返回 emoji、名称和积分成本。
+
 ```text
 GET    /api/v1/me/followed-communities
 POST   /api/v1/communities/:slug/follow
 DELETE /api/v1/communities/:slug/follow
 GET    /api/v1/me/points
 GET    /api/v1/effects/catalog
+POST   /api/v1/posts/:id/effects
 POST   /api/v1/comments/:id/effects
 GET    /api/v1/admin/effects
 PATCH  /api/v1/admin/effects/:id
@@ -442,12 +455,14 @@ GET  /api/v1/admin/point-transactions
 POST /api/v1/admin/users/:id/points/adjust
 ```
 
-评论效果读取：
+内容互动读取：
 
 ```text
+post.effects[]
 comment.effects[]
 effect.id
 effect.name
+effect.emoji
 effect.asset_url
 effect.animation_key
 applied_by_user
@@ -466,7 +481,7 @@ DELETE /api/v1/users/:username/follow
 ## 实施顺序
 
 1. 社区关注：社区详情、社区列表、左侧栏关注社区、`/following` 真实数据源。
-2. 评论效果消费：积分余额、效果目录、评论效果应用；同时补评论 `effects[]` 读取字段。
+2. 内容互动消费：积分余额、互动目录、帖子 / 评论互动应用；同时补 `post.effects[]` 和 `comment.effects[]` 读取字段。
 3. 全站等级：等级曲线、经验事件、公开用户等级展示。
 4. 头衔授予：平台头衔、社区版主授予头衔、用户选择展示头衔。
 5. 积分流水：当前用户明细、管理员调整、审计日志。
@@ -475,9 +490,9 @@ DELETE /api/v1/users/:username/follow
 ## 验收标准
 
 - 未登录可读页面不因为等级、积分、头衔字段缺失报错。
-- 未登录点击关注、特殊互动和头衔设置进入登录门禁。
+- 未登录点击关注、内容互动和头衔设置进入登录门禁。
 - 等级只展示后端返回结果，前端不自行计算。
 - 积分消费必须以后端成功响应为准，失败不能扣本地余额。
 - 头衔只展示后端授予结果，不允许前端自由填写。
-- 评论效果不能遮挡正文，移动端不能横向溢出。
+- 内容互动不能遮挡正文，移动端不能横向溢出。
 - 所有新增 API 调用走 `src/lib/api` 和 feature-scoped API 文件。

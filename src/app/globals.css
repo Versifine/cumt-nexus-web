@@ -135,6 +135,60 @@ body {
   }
 }
 
+@keyframes nexus-content-effect-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.92);
+  }
+
+  62% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes nexus-content-effect-glow {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.08),
+      0 6px 18px rgb(0 0 0 / 0.16);
+    border-color: color-mix(in srgb, var(--border-strong) 80%, transparent);
+  }
+
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.12),
+      0 10px 26px color-mix(in srgb, var(--primary) 18%, transparent),
+      0 0 0 2px color-mix(in srgb, var(--primary) 9%, transparent);
+    border-color: color-mix(in srgb, var(--primary) 36%, var(--border-strong));
+  }
+}
+
+@keyframes nexus-content-effect-emoji-pop {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+
+  18% {
+    transform: translateY(-2px) rotate(-4deg) scale(1.1);
+  }
+
+  32% {
+    transform: translateY(1px) rotate(3deg) scale(0.98);
+  }
+
+  50% {
+    transform: translateY(0) rotate(0deg) scale(1.05);
+  }
+}
+
 @layer utilities {
   .nexus-soft-transition {
     transition-duration: 160ms;
@@ -207,23 +261,83 @@ body {
     animation: nexus-skeleton-shimmer 1400ms ease-in-out infinite;
   }
 
+  .nexus-content-effect-token {
+    animation:
+      nexus-content-effect-enter 420ms cubic-bezier(0.16, 1, 0.3, 1) both,
+      nexus-content-effect-glow 2800ms ease-in-out infinite;
+    animation-delay:
+      var(--effect-delay, 0ms),
+      calc(var(--effect-delay, 0ms) + 520ms);
+    transform-origin: center;
+    transition:
+      background-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .nexus-content-effect-token::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        180deg,
+        rgb(255 255 255 / 0.12),
+        transparent 42%,
+        rgb(0 0 0 / 0.08)
+      ),
+      radial-gradient(
+        circle at 50% 20%,
+        color-mix(in srgb, var(--primary) 14%, transparent),
+        transparent 58%
+      );
+    pointer-events: none;
+  }
+
+  .nexus-content-effect-emoji {
+    animation: nexus-content-effect-emoji-pop 2200ms ease-in-out infinite;
+    animation-delay: calc(var(--effect-delay, 0ms) + 520ms);
+    display: inline-block;
+    transform-origin: center;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .nexus-content-effect-token:hover {
+      border-color: color-mix(in srgb, var(--primary) 42%, var(--border-strong));
+      box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.14),
+        0 12px 28px color-mix(in srgb, var(--primary) 20%, transparent);
+      transform: translateY(-1px) scale(1.01);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .nexus-soft-transition,
     .nexus-micro-lift,
-    .nexus-menu-item-motion {
+    .nexus-menu-item-motion,
+    .nexus-content-effect-token {
       transition-duration: 0.01ms;
       transform: none;
     }
 
     .nexus-micro-lift:hover,
     .nexus-micro-lift:active,
-    .nexus-menu-item-motion:focus {
+    .nexus-menu-item-motion:focus,
+    .nexus-content-effect-token:hover {
       transform: none;
     }
 
-    .nexus-skeleton-shimmer::after {
+    .nexus-skeleton-shimmer::after,
+    .nexus-content-effect-token,
+    .nexus-content-effect-emoji {
       animation: none;
       opacity: 0;
+    }
+
+    .nexus-content-effect-token,
+    .nexus-content-effect-emoji {
+      opacity: 1;
     }
   }
 

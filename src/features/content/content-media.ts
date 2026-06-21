@@ -4,6 +4,7 @@ import {
   isAttachmentMarkdownUrl,
 } from "@/features/content/attachment-markdown";
 import {
+  isBackendResolvableMediaEmbedUrl,
   resolveWhitelistedMediaEmbed,
   type WhitelistedMediaEmbed,
 } from "@/features/content/media-embed";
@@ -23,12 +24,21 @@ export type ResolvedEmbedMediaBlock = {
   kind: "embed";
 };
 
+export type ResolvedBackendEmbedMediaBlock = {
+  kind: "backend-embed";
+  url: string;
+};
+
 export type ResolvedContentMediaBlock =
   | ResolvedEmbedMediaBlock
   | ResolvedImageMediaBlock;
 
-type MediaOccurrence = {
-  block: ResolvedContentMediaBlock;
+export type ResolvedContentMediaPreviewBlock =
+  | ResolvedBackendEmbedMediaBlock
+  | ResolvedContentMediaBlock;
+
+type MediaOccurrence<TBlock = ResolvedContentMediaBlock> = {
+  block: TBlock;
   index: number;
 };
 
@@ -63,6 +73,32 @@ export function resolveFirstContentMediaBlock({
   return occurrences[0]?.block ?? null;
 }
 
+export function resolveFirstContentMediaPreviewBlock({
+  attachments = [],
+  markdown,
+}: {
+  attachments?: MediaAttachment[];
+  markdown?: string | null;
+}) {
+  const normalizedMarkdown = markdown?.trim();
+
+  if (!normalizedMarkdown) {
+    return null;
+  }
+
+  const attachmentById = new Map(
+    attachments.map((attachment) => [attachment.id, attachment] as const),
+  );
+  const scannableMarkdown = stripMarkdownCodeSegments(normalizedMarkdown);
+  const occurrences = [
+    ...getImageMediaOccurrences(scannableMarkdown, attachmentById),
+    ...getEmbedMediaOccurrences(scannableMarkdown),
+    ...getBackendEmbedMediaOccurrences(scannableMarkdown),
+  ].sort((left, right) => left.index - right.index);
+
+  return occurrences[0]?.block ?? null;
+}
+
 export function resolveEmbedMediaBlockFromUrl(
   url?: string | null,
 ): ResolvedEmbedMediaBlock | null {
@@ -71,6 +107,20 @@ export function resolveEmbedMediaBlockFromUrl(
   );
 
   return embed ? { embed, kind: "embed" } : null;
+}
+
+export function resolveBackendEmbedMediaBlockFromUrl(
+  url?: string | null,
+): ResolvedBackendEmbedMediaBlock | null {
+  const href = stripTrailingUrlPunctuation(url?.trim() ?? "");
+
+  if (!href || resolveWhitelistedMediaEmbed(href)) {
+    return null;
+  }
+
+  return isBackendResolvableMediaEmbedUrl(href)
+    ? { kind: "backend-embed", url: href }
+    : null;
 }
 
 export function resolveImageMediaBlockFromMarkdownUrl({
@@ -249,6 +299,52 @@ function getEmbedMediaOccurrences(markdown: string) {
   }
 
   return occurrences;
+}
+
+function getBackendEmbedMediaOccurrences(markdown: string) {
+  const occurrences: MediaOccurrence<ResolvedBackendEmbedMediaBlock>[] = [];
+  const markdownWithoutInlineResources = stripMarkdownInlineResources(markdown);
+
+  for (const match of markdown.matchAll(markdownLinkPattern)) {
+    const matchIndex = match.index ?? 0;
+
+    if (
+      markdown[Math.max(0, matchIndex - 1)] === "!" ||
+      isEscapedMarkdownToken(markdown, matchIndex)
+    ) {
+      continue;
+    }
+
+    const href = stripTrailingUrlPunctuation(match[2]);
+
+    if (isBackendResolvableEmbedHref(href)) {
+      occurrences.push({
+        block: { kind: "backend-embed", url: href },
+        index: matchIndex,
+      });
+    }
+  }
+
+  for (const match of markdownWithoutInlineResources.matchAll(bareUrlPattern)) {
+    const href = stripTrailingUrlPunctuation(match[0]);
+
+    if (isBackendResolvableEmbedHref(href)) {
+      occurrences.push({
+        block: { kind: "backend-embed", url: href },
+        index: match.index ?? 0,
+      });
+    }
+  }
+
+  return occurrences;
+}
+
+function isBackendResolvableEmbedHref(href: string) {
+  return (
+    Boolean(href) &&
+    !resolveWhitelistedMediaEmbed(href) &&
+    isBackendResolvableMediaEmbedUrl(href)
+  );
 }
 
 function normalizeDimension(value?: number | null) {

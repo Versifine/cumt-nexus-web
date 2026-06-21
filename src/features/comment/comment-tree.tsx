@@ -18,6 +18,7 @@ import {
   UserHoverPreview,
   type UserHoverIdentity,
 } from "@/features/profile/user-hover-card";
+import { AuthorRoleBadges } from "@/features/profile/author-role-badges";
 import { UserInlineIdentity } from "@/features/profile/user-identity-marks";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { cn } from "@/lib/utils";
@@ -212,6 +213,7 @@ function CommentBranch({
                 username={comment.author?.username}
                 size="xs"
               />
+              <AuthorRoleBadges source={comment.author} size="xs" />
               <span aria-hidden="true">·</span>
               <span>{formatDate(comment.created_at)}</span>
               {comment.status !== "visible" ? (
@@ -538,7 +540,7 @@ function CommentAuthorMeta({ comment }: { comment: Comment }) {
       <UserHoverPreview
         className="min-w-0"
         user={hoverUser}
-        panelClassName="w-72"
+        panelClassName="w-[17.5rem]"
       >
         <Link href={authorHref} className={className}>
           {authorName}
@@ -551,7 +553,7 @@ function CommentAuthorMeta({ comment }: { comment: Comment }) {
     <UserHoverPreview
       className="min-w-0"
       user={hoverUser}
-      panelClassName="w-72"
+      panelClassName="w-[17.5rem]"
     >
       <span className={className}>{authorName}</span>
     </UserHoverPreview>
@@ -572,7 +574,7 @@ function CommentAuthorAvatar({
 
   if (authorHref) {
     return (
-      <UserHoverPreview user={hoverUser} panelClassName="w-72">
+      <UserHoverPreview user={hoverUser} panelClassName="w-[17.5rem]">
         <Link
           href={authorHref}
           aria-label={`进入${name}的主页`}
@@ -585,7 +587,7 @@ function CommentAuthorAvatar({
   }
 
   return (
-    <UserHoverPreview user={hoverUser} panelClassName="w-72">
+    <UserHoverPreview user={hoverUser} panelClassName="w-[17.5rem]">
       {avatar}
     </UserHoverPreview>
   );
@@ -645,8 +647,19 @@ function getCommentAuthorHoverIdentity(comment: Comment): UserHoverIdentity {
     displayName: getCommentAuthorName(comment),
     headline: comment.author?.headline?.trim() || "",
     level: comment.author?.progression ?? comment.author?.level ?? null,
+    roles: getCommentAuthorPlatformRoles(comment),
     username: comment.author?.username?.trim() || "",
   };
+}
+
+function getCommentAuthorPlatformRoles(comment: Comment) {
+  const platformRole = comment.author?.platform_role?.trim();
+
+  if (platformRole) {
+    return [platformRole];
+  }
+
+  return comment.author?.is_platform_staff ? ["staff"] : [];
 }
 
 function formatDate(value: string) {

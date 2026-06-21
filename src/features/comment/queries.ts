@@ -10,15 +10,12 @@ import {
   deleteComment,
   listPostComments,
   listUserComments,
-  updateComment,
 } from "./api";
 import { DEFAULT_COMMENT_SORT } from "./sort";
 import type {
   CommentSort,
   ListCommentsResponse,
-  UpdateCommentInput,
 } from "./types";
-import { postQueryKeys } from "../post/queries";
 
 export const commentQueryKeys = {
   postCommentsPrefix: (postId: string) => ["post-comments", postId] as const,
@@ -158,25 +155,6 @@ function getNextCommentsPageParam(lastPage: ListCommentsResponse) {
   }
 
   return lastPage.offset + pageLimit;
-}
-
-export function useUpdateCommentMutation(commentId: string, postId: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (input: UpdateCommentInput) => updateComment(commentId, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: commentQueryKeys.postCommentsPrefix(postId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: postQueryKeys.detail(postId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: commentQueryKeys.userCommentsAll(),
-      });
-    },
-  });
 }
 
 export function useDeleteCommentMutation(commentId: string, postId: string) {

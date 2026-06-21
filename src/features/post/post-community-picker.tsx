@@ -18,7 +18,7 @@ type CommunityCandidate = {
   id: string;
   name: string;
   slug: string;
-  source: "followed" | "recent" | "search" | "typed";
+  source: "followed" | "recent" | "search";
   status?: string;
 };
 
@@ -33,7 +33,6 @@ type PostCommunityPickerProps = {
 
 const SEARCH_RESULT_LIMIT = 8;
 const IDLE_CANDIDATE_LIMIT = 5;
-const COMMUNITY_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{2,31}$/;
 
 export function PostCommunityPicker({
   disabled = false,
@@ -76,21 +75,8 @@ export function PostCommunityPicker({
       ]).slice(0, IDLE_CANDIDATE_LIMIT),
     [recentCommunities, suggestedCommunities],
   );
-  const exactTypedCandidate =
-    isValidCommunitySlug(normalizedDraft) &&
-    !hasCandidateSlug(searchCandidates, normalizedDraft)
-      ? ({
-          id: `typed:${normalizedDraft}`,
-          name: normalizedDraft,
-          slug: normalizedDraft,
-          source: "typed",
-        } satisfies CommunityCandidate)
-      : null;
   const visibleCandidates = hasSearchDraft
-    ? mergeCandidates([
-        ...(exactTypedCandidate ? [exactTypedCandidate] : []),
-        ...searchCandidates,
-      ]).slice(0, SEARCH_RESULT_LIMIT)
+    ? searchCandidates.slice(0, SEARCH_RESULT_LIMIT)
     : idleCandidates;
 
   useEffect(() => {
@@ -230,12 +216,20 @@ export function PostCommunityPicker({
               disabled={disabled}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" &&
-                  isValidCommunitySlug(normalizedDraft)
-                ) {
+                if (event.key !== "Enter") {
+                  return;
+                }
+
+                const exactCandidate = searchCandidates.find(
+                  (candidate) => candidate.slug === normalizedDraft,
+                );
+                const fallbackCandidate =
+                  searchCandidates.length === 1 ? searchCandidates[0] : null;
+                const candidate = exactCandidate ?? fallbackCandidate;
+
+                if (candidate) {
                   event.preventDefault();
-                  selectCommunity(normalizedDraft);
+                  selectCommunity(candidate.slug);
                 }
               }}
               placeholder="搜索社区或输入 /slug"
@@ -273,7 +267,7 @@ export function PostCommunityPicker({
 
       {hasSearchDraft && searchQuery.isError ? (
         <p className="mt-2 text-xs leading-5 text-warning">
-          社区搜索暂时不可用，可以直接输入完整 slug 后选择。
+          社区搜索暂时不可用，可以从社区主页进入发帖，或稍后重试搜索。
         </p>
       ) : null}
     </div>
@@ -410,10 +404,6 @@ function mergeCandidates(candidates: Array<CommunityCandidate | null>) {
   return nextCandidates;
 }
 
-function hasCandidateSlug(candidates: CommunityCandidate[], slug: string) {
-  return candidates.some((candidate) => candidate.slug === slug);
-}
-
 function toFollowedCandidate(community: Community): CommunityCandidate | null {
   if (!canUseCommunity(community)) {
     return null;
@@ -474,18 +464,12 @@ function normalizeSlugInput(value: string) {
     .toLowerCase();
 }
 
-function isValidCommunitySlug(value: string) {
-  return COMMUNITY_SLUG_PATTERN.test(value);
-}
-
 function formatCandidateSource(source: CommunityCandidate["source"]) {
   switch (source) {
     case "followed":
       return "已关注";
     case "recent":
       return "最近";
-    case "typed":
-      return "使用输入";
     case "search":
       return "搜索";
     default:

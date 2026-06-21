@@ -20,15 +20,20 @@ import {
 } from "@/features/content/link-preview";
 import { ContentImageGallery } from "@/features/content/content-image-gallery";
 import {
+  resolveBackendEmbedMediaBlockFromUrl,
   resolveEmbedMediaBlockFromUrl,
-  resolveFirstContentMediaBlock,
+  resolveFirstContentMediaPreviewBlock,
 } from "@/features/content/content-media";
 import { getMarkdownPlainTextSummary } from "@/features/content/markdown-summary";
+import { createWhitelistedMediaEmbedFromResolvedContentEmbed } from "@/features/content/media-embed";
 import { canAccessCommunityManagement } from "@/features/community/permissions";
 import { MediaEmbedPlayer } from "@/features/content/media-embed-player";
+import { useContentEmbedResolveQuery } from "@/features/content/queries";
 import { DisabledMessageShareAction } from "@/features/message/disabled-share-action";
 import { createMessageShareSnapshot } from "@/features/message/share";
 import { ModerationQuickActions } from "@/features/moderation/moderation-quick-actions";
+import { ContentEffectMenu } from "@/features/effect/content-effect-menu";
+import { ContentEffectSummary } from "@/features/effect/content-effect-summary";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +42,7 @@ import {
   type PostAuthorFallback,
   type PostCommunityFallback,
 } from "./post-attribution";
+import { PostPinnedNotice } from "./post-pinned-notice";
 import { PostSaveButton } from "./post-save-button";
 import type { Post } from "./types";
 
@@ -69,9 +75,25 @@ export function RedditPostListItem({
   );
   const postHref = `/posts/${post.id}`;
   const mediaBlock = getPostMediaBlock(post);
-  const linkPreview = mediaBlock ? null : getPostLinkPreview(post);
+  const backendEmbedUrl =
+    mediaBlock?.kind === "backend-embed" ? mediaBlock.url : "";
+  const backendEmbedQuery = useContentEmbedResolveQuery(
+    backendEmbedUrl,
+    Boolean(backendEmbedUrl),
+  );
+  const backendEmbed = createWhitelistedMediaEmbedFromResolvedContentEmbed(
+    backendEmbedQuery.data?.embed,
+  );
+  const linkPreview =
+    !mediaBlock ||
+    (mediaBlock.kind === "backend-embed" &&
+      !backendEmbed &&
+      !backendEmbedQuery.isPending)
+      ? getPostLinkPreview(post)
+      : null;
   const excerpt = getPostExcerpt(post);
   const currentUserQuery = useCurrentUserQuery();
+  const isAuthenticated = Boolean(currentUserQuery.data?.id);
   const platformRole = resolvePlatformRole(currentUserQuery.data);
   const communitySlug =
     post.community?.slug?.trim() || post.community_slug?.trim() || null;
@@ -120,13 +142,17 @@ export function RedditPostListItem({
   return (
     <article
       className={cn(
-        "group flex min-w-0 gap-0 overflow-hidden rounded-lg bg-surface transition-colors hover:bg-surface-hover",
+        "group flex min-w-0 gap-0 overflow-hidden rounded-lg transition-colors",
+        post.is_pinned
+          ? "bg-surface-raised ring-1 ring-primary/25 hover:bg-surface-raised"
+          : "bg-surface hover:bg-surface-hover",
         className,
       )}
     >
       <div
         className={cn(
           "flex w-10 shrink-0 flex-col items-center bg-background-soft pt-3 transition-colors sm:w-11",
+          post.is_pinned && "bg-primary/10",
           post.my_vote === 1 && "bg-primary/10",
           post.my_vote === -1 && "bg-destructive/10",
         )}
@@ -141,22 +167,25 @@ export function RedditPostListItem({
         />
       </div>
 
-      <PostPreviewAttribution
-        authorFallback={authorFallback}
-        className="min-w-0 flex-1 px-2 py-3 sm:px-3"
-        communityFallback={communityFallback}
-        post={post}
-        showCommunity={showCommunity}
-      >
-        <h2 className="mt-1 min-w-0 text-base font-semibold leading-6 tracking-normal text-foreground sm:text-lg">
-          <Link
-            href={postHref}
-            onClick={rememberSource}
-            className="break-words hover:text-primary"
-          >
-            {post.title}
-          </Link>
-        </h2>
+      <div className="min-w-0 flex-1">
+        {post.is_pinned ? <PostPinnedNotice /> : null}
+
+        <PostPreviewAttribution
+          authorFallback={authorFallback}
+          className="min-w-0 px-2 py-3 sm:px-3"
+          communityFallback={communityFallback}
+          post={post}
+          showCommunity={showCommunity}
+        >
+          <h2 className="mt-1 min-w-0 text-base font-semibold leading-6 tracking-normal text-foreground sm:text-lg">
+            <Link
+              href={postHref}
+              onClick={rememberSource}
+              className="break-words hover:text-primary"
+            >
+              {post.title}
+            </Link>
+          </h2>
 
         {mediaBlock?.kind === "image-gallery" ? (
           <div className="mt-3">
@@ -171,6 +200,15 @@ export function RedditPostListItem({
         ) : mediaBlock?.kind === "embed" ? (
           <div className="mt-3 max-w-[640px]">
             <MediaEmbedPlayer embed={mediaBlock.embed} />
+          </div>
+        ) : mediaBlock?.kind === "backend-embed" && backendEmbed ? (
+          <div className="mt-3 max-w-[640px]">
+            <MediaEmbedPlayer embed={backendEmbed} />
+          </div>
+        ) : mediaBlock?.kind === "backend-embed" &&
+          backendEmbedQuery.isPending ? (
+          <div className="mt-3 max-w-[320px] rounded-md bg-surface-raised px-3 py-4 text-sm text-muted-foreground">
+            正在解析抖音预览...
           </div>
         ) : linkPreview ? (
           <div className="mt-3 space-y-2">
@@ -195,57 +233,67 @@ export function RedditPostListItem({
           </Link>
         ) : null}
 
-        <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-          <PostActionLink href={postHref} onClick={rememberSource}>
-            <MessageSquare className="size-3.5" aria-hidden="true" />
-            {post.comment_count ?? 0} 条评论
-          </PostActionLink>
-          <button
-            type="button"
-            className="inline-flex h-7 items-center gap-1.5 px-1 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            onClick={copyPostLink}
-          >
-            <Share2 className="size-3.5" aria-hidden="true" />
-            {shareState === "copied"
-              ? "已复制"
-              : shareState === "failed"
-                ? "复制失败"
-                : "分享"}
-          </button>
-          <DisabledMessageShareAction label="发送给好友" share={messageShare} />
-          <PostSaveButton
-            className="h-7 text-xs"
-            isSaved={post.is_saved}
-            postId={post.id}
-            saveCount={post.save_count}
-          />
-          {communityManageHref ? (
-            <PostActionLink href={communityManageHref} onClick={() => undefined}>
-              <ShieldCheck className="size-3.5" aria-hidden="true" />
-              管理社区
+          <ContentEffectSummary effects={post.effects} />
+
+          <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+            <PostActionLink href={postHref} onClick={rememberSource}>
+              <MessageSquare className="size-3.5" aria-hidden="true" />
+              {post.comment_count ?? 0} 条评论
             </PostActionLink>
-          ) : null}
-          {communityManageHref && communitySlug ? (
-            <ModerationQuickActions
-              canRemove={post.status !== "removed"}
-              communityManageHref={communityManageHref}
-              communitySlug={communitySlug}
+            <ContentEffectMenu
+              className="h-7 text-xs"
+              isAuthenticated={isAuthenticated}
+              postId={post.id}
               targetId={post.id}
-              targetAuthorId={post.author_id}
-              targetLabel={post.title}
-              targetStatus={post.status}
-              targetState={{
-                flairText: post.flair_text,
-                isLocked: post.is_locked,
-                isNsfw: post.is_nsfw,
-                isPinned: post.is_pinned,
-                isSpoiler: post.is_spoiler,
-              }}
               targetType="post"
             />
-          ) : null}
-        </div>
-      </PostPreviewAttribution>
+            <button
+              type="button"
+              className="inline-flex h-7 items-center gap-1.5 px-1 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              onClick={copyPostLink}
+            >
+              <Share2 className="size-3.5" aria-hidden="true" />
+              {shareState === "copied"
+                ? "已复制"
+                : shareState === "failed"
+                  ? "复制失败"
+                  : "分享"}
+            </button>
+            <DisabledMessageShareAction label="发送给好友" share={messageShare} />
+            <PostSaveButton
+              className="h-7 text-xs"
+              isSaved={post.is_saved}
+              postId={post.id}
+              saveCount={post.save_count}
+            />
+            {communityManageHref ? (
+              <PostActionLink href={communityManageHref} onClick={() => undefined}>
+                <ShieldCheck className="size-3.5" aria-hidden="true" />
+                管理社区
+              </PostActionLink>
+            ) : null}
+            {communityManageHref && communitySlug ? (
+              <ModerationQuickActions
+                canRemove={post.status !== "removed"}
+                communityManageHref={communityManageHref}
+                communitySlug={communitySlug}
+                targetId={post.id}
+                targetAuthorId={post.author_id}
+                targetLabel={post.title}
+                targetStatus={post.status}
+                targetState={{
+                  flairText: post.flair_text,
+                  isLocked: post.is_locked,
+                  isNsfw: post.is_nsfw,
+                  isPinned: post.is_pinned,
+                  isSpoiler: post.is_spoiler,
+                }}
+                targetType="post"
+              />
+            ) : null}
+          </div>
+        </PostPreviewAttribution>
+      </div>
     </article>
   );
 }
@@ -306,7 +354,7 @@ function getPostExcerpt(post: Post) {
 }
 
 function getPostMediaBlock(post: Post) {
-  const bodyMediaBlock = resolveFirstContentMediaBlock({
+  const bodyMediaBlock = resolveFirstContentMediaPreviewBlock({
     attachments: post.attachments,
     markdown: post.body,
   });
@@ -315,12 +363,16 @@ function getPostMediaBlock(post: Post) {
     return bodyMediaBlock;
   }
 
-  const excerptMediaBlock = resolveFirstContentMediaBlock({
+  const excerptMediaBlock = resolveFirstContentMediaPreviewBlock({
     attachments: post.attachments,
     markdown: post.body_excerpt,
   });
 
-  return excerptMediaBlock ?? resolveEmbedMediaBlockFromUrl(getPostPreviewUrl(post));
+  return (
+    excerptMediaBlock ??
+    resolveEmbedMediaBlockFromUrl(getPostPreviewUrl(post)) ??
+    resolveBackendEmbedMediaBlockFromUrl(getPostPreviewUrl(post))
+  );
 }
 
 function getPostLinkPreview(post: Post) {

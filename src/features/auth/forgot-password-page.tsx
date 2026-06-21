@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import Link from "next/link";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
@@ -14,6 +13,7 @@ import { TextAction } from "@/components/ui/text-action";
 import { cn } from "@/lib/utils";
 
 import { resetPassword, sendPasswordResetCode } from "./api";
+import { AuthPageShell } from "./auth-page-shell";
 import { getAuthSubmitError } from "./auth-error";
 import { EmailCodeField } from "./email-code-field";
 import { passwordResetSchema } from "./schemas";
@@ -22,40 +22,23 @@ type ForgotPasswordValues = z.infer<typeof passwordResetSchema>;
 
 export function ForgotPasswordPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 py-6 sm:px-6">
-        <header className="flex items-center justify-between border-b border-border pb-4">
-          <Link
-            href="/"
-            className="group flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            <span className="flex size-9 items-center justify-center border border-border bg-surface text-sm font-semibold text-primary">
-              CN
-            </span>
-            <span className="text-sm font-semibold tracking-normal">CUMT Nexus</span>
-          </Link>
-          <TextAction href="/login" tone="primary">
-            去登录
-          </TextAction>
-        </header>
-
-        <div className="grid flex-1 items-center py-8">
-          <section className="min-w-0">
-            <p className="font-mono text-xs text-primary">账号恢复</p>
-            <h1 className="mt-3 text-2xl font-semibold leading-8 tracking-normal">
-              找回密码
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              通过已验证的矿大邮箱接收验证码，并设置新的登录密码。
-            </p>
-
-            <div className="mt-6">
-              <PasswordResetForm />
-            </div>
-          </section>
-        </div>
-      </div>
-    </main>
+    <AuthPageShell
+      action={
+        <TextAction href="/login" tone="primary">
+          去登录
+        </TextAction>
+      }
+      description="通过已验证的矿大邮箱接收验证码，并设置新的登录密码。"
+      eyebrow="账号恢复"
+      footer={
+        <TextAction href="/login" tone="primary" variant="bar">
+          想起密码，返回登录
+        </TextAction>
+      }
+      title="找回密码"
+    >
+      <PasswordResetForm />
+    </AuthPageShell>
   );
 }
 
@@ -98,7 +81,7 @@ function PasswordResetForm() {
 
   if (resetMutation.isSuccess) {
     return (
-      <section className="border-y border-border py-5">
+      <section className="mt-4 rounded-lg bg-surface-raised px-4 py-5">
         <p className="font-mono text-xs text-primary">已提交</p>
         <h2 className="mt-3 text-base font-semibold leading-6 tracking-normal">
           密码已更新
@@ -106,7 +89,7 @@ function PasswordResetForm() {
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           可以使用新密码重新登录。为了账号安全，后端会让旧会话在后续请求中失效。
         </p>
-        <div className="mt-4 border-t border-border pt-3">
+        <div className="mt-4 rounded-md bg-background px-3 py-3">
           <TextAction href="/login" tone="primary" variant="bar">
             返回登录
           </TextAction>
@@ -117,7 +100,7 @@ function PasswordResetForm() {
 
   return (
     <form
-      className="space-y-0 border-t border-border"
+      className="space-y-0"
       method="post"
       onChangeCapture={() => {
         if (resetMutation.error) {
@@ -153,7 +136,7 @@ function PasswordResetForm() {
         />
       ) : null}
 
-      <div className="border-b border-border py-4">
+      <div className="mt-4 rounded-md bg-surface-raised px-3 py-4">
         <label className="text-sm font-semibold text-foreground" htmlFor="reset-email">
           矿大邮箱
         </label>
@@ -165,7 +148,7 @@ function PasswordResetForm() {
             aria-invalid={Boolean(form.formState.errors.email)}
             disabled={isLocked}
             placeholder="student@cumt.edu.cn"
-            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
+            className="h-11 border-border bg-background text-base"
             {...form.register("email")}
           />
           <FieldMeta
@@ -189,7 +172,7 @@ function PasswordResetForm() {
         }}
       />
 
-      <div className="border-b border-border py-4">
+      <div className="mt-4 rounded-md bg-surface-raised px-3 py-4">
         <label className="text-sm font-semibold text-foreground" htmlFor="reset-password">
           新密码
         </label>
@@ -201,7 +184,7 @@ function PasswordResetForm() {
             aria-invalid={Boolean(form.formState.errors.new_password)}
             disabled={isLocked}
             placeholder="设置新密码"
-            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
+            className="h-11 border-border bg-background text-base"
             {...form.register("new_password")}
           />
           <FieldMeta

@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
+import { getContentEffectEmoji } from "@/features/effect/content-effect-emoji";
+import { useEffectsCatalogQuery } from "@/features/effect/queries";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -101,7 +103,7 @@ function GrowthAdminLayout({
           <AdminRailSection title="管理边界">
             <dl className="grid gap-1 rounded-md bg-surface px-3">
               <InfoRow label="头衔授予" value="平台权限" />
-              <InfoRow label="评论效果" value="启用 / 停用" />
+              <InfoRow label="内容互动" value="启用 / 停用" />
               <InfoRow label="积分调整" value="写入流水" />
             </dl>
           </AdminRailSection>
@@ -122,14 +124,14 @@ function GrowthAdminLayout({
       }
     >
       <AdminQueueToolbar
-        description="管理评论效果、平台头衔、用户头衔授予和积分流水。"
+        description="管理内容互动、平台头衔、用户头衔授予和积分流水。"
         actions={<TextAction href="/admin/reports">举报审核</TextAction>}
         title="成长工具"
       />
         <Tabs
           value={activeTab}
           onValueChange={(value) => onTabChange(value as AdminGrowthTab)}
-          className="rounded-lg bg-surface p-3 shadow-sm"
+          className="rounded-lg bg-surface px-3 py-3"
         >
           <TabsList className="h-auto flex-wrap justify-start rounded-md bg-surface-raised p-1">
             {tabs.map((item) => (
@@ -160,7 +162,7 @@ function AdminPanelHeader({
   title: string;
 }) {
   return (
-    <div className="rounded-lg bg-surface p-4 shadow-sm">
+    <div className="rounded-lg bg-surface px-4 py-4 sm:px-5">
       <StatusToken>{eyebrow}</StatusToken>
       <h2 className="mt-3 text-base font-semibold leading-6 text-foreground">
         {title}
@@ -230,9 +232,13 @@ function NativeSelect({
 
 function EffectsAdminPanel({ enabled }: { enabled: boolean }) {
   const effectsQuery = useAdminEffectsQuery({ active: "all", limit: 50 }, enabled);
+  const catalogQuery = useEffectsCatalogQuery(enabled);
   const mutation = useUpdateAdminEffectMutation();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const emojiByEffectId = new Map(
+    catalogQuery.data?.effects.map((effect) => [effect.id, effect.emoji]) ?? [],
+  );
 
   async function toggleEffect(id: string, isActive: boolean, name: string) {
     setMessage(null);
@@ -253,7 +259,7 @@ function EffectsAdminPanel({ enabled }: { enabled: boolean }) {
     return (
       <StatePanel>
         <ErrorState
-          title="无法加载评论效果"
+          title="无法加载内容互动"
           description={getErrorDescription(effectsQuery.error)}
           action={
             <Button variant="ghost" size="sm" onClick={() => effectsQuery.refetch()}>
@@ -268,28 +274,33 @@ function EffectsAdminPanel({ enabled }: { enabled: boolean }) {
   return (
     <section>
       <AdminPanelHeader
-        eyebrow="评论效果"
+        eyebrow="内容互动"
         title="启用状态"
-        description="这里只管理效果是否可购买；历史评论效果仍由后端保留展示。"
+        description="这里只管理互动是否可购买。"
       />
       <MutationAlerts message={message} error={error} />
       <div className="space-y-2">
         {effectsQuery.data.effects.map((effect) => (
           <div
             key={effect.id}
-            className="grid gap-3 rounded-md bg-surface px-3 py-4 shadow-sm transition-colors hover:bg-surface-hover sm:grid-cols-[minmax(0,1fr)_auto]"
+            className="grid gap-3 rounded-md bg-surface-raised px-3 py-4 transition-colors hover:bg-surface-hover sm:grid-cols-[minmax(0,1fr)_auto]"
           >
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
-                <Sparkles className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                <span
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-base"
+                  aria-hidden="true"
+                >
+                  {getContentEffectEmoji({
+                    emoji: effect.emoji || emojiByEffectId.get(effect.id),
+                    id: effect.id,
+                  }) || "·"}
+                </span>
                 <span className="truncate text-sm font-semibold">{effect.name}</span>
                 <StatusToken tone={effect.is_active ? "success" : "warning"}>
                   {effect.is_active ? "启用" : "停用"}
                 </StatusToken>
               </div>
-              <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
-                {effect.description || "评论特殊互动。"}
-              </p>
               <div className="mt-2 font-mono text-xs text-muted-foreground">
                 {effect.cost_points} 积分 · {effect.animation_key || "无动画键"}
               </div>
@@ -388,7 +399,7 @@ function TitlesAdminPanel({ enabled }: { enabled: boolean }) {
         description="创建和启停头衔目录。保留词、冒充权威和权限边界由后端校验。"
       />
       <MutationAlerts message={message} error={error} />
-      <div className="grid gap-4 rounded-lg bg-surface p-4 shadow-sm lg:grid-cols-[180px_minmax(0,1fr)]">
+      <div className="grid gap-4 rounded-lg bg-surface px-4 py-4 sm:px-5 lg:grid-cols-[180px_minmax(0,1fr)]">
         <div>
           <StatusToken>创建头衔</StatusToken>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -454,7 +465,7 @@ function TitlesAdminPanel({ enabled }: { enabled: boolean }) {
         {titlesQuery.data.titles.map((title) => (
           <div
             key={title.id}
-            className="grid gap-3 rounded-md bg-surface px-3 py-4 shadow-sm transition-colors hover:bg-surface-hover sm:grid-cols-[minmax(0,1fr)_auto]"
+            className="grid gap-3 rounded-md bg-surface-raised px-3 py-4 transition-colors hover:bg-surface-hover sm:grid-cols-[minmax(0,1fr)_auto]"
           >
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
@@ -570,7 +581,7 @@ function TitleGrantsAdminPanel({ enabled }: { enabled: boolean }) {
       />
       <MutationAlerts message={message} error={error} />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
-        <div className="rounded-lg bg-surface p-4 shadow-sm">
+        <div className="rounded-lg bg-surface px-4 py-4 sm:px-5">
           <h2 className="text-sm font-semibold">选择用户</h2>
           <AdminUserSearchPanel
             className="mt-3"
@@ -600,7 +611,7 @@ function TitleGrantsAdminPanel({ enabled }: { enabled: boolean }) {
           ) : null}
         </div>
 
-        <div className="min-w-0 rounded-lg bg-surface p-4 shadow-sm">
+        <div className="min-w-0 rounded-lg bg-surface px-4 py-4 sm:px-5">
           <h2 className="text-sm font-semibold">授予头衔</h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
             <div className="grid gap-2">
@@ -742,7 +753,7 @@ function PointsAdminPanel({ enabled }: { enabled: boolean }) {
         description="通过用户搜索或用户 ID 查看积分流水；手工调分必须写明原因并由后端写入审计。"
       />
       <MutationAlerts message={message} error={error} />
-      <div className="grid gap-4 rounded-lg bg-surface p-4 shadow-sm lg:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="grid gap-4 rounded-lg bg-surface px-4 py-4 sm:px-5 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div>
           <StatusToken>手工调分</StatusToken>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -823,7 +834,7 @@ function PointsAdminPanel({ enabled }: { enabled: boolean }) {
           {transactionsQuery.data.transactions.map((transaction) => (
             <div
               key={transaction.id}
-              className="grid gap-3 rounded-md bg-surface px-3 py-4 shadow-sm transition-colors hover:bg-surface-hover sm:grid-cols-[minmax(0,1fr)_auto]"
+              className="grid gap-3 rounded-md bg-surface-raised px-3 py-4 transition-colors hover:bg-surface-hover sm:grid-cols-[minmax(0,1fr)_auto]"
             >
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold">
@@ -866,7 +877,7 @@ function MutationAlerts({
   }
 
   return (
-    <div className="rounded-lg bg-surface p-4 shadow-sm">
+    <div className="rounded-lg bg-surface px-4 py-4 sm:px-5">
       {error ? (
         <Alert variant="destructive">
           <AlertTitle>操作失败</AlertTitle>
@@ -884,7 +895,7 @@ function MutationAlerts({
 }
 
 function StatePanel({ children }: { children: ReactNode }) {
-  return <div className="rounded-lg bg-surface p-4 shadow-sm">{children}</div>;
+  return <div className="rounded-lg bg-surface px-4 py-4 sm:px-5">{children}</div>;
 }
 
 function LoadingPanel() {

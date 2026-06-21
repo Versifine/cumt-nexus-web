@@ -161,7 +161,7 @@ function PasswordLoginForm({
         />
       ) : null}
 
-      <div className="border-b border-border py-4">
+      <div className="mt-4 rounded-md bg-surface-raised px-3 py-4">
         <FieldLabel htmlFor="login-identifier" title="用户名或邮箱" />
         <div className="min-w-0 space-y-2">
           <Input
@@ -170,7 +170,7 @@ function PasswordLoginForm({
             aria-invalid={Boolean(form.formState.errors.identifier)}
             disabled={isLocked}
             placeholder="用户名 / student@cumt.edu.cn"
-            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
+            className="h-11 border-border bg-background text-base font-semibold"
             {...form.register("identifier")}
           />
           <FieldMeta
@@ -180,7 +180,7 @@ function PasswordLoginForm({
         </div>
       </div>
 
-      <div className="border-b border-border py-4">
+      <div className="mt-4 rounded-md bg-surface-raised px-3 py-4">
         <div className="flex items-center justify-between gap-3">
           <FieldLabel htmlFor="login-password" title="密码" />
           <Link
@@ -198,7 +198,7 @@ function PasswordLoginForm({
             aria-invalid={Boolean(form.formState.errors.password)}
             disabled={isLocked}
             placeholder="输入密码"
-            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
+            className="h-11 border-border bg-background text-base"
             {...form.register("password")}
           />
           <FieldMeta
@@ -313,7 +313,7 @@ function EmailCodeLoginForm({
         />
       ) : null}
 
-      <div className="border-b border-border py-4">
+      <div className="mt-4 rounded-md bg-surface-raised px-3 py-4">
         <FieldLabel htmlFor="login-email" title="矿大邮箱" />
         <div className="min-w-0 space-y-2">
           <Input
@@ -323,7 +323,7 @@ function EmailCodeLoginForm({
             aria-invalid={Boolean(form.formState.errors.email)}
             disabled={isLocked}
             placeholder="student@cumt.edu.cn"
-            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
+            className="h-11 border-border bg-background text-base font-semibold"
             {...form.register("email")}
           />
           <FieldMeta

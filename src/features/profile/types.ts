@@ -36,7 +36,9 @@ export type PublicUser = {
   headline: string;
   bio: string;
   badges: string[];
+  is_platform_staff?: boolean;
   level?: UserLevelSummary | null;
+  platform_role?: string | null;
   progression?: UserLevelSummary | null;
   roles: string[];
   status: "active" | string;

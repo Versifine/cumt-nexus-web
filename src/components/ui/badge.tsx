@@ -10,7 +10,7 @@ const badgeVariants = cva(
       variant: {
         default: "bg-primary/10 text-primary",
         secondary: "bg-surface-raised text-muted-foreground",
-        outline: "bg-transparent text-foreground shadow-[inset_0_0_0_1px_var(--border)]",
+        outline: "bg-transparent text-foreground ring-1 ring-border",
         success: "bg-emerald-400/10 text-emerald-300",
         warning: "bg-amber-400/10 text-amber-300",
         destructive: "bg-destructive/10 text-destructive",

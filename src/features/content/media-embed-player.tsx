@@ -13,7 +13,7 @@ export function MediaEmbedPlayer({ embed }: MediaEmbedPlayerProps) {
     <span
       className={cn(
         "my-4 block min-w-0 overflow-hidden rounded-lg bg-background-soft p-1",
-        embed.layout === "portrait-video" && "w-full max-w-[380px]",
+        getPlayerRootClassName(embed),
         embed.layout === "music-compact" && "max-w-[520px]",
       )}
       data-media-provider={embed.provider}
@@ -50,7 +50,7 @@ export function MediaEmbedPlayer({ embed }: MediaEmbedPlayerProps) {
           loading="lazy"
           allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
           allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
+          referrerPolicy={getPlayerReferrerPolicy(embed)}
           sandbox={playerSandbox}
           className="block size-full border-0"
         />
@@ -63,7 +63,7 @@ export function createMediaEmbedPlayerElement(embed: WhitelistedMediaEmbed) {
   const root = document.createElement("span");
   root.className = cn(
     "my-4 block min-w-0 overflow-hidden rounded-lg bg-background-soft p-1",
-    embed.layout === "portrait-video" && "w-full max-w-[380px]",
+    getPlayerRootClassName(embed),
     embed.layout === "music-compact" && "max-w-[520px]",
   );
   root.dataset.mediaProvider = embed.provider;
@@ -107,7 +107,7 @@ export function createMediaEmbedPlayerElement(embed: WhitelistedMediaEmbed) {
   iframe.loading = "lazy";
   iframe.allow = "autoplay; encrypted-media; fullscreen; picture-in-picture";
   iframe.allowFullscreen = true;
-  iframe.referrerPolicy = "strict-origin-when-cross-origin";
+  iframe.referrerPolicy = getPlayerReferrerPolicy(embed);
   iframe.sandbox.add(
     "allow-scripts",
     "allow-same-origin",
@@ -122,6 +122,26 @@ export function createMediaEmbedPlayerElement(embed: WhitelistedMediaEmbed) {
   root.append(header, frame);
 
   return root;
+}
+
+function getPlayerReferrerPolicy(embed: WhitelistedMediaEmbed) {
+  if (embed.provider === "douyin") {
+    return "unsafe-url";
+  }
+
+  return "strict-origin-when-cross-origin";
+}
+
+function getPlayerRootClassName(embed: WhitelistedMediaEmbed) {
+  if (embed.provider === "douyin") {
+    return "w-[320px] max-w-full";
+  }
+
+  if (embed.layout === "portrait-video") {
+    return "w-full max-w-[380px]";
+  }
+
+  return "";
 }
 
 function getFrameClassName(embed: WhitelistedMediaEmbed) {

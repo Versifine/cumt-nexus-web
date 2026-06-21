@@ -172,10 +172,10 @@ export function AdminToolsNav({
   return (
     <ReviewDeskInspector
       title="平台工具"
-      description="按 Reddit 管理工具的使用顺序组织入口。"
+      description="按成熟社区管理工具的使用顺序组织入口。"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <StatusToken tone="primary">Admin Tools</StatusToken>
+        <StatusToken tone="primary">平台工具</StatusToken>
         <StatusToken>平台级</StatusToken>
       </div>
       <nav

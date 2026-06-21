@@ -7,7 +7,7 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card"
       className={cn(
-        "nexus-soft-transition rounded-lg bg-card text-card-foreground shadow-[inset_0_0_0_1px_var(--border)]",
+        "nexus-soft-transition rounded-lg bg-surface text-foreground",
         className,
       )}
       {...props}

@@ -210,7 +210,7 @@ const routes = [
       "CUMT Nexus",
       "负责人交接",
       "缺少交接 ID",
-      "请从 owner 发出的交接链接进入接受页",
+      "请从站点负责人发出的交接链接进入接受页",
     ],
     path: "/owner-transfer/accept",
   },

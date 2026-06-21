@@ -39,7 +39,7 @@ export function CommunityOwnerTransferInboxPage() {
 
   if (!isReady) {
     return (
-      <section className="border-b border-border py-4">
+      <section className="rounded-lg bg-surface px-4 py-5 sm:px-5">
         <LoadingState rows={4} />
       </section>
     );
@@ -47,7 +47,7 @@ export function CommunityOwnerTransferInboxPage() {
 
   if (!token) {
     return (
-      <section className="border-b border-border py-4">
+      <section className="rounded-lg bg-surface px-4 py-5 sm:px-5">
         <EmptyState
           title="登录后查看版主交接"
           description="如果某个社区把版主交接给你，这里会显示待接受请求。"
@@ -62,8 +62,8 @@ export function CommunityOwnerTransferInboxPage() {
   }
 
   return (
-    <section className="min-w-0">
-      <div className="border-b border-border py-4">
+    <section className="min-w-0 space-y-4 py-2">
+      <div className="rounded-lg bg-surface px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-center gap-2">
           <StatusToken tone="primary">待处理</StatusToken>
           <StatusToken>社区版主交接</StatusToken>
@@ -96,7 +96,7 @@ export function CommunityOwnerTransferInboxPage() {
       </div>
 
       {incomingTransfersQuery.isLoading ? (
-        <div className="border-b border-border py-5">
+        <div className="rounded-lg bg-surface px-4 py-5 sm:px-5">
           <LoadingState rows={5} />
         </div>
       ) : null}
@@ -128,7 +128,7 @@ export function CommunityOwnerTransferInboxPage() {
       ) : null}
 
       {transfers.length > 0 ? (
-        <div className="divide-y divide-border border-b border-border">
+        <div className="space-y-2">
           {transfers.map((transfer, index) => (
             <IncomingTransferRow
               key={transfer.id}
@@ -139,7 +139,7 @@ export function CommunityOwnerTransferInboxPage() {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface px-4 py-4 sm:px-5">
         <div className="text-sm text-muted-foreground">
           第 {offset + 1} - {offset + transfers.length} 项
         </div>
@@ -185,7 +185,7 @@ function IncomingTransferRow({
   return (
     <Link
       href={acceptHref}
-      className="group grid min-w-0 gap-3 py-4 text-sm transition-colors hover:bg-muted/30 sm:grid-cols-[48px_minmax(0,1fr)_auto]"
+      className="group grid min-w-0 gap-3 rounded-lg bg-surface px-4 py-4 text-sm transition-colors hover:bg-surface-hover sm:grid-cols-[48px_minmax(0,1fr)_auto] sm:px-5"
     >
       <div className="font-mono text-xs text-primary">
         {String(index).padStart(2, "0")}
@@ -201,7 +201,7 @@ function IncomingTransferRow({
         <p className="mt-2 break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
           /{community.slug} 的当前版主发起了交接，请打开详情确认目标账号与交接状态。
         </p>
-        <div className="mt-3 grid grid-cols-1 border-y border-border sm:grid-cols-3">
+        <div className="mt-3 grid grid-cols-1 rounded-md bg-surface-raised sm:grid-cols-3">
           <InfoRow label="发起人" value={formatUserLabel(transfer, "from")} wrap />
           <InfoRow label="目标账号" value={formatUserLabel(transfer, "to")} wrap />
           <InfoRow label="过期时间" value={formatDateTime(transfer.expires_at)} wrap />

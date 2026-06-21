@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  Extension,
   InputRule,
   mergeAttributes,
   Mark,
@@ -21,7 +22,13 @@ import {
 import Image, { type ImageOptions } from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import { Fragment, type Node as ProseMirrorNode } from "@tiptap/pm/model";
+import {
+  Fragment,
+  type Node as ProseMirrorNode,
+  type NodeType,
+} from "@tiptap/pm/model";
+import { Plugin } from "@tiptap/pm/state";
+import type { ViewMutationRecord } from "@tiptap/pm/view";
 import { Table } from "@tiptap/extension-table";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
@@ -95,7 +102,13 @@ import {
 } from "@/features/content/attachment-markdown";
 import { ContentImageGallery } from "@/features/content/content-image-gallery";
 import { normalizeMarkdownHref } from "@/features/content/markdown-url";
-import { resolveWhitelistedMediaEmbed } from "@/features/content/media-embed";
+import { resolveContentEmbed } from "@/features/content/api";
+import {
+  createWhitelistedMediaEmbedFromResolvedContentEmbed,
+  isBackendResolvableMediaEmbedUrl,
+  resolveWhitelistedMediaEmbed,
+  type WhitelistedMediaEmbed,
+} from "@/features/content/media-embed";
 import { createMediaEmbedPlayerElement } from "@/features/content/media-embed-player";
 import {
   getUploadError,
@@ -138,6 +151,26 @@ type AttachmentImageOptions = ImageOptions & {
 type AttachmentGalleryOptions = {
   getAttachmentById: (id: string) => MediaAttachment | null;
 };
+type MathMarkdownReplacement = {
+  from: number;
+  node: ProseMirrorNode;
+  to: number;
+};
+type TopLevelEditorNode = {
+  from: number;
+  node: ProseMirrorNode;
+  to: number;
+};
+
+type EditorMediaEmbedReplacement = {
+  afterText: string;
+  beforeText: string;
+  from: number;
+  originalUrl: string;
+  to: number;
+};
+
+const editorBareUrlPattern = /\bhttps?:\/\/[^\s<>"'`]+/gi;
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -236,7 +269,9 @@ const InlineMathNode = TiptapNode.create({
   },
 
   renderMarkdown(node) {
-    return `$${getMathJsonValue(node)}$`;
+    const value = getMathJsonValue(node);
+
+    return value ? `$${value}$` : "";
   },
 
   addInputRules() {
@@ -324,40 +359,58 @@ const BlockMathNode = TiptapNode.create({
   },
 
   renderMarkdown(node) {
-    return `$$\n${getMathJsonValue(node)}\n$$`;
-  },
+    const value = getMathJsonValue(node);
 
-  addInputRules() {
-    return [
-      new InputRule({
-        find: /^\s*\$\$$/,
-        handler: ({ match, state }) => {
-          const $from = state.selection.$from;
-
-          if (
-            match[0].trim() !== "$$" ||
-            !$from.parent.isTextblock ||
-            $from.parent.textContent.trim() !== "$$"
-          ) {
-            return null;
-          }
-
-          state.tr
-            .replaceWith(
-              $from.before($from.depth),
-              $from.after($from.depth),
-              this.type.create({ value: "" }),
-            )
-            .scrollIntoView();
-
-          return null;
-        },
-      }),
-    ];
+    return value ? `$$\n${value}\n$$` : "";
   },
 
   addNodeView() {
     return createMathEditorNodeView(true);
+  },
+});
+
+const MathMarkdownSyncExtension = Extension.create({
+  name: "mathMarkdownSync",
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        appendTransaction(transactions, _oldState, newState) {
+          if (
+            !transactions.some((transaction) => transaction.docChanged) ||
+            transactions.some((transaction) =>
+              transaction.getMeta("mathMarkdownSync"),
+            )
+          ) {
+            return null;
+          }
+
+          const replacements = collectMarkdownMathReplacements(newState.doc, {
+            inlineMath: newState.schema.nodes.inlineMath,
+            math: newState.schema.nodes.math,
+          });
+
+          if (replacements.length === 0) {
+            return null;
+          }
+
+          const transaction = newState.tr;
+
+          for (const replacement of [...replacements].sort(
+            (first, second) => second.from - first.from,
+          )) {
+            transaction.replaceWith(
+              replacement.from,
+              replacement.to,
+              replacement.node,
+            );
+          }
+
+          transaction.setMeta("mathMarkdownSync", true);
+          return transaction.docChanged ? transaction : null;
+        },
+      }),
+    ];
   },
 });
 
@@ -638,12 +691,26 @@ const MediaEmbedNode = TiptapNode.create({
         typeof node.attrs.originalUrl === "string" ? node.attrs.originalUrl : "";
       const embed = resolveWhitelistedMediaEmbed(originalUrl);
       const dom = document.createElement("div");
+      let isDestroyed = false;
 
       dom.className = "my-4 block rounded-lg outline-offset-2";
       dom.setAttribute("data-media-editor-node", "true");
 
       if (embed) {
         dom.append(createMediaEmbedPlayerElement(embed));
+      } else if (isBackendResolvableEditorMediaEmbedUrl(originalUrl)) {
+        dom.append(createMediaResolvingBlock(originalUrl));
+        void resolveEditorMediaEmbed(originalUrl).then((resolvedEmbed) => {
+          if (isDestroyed) {
+            return;
+          }
+
+          dom.replaceChildren(
+            resolvedEmbed
+              ? createMediaEmbedPlayerElement(resolvedEmbed)
+              : createMediaFallbackLink(originalUrl),
+          );
+        });
       } else {
         dom.append(createMediaFallbackLink(originalUrl));
       }
@@ -651,6 +718,9 @@ const MediaEmbedNode = TiptapNode.create({
       return {
         deselectNode() {
           dom.style.boxShadow = "";
+        },
+        destroy() {
+          isDestroyed = true;
         },
         dom,
         selectNode() {
@@ -660,6 +730,11 @@ const MediaEmbedNode = TiptapNode.create({
     };
   },
 });
+
+const editorMediaEmbedResolveCache = new Map<
+  string,
+  Promise<WhitelistedMediaEmbed | null>
+>();
 
 function AttachmentImageEditorView({
   editor,
@@ -1074,6 +1149,7 @@ export function MarkdownComposerField({
       MediaEmbedNode,
       InlineMathNode,
       BlockMathNode,
+      MathMarkdownSyncExtension,
       Table.configure({
         resizable: false,
       }),
@@ -1900,6 +1976,7 @@ function RichMarkdownToolbar({
         "\n",
       );
       const formula = selectedText.trim();
+
       const content =
         formulaKind === "block"
           ? {
@@ -2318,32 +2395,150 @@ function ToolbarButton({
 function createMathEditorNodeView(displayMode: boolean) {
   return ({ editor, getPos, node }: NodeViewRendererProps) => {
     let currentNode = node;
+    let currentValue = getMathNodeValue(node);
+    let isEditing = currentValue.trim().length === 0;
+    let focusFrame: number | null = null;
     const dom = document.createElement(displayMode ? "div" : "span");
+    const previewButton = document.createElement("button");
+    const previewContent = document.createElement(displayMode ? "div" : "span");
+    const control = document.createElement(
+      displayMode ? "textarea" : "input",
+    ) as HTMLInputElement | HTMLTextAreaElement;
 
     dom.contentEditable = "false";
     dom.dataset.mathNode = displayMode ? "block" : "inline";
     dom.className = displayMode
       ? "my-4 block max-w-full overflow-x-auto rounded-md border border-border bg-background-soft px-3 py-3 text-foreground"
-      : "mx-0.5 inline-block rounded-sm border border-transparent bg-primary-muted/60 px-1 align-baseline text-foreground";
+      : "mx-0.5 inline-flex max-w-full items-center rounded-sm border border-transparent bg-primary-muted/60 px-1 align-baseline text-foreground focus-within:border-primary/50 focus-within:bg-surface-raised";
+
+    previewButton.type = "button";
+    previewButton.className = displayMode
+      ? "block w-full min-w-0 rounded text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      : "inline-flex min-h-6 max-w-full items-center rounded-sm px-0.5 align-baseline transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+    previewButton.setAttribute(
+      "aria-label",
+      displayMode ? "编辑独立公式" : "编辑行内公式",
+    );
+    previewContent.className = displayMode
+      ? "block max-w-full overflow-x-auto py-1"
+      : "inline-block max-w-full overflow-x-auto align-baseline";
+
+    if (control instanceof HTMLInputElement) {
+      control.type = "text";
+    } else {
+      control.rows = 2;
+      control.spellcheck = false;
+    }
+
+    control.autocomplete = "off";
+    control.autocapitalize = "off";
+    control.spellcheck = false;
+    control.placeholder = displayMode
+      ? "输入独立公式，例如 E = mc^2"
+      : "输入公式";
+    control.setAttribute(
+      "aria-label",
+      displayMode ? "独立公式内容" : "行内公式内容",
+    );
+    control.className = displayMode
+      ? "mt-2 min-h-20 w-full resize-y rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+      : "h-7 min-w-24 rounded-sm border border-primary/30 bg-surface px-2 font-mono text-sm leading-6 text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/30";
 
     const render = () => {
-      const value = getMathNodeValue(currentNode);
+      dom.dataset.value = currentValue;
 
-      dom.dataset.value = value;
-      renderKatexIntoElement(dom, value, displayMode);
+      if (control.value !== currentValue) {
+        control.value = currentValue;
+      }
+
+      renderKatexIntoElement(previewContent, currentValue, displayMode);
+      syncMathEditorControlSize(control);
+      syncMathEditorEditingState({
+        control,
+        displayMode,
+        dom,
+        isEditing,
+        previewButton,
+        value: currentValue,
+      });
     };
 
-    const handleDoubleClick = (event: Event) => {
+    const focusControl = (selectText = false) => {
       if (!editor.isEditable) {
         return;
       }
 
-      event.preventDefault();
-      const nextValue = window.prompt("编辑公式", getMathNodeValue(currentNode));
+      if (focusFrame !== null) {
+        window.cancelAnimationFrame(focusFrame);
+      }
 
-      if (nextValue === null) {
+      focusFrame = window.requestAnimationFrame(() => {
+        focusFrame = null;
+
+        if (editor.isDestroyed) {
+          return;
+        }
+
+        control.focus();
+
+        if (selectText && typeof control.select === "function") {
+          control.select();
+          return;
+        }
+
+        const cursorPosition = control.value.length;
+        control.setSelectionRange(cursorPosition, cursorPosition);
+      });
+    };
+
+    const setEditing = (nextIsEditing: boolean, selectText = false) => {
+      isEditing = nextIsEditing;
+      syncMathEditorEditingState({
+        control,
+        displayMode,
+        dom,
+        isEditing,
+        previewButton,
+        value: currentValue,
+      });
+
+      if (isEditing) {
+        focusControl(selectText);
+      }
+    };
+
+    const deleteMathNode = () => {
+      if (!editor.isEditable) {
+        return false;
+      }
+
+      const position = getNodeViewPosition(getPos);
+
+      if (position === null) {
+        return false;
+      }
+
+      editor
+        .chain()
+        .focus()
+        .deleteRange({
+          from: position,
+          to: position + currentNode.nodeSize,
+        })
+        .setTextSelection(clampEditorInsertionPosition(editor, position))
+        .run();
+
+      return true;
+    };
+
+    const updateMathValue = (nextValue: string) => {
+      if (!editor.isEditable || nextValue === currentValue) {
         return;
       }
+
+      currentValue = nextValue;
+      renderKatexIntoElement(previewContent, currentValue, displayMode);
+      syncMathEditorControlSize(control);
 
       const position = getNodeViewPosition(getPos);
 
@@ -2354,25 +2549,153 @@ function createMathEditorNodeView(displayMode: boolean) {
       editor.view.dispatch(
         editor.state.tr
           .setNodeMarkup(position, undefined, {
-            value: nextValue.trim(),
+            ...currentNode.attrs,
+            value: nextValue,
           })
           .scrollIntoView(),
       );
     };
 
-    dom.addEventListener("dblclick", handleDoubleClick);
+    const handlePreviewClick = (event: Event) => {
+      if (!editor.isEditable) {
+        return;
+      }
+
+      event.preventDefault();
+      setEditing(true);
+    };
+
+    const handleControlInput = () => {
+      if (!control.value && currentValue) {
+        deleteMathNode();
+        return;
+      }
+
+      updateMathValue(control.value);
+    };
+
+    const handleControlFocus = () => {
+      isEditing = true;
+      syncMathEditorEditingState({
+        control,
+        displayMode,
+        dom,
+        isEditing,
+        previewButton,
+        value: currentValue,
+      });
+    };
+
+    const handleControlBlur = () => {
+      const trimmedValue = control.value.trim();
+
+      if (!trimmedValue) {
+        deleteMathNode();
+        return;
+      }
+
+      if (trimmedValue !== control.value) {
+        control.value = trimmedValue;
+        updateMathValue(trimmedValue);
+      }
+
+      setEditing(false);
+    };
+
+    const handleControlKeyDown = (event: Event) => {
+      if (!(event instanceof KeyboardEvent)) {
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+
+        if (!control.value.trim()) {
+          deleteMathNode();
+          return;
+        }
+
+        control.blur();
+        editor.commands.focus();
+        return;
+      }
+
+      if (
+        (event.key === "Backspace" || event.key === "Delete") &&
+        !control.value
+      ) {
+        event.preventDefault();
+        deleteMathNode();
+        return;
+      }
+
+      if (!displayMode && event.key === "Enter") {
+        event.preventDefault();
+        control.blur();
+        editor.commands.focus();
+        return;
+      }
+
+      if (
+        displayMode &&
+        event.key === "Enter" &&
+        (event.metaKey || event.ctrlKey)
+      ) {
+        event.preventDefault();
+        control.blur();
+        editor.commands.focus();
+      }
+    };
+
+    previewButton.append(previewContent);
+    dom.append(previewButton, control);
+    previewButton.addEventListener("click", handlePreviewClick);
+    control.addEventListener("input", handleControlInput);
+    control.addEventListener("blur", handleControlBlur);
+    control.addEventListener("focus", handleControlFocus);
+    control.addEventListener("keydown", handleControlKeyDown);
     render();
+
+    if (isEditing) {
+      focusControl();
+    }
 
     return {
       deselectNode() {
         dom.style.boxShadow = "";
       },
       destroy() {
-        dom.removeEventListener("dblclick", handleDoubleClick);
+        if (focusFrame !== null) {
+          window.cancelAnimationFrame(focusFrame);
+        }
+
+        previewButton.removeEventListener("click", handlePreviewClick);
+        control.removeEventListener("input", handleControlInput);
+        control.removeEventListener("blur", handleControlBlur);
+        control.removeEventListener("focus", handleControlFocus);
+        control.removeEventListener("keydown", handleControlKeyDown);
       },
       dom,
+      ignoreMutation(mutation: ViewMutationRecord) {
+        return (
+          previewContent.contains(mutation.target) ||
+          control.contains(mutation.target)
+        );
+      },
       selectNode() {
         dom.style.boxShadow = "inset 0 0 0 2px var(--primary)";
+
+        if (editor.isEditable) {
+          setEditing(true);
+        }
+      },
+      stopEvent(event: Event) {
+        const target = event.target;
+
+        return (
+          target instanceof Node &&
+          (previewButton.contains(target) || control.contains(target))
+        );
       },
       update(updatedNode: ProseMirrorNode) {
         if (updatedNode.type !== currentNode.type) {
@@ -2380,11 +2703,57 @@ function createMathEditorNodeView(displayMode: boolean) {
         }
 
         currentNode = updatedNode;
+        currentValue = getMathNodeValue(updatedNode);
         render();
         return true;
       },
     };
   };
+}
+
+function syncMathEditorEditingState({
+  control,
+  displayMode,
+  dom,
+  isEditing,
+  previewButton,
+  value,
+}: {
+  control: HTMLInputElement | HTMLTextAreaElement;
+  displayMode: boolean;
+  dom: HTMLElement;
+  isEditing: boolean;
+  previewButton: HTMLButtonElement;
+  value: string;
+}) {
+  dom.dataset.editing = isEditing ? "true" : "false";
+  previewButton.hidden = !displayMode && isEditing;
+  control.hidden = !isEditing;
+
+  if (displayMode) {
+    previewButton.setAttribute(
+      "aria-label",
+      isEditing ? "公式预览" : "编辑独立公式",
+    );
+  }
+
+  if (!value.trim()) {
+    dom.dataset.empty = "true";
+  } else {
+    delete dom.dataset.empty;
+  }
+}
+
+function syncMathEditorControlSize(
+  control: HTMLInputElement | HTMLTextAreaElement,
+) {
+  if (control instanceof HTMLInputElement) {
+    control.style.width = `${Math.max(control.value.length + 2, 8)}ch`;
+    return;
+  }
+
+  control.style.height = "auto";
+  control.style.height = `${Math.max(control.scrollHeight, 80)}px`;
 }
 
 function renderKatexIntoElement(
@@ -2408,6 +2777,217 @@ function renderKatexIntoElement(
   } catch {
     element.textContent = value;
   }
+}
+
+function collectMarkdownMathReplacements(
+  doc: ProseMirrorNode,
+  nodeTypes: {
+    inlineMath?: NodeType;
+    math?: NodeType;
+  },
+) {
+  const blockReplacements = collectBlockMathMarkdownReplacements(
+    doc,
+    nodeTypes.math,
+  );
+  const inlineReplacements = collectInlineMathMarkdownReplacements(
+    doc,
+    nodeTypes.inlineMath,
+    blockReplacements,
+  );
+
+  return [...blockReplacements, ...inlineReplacements];
+}
+
+function collectBlockMathMarkdownReplacements(
+  doc: ProseMirrorNode,
+  mathType?: NodeType,
+): MathMarkdownReplacement[] {
+  if (!mathType) {
+    return [];
+  }
+
+  const topLevelNodes: TopLevelEditorNode[] = [];
+  const replacements: MathMarkdownReplacement[] = [];
+
+  doc.forEach((node, offset) => {
+    topLevelNodes.push({
+      from: offset,
+      node,
+      to: offset + node.nodeSize,
+    });
+  });
+
+  for (let index = 0; index < topLevelNodes.length; index += 1) {
+    const current = topLevelNodes[index];
+    const singleParagraphValue = getSingleParagraphBlockMathValue(
+      current.node,
+    );
+
+    if (singleParagraphValue !== null) {
+      replacements.push({
+        from: current.from,
+        node: mathType.create({ value: singleParagraphValue }),
+        to: current.to,
+      });
+      continue;
+    }
+
+    if (!isBlockMathFenceParagraph(current.node)) {
+      continue;
+    }
+
+    for (
+      let closingIndex = index + 1;
+      closingIndex < topLevelNodes.length;
+      closingIndex += 1
+    ) {
+      const closingCandidate = topLevelNodes[closingIndex];
+
+      if (isBlockMathFenceParagraph(closingCandidate.node)) {
+        const formulaLines = topLevelNodes
+          .slice(index + 1, closingIndex)
+          .map((item) => item.node.textContent);
+
+        replacements.push({
+          from: current.from,
+          node: mathType.create({ value: formulaLines.join("\n").trim() }),
+          to: closingCandidate.to,
+        });
+        index = closingIndex;
+        break;
+      }
+
+      if (!canReadNodeAsBlockMathLine(closingCandidate.node)) {
+        break;
+      }
+    }
+  }
+
+  return replacements;
+}
+
+function collectInlineMathMarkdownReplacements(
+  doc: ProseMirrorNode,
+  inlineMathType: NodeType | undefined,
+  blockReplacements: MathMarkdownReplacement[],
+): MathMarkdownReplacement[] {
+  if (!inlineMathType) {
+    return [];
+  }
+
+  const replacements: MathMarkdownReplacement[] = [];
+
+  doc.descendants((node, position, parent) => {
+    if (node.type.name === "codeBlock") {
+      return false;
+    }
+
+    if (!node.isText || typeof node.text !== "string") {
+      return true;
+    }
+
+    if (
+      parent?.type.name === "codeBlock" ||
+      isPositionInsideMathBlockReplacement(position, blockReplacements) ||
+      node.marks.some((mark) => mark.type.name === "code" || mark.type.name === "link")
+    ) {
+      return false;
+    }
+
+    for (const match of findInlineMathSourceRanges(node.text)) {
+      replacements.push({
+        from: position + match.from,
+        node: inlineMathType.create({ value: match.value }),
+        to: position + match.to,
+      });
+    }
+
+    return false;
+  });
+
+  return replacements;
+}
+
+function getSingleParagraphBlockMathValue(node: ProseMirrorNode) {
+  if (!canReadNodeAsBlockMathLine(node)) {
+    return null;
+  }
+
+  const text = node.textContent.trim();
+
+  if (!text.startsWith("$$") || !text.endsWith("$$") || text.length <= 4) {
+    return null;
+  }
+
+  const value = text.slice(2, -2).trim();
+
+  return value ? value : null;
+}
+
+function isBlockMathFenceParagraph(node: ProseMirrorNode) {
+  return canReadNodeAsBlockMathLine(node) && node.textContent.trim() === "$$";
+}
+
+function canReadNodeAsBlockMathLine(node: ProseMirrorNode) {
+  return node.type.name === "paragraph";
+}
+
+function isPositionInsideMathBlockReplacement(
+  position: number,
+  blockReplacements: MathMarkdownReplacement[],
+) {
+  return blockReplacements.some(
+    (replacement) => position >= replacement.from && position < replacement.to,
+  );
+}
+
+function findInlineMathSourceRanges(value: string) {
+  const ranges: Array<{ from: number; to: number; value: string }> = [];
+
+  for (let index = 0; index < value.length; index += 1) {
+    if (
+      value[index] !== "$" ||
+      value[index + 1] === "$" ||
+      isEscapedDelimiter(value, index)
+    ) {
+      continue;
+    }
+
+    const closingIndex = findClosingDollar(value, index + 1);
+
+    if (closingIndex <= index + 1) {
+      continue;
+    }
+
+    const formula = value.slice(index + 1, closingIndex);
+
+    if (!isInlineMathSourceValue(value, formula, closingIndex)) {
+      continue;
+    }
+
+    ranges.push({
+      from: index,
+      to: closingIndex + 1,
+      value: formula,
+    });
+    index = closingIndex;
+  }
+
+  return ranges;
+}
+
+function isInlineMathSourceValue(
+  source: string,
+  value: string,
+  closingIndex: number,
+) {
+  return (
+    value.trim() === value &&
+    value.length > 0 &&
+    !value.includes("\n") &&
+    !/\d/.test(source[closingIndex + 1] ?? "")
+  );
 }
 
 function createInlineMathTokenizer(): MarkdownTokenizer {
@@ -2916,6 +3496,79 @@ function createMediaFallbackLink(originalUrl: string) {
   return link;
 }
 
+function createMediaResolvingBlock(originalUrl: string) {
+  const block = document.createElement("span");
+
+  block.className =
+    "block rounded-md bg-background-soft px-3 py-3 text-sm text-muted-foreground ring-1 ring-border/60";
+  block.textContent = isBackendResolvableEditorMediaEmbedUrl(originalUrl)
+    ? "正在解析抖音嵌入..."
+    : originalUrl;
+
+  return block;
+}
+
+function resolveEditorMediaEmbed(originalUrl: string) {
+  const localEmbed = resolveWhitelistedMediaEmbed(originalUrl);
+
+  if (localEmbed) {
+    return Promise.resolve(localEmbed);
+  }
+
+  if (!isBackendResolvableEditorMediaEmbedUrl(originalUrl)) {
+    return Promise.resolve(null);
+  }
+
+  const cached = editorMediaEmbedResolveCache.get(originalUrl);
+
+  if (cached) {
+    return cached;
+  }
+
+  const promise = resolveContentEmbed(originalUrl)
+    .then((result) =>
+      createWhitelistedMediaEmbedFromResolvedContentEmbed(result.embed),
+    )
+    .catch(() => null);
+
+  editorMediaEmbedResolveCache.set(originalUrl, promise);
+  return promise;
+}
+
+function isEditorMediaEmbedUrl(originalUrl: string) {
+  return Boolean(
+    resolveWhitelistedMediaEmbed(originalUrl) ||
+      isBackendResolvableEditorMediaEmbedUrl(originalUrl),
+  );
+}
+
+function isBackendResolvableEditorMediaEmbedUrl(originalUrl: string) {
+  if (!isBackendResolvableMediaEmbedUrl(originalUrl)) {
+    return false;
+  }
+
+  try {
+    const url = new URL(originalUrl);
+    const hostname = url.hostname.toLowerCase();
+    const path = url.pathname;
+
+    if (url.searchParams.has("modal_id")) {
+      return true;
+    }
+
+    if (
+      hostname === "v.douyin.com" ||
+      hostname.endsWith(".v.douyin.com")
+    ) {
+      return path.replace(/\//g, "").length > 0;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function normalizeAttachmentIds(value: unknown) {
   if (Array.isArray(value)) {
     return value.filter((id): id is string => typeof id === "string" && id.trim().length > 0);
@@ -2968,35 +3621,33 @@ function isVisibleImageAttachmentForEditor(
 
 function syncWhitelistedMediaEmbeds(editor: Editor) {
   const mediaEmbedType = editor.state.schema.nodes.mediaEmbed;
+  const paragraphType = editor.state.schema.nodes.paragraph;
 
-  if (!mediaEmbedType) {
+  if (!mediaEmbedType || !paragraphType) {
     return false;
   }
 
-  const replacements: Array<{
-    from: number;
-    originalUrl: string;
-    to: number;
-  }> = [];
+  const replacements: EditorMediaEmbedReplacement[] = [];
 
-  editor.state.doc.descendants((node, position) => {
-    if (node.type.name !== "paragraph") {
+  editor.state.doc.descendants((node, position, parent) => {
+    if (node.type.name !== "paragraph" || parent?.type.name !== "doc") {
       return;
     }
 
-    const originalUrl = node.textContent.trim();
+    const occurrence = findEditorMediaEmbedOccurrence(node.textContent);
 
-    if (
-      !originalUrl ||
-      node.textContent !== originalUrl ||
-      !resolveWhitelistedMediaEmbed(originalUrl)
-    ) {
+    if (!occurrence) {
       return;
     }
+
+    const beforeText = node.textContent.slice(0, occurrence.from).trim();
+    const afterText = node.textContent.slice(occurrence.to).trim();
 
     replacements.push({
+      afterText,
+      beforeText,
       from: position,
-      originalUrl,
+      originalUrl: occurrence.originalUrl,
       to: position + node.nodeSize,
     });
   });
@@ -3008,17 +3659,50 @@ function syncWhitelistedMediaEmbeds(editor: Editor) {
   let transaction = editor.state.tr;
 
   for (const replacement of [...replacements].reverse()) {
-    transaction = transaction.replaceWith(
-      replacement.from,
-      replacement.to,
+    const replacementNodes = [
+      ...(replacement.beforeText
+        ? [paragraphType.create(null, editor.state.schema.text(replacement.beforeText))]
+        : []),
       mediaEmbedType.create({
         originalUrl: replacement.originalUrl,
       }),
+      ...(replacement.afterText
+        ? [paragraphType.create(null, editor.state.schema.text(replacement.afterText))]
+        : []),
+    ];
+
+    transaction = transaction.replaceWith(
+      replacement.from,
+      replacement.to,
+      Fragment.fromArray(replacementNodes),
     );
   }
 
   editor.view.dispatch(transaction);
   return true;
+}
+
+function findEditorMediaEmbedOccurrence(text: string) {
+  for (const match of text.matchAll(editorBareUrlPattern)) {
+    const start = match.index ?? 0;
+    const originalUrl = stripTrailingEditorUrlPunctuation(match[0]);
+
+    if (!isEditorMediaEmbedUrl(originalUrl)) {
+      continue;
+    }
+
+    return {
+      from: start,
+      originalUrl,
+      to: start + originalUrl.length,
+    };
+  }
+
+  return null;
+}
+
+function stripTrailingEditorUrlPunctuation(value: string) {
+  return value.replace(/[),.!?:;\uFF0C\u3002\uFF01\uFF1F\uFF1B\uFF1A]+$/u, "");
 }
 
 function clampEditorInsertionPosition(editor: Editor, position: number) {

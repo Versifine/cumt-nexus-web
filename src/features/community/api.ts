@@ -119,7 +119,9 @@ type CommunityManageListInput = {
 };
 
 export function listCommunities() {
-  return apiRequest<ListCommunitiesResponse>("/api/v1/communities");
+  return apiRequest<ListCommunitiesResponse>("/api/v1/communities", {
+    token: null,
+  });
 }
 
 export function listFollowedCommunities({

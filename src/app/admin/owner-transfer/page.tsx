@@ -21,7 +21,7 @@ export default function AdminOwnerTransferRoute() {
       <AdminShell
         allowedRoles={["owner", "admin"]}
         title="负责人交接"
-        description="站点负责人交接使用独立双确认流程；被盗号或无法恢复账号时只走服务器离线 recovery。"
+        description="站点负责人交接使用独立双确认流程；账号失守或无法恢复时只走服务器离线恢复流程。"
       >
         <AdminOwnerTransferPage />
       </AdminShell>

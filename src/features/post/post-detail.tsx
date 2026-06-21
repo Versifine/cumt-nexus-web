@@ -52,6 +52,8 @@ import { DisabledMessageShareAction } from "@/features/message/disabled-share-ac
 import { createMessageShareSnapshot } from "@/features/message/share";
 import { ModerationQuickActions } from "@/features/moderation/moderation-quick-actions";
 import { ReportContentDialog } from "@/features/moderation/report-content-dialog";
+import { ContentEffectMenu } from "@/features/effect/content-effect-menu";
+import { ContentEffectSummary } from "@/features/effect/content-effect-summary";
 import { RedditVoteControl } from "@/features/vote/reddit-vote-control";
 import { ApiError } from "@/lib/api/client";
 import { useInfiniteScrollTrigger } from "@/lib/hooks/use-infinite-scroll-trigger";
@@ -65,6 +67,7 @@ import {
   PostDetailAttribution,
 } from "./post-attribution";
 import { PostLifecycleControls } from "./post-lifecycle-controls";
+import { PostPinnedNotice } from "./post-pinned-notice";
 import { PostSaveButton } from "./post-save-button";
 import { usePostQuery } from "./queries";
 import type { GetPostResponse, Post } from "./types";
@@ -660,10 +663,16 @@ function PostArticle({
   });
 
   return (
-    <article className="grid grid-cols-[42px_minmax(0,1fr)] overflow-hidden rounded-lg bg-surface sm:grid-cols-[52px_minmax(0,1fr)]">
+    <article
+      className={cn(
+        "grid grid-cols-[42px_minmax(0,1fr)] overflow-hidden rounded-lg bg-surface sm:grid-cols-[52px_minmax(0,1fr)]",
+        post.is_pinned && "bg-surface-raised ring-1 ring-primary/25",
+      )}
+    >
       <RedditVoteControl
         className={cn(
           "bg-surface-raised/75 py-3 transition-colors",
+          post.is_pinned && "bg-primary/10",
           post.my_vote === 1 && "bg-primary/10",
           post.my_vote === -1 && "bg-destructive/10",
         )}
@@ -676,6 +685,8 @@ function PostArticle({
       />
 
       <div className="min-w-0">
+        {post.is_pinned ? <PostPinnedNotice variant="detail" /> : null}
+
         <header className="px-3 py-4 sm:px-4">
           <PostDetailAttribution post={post}>
             <h1 className="mt-3 break-words text-xl font-semibold leading-7 tracking-normal text-foreground sm:text-2xl sm:leading-8">
@@ -690,6 +701,7 @@ function PostArticle({
             value={post.body}
             className="text-base leading-8"
           />
+          <ContentEffectSummary effects={post.effects} />
         </div>
 
         <footer className="mx-3 mb-3 space-y-1.5 rounded-md bg-surface-raised px-3 py-2 text-xs text-muted-foreground sm:mx-4">
@@ -702,6 +714,13 @@ function PostArticle({
               <MessageSquare className="size-4" aria-hidden="true" />
               {commentCount} 条评论
             </button>
+            <ContentEffectMenu
+              className="h-8"
+              isAuthenticated={isAuthenticated}
+              postId={post.id}
+              targetId={post.id}
+              targetType="post"
+            />
             <button
               type="button"
               className="inline-flex h-8 items-center gap-1.5 px-1 font-semibold transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -799,7 +818,7 @@ function PostRail({
               slug: community.slug,
               viewerIsFollowing: post.community?.viewer_is_following,
             }}
-            panelClassName="w-80"
+            panelClassName="w-[18rem]"
           >
             {community.href ? (
               <Link
@@ -947,4 +966,3 @@ function getErrorDescription(error: Error | null) {
 
   return "请求失败，请稍后重试。";
 }
-

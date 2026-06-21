@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  type InfiniteData,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
@@ -16,6 +20,7 @@ import {
   IMAGE_UPLOAD_LIMITS,
   type MediaAttachment,
 } from "@/features/media/types";
+import { refreshCurrentUserGrowthLedgers } from "@/features/progression/queries";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +34,10 @@ const commentSchema = z.object({
 });
 
 type CommentFormValues = z.infer<typeof commentSchema>;
+
+type CommentCommentsCacheData =
+  | ListCommentsResponse
+  | InfiniteData<ListCommentsResponse, number>;
 
 type CommentFormProps = {
   compact?: boolean;
@@ -81,11 +90,11 @@ export function CommentForm({
         parent_id: parentId || undefined,
       }),
     onSuccess: (result) => {
-      queryClient.setQueriesData<ListCommentsResponse>(
+      queryClient.setQueriesData<CommentCommentsCacheData>(
         {
           queryKey: commentQueryKeys.postCommentsPrefix(postId),
         },
-        (current) => insertPublishedComment(current, result.comment),
+        (current) => insertPublishedCommentIntoCache(current, result.comment),
       );
       form.reset();
       setAttachments([]);
@@ -101,6 +110,7 @@ export function CommentForm({
         queryClient.invalidateQueries({
           queryKey: postQueryKeys.detail(postId),
         }),
+        refreshCurrentUserGrowthLedgers(queryClient),
       ]);
     },
   });
@@ -379,7 +389,93 @@ function getSubmitError(error: Error | null) {
   return "请求失败，请稍后重试。";
 }
 
-function insertPublishedComment(
+function insertPublishedCommentIntoCache(
+  current: CommentCommentsCacheData | undefined,
+  comment: Comment,
+): CommentCommentsCacheData | undefined {
+  if (!current) {
+    return current;
+  }
+
+  if (isInfiniteCommentsData(current)) {
+    return insertPublishedCommentIntoInfiniteData(current, comment);
+  }
+
+  return insertPublishedCommentIntoPage(current, comment);
+}
+
+function insertPublishedCommentIntoInfiniteData(
+  current: InfiniteData<ListCommentsResponse, number>,
+  comment: Comment,
+): InfiniteData<ListCommentsResponse, number> {
+  if (current.pages.some((page) => containsComment(page.comments, comment.id))) {
+    return current;
+  }
+
+  const normalizedComment = normalizePublishedComment(comment);
+  if (current.pages.length === 0) {
+    return current;
+  }
+
+  if (!normalizedComment.parent_id || current.pages[0]?.view === "flat") {
+    const [firstPage, ...otherPages] = current.pages;
+
+    return {
+      ...current,
+      pages: [
+        {
+          ...firstPage,
+          comments: [normalizedComment, ...firstPage.comments],
+        },
+        ...otherPages,
+      ],
+    };
+  }
+
+  let didInsert = false;
+  const nextPages = current.pages.map((page) => {
+    if (didInsert) {
+      return page;
+    }
+
+    const result = insertReplyComment(
+      page.comments,
+      normalizedComment.parent_id ?? "",
+      normalizedComment,
+    );
+    if (!result.didInsert) {
+      return page;
+    }
+
+    didInsert = true;
+    return {
+      ...page,
+      comments: result.comments,
+    };
+  });
+
+  if (didInsert) {
+    return {
+      ...current,
+      pages: nextPages,
+    };
+  }
+
+  const [firstPage, ...otherPages] = current.pages;
+
+  return {
+    ...current,
+    pages: [
+      {
+        ...firstPage,
+        comments: [normalizedComment, ...firstPage.comments],
+      },
+      ...otherPages,
+    ],
+  };
+}
+
+function insertPublishedCommentIntoPage(
   current: ListCommentsResponse | undefined,
   comment: Comment,
 ): ListCommentsResponse | undefined {
@@ -410,6 +506,14 @@ function insertPublishedComment(
         ...current,
         comments: [normalizedComment, ...current.comments],
       };
+}
+
+function isInfiniteCommentsData(
+  current: CommentCommentsCacheData,
+): current is InfiniteData<ListCommentsResponse, number> {
+  return Array.isArray(
+    (current as Partial<InfiniteData<ListCommentsResponse, number>>).pages,
+  );
 }
 
 function normalizePublishedComment(comment: Comment): Comment {

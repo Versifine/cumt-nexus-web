@@ -126,7 +126,7 @@ export function RegisterForm({ className, onSuccess }: RegisterFormProps) {
         />
       ) : null}
 
-      <div className="border-b border-border py-4">
+      <div className="mt-4 rounded-md bg-surface-raised px-3 py-4">
         <FieldLabel htmlFor="register-email" title="矿大邮箱" />
         <div className="min-w-0 space-y-2">
           <Input
@@ -136,7 +136,7 @@ export function RegisterForm({ className, onSuccess }: RegisterFormProps) {
             aria-invalid={Boolean(form.formState.errors.email)}
             disabled={isLocked}
             placeholder="student@cumt.edu.cn"
-            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
+            className="h-11 border-border bg-background text-base font-semibold"
             {...form.register("email")}
           />
           <FieldMeta
@@ -160,7 +160,7 @@ export function RegisterForm({ className, onSuccess }: RegisterFormProps) {
         }}
       />
 
-      <div className="border-b border-border py-4">
+      <div className="mt-4 rounded-md bg-surface-raised px-3 py-4">
         <FieldLabel htmlFor="register-username" title="用户名" />
         <div className="min-w-0 space-y-2">
           <Input
@@ -169,7 +169,7 @@ export function RegisterForm({ className, onSuccess }: RegisterFormProps) {
             aria-invalid={Boolean(form.formState.errors.username)}
             disabled={isLocked}
             placeholder="输入用户名"
-            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
+            className="h-11 border-border bg-background text-base font-semibold"
             {...form.register("username")}
           />
           <FieldMeta
@@ -179,7 +179,7 @@ export function RegisterForm({ className, onSuccess }: RegisterFormProps) {
         </div>
       </div>
 
-      <div className="border-b border-border py-4">
+      <div className="mt-4 rounded-md bg-surface-raised px-3 py-4">
         <FieldLabel htmlFor="register-password" title="密码" />
         <div className="min-w-0 space-y-2">
           <Input
@@ -189,7 +189,7 @@ export function RegisterForm({ className, onSuccess }: RegisterFormProps) {
             aria-invalid={Boolean(form.formState.errors.password)}
             disabled={isLocked}
             placeholder="设置密码"
-            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
+            className="h-11 border-border bg-background text-base"
             {...form.register("password")}
           />
           <FieldMeta
@@ -199,7 +199,7 @@ export function RegisterForm({ className, onSuccess }: RegisterFormProps) {
         </div>
       </div>
 
-      <div className="border-b border-border py-4">
+      <div className="mt-4 rounded-md bg-surface-raised px-3 py-4">
         <FieldLabel htmlFor="register-confirm-password" title="确认密码" />
         <div className="min-w-0 space-y-2">
           <Input
@@ -209,7 +209,7 @@ export function RegisterForm({ className, onSuccess }: RegisterFormProps) {
             aria-invalid={Boolean(form.formState.errors.confirm_password)}
             disabled={isLocked}
             placeholder="再次输入密码"
-            className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
+            className="h-11 border-border bg-background text-base"
             {...form.register("confirm_password")}
           />
           <FieldMeta

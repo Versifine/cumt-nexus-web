@@ -425,7 +425,7 @@ export function AdminPagination({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg bg-surface p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex flex-col gap-3 rounded-lg bg-surface-raised px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex flex-wrap items-center gap-2">
         {onJump ? (
           <Button

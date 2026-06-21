@@ -250,7 +250,7 @@ export function AdminUserSanctionsAction({
               ) : null}
               {sanctionsQuery.isSuccess &&
               sanctionsQuery.data.sanctions.length > 0 ? (
-                <div className="divide-y divide-border border-t border-border">
+                <div className="grid gap-2">
                   {sanctionsQuery.data.sanctions.map((sanction) => (
                     <SanctionRow
                       canRevoke={canCreate && sanction.status === "active"}
@@ -338,7 +338,7 @@ function SanctionRow({
           {revokeSelected ? (
             <>
               <p className="max-w-44 text-xs leading-5 text-muted-foreground">
-                确认提前解除这条 active 封禁。
+                确认提前解除这条生效封禁。
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button

@@ -14,15 +14,21 @@ import {
   RightRailActionList,
   RightRailSection,
 } from "@/components/app-shell/right-rail";
+import { useAuthSession } from "@/features/auth/auth-session";
 import { useCurrentUserQuery, useMyPointsQuery } from "@/features/auth/queries";
 import type { PointAccount } from "@/features/auth/types";
 import { DisabledMessageShareAction } from "@/features/message/disabled-share-action";
+import {
+  getDirectMessageDrawerTarget,
+  MessageDrawerAction,
+} from "@/features/message/message-drawer-action";
 import { createMessageShareSnapshot } from "@/features/message/share";
 import type { DmCapability } from "@/features/message/types";
 import { cn } from "@/lib/utils";
 
 import {
   getUserDisplayTitle,
+  getUserIdentityRoles,
   getUserProgression,
   hasUserIdentityMarks,
 } from "./identity";
@@ -82,9 +88,14 @@ export function PublicUserHeader({
   user: PublicUser;
 }) {
   const displayName = getDisplayName(user);
+  const { isReady, token } = useAuthSession();
   const currentUserQuery = useCurrentUserQuery();
+  const currentUsername = currentUserQuery.data?.username.trim().toLowerCase() ?? "";
+  const profileUsername = user.username.trim().toLowerCase();
   const isOwnProfile =
-    currentUserQuery.data?.username?.toLowerCase() === user.username.toLowerCase();
+    Boolean(currentUsername) && currentUsername === profileUsername;
+  const isViewerProfilePending =
+    isReady && Boolean(token) && currentUserQuery.isFetching && !currentUserQuery.data;
   const pointsQuery = useMyPointsQuery(isOwnProfile);
   const displayTitle = getUserDisplayTitle(user);
   const progression = getUserProgression(user);
@@ -127,7 +138,9 @@ export function PublicUserHeader({
                 />
               ) : null}
             </div>
-            {isOwnProfile ? (
+            {isViewerProfilePending ? (
+              <div className="mb-2 h-8 w-24" aria-hidden="true" />
+            ) : isOwnProfile ? (
               <Link
                 href="/settings/profile"
                 className="mb-2 inline-flex h-8 items-center bg-background/70 px-2 font-mono text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -182,7 +195,7 @@ export function PublicUserHeader({
             displayTitle={displayTitle}
             level={null}
             maxItems={6}
-            roles={user.roles}
+            roles={getUserIdentityRoles(user)}
           />
 
           <ProfileGrowthStrip
@@ -248,17 +261,20 @@ function DisabledProfileMessageAction({
   capability?: DmCapability | null;
   username: string;
 }) {
-  const href = getDmActionHref(username, capability);
+  const target = getDirectMessageDrawerTarget(username, capability);
 
-  if (href) {
+  if (!target.disabledReason) {
     return (
-      <Link
-        href={href}
+      <MessageDrawerAction
+        activeConversationId={target.activeConversationId}
         className="inline-flex h-8 items-center gap-1.5 border border-border bg-background/70 px-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        initialSearchParams={target.initialSearchParams}
+        title="私信"
+        triggerTitle={`给 @${username} 发私信`}
       >
         <MessageCircle className="size-3.5" aria-hidden="true" />
         私信
-      </Link>
+      </MessageDrawerAction>
     );
   }
 
@@ -266,55 +282,12 @@ function DisabledProfileMessageAction({
     <span
       aria-disabled="true"
       className="inline-flex h-8 cursor-not-allowed items-center gap-1.5 border border-border bg-background/70 px-2 text-xs font-semibold text-muted-foreground/75"
-      title={formatDmCapabilityReason(capability?.reason)}
+      title={target.disabledReason}
     >
       <MessageCircle className="size-3.5" aria-hidden="true" />
-      {formatDmCapabilityReason(capability?.reason)}
+      {target.disabledReason}
     </span>
   );
-}
-
-function getDmActionHref(username: string, capability?: DmCapability | null) {
-  if (!capability) {
-    return `/messages?to=${encodeURIComponent(username)}`;
-  }
-
-  if (capability.viewer_relation === "self") {
-    return null;
-  }
-
-  if (capability.reason === "unauthenticated") {
-    return `/login?next=${encodeURIComponent(
-      `/messages?to=${encodeURIComponent(username)}`,
-    )}`;
-  }
-
-  if (!capability.can_start) {
-    return null;
-  }
-
-  if (capability.direct_conversation_id) {
-    return `/messages/${encodeURIComponent(capability.direct_conversation_id)}`;
-  }
-
-  return `/messages?to=${encodeURIComponent(username)}`;
-}
-
-function formatDmCapabilityReason(reason?: string | null) {
-  switch (reason) {
-    case "blocked":
-      return "已拉黑";
-    case "privacy":
-      return "对方限制私信";
-    case "self":
-      return "本人";
-    case "unavailable":
-      return "账号不可用";
-    case "unauthenticated":
-      return "登录后私信";
-    default:
-      return "暂不可私信";
-  }
 }
 
 export function PublicUserRail({
@@ -371,7 +344,7 @@ export function PublicUserRail({
             className="mt-3 gap-2"
             displayTitle={displayTitle}
             level={progression}
-            roles={user.roles}
+            roles={getUserIdentityRoles(user)}
           />
         </RightRailSection>
       ) : null}
@@ -640,4 +613,3 @@ export function getProfileTabHref(
       return baseHref;
   }
 }
-

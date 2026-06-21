@@ -17,6 +17,7 @@ import {
   type MediaAttachment,
 } from "@/features/media/types";
 import type { Community } from "@/features/community/types";
+import { refreshCurrentUserGrowthLedgers } from "@/features/progression/queries";
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,7 @@ type PostFormValues = z.infer<typeof postSchema>;
 type PostFormProps = {
   className?: string;
   communitySlug: string;
+  isAuthenticated: boolean;
   isSelectedCommunityLoading?: boolean;
   onCommunitySlugChange: (slug: string) => void;
   selectedCommunity?: Community | null;
@@ -45,6 +47,7 @@ type PostFormProps = {
 export function PostForm({
   className,
   communitySlug,
+  isAuthenticated,
   isSelectedCommunityLoading = false,
   onCommunitySlugChange,
   selectedCommunity = null,
@@ -89,12 +92,15 @@ export function PostForm({
       });
     },
     onSuccess: async (result, values) => {
-      await queryClient.invalidateQueries({
-        queryKey: postQueryKeys.communityPostsPrefix(values.communitySlug),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: postQueryKeys.latestPrefix(),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: postQueryKeys.communityPostsPrefix(values.communitySlug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: postQueryKeys.latestPrefix(),
+        }),
+        refreshCurrentUserGrowthLedgers(queryClient),
+      ]);
       router.push(`/posts/${result.post.id}`);
     },
   });
@@ -110,7 +116,8 @@ export function PostForm({
     !isSelectedCommunityLoading &&
     !confirmedSelectedCommunity;
   const cannotPublishToSelectedCommunity =
-    confirmedSelectedCommunity && !canPublishToCommunity(confirmedSelectedCommunity);
+    confirmedSelectedCommunity &&
+    !canPublishToCommunity(confirmedSelectedCommunity, isAuthenticated);
   const titleLength = titleValue.trim().length;
   const bodyLength = bodyValue.trim().length;
   const isSubmitDisabled =
@@ -182,6 +189,7 @@ export function PostForm({
             isSelectedCommunityLoading,
             selectedCommunityError,
             confirmedSelectedCommunity,
+            communitySlugValue,
             hasSelectedCommunitySlug,
             isSelectedCommunityMissing,
             Boolean(cannotPublishToSelectedCommunity),
@@ -245,6 +253,8 @@ export function PostForm({
           {getSubmitStatusText(
             isSelectedCommunityLoading,
             confirmedSelectedCommunity,
+            selectedCommunityError,
+            communitySlugValue,
             hasSelectedCommunitySlug,
             titleLength,
             bodyLength,
@@ -321,22 +331,27 @@ function FieldMeta({
   );
 }
 
-function canPublishToCommunity(community: Community) {
-  if (community.status !== "active") {
+function canPublishToCommunity(community: Community, isAuthenticated: boolean) {
+  if (!isAuthenticated || community.status !== "active") {
     return false;
+  }
+
+  if (community.visibility === "public") {
+    return true;
   }
 
   if (community.viewer_permissions) {
     return community.viewer_permissions.can_post !== false;
   }
 
-  return true;
+  return false;
 }
 
 function getCommunityHint(
   isLoading: boolean,
   error: Error | null,
   selectedCommunity: Community | null,
+  selectedCommunitySlug: string,
   hasSelectedSlug: boolean,
   isSelectedCommunityMissing: boolean,
   cannotPublishToSelectedCommunity: boolean,
@@ -349,8 +364,30 @@ function getCommunityHint(
     return "选择社区后可发布。";
   }
 
-  if (error || isSelectedCommunityMissing) {
-    return "没有找到这个社区，或当前账号无法读取它。";
+  const selectedCommunityLabel = `/${selectedCommunitySlug.trim()}`;
+
+  if (error instanceof ApiError) {
+    switch (error.code) {
+      case "not_found":
+        return `没有找到 ${selectedCommunityLabel}。请清除后从搜索结果中选择完整社区 slug。`;
+      case "forbidden":
+        return `当前账号无法读取 ${selectedCommunityLabel}。`;
+      case "unauthenticated":
+        return "登录状态已失效，请重新登录后再发帖。";
+      case "network":
+      case "timeout":
+        return "社区确认请求失败，请稍后重试。";
+      default:
+        return `无法确认 ${selectedCommunityLabel}。${error.message}`;
+    }
+  }
+
+  if (error) {
+    return `无法确认 ${selectedCommunityLabel}，请清除后重新选择社区。`;
+  }
+
+  if (isSelectedCommunityMissing) {
+    return `没有确认到 ${selectedCommunityLabel}。请清除后从搜索结果中选择完整社区 slug。`;
   }
 
   if (cannotPublishToSelectedCommunity) {
@@ -379,6 +416,8 @@ function getSubmitError(error: Error | null) {
 function getSubmitStatusText(
   isCommunityLoading: boolean,
   selectedCommunity: Community | null,
+  selectedCommunityError: Error | null,
+  selectedCommunitySlug: string,
   hasSelectedSlug: boolean,
   titleLength: number,
   bodyLength: number,
@@ -403,6 +442,10 @@ function getSubmitStatusText(
     }
 
     return `将发布到 /${selectedCommunity.slug}。`;
+  }
+
+  if (selectedCommunityError) {
+    return `请重新选择社区，当前未确认 /${selectedCommunitySlug.trim()}。`;
   }
 
   if (hasSelectedSlug) {

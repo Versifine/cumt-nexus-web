@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import {
   Ban,
   CheckCircle2,
@@ -42,7 +43,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { commentQueryKeys } from "@/features/comment/queries";
 import {
+  communityQueryKeys,
   useCommunityModerationTemplatesQuery,
   useCommunityModerationUserProfileQuery,
   useCommunityModeratorNotesQuery,
@@ -55,6 +58,7 @@ import type {
   ModeratorNote,
   ModerationUserProfile,
 } from "@/features/community/types";
+import { postQueryKeys } from "@/features/post/queries";
 import { ApiError } from "@/lib/api/client";
 
 import { ModerationRemoveDialog } from "./moderation-remove-dialog";
@@ -89,6 +93,8 @@ type ModerationQuickActionsProps = {
   userHref?: string | null;
 };
 
+type LocalTargetState = NonNullable<ModerationQuickActionsProps["targetState"]>;
+
 type QuickActionDefinition = {
   action: ModerationActionType;
   confirmLabel: string;
@@ -100,11 +106,31 @@ type QuickActionDefinition = {
   value?: boolean;
 };
 
+type ModerationActionCompletedEvent = {
+  action: ModerationActionType;
+  input: ModerationBulkActionInput;
+};
+
+type QuickActionInvalidationTarget = {
+  communitySlug?: string | null;
+  targetAuthorId?: string | null;
+  targetId: string;
+  targetPostId?: string;
+  targetType: ModerationTargetType;
+};
+
+type LocalTargetOverride = {
+  state?: LocalTargetState;
+  status?: string;
+  targetId: string;
+  targetType: ModerationTargetType;
+};
+
 const postQuickActions: QuickActionDefinition[] = [
   {
     action: "approve",
     confirmLabel: "确认批准",
-    description: "批准后内容会回到正常可见处理链路，并写入社区 Mod Log。",
+    description: "批准后内容会回到正常可见处理链路，并写入社区操作日志。",
     icon: CheckCircle2,
     label: "批准",
   },
@@ -169,7 +195,7 @@ const commentQuickActions: QuickActionDefinition[] = [
   {
     action: "approve",
     confirmLabel: "确认批准",
-    description: "批准后评论会回到正常可见处理链路，并写入社区 Mod Log。",
+    description: "批准后评论会回到正常可见处理链路，并写入社区操作日志。",
     icon: CheckCircle2,
     label: "批准",
   },
@@ -206,14 +232,14 @@ type QuickUserStateDefinition = {
 const communityUserStateActions: QuickUserStateDefinition[] = [
   {
     confirmLabel: "确认封禁",
-    description: "封禁后该用户不能继续在当前社区发帖或评论，并写入社区 Mod Log。",
+    description: "封禁后该用户不能继续在当前社区发帖或评论，并写入社区操作日志。",
     icon: Ban,
     kind: "banned",
     label: "封禁作者",
   },
   {
     confirmLabel: "确认禁言",
-    description: "禁言后该用户不能继续在当前社区发起沟通类互动，并写入社区 Mod Log。",
+    description: "禁言后该用户不能继续在当前社区发起沟通类互动，并写入社区操作日志。",
     icon: ShieldAlert,
     kind: "muted",
     label: "禁言作者",
@@ -280,14 +306,6 @@ const defaultCommunityUserStateReasons: Record<
   ],
 };
 
-const unsupportedActions: Array<{
-  icon: typeof Mail;
-  label: string;
-  note: string;
-}> = [
-  { icon: Mail, label: "打开 Modmail", note: "待接入" },
-];
-
 export function ModerationQuickActions({
   auditHref,
   canRemove,
@@ -302,25 +320,75 @@ export function ModerationQuickActions({
   targetType,
   userHref,
 }: ModerationQuickActionsProps) {
-  const isRemoved = targetStatus === "removed";
+  const queryClient = useQueryClient();
+  const [localTargetOverride, setLocalTargetOverride] =
+    useState<LocalTargetOverride | null>(null);
   const [completedActions, setCompletedActions] = useState<Set<string>>(
     () => new Set(),
   );
   const [completedUserActions, setCompletedUserActions] = useState<Set<string>>(
     () => new Set(),
   );
+  const localTargetOverrideApplies =
+    localTargetOverride?.targetId === targetId &&
+    localTargetOverride.targetType === targetType;
+  const localTargetStatus = localTargetOverrideApplies
+    ? (localTargetOverride.status ?? targetStatus)
+    : targetStatus;
+  const localTargetState = localTargetOverrideApplies
+    ? { ...(targetState ?? {}), ...(localTargetOverride.state ?? {}) }
+    : (targetState ?? {});
+  const isRemoved = localTargetStatus === "removed";
   const canUseModTools = Boolean(communitySlug || auditHref);
   const canUseCommunityUserGovernance = Boolean(
     communitySlug?.trim() && targetAuthorId?.trim(),
   );
+  const modmailHref = getCommunityManageToolHref({
+    communityManageHref,
+    communitySlug,
+    tool: "modmail",
+  });
   const supportedActions =
     targetType === "post"
-      ? resolvePostQuickActions(postQuickActions, targetState)
+      ? resolvePostQuickActions(postQuickActions, localTargetState)
       : commentQuickActions;
   const primaryActions = supportedActions.filter(isPrimaryQuickAction);
   const secondaryActions = supportedActions.filter(
     (action) => !isPrimaryQuickAction(action),
   );
+
+  function handleActionCompleted({
+    action,
+    input,
+  }: ModerationActionCompletedEvent) {
+    setCompletedActions((current) =>
+      getNextCompletedActions(current, action),
+    );
+    setLocalTargetOverride((current) => {
+      const currentApplies =
+        current?.targetId === targetId && current.targetType === targetType;
+      const currentStatus = currentApplies
+        ? (current.status ?? targetStatus)
+        : targetStatus;
+      const currentState = currentApplies
+        ? { ...(targetState ?? {}), ...(current.state ?? {}) }
+        : (targetState ?? {});
+
+      return {
+        state: getNextTargetState(currentState, action, input),
+        status: getNextTargetStatus(currentStatus, action),
+        targetId,
+        targetType,
+      };
+    });
+    void invalidateQuickActionTargetCaches(queryClient, {
+      communitySlug,
+      targetAuthorId,
+      targetId,
+      targetPostId,
+      targetType,
+    });
+  }
 
   return (
     <div className="flex min-h-8 w-full min-w-0 flex-wrap items-center gap-1">
@@ -330,7 +398,7 @@ export function ModerationQuickActions({
           targetId={targetId}
           targetLabel={targetLabel}
           targetPostId={targetPostId}
-          targetStatus={targetStatus}
+          targetStatus={localTargetStatus}
           targetType={targetType}
         />
       ) : isRemoved ? (
@@ -342,15 +410,10 @@ export function ModerationQuickActions({
             <ModerationActionButton
               action={action}
               communitySlug={communitySlug}
+              defaultFlairText={localTargetState.flairText}
               disabled={completedActions.has(action.action)}
               key={action.action}
-              onCompleted={(completedAction) => {
-                setCompletedActions((current) => {
-                  const next = new Set(current);
-                  next.add(completedAction);
-                  return next;
-                });
-              }}
+              onCompleted={handleActionCompleted}
               targetId={targetId}
               targetLabel={targetLabel}
               targetType={targetType}
@@ -402,15 +465,10 @@ export function ModerationQuickActions({
                     <ModerationActionMenuItem
                       action={action}
                       communitySlug={communitySlug}
+                      defaultFlairText={localTargetState.flairText}
                       disabled={completedActions.has(action.action)}
                       key={action.action}
-                      onCompleted={(completedAction) => {
-                        setCompletedActions((current) => {
-                          const next = new Set(current);
-                          next.add(completedAction);
-                          return next;
-                        });
-                      }}
+                      onCompleted={handleActionCompleted}
                       targetId={targetId}
                       targetLabel={targetLabel}
                       targetType={targetType}
@@ -460,14 +518,17 @@ export function ModerationQuickActions({
               <DropdownMenuSeparator />
             </>
           ) : null}
-          <DropdownMenuLabel>待后端接入</DropdownMenuLabel>
-          {unsupportedActions.map((action) => (
-            <DropdownMenuItem key={action.label} disabled>
-              <action.icon className="size-4" aria-hidden="true" />
-              {action.label}
-              <DropdownMenuShortcut>{action.note}</DropdownMenuShortcut>
-            </DropdownMenuItem>
-          ))}
+          {modmailHref ? (
+            <>
+              <DropdownMenuLabel>协作工具</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href={modmailHref}>
+                  <Mail className="size-4" aria-hidden="true" />
+                  打开管理信箱
+                </Link>
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -477,6 +538,7 @@ export function ModerationQuickActions({
 function ModerationActionButton({
   action,
   communitySlug,
+  defaultFlairText,
   disabled,
   onCompleted,
   targetId,
@@ -485,8 +547,9 @@ function ModerationActionButton({
 }: {
   action: QuickActionDefinition;
   communitySlug?: string | null;
+  defaultFlairText?: string | null;
   disabled: boolean;
-  onCompleted: (action: ModerationActionType) => void;
+  onCompleted: (event: ModerationActionCompletedEvent) => void;
   targetId: string;
   targetLabel: string;
   targetType: ModerationTargetType;
@@ -500,6 +563,16 @@ function ModerationActionButton({
   const mutation = communitySlug ? communityMutation : adminMutation;
   const Icon = action.icon;
 
+  function openDialog() {
+    setFormError(null);
+
+    if (action.needsFlair) {
+      setFlairText(defaultFlairText?.trim() ?? "");
+    }
+
+    setOpen(true);
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
@@ -512,14 +585,19 @@ function ModerationActionButton({
       return;
     }
 
-    if (action.needsFlair && !trimmedFlair) {
+    if (
+      action.needsFlair &&
+      !trimmedFlair &&
+      !allowsEmptyFlairValue(action)
+    ) {
       setFormError("请填写 flair 文本。");
       return;
     }
 
     const input: ModerationBulkActionInput = {
       action: action.action,
-      confirm: !trimmedReason,
+      confirm:
+        !trimmedReason || (allowsEmptyFlairValue(action) && !trimmedFlair),
       flair_text: action.needsFlair ? trimmedFlair : undefined,
       reason: trimmedReason,
       target_ids: [targetId],
@@ -537,7 +615,10 @@ function ModerationActionButton({
       return;
     }
 
-    onCompleted(action.action);
+    onCompleted({ action: action.action, input });
+    setReason("");
+    setFlairText(trimmedFlair);
+    setOpen(false);
   }
 
   const isPending = mutation.isPending;
@@ -552,7 +633,7 @@ function ModerationActionButton({
         size="sm"
         className="h-8 shrink-0 whitespace-nowrap px-1 text-xs"
         disabled={disabled}
-        onClick={() => setOpen(true)}
+        onClick={openDialog}
       >
         <Icon className="size-3.5" aria-hidden="true" />
         {disabled ? "已提交" : action.label}
@@ -570,7 +651,7 @@ function ModerationActionButton({
               <Input
                 value={flairText}
                 onChange={(event) => setFlairText(event.target.value)}
-                placeholder="flair 文本"
+                placeholder="flair 文本，留空可清除"
                 maxLength={64}
                 disabled={isPending || isSubmitted}
                 aria-label="flair 文本"
@@ -597,7 +678,7 @@ function ModerationActionButton({
               <Alert variant="success">
                 <AlertTitle>操作已提交</AlertTitle>
                 <AlertDescription>
-                  列表和详情会在刷新后同步最新状态。
+                  当前目标会同步刷新到最新状态。
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -624,6 +705,7 @@ function ModerationActionButton({
 function ModerationActionMenuItem({
   action,
   communitySlug,
+  defaultFlairText,
   disabled,
   onCompleted,
   targetId,
@@ -632,8 +714,9 @@ function ModerationActionMenuItem({
 }: {
   action: QuickActionDefinition;
   communitySlug?: string | null;
+  defaultFlairText?: string | null;
   disabled: boolean;
-  onCompleted: (action: ModerationActionType) => void;
+  onCompleted: (event: ModerationActionCompletedEvent) => void;
   targetId: string;
   targetLabel: string;
   targetType: ModerationTargetType;
@@ -647,6 +730,16 @@ function ModerationActionMenuItem({
   const mutation = communitySlug ? communityMutation : adminMutation;
   const Icon = action.icon;
 
+  function openDialog() {
+    setFormError(null);
+
+    if (action.needsFlair) {
+      setFlairText(defaultFlairText?.trim() ?? "");
+    }
+
+    setOpen(true);
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
@@ -659,14 +752,19 @@ function ModerationActionMenuItem({
       return;
     }
 
-    if (action.needsFlair && !trimmedFlair) {
+    if (
+      action.needsFlair &&
+      !trimmedFlair &&
+      !allowsEmptyFlairValue(action)
+    ) {
       setFormError("请填写 flair 文本。");
       return;
     }
 
     const input: ModerationBulkActionInput = {
       action: action.action,
-      confirm: !trimmedReason,
+      confirm:
+        !trimmedReason || (allowsEmptyFlairValue(action) && !trimmedFlair),
       flair_text: action.needsFlair ? trimmedFlair : undefined,
       reason: trimmedReason,
       target_ids: [targetId],
@@ -684,7 +782,10 @@ function ModerationActionMenuItem({
       return;
     }
 
-    onCompleted(action.action);
+    onCompleted({ action: action.action, input });
+    setReason("");
+    setFlairText(trimmedFlair);
+    setOpen(false);
   }
 
   const isPending = mutation.isPending;
@@ -698,7 +799,7 @@ function ModerationActionMenuItem({
         onSelect={(event) => {
           event.preventDefault();
           if (!disabled) {
-            setOpen(true);
+            openDialog();
           }
         }}
       >
@@ -719,7 +820,7 @@ function ModerationActionMenuItem({
               <Input
                 value={flairText}
                 onChange={(event) => setFlairText(event.target.value)}
-                placeholder="flair 文本"
+                placeholder="flair 文本，留空可清除"
                 maxLength={64}
                 disabled={isPending || isSubmitted}
                 aria-label="flair 文本"
@@ -746,7 +847,7 @@ function ModerationActionMenuItem({
               <Alert variant="success">
                 <AlertTitle>操作已提交</AlertTitle>
                 <AlertDescription>
-                  列表和详情会在刷新后同步最新状态。
+                  当前目标会同步刷新到最新状态。
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -776,6 +877,169 @@ function isPrimaryQuickAction(action: QuickActionDefinition) {
     action.action === "spam" ||
     action.action === "ignore_reports"
   );
+}
+
+function getNextCompletedActions(
+  current: Set<string>,
+  action: ModerationActionType,
+) {
+  const next = new Set(current);
+
+  if (action === "approve") {
+    next.delete("spam");
+  }
+
+  if (action === "spam") {
+    next.delete("approve");
+  }
+
+  if (shouldRememberCompletedAction(action)) {
+    next.add(action);
+  } else {
+    next.delete(action);
+  }
+
+  return next;
+}
+
+function shouldRememberCompletedAction(action: ModerationActionType) {
+  return (
+    action === "approve" ||
+    action === "ignore_reports" ||
+    action === "spam"
+  );
+}
+
+function getNextTargetStatus(
+  current: string | undefined,
+  action: ModerationActionType,
+) {
+  switch (action) {
+    case "approve":
+      return "visible";
+    case "remove":
+      return "removed";
+    case "spam":
+      return "spam";
+    default:
+      return current;
+  }
+}
+
+function getNextTargetState(
+  current: LocalTargetState,
+  action: ModerationActionType,
+  input: ModerationBulkActionInput,
+): LocalTargetState {
+  const value = input.value ?? true;
+
+  switch (action) {
+    case "lock":
+      return { ...current, isLocked: value };
+    case "mark_nsfw":
+      return { ...current, isNsfw: value };
+    case "mark_spoiler":
+      return { ...current, isSpoiler: value };
+    case "pin":
+      return { ...current, isPinned: value };
+    case "set_flair":
+      return { ...current, flairText: input.flair_text ?? "" };
+    default:
+      return current;
+  }
+}
+
+function allowsEmptyFlairValue(action: QuickActionDefinition) {
+  return action.action === "set_flair";
+}
+
+function getCommunityManageToolHref({
+  communityManageHref,
+  communitySlug,
+  tool,
+}: {
+  communityManageHref?: string | null;
+  communitySlug?: string | null;
+  tool: CommunityManageToolName;
+}) {
+  const baseHref = communityManageHref?.trim();
+
+  if (baseHref) {
+    return `${baseHref.replace(/\/$/, "")}/${tool}`;
+  }
+
+  const slug = communitySlug?.trim();
+
+  return slug
+    ? `/communities/${encodeURIComponent(slug)}/manage/${tool}`
+    : null;
+}
+
+type CommunityManageToolName = "modmail";
+
+function invalidateQuickActionTargetCaches(
+  queryClient: QueryClient,
+  target: QuickActionInvalidationTarget,
+) {
+  const communitySlug = target.communitySlug?.trim();
+  const targetAuthorId = target.targetAuthorId?.trim();
+  const postId =
+    target.targetType === "post" ? target.targetId : target.targetPostId;
+  const promises: Array<Promise<unknown>> = [
+    queryClient.invalidateQueries({
+      queryKey: postQueryKeys.latestPrefix(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: postQueryKeys.communityPostsAll(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: postQueryKeys.userPostsAll(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: postQueryKeys.savedPostsAll(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: commentQueryKeys.userCommentsAll(),
+    }),
+  ];
+
+  if (postId) {
+    promises.push(
+      queryClient.invalidateQueries({
+        queryKey: postQueryKeys.detail(postId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: commentQueryKeys.postCommentsPrefix(postId),
+      }),
+    );
+  }
+
+  if (communitySlug) {
+    promises.push(
+      queryClient.invalidateQueries({
+        queryKey: postQueryKeys.communityPostsPrefix(communitySlug),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: communityQueryKeys.modLogsAll(communitySlug),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["community", communitySlug, "manage"],
+      }),
+    );
+
+    if (targetAuthorId) {
+      promises.push(
+        queryClient.invalidateQueries({
+          queryKey: communityQueryKeys.moderationUserProfile({
+            slug: communitySlug,
+            user_id: targetAuthorId,
+          }),
+        }),
+      );
+    }
+  }
+
+  return Promise.all(promises);
 }
 
 function CommunityUserStateMenuItem({
@@ -871,6 +1135,8 @@ function CommunityUserStateMenuItem({
       user_id: userId,
     });
     onCompleted(action.kind);
+    setReason("");
+    setOpen(false);
   }
 
   return (
@@ -912,8 +1178,8 @@ function CommunityUserStateMenuItem({
                     aria-pressed={duration === preset.value}
                     className={
                       duration === preset.value
-                        ? "min-h-11 rounded-md bg-primary/10 px-3 py-2 text-left text-sm font-semibold text-primary shadow-[inset_0_0_0_1px_var(--primary)] transition-colors"
-                        : "min-h-11 rounded-md bg-surface-raised px-3 py-2 text-left text-sm text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)] transition-colors hover:bg-surface-hover hover:text-foreground"
+                        ? "min-h-11 rounded-md bg-primary/10 px-3 py-2 text-left text-sm font-semibold text-primary ring-1 ring-primary/40 transition-colors"
+                        : "min-h-11 rounded-md bg-surface-raised px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
                     }
                     disabled={isPending || isSubmitted}
                     onClick={() => setDuration(preset.value)}
@@ -949,7 +1215,7 @@ function CommunityUserStateMenuItem({
                   <button
                     key={option.label}
                     type="button"
-                    className="rounded-md bg-surface-raised px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)] transition-colors hover:bg-surface-hover hover:text-foreground"
+                    className="rounded-md bg-surface-raised px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
                     disabled={isPending || isSubmitted}
                     onClick={() => setReason(option.value)}
                   >
@@ -986,7 +1252,7 @@ function CommunityUserStateMenuItem({
               <Alert variant="success">
                 <AlertTitle>操作已提交</AlertTitle>
                 <AlertDescription>
-                  社区用户列表和 Mod Log 会刷新到最新状态。
+                  社区用户列表和操作日志会刷新到最新状态。
                 </AlertDescription>
               </Alert>
             ) : null}
@@ -1132,12 +1398,12 @@ function CommunityUserProfileMenuItem({
 
     const trimmedBody = noteBody.trim();
     if (!trimmedBody) {
-      setFormError("请填写 Mod Note 内容。");
+      setFormError("请填写管理备注内容。");
       return;
     }
 
     if (!slug || !userId) {
-      setFormError("缺少社区或作者上下文，不能添加 Mod Note。");
+      setFormError("缺少社区或作者上下文，不能添加管理备注。");
       return;
     }
 
@@ -1163,9 +1429,9 @@ function CommunityUserProfileMenuItem({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>用户画像 / Mod Note</DialogTitle>
+            <DialogTitle>用户画像 / 管理备注</DialogTitle>
             <DialogDescription>
-              {targetLabel}。查看该作者在本社区的审核画像，并添加团队可见的 Mod Note。
+              {targetLabel}。查看该作者在本社区的审核画像，并添加团队可见的管理备注。
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1191,14 +1457,14 @@ function CommunityUserProfileMenuItem({
               <Textarea
                 value={noteBody}
                 onChange={(event) => setNoteBody(event.target.value)}
-                placeholder="添加 Mod Note，记录上下文、历史行为或处理建议。"
+                placeholder="添加管理备注，记录上下文、历史行为或处理建议。"
                 maxLength={1000}
                 disabled={createNoteMutation.isPending}
-                aria-label="Mod Note 内容"
+                aria-label="管理备注内容"
               />
               <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
                 <span>{noteBody.trim().length} / 1000</span>
-                <span>提交后刷新用户画像和 Mod Log</span>
+                <span>提交后刷新用户画像和操作日志</span>
               </div>
               {submitError ? (
                 <Alert variant="destructive">
@@ -1216,7 +1482,7 @@ function CommunityUserProfileMenuItem({
                   关闭
                 </Button>
                 <Button type="submit" disabled={createNoteMutation.isPending}>
-                  {createNoteMutation.isPending ? "保存中..." : "保存 Mod Note"}
+                  {createNoteMutation.isPending ? "保存中..." : "保存管理备注"}
                 </Button>
               </DialogFooter>
             </form>
@@ -1321,7 +1587,7 @@ function ModeratorNotesPreview({
   if (isLoading) {
     return (
       <div className="border border-border p-3 text-sm text-muted-foreground">
-        正在加载 Mod Notes...
+        正在加载管理备注...
       </div>
     );
   }
@@ -1329,7 +1595,7 @@ function ModeratorNotesPreview({
   if (isError) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>无法加载 Mod Notes</AlertTitle>
+        <AlertTitle>无法加载管理备注</AlertTitle>
         <AlertDescription>{getErrorDescription(error)}</AlertDescription>
         <Button
           type="button"
@@ -1347,7 +1613,7 @@ function ModeratorNotesPreview({
   if (notes.length === 0) {
     return (
       <div className="border border-border p-3 text-sm text-muted-foreground">
-        暂无 Mod Note。
+        暂无管理备注。
       </div>
     );
   }

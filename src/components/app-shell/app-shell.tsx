@@ -577,7 +577,7 @@ export function AppShell({
               </div>
 
               {isMobileNavOpen ? (
-                <div className="mt-2 max-h-[calc(100vh-72px)] overflow-y-auto rounded-lg bg-surface px-3 py-3 shadow-[inset_0_0_0_1px_var(--border)] lg:hidden">
+                <div className="mt-2 max-h-[calc(100vh-72px)] overflow-y-auto rounded-lg bg-surface px-3 py-3 lg:hidden">
                   <ShellNav
                     followedCommunities={followedCommunities}
                     followedCommunitiesState={followedCommunitiesState}
@@ -681,26 +681,29 @@ function ShellBrand({
     <Link
       href="/"
       className={cn(
-        "block",
+        "group flex items-center",
         withBorder ? "border-b border-border pb-5" : "",
-        collapsed ? "text-center" : "",
+        collapsed ? "justify-center" : "gap-3",
       )}
       aria-label={collapsed ? "返回首页" : undefined}
       title={collapsed ? "CUMT Nexus" : undefined}
     >
-      <div className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-surface text-foreground transition-colors hover:border-primary/50 hover:bg-surface-hover">
-        <NexusBrandMark className="size-5" />
-      </div>
-      <div className={cn("mt-4 text-sm font-semibold", collapsed ? "hidden" : "")}>
-        CUMT Nexus
-      </div>
+      <NexusBrandMark
+        className={cn(
+          "shrink-0 text-primary transition-colors group-hover:text-foreground",
+          collapsed ? "size-7" : "size-8",
+        )}
+      />
       <div
         className={cn(
-          "mt-1 text-xs text-muted-foreground",
+          "min-w-0",
           collapsed ? "hidden" : "",
         )}
       >
-        校园社区
+        <div className="truncate text-sm font-semibold leading-5">CUMT Nexus</div>
+        <div className="mt-0.5 truncate text-xs text-muted-foreground">
+          校园社区
+        </div>
       </div>
     </Link>
   );
@@ -1285,6 +1288,10 @@ function HeaderMessageMenuItem({
             <span className="shrink-0 text-[11px] font-semibold text-primary">
               等待
             </span>
+          ) : conversation.request_status === "rejected" ? (
+            <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">
+              已忽略
+            </span>
           ) : null}
         </span>
         <span className="mt-1 block truncate text-xs leading-5 text-muted-foreground">
@@ -1353,6 +1360,15 @@ function getMessageParticipantName(user: MessageUserSummary) {
 function formatHeaderMessagePreview(conversation: MessageConversation) {
   if (conversation.blocked) {
     return "无法继续发送消息";
+  }
+
+  if (
+    conversation.request_status === "rejected" ||
+    (conversation.conversation_state === "disabled" &&
+      conversation.disable_reason === "inactive" &&
+      Boolean(conversation.request_id))
+  ) {
+    return "已忽略这条陌生人消息";
   }
 
   if (conversation.request_status === "pending") {
@@ -1727,7 +1743,7 @@ function NotificationCategorySummary({
           <Link
             key={option.value}
             href={getNotificationCategoryHref(option.value)}
-            className="min-w-0 rounded-md bg-background-soft px-3 py-2 text-left shadow-[inset_0_0_0_1px_var(--border)] transition-colors hover:bg-surface-raised hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-w-0 rounded-md bg-background-soft px-3 py-2 text-left transition-colors hover:bg-surface-raised hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={onClose}
           >
             <span className="block truncate text-xs text-muted-foreground">
@@ -2110,7 +2126,7 @@ function AccountProgressionSummary({
 }) {
   if (isError) {
     return (
-      <div className="mt-3 rounded-md bg-background-soft px-3 py-2 text-xs text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
+      <div className="mt-3 rounded-md bg-background-soft px-3 py-2 text-xs text-muted-foreground">
         等级暂时无法同步。
       </div>
     );
@@ -2118,7 +2134,7 @@ function AccountProgressionSummary({
 
   if (isLoading) {
     return (
-      <div className="mt-3 rounded-md bg-background-soft px-3 py-2 text-xs text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
+      <div className="mt-3 rounded-md bg-background-soft px-3 py-2 text-xs text-muted-foreground">
         等级正在同步。
       </div>
     );
@@ -2129,7 +2145,7 @@ function AccountProgressionSummary({
   }
 
   return (
-    <div className="mt-3 rounded-md bg-background-soft px-3 py-2 shadow-[inset_0_0_0_1px_var(--border)]">
+    <div className="mt-3 rounded-md bg-background-soft px-3 py-2">
       <div className="flex min-w-0 items-center gap-2">
         <UserLevelBadge level={progression} size="sm" />
         <span className="min-w-0 truncate text-xs font-semibold text-foreground">
@@ -2156,14 +2172,14 @@ function AccountPointsSummary({
 }) {
   if (isError) {
     return (
-      <div className="mt-2 rounded-md bg-background-soft px-3 py-2 text-xs text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
+      <div className="mt-2 rounded-md bg-background-soft px-3 py-2 text-xs text-muted-foreground">
         积分暂时无法同步。
       </div>
     );
   }
 
   return (
-    <div className="mt-2 grid grid-cols-3 gap-2 rounded-md bg-background-soft px-3 py-2 shadow-[inset_0_0_0_1px_var(--border)]">
+    <div className="mt-2 grid grid-cols-3 gap-2 rounded-md bg-background-soft px-3 py-2">
       <AccountPointsMetric
         icon={<Coins className="size-3.5" aria-hidden="true" />}
         label="积分"
@@ -2275,4 +2291,3 @@ function HeaderAvatar({
     </span>
   );
 }
-

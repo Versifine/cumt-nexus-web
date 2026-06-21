@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import {
   type InfiniteData,
   useMutation,
@@ -55,6 +55,7 @@ export function RedditVoteControl({
   upvoteCount = 0,
 }: RedditVoteControlProps) {
   const { isReady, token } = useAuthSession();
+  const hasHydrated = useHasHydrated();
   const queryClient = useQueryClient();
   const applyOptimisticVote = (nextVote: -1 | 0 | 1) => {
     if (targetType === "post") {
@@ -128,7 +129,7 @@ export function RedditVoteControl({
     },
   });
 
-  const canVote = isReady && Boolean(token);
+  const canVote = hasHydrated && isReady && Boolean(token);
   const isPending = voteMutation.isPending;
   const error = getVoteError(voteMutation.error);
   const isCommentVote = targetType === "comment";
@@ -187,6 +188,18 @@ export function RedditVoteControl({
       </VoteButton>
       {error ? <span className="sr-only">{error}</span> : null}
     </div>
+  );
+}
+
+const subscribeHydrationStore = () => () => {};
+const getHydratedSnapshot = () => true;
+const getServerHydratedSnapshot = () => false;
+
+function useHasHydrated() {
+  return useSyncExternalStore(
+    subscribeHydrationStore,
+    getHydratedSnapshot,
+    getServerHydratedSnapshot,
   );
 }
 

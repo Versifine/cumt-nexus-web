@@ -732,7 +732,7 @@ function QueueLayout({
         actions={toolbar}
         eyebrow="/admin/reports"
         title="全站审核队列"
-        description={`${getQueueDescription(activeQueue)} 队列用于快速扫读、批量处理和进入目标上下文，操作模型参考 Reddit Mod Queue。`}
+        description={`${getQueueDescription(activeQueue)} 队列用于快速扫读、批量处理和进入目标上下文，操作模型参考成熟社区审核队列。`}
         meta={
           <>
             <MetricBlock

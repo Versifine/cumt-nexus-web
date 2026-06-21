@@ -1,4 +1,14 @@
-import type { ReactNode } from "react";
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
@@ -12,6 +22,10 @@ type HoverPreviewProps = {
   trigger: ReactNode;
 };
 
+const VIEWPORT_PADDING = 16;
+const PANEL_GAP = 8;
+const CLOSE_DELAY_MS = 90;
+
 export function HoverPreview({
   align = "start",
   children,
@@ -21,31 +35,172 @@ export function HoverPreview({
   side = "bottom",
   trigger,
 }: HoverPreviewProps) {
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const panelRef = useRef<HTMLSpanElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState<CSSProperties | null>(null);
+
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const closePreview = useCallback(() => {
+    clearCloseTimer();
+    setIsOpen(false);
+    setPanelStyle(null);
+  }, [clearCloseTimer]);
+
+  const scheduleClose = useCallback(() => {
+    clearCloseTimer();
+    closeTimerRef.current = setTimeout(closePreview, CLOSE_DELAY_MS);
+  }, [clearCloseTimer, closePreview]);
+
+  const updatePosition = useCallback(() => {
+    const triggerElement = triggerRef.current;
+
+    if (!triggerElement) {
+      return;
+    }
+
+    const triggerRect = triggerElement.getBoundingClientRect();
+    const panelElement = panelRef.current;
+    const maxWidth = Math.max(0, window.innerWidth - VIEWPORT_PADDING * 2);
+    const panelWidth = Math.min(
+      panelElement?.offsetWidth || 288,
+      maxWidth || 288,
+    );
+    const panelHeight = panelElement?.offsetHeight || 0;
+    const bottomTop = triggerRect.bottom + PANEL_GAP;
+    const topTop = triggerRect.top - panelHeight - PANEL_GAP;
+    const canShowBelow =
+      bottomTop + panelHeight <= window.innerHeight - VIEWPORT_PADDING;
+    const canShowAbove = topTop >= VIEWPORT_PADDING;
+    const resolvedSide =
+      side === "top"
+        ? canShowAbove || !canShowBelow
+          ? "top"
+          : "bottom"
+        : canShowBelow || !canShowAbove
+          ? "bottom"
+          : "top";
+    const preferredTop = resolvedSide === "top" ? topTop : bottomTop;
+    const maxTop = Math.max(
+      VIEWPORT_PADDING,
+      window.innerHeight - VIEWPORT_PADDING - panelHeight,
+    );
+    const top = clamp(preferredTop, VIEWPORT_PADDING, maxTop);
+    const preferredLeft =
+      align === "end" ? triggerRect.right - panelWidth : triggerRect.left;
+    const maxLeft = Math.max(
+      VIEWPORT_PADDING,
+      window.innerWidth - VIEWPORT_PADDING - panelWidth,
+    );
+    const left = clamp(preferredLeft, VIEWPORT_PADDING, maxLeft);
+
+    setPanelStyle({
+      left,
+      maxWidth,
+      position: "fixed",
+      top,
+      zIndex: 1000,
+    });
+  }, [align, side]);
+
+  const openPreview = useCallback(() => {
+    clearCloseTimer();
+    setIsOpen(true);
+    onOpen?.();
+  }, [clearCloseTimer, onOpen]);
+
+  const handleBlur = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      const activeElement = document.activeElement;
+
+      if (
+        !triggerRef.current?.contains(activeElement) &&
+        !panelRef.current?.contains(activeElement)
+      ) {
+        scheduleClose();
+      }
+    });
+  }, [scheduleClose]);
+
+  useEffect(() => {
+    return clearCloseTimer;
+  }, [clearCloseTimer]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    updatePosition();
+
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isOpen, updatePosition]);
+
+  useEffect(() => {
+    if (!isOpen || !panelRef.current) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(updatePosition);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [children, isOpen, updatePosition]);
+
   return (
     <span
-      className={cn(
-        "group/hover-preview relative inline-flex min-w-0 align-middle",
-        className,
-      )}
-      onFocusCapture={onOpen}
-      onMouseEnter={onOpen}
+      ref={triggerRef}
+      className={cn("relative inline-flex min-w-0 align-middle", className)}
+      onBlurCapture={handleBlur}
+      onFocusCapture={openPreview}
+      onMouseEnter={openPreview}
+      onMouseLeave={scheduleClose}
     >
       {trigger}
-      <span
-        className={cn(
-          "invisible absolute z-50 hidden w-72 max-w-[calc(100vw-2rem)] scale-[0.98] opacity-0 transition duration-150 ease-out motion-reduce:transform-none motion-reduce:transition-none",
-          "pointer-events-auto sm:group-hover/hover-preview:block sm:group-focus-within/hover-preview:block",
-          "group-hover/hover-preview:visible group-hover/hover-preview:translate-y-0 group-hover/hover-preview:scale-100 group-hover/hover-preview:opacity-100",
-          "group-focus-within/hover-preview:visible group-focus-within/hover-preview:translate-y-0 group-focus-within/hover-preview:scale-100 group-focus-within/hover-preview:opacity-100",
-          side === "bottom" && "top-full origin-top translate-y-1 pt-2",
-          side === "top" && "bottom-full origin-bottom -translate-y-1 pb-2",
-          align === "start" && "left-0",
-          align === "end" && "right-0",
-          panelClassName,
-        )}
-      >
-        {children}
-      </span>
+      {isOpen && typeof document !== "undefined"
+        ? createPortal(
+            <span
+              ref={panelRef}
+              className={cn(
+                "fixed z-[1000] hidden max-w-[calc(100vw-2rem)] scale-[0.98] opacity-0 transition duration-150 ease-out sm:block motion-reduce:transform-none motion-reduce:transition-none",
+                panelStyle && "scale-100 opacity-100",
+                side === "bottom" && "origin-top",
+                side === "top" && "origin-bottom",
+                panelClassName,
+              )}
+              onBlurCapture={handleBlur}
+              onFocusCapture={openPreview}
+              onMouseEnter={openPreview}
+              onMouseLeave={scheduleClose}
+              style={panelStyle ?? { left: 0, position: "fixed", top: 0 }}
+            >
+              {children}
+            </span>,
+            document.body,
+          )
+        : null}
     </span>
   );
+}
+
+function clamp(value: number, min: number, max: number) {
+  if (max < min) {
+    return min;
+  }
+
+  return Math.min(Math.max(value, min), max);
 }

@@ -108,8 +108,14 @@ export function useStartConversationMutation() {
 
   return useMutation({
     mutationFn: startMessageConversation,
-    onSuccess: () => {
+    onSuccess: (result) => {
       invalidateMessageLists(queryClient);
+
+      if (result.conversation?.id) {
+        void queryClient.invalidateQueries({
+          queryKey: messageQueryKeys.messages(result.conversation.id),
+        });
+      }
     },
   });
 }

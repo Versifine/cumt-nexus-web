@@ -3,6 +3,7 @@
 import {
   cloneElement,
   isValidElement,
+  type ReactNode,
   useMemo,
   useState,
 } from "react";
@@ -27,8 +28,13 @@ import {
   isExternalMarkdownHref,
   normalizeMarkdownHref,
 } from "@/features/content/markdown-url";
-import { resolveWhitelistedMediaEmbed } from "@/features/content/media-embed";
+import {
+  createWhitelistedMediaEmbedFromResolvedContentEmbed,
+  isBackendResolvableMediaEmbedUrl,
+  resolveWhitelistedMediaEmbed,
+} from "@/features/content/media-embed";
 import { MediaEmbedPlayer } from "@/features/content/media-embed-player";
+import { useContentEmbedResolveQuery } from "@/features/content/queries";
 import type { MediaAttachment } from "@/features/media/types";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +43,8 @@ type ContentBodyProps = {
   className?: string;
   value: string;
 };
+
+type RedditTokens = ReturnType<typeof transformRedditMarkdown>["tokens"];
 
 export function ContentBody({
   attachments = [],
@@ -81,49 +89,15 @@ export function ContentBody({
 }
 
 function createMarkdownComponents(
-  tokens: ReturnType<typeof transformRedditMarkdown>["tokens"],
+  tokens: RedditTokens,
   attachmentById: Map<string, MediaAttachment>,
 ): Components {
   return {
     a({ children, href }) {
-      const token = getRedditToken(href, tokens);
-
-      if (token?.type === "spoiler") {
-        return <SpoilerText text={token.text} />;
-      }
-
-      if (token?.type === "sup") {
-        return <sup className="align-super text-[0.72em]">{token.text}</sup>;
-      }
-
-      const safeHref = normalizeMarkdownHref(href);
-      if (
-        isAttachmentMarkdownUrl(safeHref) ||
-        isAttachmentGalleryMarkdownUrl(safeHref)
-      ) {
-        return <span>{children}</span>;
-      }
-      const isExternal = isExternalMarkdownHref(safeHref);
-
-      if (!safeHref) {
-        return <span>{children}</span>;
-      }
-
-      const embed = resolveWhitelistedMediaEmbed(safeHref);
-
-      if (embed) {
-        return <MediaEmbedPlayer embed={embed} />;
-      }
-
       return (
-        <a
-          href={safeHref}
-          rel={isExternal ? "nofollow ugc noopener noreferrer" : undefined}
-          target={isExternal ? "_blank" : undefined}
-          className="font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:decoration-primary"
-        >
+        <ContentMarkdownLink href={href} tokens={tokens}>
           {children}
-        </a>
+        </ContentMarkdownLink>
       );
     },
     img({ alt, src }) {
@@ -313,6 +287,73 @@ function createMarkdownComponents(
       );
     },
   };
+}
+
+function ContentMarkdownLink({
+  children,
+  href,
+  tokens,
+}: {
+  children: ReactNode;
+  href?: string;
+  tokens: RedditTokens;
+}) {
+  const token = getRedditToken(href, tokens);
+  const safeHref = normalizeMarkdownHref(href);
+  const isInternalAttachmentLink =
+    isAttachmentMarkdownUrl(safeHref) ||
+    isAttachmentGalleryMarkdownUrl(safeHref);
+  const localEmbed =
+    safeHref && !isInternalAttachmentLink
+      ? resolveWhitelistedMediaEmbed(safeHref)
+      : null;
+  const backendUrl =
+    safeHref &&
+    !isInternalAttachmentLink &&
+    !localEmbed &&
+    isBackendResolvableMediaEmbedUrl(safeHref)
+      ? safeHref
+      : "";
+  const backendQuery = useContentEmbedResolveQuery(
+    backendUrl,
+    Boolean(backendUrl),
+  );
+  const backendEmbed = createWhitelistedMediaEmbedFromResolvedContentEmbed(
+    backendQuery.data?.embed,
+  );
+
+  if (token?.type === "spoiler") {
+    return <SpoilerText text={token.text} />;
+  }
+
+  if (token?.type === "sup") {
+    return <sup className="align-super text-[0.72em]">{token.text}</sup>;
+  }
+
+  if (isInternalAttachmentLink || !safeHref) {
+    return <span>{children}</span>;
+  }
+
+  if (localEmbed) {
+    return <MediaEmbedPlayer embed={localEmbed} />;
+  }
+
+  if (backendEmbed) {
+    return <MediaEmbedPlayer embed={backendEmbed} />;
+  }
+
+  const isExternal = isExternalMarkdownHref(safeHref);
+
+  return (
+    <a
+      href={safeHref}
+      rel={isExternal ? "nofollow ugc noopener noreferrer" : undefined}
+      target={isExternal ? "_blank" : undefined}
+      className="font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:decoration-primary"
+    >
+      {children}
+    </a>
+  );
 }
 
 function SpoilerText({ text }: { text: string }) {

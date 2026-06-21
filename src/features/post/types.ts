@@ -26,7 +26,10 @@ export type PostAuthorSummary = {
   banner_url?: string;
   headline: string;
   badges: string[];
+  community_role?: string | null;
+  is_platform_staff?: boolean;
   level?: UserLevelSummary | null;
+  platform_role?: string | null;
   progression?: UserLevelSummary | null;
 };
 
@@ -105,6 +108,19 @@ export type Post = {
   created_at: string;
   updated_at: string;
   attachments?: MediaAttachment[];
+  effects?: PostEffectSummary[];
+};
+
+export type PostEffectSummary = {
+  id: string;
+  effect_id: string;
+  name: string;
+  emoji?: string;
+  asset_url: string;
+  animation_key: string;
+  applied_by_user: PostAuthorSummary;
+  points_spent: number;
+  created_at: string;
 };
 
 export type ListPostsResponse = {

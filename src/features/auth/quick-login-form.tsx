@@ -444,6 +444,47 @@ function CompactCodeField({
   onSend: () => void;
   resendAvailableAt?: number;
 }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-sm font-semibold text-foreground" htmlFor={codeInputProps.id}>
+        邮箱验证码
+      </label>
+      <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-2">
+        <Input
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          placeholder="6 位验证码"
+          className="h-10 bg-background"
+          disabled={disabled}
+          {...codeInputProps}
+        />
+        <CompactCodeSendButton
+          key={resendAvailableAt ?? "ready"}
+          disabled={disabled}
+          email={email}
+          isSending={isSending}
+          onSend={onSend}
+          resendAvailableAt={resendAvailableAt}
+        />
+      </div>
+      <FieldMeta error={error} />
+    </div>
+  );
+}
+
+function CompactCodeSendButton({
+  disabled,
+  email,
+  isSending,
+  onSend,
+  resendAvailableAt,
+}: {
+  disabled: boolean;
+  email: string;
+  isSending: boolean;
+  onSend: () => void;
+  resendAvailableAt?: number;
+}) {
   const [now, setNow] = useState(() => Date.now());
   const cooldown = resendAvailableAt
     ? Math.max(0, Math.ceil((resendAvailableAt - now) / 1000))
@@ -460,31 +501,15 @@ function CompactCodeField({
   }, [now, resendAvailableAt]);
 
   return (
-    <div className="space-y-1.5">
-      <label className="text-sm font-semibold text-foreground" htmlFor={codeInputProps.id}>
-        邮箱验证码
-      </label>
-      <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-2">
-        <Input
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          placeholder="6 位验证码"
-          className="h-10 bg-background"
-          disabled={disabled}
-          {...codeInputProps}
-        />
-        <Button
-          type="button"
-          variant="secondary"
-          className="h-10 px-2 text-xs"
-          disabled={disabled || isSending || cooldown > 0 || !email.trim()}
-          onClick={onSend}
-        >
-          {isSending ? "发送中" : cooldown > 0 ? `${cooldown}s` : "发送验证码"}
-        </Button>
-      </div>
-      <FieldMeta error={error} />
-    </div>
+    <Button
+      type="button"
+      variant="secondary"
+      className="h-10 px-2 text-xs"
+      disabled={disabled || isSending || cooldown > 0 || !email.trim()}
+      onClick={onSend}
+    >
+      {isSending ? "发送中" : cooldown > 0 ? `${cooldown}s` : "发送验证码"}
+    </Button>
   );
 }
 

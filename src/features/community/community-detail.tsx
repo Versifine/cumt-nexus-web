@@ -217,7 +217,20 @@ function getUniquePosts(pages: ListPostsResponse[]) {
     }
   }
 
-  return posts;
+  return prioritizePinnedPosts(posts);
+}
+
+function prioritizePinnedPosts(posts: Post[]) {
+  return posts
+    .map((post, index) => ({ index, post }))
+    .sort((left, right) => {
+      if (left.post.is_pinned === right.post.is_pinned) {
+        return left.index - right.index;
+      }
+
+      return left.post.is_pinned ? -1 : 1;
+    })
+    .map(({ post }) => post);
 }
 
 function CommunityHeader({
@@ -239,7 +252,7 @@ function CommunityHeader({
   });
 
   return (
-    <section className="nexus-soft-transition overflow-hidden rounded-lg bg-surface shadow-sm">
+    <section className="nexus-soft-transition overflow-hidden rounded-lg bg-surface">
       <CommunityBanner community={community} />
       <div className="p-4 sm:p-5">
         <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -596,7 +609,7 @@ function CommunityRail({
         </div>
         {hasPlatformOwnerOverride ? (
           <p className="mt-3 text-xs leading-5 text-muted-foreground">
-            当前通过平台 owner 身份显示管理入口，真实社区角色仍为
+            当前通过平台负责人身份显示管理入口，真实社区角色仍为
             {formatViewerRole(community.viewer_role)}。
           </p>
         ) : null}
@@ -617,8 +630,8 @@ function CommunityRail({
               ? "，但当前用户接口未返回具体 platform_role，前端只能按平台工作人员识别"
               : ""}
             {platformRole === "owner"
-              ? "，但没有收到平台 owner 覆盖权限；请刷新登录状态或确认后端已部署新合同。"
-              : "，但平台 admin/staff 不自动获得社区管理权限。"}
+              ? "，但没有收到平台负责人覆盖权限；请刷新登录状态或确认后端已部署新合同。"
+              : "，但平台管理员和平台审核员不自动获得社区管理权限。"}
           </p>
         ) : null}
       </ReviewDeskInspector>
@@ -803,7 +816,11 @@ function canPostToCommunity(
     return false;
   }
 
-  return community.viewer_permissions?.can_post !== false;
+  return (
+    community.status === "active" &&
+    community.visibility === "public" &&
+    community.viewer_permissions?.can_post !== false
+  );
 }
 
 function canManageThisCommunity(
@@ -816,11 +833,11 @@ function canManageThisCommunity(
 function formatPlatformRole(role: PlatformRole) {
   switch (role) {
     case "owner":
-      return "平台 owner";
+      return "平台负责人";
     case "admin":
-      return "平台 admin";
+      return "平台管理员";
     case "staff":
-      return "平台 staff";
+      return "平台审核员";
     default:
       return role;
   }

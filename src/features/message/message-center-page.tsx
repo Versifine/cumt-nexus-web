@@ -31,11 +31,13 @@ import {
   Smile,
   Trash2,
   UserPlus,
+  X,
 } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
+import { NexusBrandMark } from "@/components/brand/nexus-brand-mark";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -49,6 +51,15 @@ import { TextAction } from "@/components/ui/text-action";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useCurrentUserQuery } from "@/features/auth/queries";
+import { ContentBody } from "@/features/content/content-body";
+import {
+  createWhitelistedMediaEmbedFromResolvedContentEmbed,
+  isBackendResolvableMediaEmbedUrl,
+  resolveWhitelistedMediaEmbed,
+  type WhitelistedMediaEmbed,
+} from "@/features/content/media-embed";
+import { MediaEmbedPlayer } from "@/features/content/media-embed-player";
+import { useContentEmbedResolveQuery } from "@/features/content/queries";
 import { useUploadImageMutation } from "@/features/media/queries";
 import {
   IMAGE_UPLOAD_ACCEPT,
@@ -85,12 +96,16 @@ import type {
 
 type MessageCenterPageProps = {
   activeConversationId?: string;
+  embedded?: boolean;
   fullscreen?: boolean;
   initialSearchParams?: MessageCenterSearchParams;
   showRequestInbox?: boolean;
 };
 
-type MessageCenterSearchParams = Record<string, string | string[] | undefined>;
+export type MessageCenterSearchParams = Record<
+  string,
+  string | string[] | undefined
+>;
 
 function createUrlSearchParams(input: MessageCenterSearchParams = {}) {
   const params = new URLSearchParams();
@@ -138,8 +153,11 @@ const MESSAGE_EMOJI_OPTIONS = [
   "👌",
 ] as const;
 
+const MESSAGE_RECALL_WINDOW_MS = 2 * 60 * 1000;
+
 export function MessageCenterPage({
   activeConversationId,
+  embedded = false,
   fullscreen = false,
   initialSearchParams,
   showRequestInbox = false,
@@ -151,13 +169,28 @@ export function MessageCenterPage({
   );
   const { isReady, token } = useAuthSession();
   const canLoad = isReady && Boolean(token);
-  const isThreadRoute = Boolean(activeConversationId);
-  const isRequestInboxRoute = showRequestInbox;
+  const usesLocalNavigation = embedded || !fullscreen;
+  const [localConversationId, setLocalConversationId] = useState(activeConversationId);
+  const [localRequestInboxOpen, setLocalRequestInboxOpen] =
+    useState(showRequestInbox);
+  const effectiveActiveConversationId = usesLocalNavigation
+    ? localConversationId
+    : activeConversationId;
+  const isThreadRoute = Boolean(effectiveActiveConversationId);
+  const isRequestInboxRoute = usesLocalNavigation
+    ? localRequestInboxOpen
+    : showRequestInbox;
   const targetUsername = searchParams.get("to") ?? "";
-  const shareDraft = useMemo(
+  const searchShareDraft = useMemo(
     () => getMessageShareDraftFromParams(searchParams),
     [searchParams],
   );
+  const [clearedShareDraftKey, setClearedShareDraftKey] = useState("");
+  const searchShareDraftKey = getMessageShareKey(searchShareDraft);
+  const shareDraft =
+    searchShareDraftKey && clearedShareDraftKey === searchShareDraftKey
+      ? null
+      : searchShareDraft;
   const [query, setQuery] = useState("");
 
   const summaryQuery = useMessageSummaryQuery(canLoad);
@@ -171,7 +204,7 @@ export function MessageCenterPage({
   );
   const archivedQuery = useMessageConversationsQuery(
     { box: "archived", limit: 20, offset: 0 },
-    canLoad && Boolean(activeConversationId),
+    canLoad && Boolean(effectiveActiveConversationId),
   );
   const currentUserQuery = useCurrentUserQuery();
 
@@ -206,21 +239,95 @@ export function MessageCenterPage({
       ]),
     [allConversations, archivedQuery.data?.conversations, incomingRequests],
   );
+  const normalizedTargetUsername = targetUsername.trim();
+  const targetConversation = normalizedTargetUsername
+    ? findConversationByParticipant(
+        normalizedTargetUsername,
+        allKnownConversations,
+      )
+    : undefined;
 
   const selectedConversation =
-    findConversation(activeConversationId, allKnownConversations) ??
-    (!activeConversationId && !targetUsername && !isRequestInboxRoute
+    findConversation(effectiveActiveConversationId, allKnownConversations) ??
+    targetConversation ??
+    (!effectiveActiveConversationId &&
+    !normalizedTargetUsername &&
+    !shareDraft &&
+    !isRequestInboxRoute
       ? visibleConversations[0]
       : undefined);
-  const selectedConversationId = selectedConversation?.id ?? activeConversationId;
+  const selectedConversationId =
+    selectedConversation?.id ?? effectiveActiveConversationId;
+  const shouldShowPendingConversation = Boolean(
+    !isRequestInboxRoute && !selectedConversationId && normalizedTargetUsername,
+  );
   const shouldShowStartPanel = Boolean(
-    !isRequestInboxRoute && !selectedConversationId && (targetUsername || shareDraft),
+    !isRequestInboxRoute &&
+      !selectedConversationId &&
+      !normalizedTargetUsername &&
+      shareDraft,
   );
   const listError = conversationsQuery.error ?? requestsQuery.error;
   const listIsLoading =
     conversationsQuery.isPending || (requestsQuery.isPending && !requestsQuery.data);
 
+  function openConversation(conversationId: string) {
+    if (usesLocalNavigation) {
+      setLocalConversationId(conversationId);
+      setLocalRequestInboxOpen(false);
+      return;
+    }
+
+    router.push(`/messages/${encodeURIComponent(conversationId)}`);
+  }
+
+  function openRequestInbox() {
+    if (usesLocalNavigation) {
+      setLocalConversationId(undefined);
+      setLocalRequestInboxOpen(true);
+      return;
+    }
+
+    router.push("/messages/requests");
+  }
+
+  function closeLocalDetail() {
+    if (!usesLocalNavigation) {
+      return;
+    }
+
+    setLocalConversationId(undefined);
+    setLocalRequestInboxOpen(false);
+  }
+
+  function handleShareDraftSettled(conversationId?: string) {
+    if (searchShareDraftKey) {
+      setClearedShareDraftKey(searchShareDraftKey);
+    }
+
+    if (!usesLocalNavigation && conversationId) {
+      router.replace(`/messages/${encodeURIComponent(conversationId)}`, {
+        scroll: false,
+      });
+    }
+  }
+
+  function handleConversationStarted(conversationId: string) {
+    handleShareDraftSettled(conversationId);
+    openConversation(conversationId);
+  }
+
   if (!isReady) {
+    if (fullscreen) {
+      return (
+        <MessageStandaloneShell>
+          <div className="rounded-lg bg-surface px-4 py-5 sm:px-5">
+            <LoadingState rows={6} />
+          </div>
+        </MessageStandaloneShell>
+      );
+    }
+
     return (
       <div
         className={cn(
@@ -234,11 +341,31 @@ export function MessageCenterPage({
   }
 
   if (!token) {
-    const nextPath = activeConversationId
-      ? `/messages/${encodeURIComponent(activeConversationId)}`
+    const nextPath = effectiveActiveConversationId
+      ? `/messages/${encodeURIComponent(effectiveActiveConversationId)}`
       : isRequestInboxRoute
         ? "/messages/requests"
       : "/messages";
+
+    if (fullscreen) {
+      return (
+        <MessageStandaloneShell
+          description="私信会话、陌生人消息和在线状态都需要登录后同步。"
+          title="登录后查看私信"
+        >
+          <EmptyState
+            className="bg-surface-raised"
+            title="登录后查看私信"
+            description="登录后可以继续处理会话、陌生人消息和分享内容。"
+            action={
+              <TextAction href={`/login?next=${encodeURIComponent(nextPath)}`}>
+                去登录
+              </TextAction>
+            }
+          />
+        </MessageStandaloneShell>
+      );
+    }
 
     return (
       <div
@@ -251,7 +378,7 @@ export function MessageCenterPage({
         <div
           className={
             fullscreen
-              ? "w-full max-w-xl rounded-md bg-surface p-6 shadow-[inset_0_0_0_1px_var(--border)]"
+              ? "w-full max-w-xl rounded-md bg-surface p-6"
               : ""
           }
         >
@@ -272,17 +399,25 @@ export function MessageCenterPage({
   return (
     <section
       className={cn(
-        "min-h-[620px] overflow-hidden bg-background text-foreground",
+        "overflow-hidden bg-background text-foreground",
+        embedded ? "min-h-0" : "min-h-[620px]",
         fullscreen
           ? "h-screen"
-          : "h-[calc(100vh-64px)] lg:h-[calc(100vh-72px)]",
+          : embedded
+            ? "h-full"
+            : "h-[calc(100vh-64px)] lg:h-[calc(100vh-72px)]",
       )}
     >
       <div className="grid size-full min-h-0 lg:grid-cols-[248px_minmax(0,1fr)]">
         <ConversationSidebar
           activeConversationId={selectedConversationId}
           className={cn(
-            isThreadRoute || isRequestInboxRoute ? "hidden lg:flex" : "flex",
+            isThreadRoute ||
+              isRequestInboxRoute ||
+              shouldShowPendingConversation ||
+              shouldShowStartPanel
+              ? "hidden lg:flex"
+              : "flex",
           )}
           conversations={visibleConversations}
           incomingRequests={incomingRequests}
@@ -290,6 +425,11 @@ export function MessageCenterPage({
           query={query}
           requestCount={summaryQuery.data?.request_count ?? incomingRequests.length}
           setQuery={setQuery}
+          onBack={usesLocalNavigation ? closeLocalDetail : undefined}
+          onOpenConversation={
+            usesLocalNavigation ? openConversation : undefined
+          }
+          onOpenRequestInbox={usesLocalNavigation ? openRequestInbox : undefined}
           showBackButton={!isThreadRoute && !isRequestInboxRoute}
           showRequestInbox={isRequestInboxRoute}
         />
@@ -300,6 +440,7 @@ export function MessageCenterPage({
             isThreadRoute ||
               isRequestInboxRoute ||
               selectedConversation ||
+              shouldShowPendingConversation ||
               shouldShowStartPanel
               ? "flex"
               : "hidden lg:flex",
@@ -317,29 +458,46 @@ export function MessageCenterPage({
           {isRequestInboxRoute ? (
             <RequestInboxPane
               isLoading={requestsQuery.isPending && !requestsQuery.data}
+              onBack={usesLocalNavigation ? closeLocalDetail : undefined}
+              onOpenConversation={
+                usesLocalNavigation ? openConversation : undefined
+              }
               requestCount={summaryQuery.data?.request_count ?? incomingRequests.length}
               requests={incomingRequests}
             />
+          ) : shouldShowPendingConversation ? (
+            <PendingConversationThread
+              onBack={
+                usesLocalNavigation
+                  ? closeLocalDetail
+                  : () => router.replace("/messages")
+              }
+              onShareDraftSent={() => handleShareDraftSettled()}
+              onStarted={handleConversationStarted}
+              shareDraft={shareDraft}
+              targetUsername={normalizedTargetUsername}
+            />
           ) : shouldShowStartPanel ? (
             <StartConversationPane
+              conversations={visibleConversations.filter(isShareTargetConversation)}
               initialTargetUsername={targetUsername}
               shareDraft={shareDraft}
-              onStarted={(conversationId) =>
-                router.push(`/messages/${encodeURIComponent(conversationId)}`)
-              }
+              onStarted={handleConversationStarted}
             />
           ) : selectedConversation ? (
             <ConversationThread
               conversation={selectedConversation}
               conversationId={selectedConversation.id}
               currentUserId={currentUserQuery.data?.id}
+              onBack={usesLocalNavigation ? closeLocalDetail : undefined}
+              onConversationDeleted={
+                usesLocalNavigation
+                  ? closeLocalDetail
+                  : () => router.replace("/messages")
+              }
+              onConversationStarted={openConversation}
               onShareDraftSent={() =>
-                router.replace(
-                  `/messages/${encodeURIComponent(selectedConversation.id)}`,
-                  {
-                    scroll: false,
-                  },
-                )
+                handleShareDraftSettled(selectedConversation.id)
               }
               shareDraft={shareDraft}
               showBackButton={isThreadRoute}
@@ -362,12 +520,60 @@ export function MessageCenterPage({
   );
 }
 
+function MessageStandaloneShell({
+  children,
+  description = "同步私信前需要先确认当前账号。",
+  title = "私信中心",
+}: {
+  children: ReactNode;
+  description?: string;
+  title?: string;
+}) {
+  return (
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+        <header className="flex items-center justify-between rounded-lg bg-surface px-4 py-3">
+          <Link
+            href="/"
+            className="group flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <NexusBrandMark className="size-7 text-primary transition-colors group-hover:text-foreground" />
+            <span>
+              <span className="block text-sm font-semibold">CUMT Nexus</span>
+              <span className="block text-xs text-muted-foreground">校园社区</span>
+            </span>
+          </Link>
+          <TextAction href="/">信息流首页</TextAction>
+        </header>
+
+        <section className="grid flex-1 items-center py-8 lg:py-12">
+          <div className="mx-auto w-full max-w-xl">
+            <div className="mb-4">
+              <p className="font-mono text-xs text-primary">私信 / 账号同步</p>
+              <h1 className="mt-3 text-2xl font-semibold leading-8 tracking-normal">
+                {title}
+              </h1>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {description}
+              </p>
+            </div>
+            {children}
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
 function ConversationSidebar({
   activeConversationId,
   className,
   conversations,
   incomingRequests,
   isLoading,
+  onBack,
+  onOpenConversation,
+  onOpenRequestInbox,
   query,
   requestCount,
   setQuery,
@@ -379,6 +585,9 @@ function ConversationSidebar({
   conversations: MessageConversation[];
   incomingRequests: MessageConversation[];
   isLoading: boolean;
+  onBack?: () => void;
+  onOpenConversation?: (conversationId: string) => void;
+  onOpenRequestInbox?: () => void;
   query: string;
   requestCount: number;
   setQuery: (query: string) => void;
@@ -398,7 +607,7 @@ function ConversationSidebar({
       )}
     >
       <div className="flex items-center gap-2 px-3 py-3">
-        {showBackButton ? <MessageBackButton /> : null}
+        {showBackButton ? <MessageBackButton onBack={onBack} /> : null}
         <label className="relative block min-w-0 flex-1">
           <Search
             className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
@@ -431,6 +640,7 @@ function ConversationSidebar({
                 )}
                 count={requestCount || incomingRequests.length}
                 href="/messages/requests"
+                onOpen={onOpenRequestInbox}
               />
             ) : null}
 
@@ -446,6 +656,7 @@ function ConversationSidebar({
                   key={conversation.id}
                   active={conversation.id === activeConversationId}
                   conversation={conversation}
+                  onOpen={onOpenConversation}
                 />
               ))
             )}
@@ -460,22 +671,21 @@ function RequestInboxRow({
   active,
   count,
   href,
+  onOpen,
 }: {
   active: boolean;
   count: number;
   href: string;
+  onOpen?: () => void;
 }) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "grid min-h-[58px] grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-2 rounded-md px-2.5 py-2 text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-        active
-          ? "bg-surface-raised text-foreground ring-1 ring-primary/20"
-          : "hover:bg-surface hover:text-foreground",
-      )}
-    >
+  const className = cn(
+    "grid min-h-[58px] w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-2 rounded-md px-2.5 py-2 text-left text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+    active
+      ? "bg-surface-raised text-foreground ring-1 ring-primary/20"
+      : "hover:bg-surface hover:text-foreground",
+  );
+  const content = (
+    <>
       <span className="relative flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
         <UserPlus className="size-4" aria-hidden="true" />
       </span>
@@ -492,6 +702,29 @@ function RequestInboxRow({
           {count > 99 ? "99+" : count}
         </span>
       ) : null}
+    </>
+  );
+
+  if (onOpen) {
+    return (
+      <button
+        type="button"
+        aria-current={active ? "page" : undefined}
+        className={className}
+        onClick={onOpen}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={className}
+    >
+      {content}
     </Link>
   );
 }
@@ -499,24 +732,23 @@ function RequestInboxRow({
 function ConversationListRow({
   active,
   conversation,
+  onOpen,
 }: {
   active: boolean;
   conversation: MessageConversation;
+  onOpen?: (conversationId: string) => void;
 }) {
   const displayName = getUserDisplayName(conversation.participant);
   const requestDirection = getRequestDirection(conversation);
 
-  return (
-    <Link
-      href={`/messages/${encodeURIComponent(conversation.id)}`}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "grid min-h-[58px] grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-2 rounded-md px-2.5 py-2 text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
-        active
-          ? "bg-surface-raised text-foreground ring-1 ring-primary/20"
-          : "hover:bg-surface hover:text-foreground",
-      )}
-    >
+  const className = cn(
+    "grid min-h-[58px] w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-2 rounded-md px-2.5 py-2 text-left text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+    active
+      ? "bg-surface-raised text-foreground ring-1 ring-primary/20"
+      : "hover:bg-surface hover:text-foreground",
+  );
+  const content = (
+    <>
       <MessageUserAvatar
         online={conversation.peer_online}
         onlineVisible={conversation.peer_online_status_visible}
@@ -549,6 +781,29 @@ function ConversationListRow({
           <span className="size-1.5 rounded-full bg-primary" />
         ) : null}
       </span>
+    </>
+  );
+
+  if (onOpen) {
+    return (
+      <button
+        type="button"
+        aria-current={active ? "page" : undefined}
+        className={className}
+        onClick={() => onOpen(conversation.id)}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      href={`/messages/${encodeURIComponent(conversation.id)}`}
+      aria-current={active ? "page" : undefined}
+      className={className}
+    >
+      {content}
     </Link>
   );
 }
@@ -557,6 +812,9 @@ function ConversationThread({
   conversation,
   conversationId,
   currentUserId,
+  onBack,
+  onConversationDeleted,
+  onConversationStarted,
   onShareDraftSent,
   shareDraft,
   showBackButton,
@@ -564,11 +822,13 @@ function ConversationThread({
   conversation: MessageConversation;
   conversationId: string;
   currentUserId?: string;
+  onBack?: () => void;
+  onConversationDeleted: () => void;
+  onConversationStarted: (conversationId: string) => void;
   onShareDraftSent: () => void;
   shareDraft: MessageShareSnapshot | null;
   showBackButton: boolean;
 }) {
-  const router = useRouter();
   const messagesQuery = useConversationMessagesQuery(
     { conversationId, limit: 50 },
     Boolean(conversationId),
@@ -577,6 +837,8 @@ function ConversationThread({
   const requestActionMutation = useMessageRequestActionMutation();
   const blockMutation = useMessageBlockMutation();
   const requestDirection = getRequestDirection(conversation);
+  const isRejectedRequest = isRejectedRequestConversation(conversation);
+  const canReopenRejectedRequest = canViewerReopenConversation(conversation);
 
   useEffect(() => {
     if (conversation.unread_count <= 0) {
@@ -611,7 +873,7 @@ function ConversationThread({
               type: "delete",
             },
             {
-              onSuccess: () => router.replace("/messages"),
+              onSuccess: onConversationDeleted,
             },
           )
         }
@@ -640,6 +902,7 @@ function ConversationThread({
             username: conversation.participant.username,
           })
         }
+        onBack={onBack}
         showBackButton={showBackButton}
       />
 
@@ -672,6 +935,10 @@ function ConversationThread({
         <SystemLine>等待对方通过后可继续聊天</SystemLine>
       ) : null}
 
+      {isRejectedRequest ? (
+        <RejectedRequestNotice canReopen={canReopenRejectedRequest} />
+      ) : null}
+
       <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 lg:px-5">
         {messagesQuery.isPending ? (
           <LoadingState rows={7} />
@@ -695,14 +962,23 @@ function ConversationThread({
         )}
       </section>
 
-      <MessageComposer
-        canSend={conversation.can_send && requestDirection === "none"}
-        conversationId={conversationId}
-        disabledReason={conversation.disable_reason}
-        onShareDraftSent={onShareDraftSent}
-        requestDirection={requestDirection}
-        shareDraft={shareDraft}
-      />
+      {canReopenRejectedRequest ? (
+        <ReopenConversationComposer
+          onConversationStarted={onConversationStarted}
+          onShareDraftSent={onShareDraftSent}
+          participant={conversation.participant}
+          shareDraft={shareDraft}
+        />
+      ) : (
+        <MessageComposer
+          canSend={conversation.can_send && requestDirection === "none"}
+          conversationId={conversationId}
+          disabledReason={conversation.disable_reason}
+          onShareDraftSent={onShareDraftSent}
+          requestDirection={requestDirection}
+          shareDraft={shareDraft}
+        />
+      )}
     </>
   );
 }
@@ -710,6 +986,7 @@ function ConversationThread({
 function ThreadHeader({
   conversation,
   disabled,
+  onBack,
   onArchive,
   onBlock,
   onDelete,
@@ -720,6 +997,7 @@ function ThreadHeader({
 }: {
   conversation: MessageConversation;
   disabled: boolean;
+  onBack?: () => void;
   onArchive: () => void;
   onBlock: () => void;
   onDelete: () => void;
@@ -733,7 +1011,7 @@ function ThreadHeader({
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 bg-background-soft px-3 lg:px-4">
       <div className="flex min-w-0 items-center gap-2.5">
-        {showBackButton ? <MessageBackButton /> : null}
+        {showBackButton ? <MessageBackButton onBack={onBack} /> : null}
         <MessageUserAvatar
           online={conversation.peer_online}
           onlineVisible={conversation.peer_online_status_visible}
@@ -855,12 +1133,33 @@ function IncomingRequestNotice({
   );
 }
 
+function RejectedRequestNotice({ canReopen }: { canReopen: boolean }) {
+  return (
+    <section className="bg-surface-raised px-5 py-3">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-foreground">
+          已忽略这条陌生人消息
+        </p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          {canReopen
+            ? "你可以主动发消息重新开启对话；发送成功后对方才能继续回复。"
+            : "对方不能继续追发；如果需要重新开启对话，需要由接收方主动发起。"}
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function RequestInboxPane({
   isLoading,
+  onBack,
+  onOpenConversation,
   requestCount,
   requests,
 }: {
   isLoading: boolean;
+  onBack?: () => void;
+  onOpenConversation?: (conversationId: string) => void;
   requestCount: number;
   requests: MessageConversation[];
 }) {
@@ -869,7 +1168,7 @@ function RequestInboxPane({
   return (
     <>
       <header className="flex h-14 shrink-0 items-center gap-2 bg-background-soft px-3 lg:px-4">
-        <MessageBackButton />
+        <MessageBackButton onBack={onBack} />
         <div className="min-w-0">
           <h1 className="truncate text-sm font-semibold text-foreground">
             陌生人消息
@@ -895,6 +1194,7 @@ function RequestInboxPane({
                 key={conversation.id}
                 conversation={conversation}
                 disabled={requestActionMutation.isPending}
+                onOpen={onOpenConversation}
                 onAccept={() => {
                   if (!conversation.request_id) {
                     return;
@@ -927,37 +1227,56 @@ function RequestInboxPane({
 function RequestInboxListItem({
   conversation,
   disabled,
+  onOpen,
   onAccept,
   onReject,
 }: {
   conversation: MessageConversation;
   disabled: boolean;
+  onOpen?: (conversationId: string) => void;
   onAccept: () => void;
   onReject: () => void;
 }) {
   const displayName = getUserDisplayName(conversation.participant);
-
-  return (
-    <article className="grid gap-3 rounded-md bg-surface px-3 py-3 shadow-[inset_0_0_0_1px_var(--border)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-      <Link
-        href={`/messages/${encodeURIComponent(conversation.id)}`}
-        className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] gap-3 rounded-md py-1 pr-2 transition-colors hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-      >
-        <MessageUserAvatar user={conversation.participant} />
-        <span className="min-w-0">
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-sm font-semibold text-foreground">
-              {displayName}
-            </span>
-            <span className="shrink-0 text-[10px] text-subtle-foreground">
-              {formatShortTime(conversation.updated_at)}
-            </span>
+  const profileContent = (
+    <>
+      <MessageUserAvatar user={conversation.participant} />
+      <span className="min-w-0">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-sm font-semibold text-foreground">
+            {displayName}
           </span>
-          <span className="mt-1 block truncate text-xs text-muted-foreground">
-            {conversation.last_message?.text || formatConversationPreview(conversation)}
+          <span className="shrink-0 text-[10px] text-subtle-foreground">
+            {formatShortTime(conversation.updated_at)}
           </span>
         </span>
-      </Link>
+        <span className="mt-1 block truncate text-xs text-muted-foreground">
+          {conversation.last_message?.text || formatConversationPreview(conversation)}
+        </span>
+      </span>
+    </>
+  );
+  const profileClassName =
+    "grid min-w-0 grid-cols-[40px_minmax(0,1fr)] gap-3 rounded-md py-1 pr-2 text-left transition-colors hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
+
+  return (
+    <article className="grid gap-3 rounded-md bg-surface-raised px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      {onOpen ? (
+        <button
+          type="button"
+          className={profileClassName}
+          onClick={() => onOpen(conversation.id)}
+        >
+          {profileContent}
+        </button>
+      ) : (
+        <Link
+          href={`/messages/${encodeURIComponent(conversation.id)}`}
+          className={profileClassName}
+        >
+          {profileContent}
+        </Link>
+      )}
       <div className="flex items-center justify-end gap-2 sm:justify-start">
         <Button
           type="button"
@@ -983,7 +1302,7 @@ function RequestInboxListItem({
   );
 }
 
-function MessageBackButton() {
+function MessageBackButton({ onBack }: { onBack?: () => void }) {
   const router = useRouter();
 
   return (
@@ -992,6 +1311,11 @@ function MessageBackButton() {
       aria-label="返回上一级"
       className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
       onClick={() => {
+        if (onBack) {
+          onBack();
+          return;
+        }
+
         router.push(getMessageReturnTarget());
       }}
     >
@@ -1052,8 +1376,29 @@ function MessageRow({
   const actionMutation = useMessageActionMutation(conversationId);
   const isImage = message.type === "image";
   const isShare = message.type.startsWith("share_");
-  const isRich = isImage || isShare;
-  const canRecall = isOwn && !isRecalled(message);
+  const hasEmbeddedBody = hasMessageBodyMediaEmbed(message.body);
+  const isRich = isImage || isShare || hasEmbeddedBody;
+  const [now, setNow] = useState(() => Date.now());
+  const canRecall = isOwn && canRecallMessage(message, now);
+
+  useEffect(() => {
+    if (!isOwn || isRecalled(message)) {
+      return;
+    }
+
+    const deadline = getMessageRecallDeadlineMs(message);
+
+    if (deadline === null || deadline <= now) {
+      return;
+    }
+
+    const timeout = window.setTimeout(
+      () => setNow(Date.now()),
+      deadline - now + 250,
+    );
+
+    return () => window.clearTimeout(timeout);
+  }, [isOwn, message, now]);
 
   return (
     <article
@@ -1065,21 +1410,22 @@ function MessageRow({
       {!isOwn ? <MessageUserAvatar size="sm" user={message.sender} /> : null}
 
       <div
-        className={cn(
-          "flex max-w-[72%] flex-col",
-          isOwn ? "items-end" : "items-start",
-        )}
-      >
+          className={cn(
+            "flex flex-col",
+            isRich ? "max-w-[92%] sm:max-w-[78%] lg:max-w-[620px]" : "max-w-[72%]",
+            isOwn ? "items-end" : "items-start",
+          )}
+        >
         <div
           className={cn(
-            "max-w-full overflow-hidden rounded-md px-3 py-2 text-sm leading-6 shadow-sm",
+            "max-w-full overflow-hidden rounded-md px-3 py-2 text-sm leading-6",
             isOwn
               ? "rounded-br-sm bg-primary text-primary-foreground"
-              : "rounded-bl-sm bg-surface-raised text-foreground shadow-[inset_0_0_0_1px_var(--border)]",
+              : "rounded-bl-sm bg-surface-raised text-foreground",
             isRich && "bg-transparent p-0",
           )}
         >
-          <MessageBody isOwn={isOwn && !isRich} message={message} />
+          <MessageBody isOwn={isOwn} message={message} />
         </div>
 
         <MessageActions
@@ -1189,7 +1535,16 @@ function MessageBody({
 
   if (message.type.startsWith("share_")) {
     return message.share ? (
-      <MessageSharePreview compact share={message.share} />
+      <div className="space-y-2">
+        {message.body ? (
+          <MessageMarkdownBody
+            isOwn={isOwn}
+            mode={hasMessageBodyMediaEmbed(message.body) ? "rich" : "bubble"}
+            value={message.body}
+          />
+        ) : null}
+        <MessageSharePreview compact share={message.share} />
+      </div>
     ) : (
       <span className={isOwn ? "text-primary-foreground/75" : "text-muted-foreground"}>
         内容暂不可查看
@@ -1221,14 +1576,52 @@ function MessageBody({
   }
 
   return (
-    <p
+    <MessageMarkdownBody
+      isOwn={isOwn}
+      mode={hasMessageBodyMediaEmbed(message.body) ? "rich" : "inline"}
+      value={message.body || "消息暂不可查看"}
+    />
+  );
+}
+
+function MessageMarkdownBody({
+  isOwn,
+  mode,
+  value,
+}: {
+  isOwn: boolean;
+  mode: "bubble" | "inline" | "rich";
+  value: string;
+}) {
+  const isRich = mode === "rich";
+  const isBubble = mode === "bubble";
+
+  return (
+    <div
       className={cn(
-        "whitespace-pre-wrap break-words",
-        isOwn ? "text-primary-foreground" : "text-foreground",
+        "max-w-full",
+        isRich &&
+          "w-fit rounded-md bg-surface-raised px-3 py-2 sm:max-w-[520px]",
+        isBubble &&
+          "block max-w-[260px] rounded-md px-3 py-2",
+        isBubble && (isOwn ? "rounded-br-sm bg-primary" : "rounded-bl-sm bg-surface-raised"),
+        !isRich && isOwn ? "text-primary-foreground" : "text-foreground",
       )}
     >
-      {message.body || "消息暂不可查看"}
-    </p>
+      <ContentBody
+        value={value}
+        className={cn(
+          "max-w-full text-sm leading-6",
+          "[&_p]:my-0 [&_p]:whitespace-pre-wrap [&_p]:leading-6",
+          "[&_p+p]:mt-2 [&_ul]:my-2 [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:pl-5",
+          "[&_blockquote]:my-2 [&_pre]:my-2 [&_hr]:my-3",
+          "[&_.katex-display]:my-2 [&_[data-media-provider]]:my-2",
+          !isRich && isOwn
+            ? "text-primary-foreground [&_a]:text-primary-foreground [&_a]:decoration-primary-foreground/60 [&_strong]:text-primary-foreground"
+            : "text-foreground",
+        )}
+      />
+    </div>
   );
 }
 
@@ -1247,6 +1640,7 @@ function MessageComposer({
   requestDirection: "incoming" | "none" | "outgoing";
   shareDraft: MessageShareSnapshot | null;
 }) {
+  const [removedShareKey, setRemovedShareKey] = useState("");
   const [body, setBody] = useState("");
   const [localError, setLocalError] = useState("");
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -1256,6 +1650,9 @@ function MessageComposer({
   const uploadImageMutation = useUploadImageMutation();
   const canEdit = canSend || requestDirection !== "none";
   const isSubmitting = sendMutation.isPending || uploadImageMutation.isPending;
+  const shareDraftKey = getMessageShareKey(shareDraft);
+  const activeShareDraft =
+    shareDraftKey && removedShareKey === shareDraftKey ? null : shareDraft;
 
   function clearComposerErrors() {
     if (localError) {
@@ -1273,7 +1670,7 @@ function MessageComposer({
 
   function submit(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
-    const draft = buildDraft(body, shareDraft);
+    const draft = buildDraft(body, activeShareDraft);
 
     if (!draft) {
       return;
@@ -1295,7 +1692,7 @@ function MessageComposer({
           setBody("");
           setLocalError("");
 
-          if (shareDraft) {
+          if (activeShareDraft) {
             onShareDraftSent();
           }
         },
@@ -1304,10 +1701,6 @@ function MessageComposer({
   }
 
   function insertEmoji(emoji: string) {
-    if (shareDraft) {
-      return;
-    }
-
     const textarea = textareaRef.current;
     const start = textarea?.selectionStart ?? body.length;
     const end = textarea?.selectionEnd ?? body.length;
@@ -1325,7 +1718,7 @@ function MessageComposer({
   }
 
   function handleImageButtonClick() {
-    if (shareDraft || isSubmitting) {
+    if (activeShareDraft || isSubmitting) {
       return;
     }
 
@@ -1397,12 +1790,21 @@ function MessageComposer({
   return (
     <footer className="shrink-0 bg-background-soft px-3 py-3">
       {!canEdit ? (
-        <div className="flex min-h-9 items-center rounded-md bg-surface-raised px-3 text-sm text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
+        <div className="flex min-h-9 items-center rounded-md bg-surface-raised px-3 text-sm text-muted-foreground">
           {formatComposerDisabledReason(requestDirection, disabledReason)}
         </div>
       ) : (
         <form className="relative space-y-2" onSubmit={submit}>
-          {shareDraft ? <MessageSharePreview compact share={shareDraft} /> : null}
+          {activeShareDraft ? (
+            <ComposerSharePreview
+              share={activeShareDraft}
+              onRemove={() => {
+                setRemovedShareKey(shareDraftKey);
+                onShareDraftSent();
+              }}
+            />
+          ) : null}
+          <MessageComposerEmbedPreview value={body} />
           {emojiOpen ? (
             <div className="absolute bottom-14 left-1 z-10 grid w-[260px] grid-cols-8 gap-1 rounded-md border border-border bg-surface-raised p-2 shadow-2xl">
               {MESSAGE_EMOJI_OPTIONS.map((emoji) => (
@@ -1428,15 +1830,11 @@ function MessageComposer({
           <div className="flex min-h-10 items-center gap-2 rounded-md bg-surface-raised px-2 py-1 shadow-[inset_0_0_0_1px_var(--input)] focus-within:ring-2 focus-within:ring-primary/20">
             <button
               type="button"
-              disabled={Boolean(shareDraft)}
+              disabled={false}
               className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:text-subtle-foreground"
               aria-label="选择表情"
               aria-expanded={emojiOpen}
               onClick={() => {
-                if (shareDraft) {
-                  return;
-                }
-
                 setEmojiOpen((open) => !open);
               }}
             >
@@ -1450,13 +1848,13 @@ function MessageComposer({
                 clearComposerErrors();
               }}
               onKeyDown={handleKeyDown}
-              placeholder={shareDraft ? "发送这张分享卡片" : "发送消息"}
-              disabled={Boolean(shareDraft)}
+              placeholder={activeShareDraft ? "添加留言" : "发送消息"}
+              disabled={false}
               className="h-8 min-h-8 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-0 py-1.5 text-sm leading-5 text-foreground placeholder:text-muted-foreground shadow-none hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 disabled:opacity-100"
             />
             <button
               type="button"
-              disabled={Boolean(shareDraft) || isSubmitting}
+              disabled={Boolean(activeShareDraft) || isSubmitting}
               className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:text-subtle-foreground"
               aria-label={uploadImageMutation.isPending ? "图片上传中" : "发送图片"}
               onClick={handleImageButtonClick}
@@ -1465,9 +1863,9 @@ function MessageComposer({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || (!shareDraft && !body.trim())}
+              disabled={isSubmitting || (!activeShareDraft && !body.trim())}
               className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-surface-hover disabled:text-subtle-foreground"
-              aria-label={isSubmitting ? "发送中" : shareDraft ? "发送分享卡片" : "发送消息"}
+              aria-label={isSubmitting ? "发送中" : activeShareDraft ? "发送分享卡片" : "发送消息"}
             >
               <Send className="size-4" aria-hidden="true" />
             </button>
@@ -1484,25 +1882,645 @@ function MessageComposer({
   );
 }
 
+function MessageComposerEmbedPreview({ value }: { value: string }) {
+  const resolvedEmbed = useResolvedMessageMediaEmbed(value);
+
+  if (!resolvedEmbed.embed && !resolvedEmbed.isResolving) {
+    return null;
+  }
+
+  return (
+    <div className="w-fit max-w-full overflow-hidden rounded-md bg-surface-raised p-2">
+      <div className="mb-1 flex items-center justify-between gap-3 px-1 text-xs text-muted-foreground">
+        <span>嵌入预览</span>
+        <span className="font-mono text-[10px] text-subtle-foreground">
+          发送后保留播放器
+        </span>
+      </div>
+      {resolvedEmbed.embed ? (
+        <MediaEmbedPlayer embed={resolvedEmbed.embed} />
+      ) : (
+        <div className="rounded-md bg-surface px-3 py-4 text-sm text-muted-foreground">
+          正在解析抖音链接...
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ComposerSharePreview({
+  className,
+  onRemove,
+  share,
+}: {
+  className?: string;
+  onRemove: () => void;
+  share: MessageShareSnapshot;
+}) {
+  return (
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-md bg-surface-raised",
+        className,
+      )}
+    >
+      <MessageSharePreview compact share={share} className="mt-0 w-full bg-transparent" />
+      <button
+        type="button"
+        className="absolute right-2 top-2 inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-background/80 text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+        aria-label="移除分享卡片"
+        onClick={onRemove}
+      >
+        <X className="size-4" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+function ReopenConversationComposer({
+  onConversationStarted,
+  onShareDraftSent,
+  participant,
+  shareDraft,
+}: {
+  onConversationStarted: (conversationId: string) => void;
+  onShareDraftSent: () => void;
+  participant: MessageUserSummary;
+  shareDraft: MessageShareSnapshot | null;
+}) {
+  const [removedShareKey, setRemovedShareKey] = useState("");
+  const [body, setBody] = useState("");
+  const [localError, setLocalError] = useState("");
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const startMutation = useStartConversationMutation();
+  const uploadImageMutation = useUploadImageMutation();
+  const isSubmitting = startMutation.isPending || uploadImageMutation.isPending;
+  const shareDraftKey = getMessageShareKey(shareDraft);
+  const activeShareDraft =
+    shareDraftKey && removedShareKey === shareDraftKey ? null : shareDraft;
+
+  function clearComposerErrors() {
+    if (localError) {
+      setLocalError("");
+    }
+
+    if (startMutation.isError) {
+      startMutation.reset();
+    }
+
+    if (uploadImageMutation.isError) {
+      uploadImageMutation.reset();
+    }
+  }
+
+  function handleStarted(result: Awaited<ReturnType<typeof startMutation.mutateAsync>>) {
+    if (!result.message || !canUseReopenedConversation(result.conversation)) {
+      setLocalError("暂时无法重新开启这段私信，请稍后再试。");
+      return;
+    }
+
+    setBody("");
+    setEmojiOpen(false);
+    onConversationStarted(result.conversation.id);
+
+    if (activeShareDraft) {
+      onShareDraftSent();
+    }
+  }
+
+  function submit(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    const draft = buildDraft(body, activeShareDraft);
+
+    if (!draft) {
+      return;
+    }
+
+    clearComposerErrors();
+    startMutation.mutate(
+      {
+        message: draft,
+        target_username: participant.username,
+      },
+      {
+        onSuccess: handleStarted,
+      },
+    );
+  }
+
+  function insertEmoji(emoji: string) {
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? body.length;
+    const end = textarea?.selectionEnd ?? body.length;
+    const nextBody = `${body.slice(0, start)}${emoji}${body.slice(end)}`;
+    const nextCaret = start + emoji.length;
+
+    setBody(nextBody);
+    setEmojiOpen(false);
+    clearComposerErrors();
+
+    window.requestAnimationFrame(() => {
+      textarea?.focus();
+      textarea?.setSelectionRange(nextCaret, nextCaret);
+    });
+  }
+
+  function handleImageButtonClick() {
+    if (activeShareDraft || isSubmitting) {
+      return;
+    }
+
+    fileInputRef.current?.click();
+  }
+
+  async function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    const validationError = validateMessageImageFile(file);
+
+    if (validationError) {
+      setLocalError(validationError);
+      return;
+    }
+
+    clearComposerErrors();
+
+    try {
+      const result = await uploadImageMutation.mutateAsync({
+        alt_text: "私信图片",
+        file,
+      });
+
+      if (!isSendableMessageImage(result.attachment)) {
+        setLocalError("图片上传失败，请换一张图片重试。");
+        return;
+      }
+
+      const started = await startMutation.mutateAsync({
+        message: {
+          image_url: result.attachment.url,
+          type: "image",
+        },
+        target_username: participant.username,
+      });
+
+      handleStarted(started);
+    } catch (error) {
+      setLocalError(getErrorMessage(error));
+    }
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    submit();
+  }
+
+  return (
+    <footer className="shrink-0 bg-background-soft px-3 py-3">
+      <form className="relative space-y-2" onSubmit={submit}>
+        {activeShareDraft ? (
+          <ComposerSharePreview
+            share={activeShareDraft}
+            onRemove={() => {
+              setRemovedShareKey(shareDraftKey);
+              onShareDraftSent();
+            }}
+          />
+        ) : null}
+        <MessageComposerEmbedPreview value={body} />
+        {emojiOpen ? (
+          <div className="absolute bottom-14 left-1 z-10 grid w-[260px] grid-cols-8 gap-1 rounded-md border border-border bg-surface-raised p-2 shadow-2xl">
+            {MESSAGE_EMOJI_OPTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                className="flex size-7 items-center justify-center rounded-sm text-base transition-colors hover:bg-surface-hover"
+                onClick={() => insertEmoji(emoji)}
+                aria-label={`输入表情 ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={IMAGE_UPLOAD_ACCEPT}
+          className="hidden"
+          onChange={handleImageChange}
+        />
+        <div className="flex min-h-10 items-center gap-2 rounded-md bg-surface-raised px-2 py-1 shadow-[inset_0_0_0_1px_var(--input)] focus-within:ring-2 focus-within:ring-primary/20">
+          <button
+            type="button"
+            disabled={false}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:text-subtle-foreground"
+            aria-label="选择表情"
+            aria-expanded={emojiOpen}
+            onClick={() => {
+              setEmojiOpen((open) => !open);
+            }}
+          >
+            <Smile className="size-4" aria-hidden="true" />
+          </button>
+          <Textarea
+            ref={textareaRef}
+            value={body}
+            onChange={(event) => {
+              setBody(event.target.value);
+              clearComposerErrors();
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={activeShareDraft ? "添加留言" : "发送消息"}
+            disabled={false}
+            className="h-8 min-h-8 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-0 py-1.5 text-sm leading-5 text-foreground placeholder:text-muted-foreground shadow-none hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 disabled:opacity-100"
+          />
+          <button
+            type="button"
+            disabled={Boolean(activeShareDraft) || isSubmitting}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:text-subtle-foreground"
+            aria-label={uploadImageMutation.isPending ? "图片上传中" : "发送图片"}
+            onClick={handleImageButtonClick}
+          >
+            <ImageIcon className="size-4" aria-hidden="true" />
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting || (!activeShareDraft && !body.trim())}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-surface-hover disabled:text-subtle-foreground"
+            aria-label={isSubmitting ? "发送中" : activeShareDraft ? "发送分享卡片" : "发送消息"}
+          >
+            <Send className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+        {localError || startMutation.isError || uploadImageMutation.isError ? (
+          <p className="px-3 text-xs text-destructive">
+            {localError ||
+              getErrorMessage(startMutation.error ?? uploadImageMutation.error)}
+          </p>
+        ) : null}
+      </form>
+    </footer>
+  );
+}
+
+function PendingConversationThread({
+  onBack,
+  onShareDraftSent,
+  onStarted,
+  shareDraft,
+  targetUsername,
+}: {
+  onBack?: () => void;
+  onShareDraftSent: () => void;
+  onStarted: (conversationId: string) => void;
+  shareDraft: MessageShareSnapshot | null;
+  targetUsername: string;
+}) {
+  const participant = useMemo(
+    () => createPendingMessageUser(targetUsername),
+    [targetUsername],
+  );
+
+  return (
+    <>
+      <header className="flex h-14 shrink-0 items-center justify-between gap-3 bg-background-soft px-3 lg:px-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <MessageBackButton onBack={onBack} />
+          <MessageUserAvatar size="sm" user={participant} />
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold text-foreground">
+              {getUserDisplayName(participant)}
+            </h1>
+          </div>
+        </div>
+      </header>
+
+      <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 lg:px-5" />
+
+      <PendingConversationComposer
+        onShareDraftSent={onShareDraftSent}
+        onStarted={onStarted}
+        shareDraft={shareDraft}
+        targetUsername={targetUsername}
+      />
+    </>
+  );
+}
+
+function PendingConversationComposer({
+  onShareDraftSent,
+  onStarted,
+  shareDraft,
+  targetUsername,
+}: {
+  onShareDraftSent: () => void;
+  onStarted: (conversationId: string) => void;
+  shareDraft: MessageShareSnapshot | null;
+  targetUsername: string;
+}) {
+  const [removedShareKey, setRemovedShareKey] = useState("");
+  const [body, setBody] = useState("");
+  const [localError, setLocalError] = useState("");
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const startMutation = useStartConversationMutation();
+  const uploadImageMutation = useUploadImageMutation();
+  const isSubmitting = startMutation.isPending || uploadImageMutation.isPending;
+  const shareDraftKey = getMessageShareKey(shareDraft);
+  const activeShareDraft =
+    shareDraftKey && removedShareKey === shareDraftKey ? null : shareDraft;
+
+  function clearComposerErrors() {
+    if (localError) {
+      setLocalError("");
+    }
+
+    if (startMutation.isError) {
+      startMutation.reset();
+    }
+
+    if (uploadImageMutation.isError) {
+      uploadImageMutation.reset();
+    }
+  }
+
+  function handleStarted(result: Awaited<ReturnType<typeof startMutation.mutateAsync>>) {
+    if (!result.message) {
+      setLocalError("暂时无法发送这条私信，请稍后再试。");
+      return;
+    }
+
+    setBody("");
+    setEmojiOpen(false);
+    setLocalError("");
+    onStarted(result.conversation.id);
+  }
+
+  function submit(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    const draft = buildDraft(body, activeShareDraft);
+
+    if (!draft) {
+      return;
+    }
+
+    clearComposerErrors();
+    startMutation.mutate(
+      {
+        message: draft,
+        target_username: targetUsername,
+      },
+      {
+        onSuccess: handleStarted,
+      },
+    );
+  }
+
+  function insertEmoji(emoji: string) {
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? body.length;
+    const end = textarea?.selectionEnd ?? body.length;
+    const nextBody = `${body.slice(0, start)}${emoji}${body.slice(end)}`;
+    const nextCaret = start + emoji.length;
+
+    setBody(nextBody);
+    setEmojiOpen(false);
+    clearComposerErrors();
+
+    window.requestAnimationFrame(() => {
+      textarea?.focus();
+      textarea?.setSelectionRange(nextCaret, nextCaret);
+    });
+  }
+
+  function handleImageButtonClick() {
+    if (activeShareDraft || isSubmitting) {
+      return;
+    }
+
+    fileInputRef.current?.click();
+  }
+
+  async function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    const validationError = validateMessageImageFile(file);
+
+    if (validationError) {
+      setLocalError(validationError);
+      return;
+    }
+
+    clearComposerErrors();
+
+    try {
+      const result = await uploadImageMutation.mutateAsync({
+        alt_text: "私信图片",
+        file,
+      });
+
+      if (!isSendableMessageImage(result.attachment)) {
+        setLocalError("图片上传失败，请换一张图片重试。");
+        return;
+      }
+
+      const started = await startMutation.mutateAsync({
+        message: {
+          image_url: result.attachment.url,
+          type: "image",
+        },
+        target_username: targetUsername,
+      });
+
+      handleStarted(started);
+    } catch (error) {
+      setLocalError(getErrorMessage(error));
+    }
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    submit();
+  }
+
+  return (
+    <footer className="shrink-0 bg-background-soft px-3 py-3">
+      <form className="relative space-y-2" onSubmit={submit}>
+        {activeShareDraft ? (
+          <ComposerSharePreview
+            share={activeShareDraft}
+            onRemove={() => {
+              setRemovedShareKey(shareDraftKey);
+              onShareDraftSent();
+            }}
+          />
+        ) : null}
+        <MessageComposerEmbedPreview value={body} />
+        {emojiOpen ? (
+          <div className="absolute bottom-14 left-1 z-10 grid w-[260px] grid-cols-8 gap-1 rounded-md border border-border bg-surface-raised p-2 shadow-2xl">
+            {MESSAGE_EMOJI_OPTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                className="flex size-7 items-center justify-center rounded-sm text-base transition-colors hover:bg-surface-hover"
+                onClick={() => insertEmoji(emoji)}
+                aria-label={`输入表情 ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={IMAGE_UPLOAD_ACCEPT}
+          className="hidden"
+          onChange={handleImageChange}
+        />
+        <div className="flex min-h-10 items-center gap-2 rounded-md bg-surface-raised px-2 py-1 shadow-[inset_0_0_0_1px_var(--input)] focus-within:ring-2 focus-within:ring-primary/20">
+          <button
+            type="button"
+            disabled={false}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:text-subtle-foreground"
+            aria-label="选择表情"
+            aria-expanded={emojiOpen}
+            onClick={() => {
+              setEmojiOpen((open) => !open);
+            }}
+          >
+            <Smile className="size-4" aria-hidden="true" />
+          </button>
+          <Textarea
+            ref={textareaRef}
+            value={body}
+            onChange={(event) => {
+              setBody(event.target.value);
+              clearComposerErrors();
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={activeShareDraft ? "添加留言" : "发送消息"}
+            disabled={false}
+            className="h-8 min-h-8 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-0 py-1.5 text-sm leading-5 text-foreground placeholder:text-muted-foreground shadow-none hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 disabled:opacity-100"
+          />
+          <button
+            type="button"
+            disabled={Boolean(activeShareDraft) || isSubmitting}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:text-subtle-foreground"
+            aria-label={uploadImageMutation.isPending ? "图片上传中" : "发送图片"}
+            onClick={handleImageButtonClick}
+          >
+            <ImageIcon className="size-4" aria-hidden="true" />
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting || (!activeShareDraft && !body.trim())}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-surface-hover disabled:text-subtle-foreground"
+            aria-label={isSubmitting ? "发送中" : activeShareDraft ? "发送分享卡片" : "发送消息"}
+          >
+            <Send className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+        {localError || startMutation.isError || uploadImageMutation.isError ? (
+          <p className="px-3 text-xs text-destructive">
+            {localError ||
+              getErrorMessage(startMutation.error ?? uploadImageMutation.error)}
+          </p>
+        ) : null}
+      </form>
+    </footer>
+  );
+}
+
 function StartConversationPane({
+  conversations,
   initialTargetUsername,
   onStarted,
   shareDraft,
 }: {
+  conversations: MessageConversation[];
   initialTargetUsername: string;
   onStarted: (conversationId: string) => void;
   shareDraft: MessageShareSnapshot | null;
 }) {
+  const [removedShareKey, setRemovedShareKey] = useState("");
   const [targetUsername, setTargetUsername] = useState(initialTargetUsername);
   const [body, setBody] = useState("");
+  const [localError, setLocalError] = useState("");
   const startMutation = useStartConversationMutation();
+  const sendMutation = useSendMessageMutation();
+  const shareDraftKey = getMessageShareKey(shareDraft);
+  const activeShareDraft =
+    shareDraftKey && removedShareKey === shareDraftKey ? null : shareDraft;
+  const selectedTargetConversation = findConversationByParticipant(
+    targetUsername,
+    conversations,
+  );
+  const isSubmitting = startMutation.isPending || sendMutation.isPending;
+
+  function clearSubmitErrors() {
+    setLocalError("");
+
+    if (startMutation.isError) {
+      startMutation.reset();
+    }
+
+    if (sendMutation.isError) {
+      sendMutation.reset();
+    }
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const username = targetUsername.trim();
-    const draft = buildDraft(body, shareDraft);
+    const draft = buildDraft(body, activeShareDraft);
 
     if (!username || !draft) {
+      return;
+    }
+
+    clearSubmitErrors();
+
+    if (selectedTargetConversation) {
+      sendMutation.mutate(
+        {
+          conversationId: selectedTargetConversation.id,
+          message: draft,
+        },
+        {
+          onSuccess: (result) => {
+            if (!result.message) {
+              setLocalError("暂时无法发送这条私信，请稍后再试。");
+              return;
+            }
+
+            setBody("");
+            onStarted(selectedTargetConversation.id);
+          },
+        },
+      );
       return;
     }
 
@@ -1513,6 +2531,11 @@ function StartConversationPane({
       },
       {
         onSuccess: (result) => {
+          if (!result.message) {
+            setLocalError("暂时无法重新开启这段私信，请稍后再试。");
+            return;
+          }
+
           setBody("");
           onStarted(result.conversation.id);
         },
@@ -1521,51 +2544,172 @@ function StartConversationPane({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center px-4">
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-4 py-5 lg:px-6">
       <form
-        className="w-full max-w-md rounded-md bg-surface p-5 shadow-[inset_0_0_0_1px_var(--border)]"
+        className="grid w-full max-w-5xl overflow-hidden rounded-lg bg-surface lg:min-h-[590px] lg:grid-cols-[minmax(0,0.96fr)_minmax(360px,1.04fr)]"
         onSubmit={submit}
       >
-        <h1 className="text-base font-semibold text-foreground">
-          {shareDraft ? "发送给好友" : "发起私信"}
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          非互关用户只会收到一条陌生人请求；对方接受前不能连续追发。
-        </p>
-        <Input
-          value={targetUsername}
-          onChange={(event) => setTargetUsername(event.target.value)}
-          placeholder="输入 username"
-          className="mt-4 h-9"
-        />
-        {shareDraft ? (
-          <MessageSharePreview compact share={shareDraft} />
-        ) : (
-          <Textarea
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            placeholder="发送消息"
-            className="mt-3 min-h-24 resize-none"
-          />
-        )}
-        {startMutation.isError ? (
-          <p className="mt-3 text-xs text-destructive">
-            {getErrorMessage(startMutation.error)}
-          </p>
-        ) : null}
-        <div className="mt-4 flex justify-end">
-          <Button
-            type="submit"
-            disabled={
-              startMutation.isPending ||
-              !targetUsername.trim() ||
-              (!shareDraft && !body.trim())
-            }
-          >
-            <Send className="size-4" aria-hidden="true" />
-            发送
-          </Button>
-        </div>
+        <section className="flex min-h-0 flex-col bg-background-soft px-4 py-4 sm:px-5 lg:px-6">
+          <div className="shrink-0">
+            <p className="font-mono text-xs font-semibold text-primary">
+              {activeShareDraft ? "分享 / 私信" : "私信 / 新会话"}
+            </p>
+            <h1 className="mt-2 text-xl font-semibold leading-7 text-foreground">
+              {activeShareDraft ? "发送给好友" : "发起私信"}
+            </h1>
+          </div>
+
+          <label className="mt-5 block shrink-0">
+            <span className="mb-2 block text-xs font-semibold text-muted-foreground">
+              收件人
+            </span>
+            <Input
+              value={targetUsername}
+              onChange={(event) => {
+                setTargetUsername(event.target.value);
+                clearSubmitErrors();
+              }}
+              placeholder="输入对方用户名"
+              className="h-10 bg-surface"
+            />
+          </label>
+
+          {selectedTargetConversation ? (
+            <div className="mt-3 flex items-center gap-2 text-xs text-primary">
+              <Check className="size-3.5" aria-hidden="true" />
+              <span className="truncate">
+                已选 @{selectedTargetConversation.participant.username}
+              </span>
+            </div>
+          ) : null}
+
+          {conversations.length > 0 ? (
+            <div className="mt-6 min-h-0 flex-1">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  最近会话
+                </p>
+              </div>
+              <div className="mt-2 grid max-h-[300px] gap-1 overflow-y-auto pr-1 lg:max-h-none">
+                {conversations.map((conversation) => {
+                  const isSelected =
+                    targetUsername.trim().toLowerCase() ===
+                    conversation.participant.username.toLowerCase();
+
+                  return (
+                    <button
+                      key={conversation.id}
+                      type="button"
+                      className={cn(
+                        "grid min-h-14 grid-cols-[36px_minmax(0,1fr)_24px] items-center gap-3 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                        isSelected
+                          ? "bg-surface-raised text-foreground shadow-[inset_2px_0_0_var(--primary)]"
+                          : "text-muted-foreground",
+                      )}
+                      onClick={() => {
+                        setTargetUsername(conversation.participant.username);
+                        clearSubmitErrors();
+                      }}
+                    >
+                      <MessageUserAvatar
+                        online={conversation.peer_online}
+                        onlineVisible={conversation.peer_online_status_visible}
+                        size="sm"
+                        user={conversation.participant}
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-foreground">
+                          {getUserDisplayName(conversation.participant)}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                          {formatConversationPreview(conversation)}
+                        </span>
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-flex size-5 items-center justify-center rounded-full text-subtle-foreground",
+                          isSelected && "bg-primary text-primary-foreground",
+                        )}
+                        aria-hidden="true"
+                      >
+                        {isSelected ? (
+                          <Check className="size-3" />
+                        ) : (
+                          <span className="size-1.5 rounded-full bg-muted-foreground/40" />
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5 rounded-md bg-surface px-3 py-4 text-sm text-muted-foreground">
+              暂无可直接发送的会话。
+            </div>
+          )}
+        </section>
+
+        <section className="flex min-h-0 flex-col px-4 py-4 sm:px-5 lg:px-6">
+          <div className="min-h-0 flex-1 space-y-4">
+            {activeShareDraft ? (
+              <div>
+                <p className="mb-2 text-xs font-semibold text-muted-foreground">
+                  分享内容
+                </p>
+                <ComposerSharePreview
+                  className="max-w-full"
+                  share={activeShareDraft}
+                  onRemove={() => setRemovedShareKey(shareDraftKey)}
+                />
+              </div>
+            ) : null}
+
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-muted-foreground">
+                可选留言
+              </span>
+              <Textarea
+                value={body}
+                onChange={(event) => {
+                  setBody(event.target.value);
+                  clearSubmitErrors();
+                }}
+                placeholder={activeShareDraft ? "添加留言" : "发送消息"}
+                className="min-h-[168px] resize-none bg-surface-raised"
+              />
+            </label>
+            <MessageComposerEmbedPreview value={body} />
+          </div>
+
+          {localError || startMutation.isError || sendMutation.isError ? (
+            <p className="mt-3 text-xs text-destructive">
+              {localError ||
+                getErrorMessage(startMutation.error ?? sendMutation.error)}
+            </p>
+          ) : null}
+
+          <div className="mt-4 flex shrink-0 items-center justify-between gap-3 rounded-md bg-surface-raised px-3 py-3">
+            <div className="min-w-0 text-xs text-muted-foreground">
+              {targetUsername.trim() ? (
+                <span className="truncate">发送给 @{targetUsername.trim()}</span>
+              ) : (
+                <span>请选择或输入收件人</span>
+              )}
+            </div>
+            <Button
+              type="submit"
+              disabled={
+                isSubmitting ||
+                !targetUsername.trim() ||
+                (!activeShareDraft && !body.trim())
+              }
+            >
+              <Send className="size-4" aria-hidden="true" />
+              发送
+            </Button>
+          </div>
+        </section>
       </form>
     </div>
   );
@@ -1636,9 +2780,11 @@ function SystemLine({ children }: { children: ReactNode }) {
 }
 
 export function MessageSharePreview({
+  className,
   compact = false,
   share,
 }: {
+  className?: string;
   compact?: boolean;
   share: MessageShareSnapshot;
 }) {
@@ -1648,8 +2794,9 @@ export function MessageSharePreview({
     <Link
       href={share.target_url || "#"}
       className={cn(
-        "mt-2 block overflow-hidden rounded-md bg-surface-raised text-left shadow-[inset_0_0_0_1px_var(--border)] transition-colors hover:bg-surface-hover",
+        "mt-2 block overflow-hidden rounded-md bg-surface-raised text-left transition-colors hover:bg-surface-hover",
         compact ? "w-[260px] max-w-full" : "w-[300px] max-w-full",
+        className,
       )}
     >
       <div className="grid grid-cols-[68px_minmax(0,1fr)] gap-2 p-2">
@@ -1728,14 +2875,15 @@ function buildDraft(
   body: string,
   shareDraft: MessageShareSnapshot | null,
 ): MessageDraft | null {
+  const text = body.trim();
+
   if (shareDraft) {
     return {
+      body: text || undefined,
       share: shareDraft,
       type: getShareMessageType(shareDraft),
     };
   }
-
-  const text = body.trim();
 
   if (!text) {
     return null;
@@ -1745,6 +2893,129 @@ function buildDraft(
     body: text,
     type: "text",
   };
+}
+
+function getMessageShareKey(share: MessageShareSnapshot | null) {
+  if (!share) {
+    return "";
+  }
+
+  return [
+    share.share_type,
+    share.share_id,
+    share.snapshot_created_at,
+    share.target_url,
+  ].join(":");
+}
+
+function hasMessageBodyMediaEmbed(value?: string | null) {
+  return Boolean(
+    value &&
+      (resolveFirstMessageMediaEmbed(value) ||
+        getFirstBackendResolvableMessageUrl(value)),
+  );
+}
+
+function resolveFirstMessageMediaEmbed(value: string): WhitelistedMediaEmbed | null {
+  for (const candidate of getMessageUrlCandidates(value)) {
+    const embed = resolveWhitelistedMediaEmbed(candidate);
+
+    if (embed) {
+      return embed;
+    }
+  }
+
+  return null;
+}
+
+function useResolvedMessageMediaEmbed(value: string): {
+  embed: WhitelistedMediaEmbed | null;
+  isResolving: boolean;
+  source: "backend" | "local" | null;
+} {
+  const localEmbed = useMemo(() => resolveFirstMessageMediaEmbed(value), [value]);
+  const backendUrl = useMemo(
+    () => (localEmbed ? "" : getFirstBackendResolvableMessageUrl(value)),
+    [localEmbed, value],
+  );
+  const backendQuery = useContentEmbedResolveQuery(backendUrl, Boolean(backendUrl));
+  const backendEmbed = useMemo(
+    () =>
+      createWhitelistedMediaEmbedFromResolvedContentEmbed(
+        backendQuery.data?.embed,
+      ),
+    [backendQuery.data?.embed],
+  );
+
+  if (localEmbed) {
+    return {
+      embed: localEmbed,
+      isResolving: false,
+      source: "local",
+    };
+  }
+
+  if (backendEmbed) {
+    return {
+      embed: backendEmbed,
+      isResolving: false,
+      source: "backend",
+    };
+  }
+
+  return {
+    embed: null,
+    isResolving: Boolean(backendUrl && backendQuery.isPending),
+    source: null,
+  };
+}
+
+function getFirstBackendResolvableMessageUrl(value: string) {
+  for (const candidate of getMessageUrlCandidates(value)) {
+    if (isBackendResolvableMediaEmbedUrl(candidate)) {
+      return candidate;
+    }
+  }
+
+  return "";
+}
+
+function getMessageUrlCandidates(value: string) {
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  const markdownLinkPattern = /\[[^\]]*]\((https?:\/\/[^)\s]+)\)/gi;
+  const bareUrlPattern = /https?:\/\/[^\s<>"']+/gi;
+
+  for (const match of value.matchAll(markdownLinkPattern)) {
+    addMessageUrlCandidate(candidates, seen, match[1]);
+  }
+
+  for (const match of value.matchAll(bareUrlPattern)) {
+    addMessageUrlCandidate(candidates, seen, match[0]);
+  }
+
+  return candidates;
+}
+
+function addMessageUrlCandidate(
+  candidates: string[],
+  seen: Set<string>,
+  rawValue: string,
+) {
+  const candidate = normalizeMessageUrlCandidate(rawValue);
+
+  if (!candidate || seen.has(candidate)) {
+    return;
+  }
+
+  seen.add(candidate);
+  candidates.push(candidate);
+}
+
+function normalizeMessageUrlCandidate(value: string) {
+  return value
+    .trim()
+    .replace(/[),.;:!?，。！？；：、]+$/u, "");
 }
 
 function validateMessageImageFile(file: File) {
@@ -1818,8 +3089,33 @@ function findConversation(
   return conversations.find((conversation) => conversation.id === conversationId);
 }
 
+function findConversationByParticipant(
+  username: string,
+  conversations: MessageConversation[],
+) {
+  const normalizedUsername = username.trim().toLowerCase();
+
+  if (!normalizedUsername) {
+    return undefined;
+  }
+
+  return conversations.find(
+    (conversation) =>
+      conversation.participant.username.toLowerCase() === normalizedUsername,
+  );
+}
+
 function isIncomingRequest(conversation: MessageConversation) {
   return getRequestDirection(conversation) === "incoming";
+}
+
+function isShareTargetConversation(conversation: MessageConversation) {
+  return (
+    getRequestDirection(conversation) === "none" &&
+    conversation.can_send &&
+    !conversation.blocked &&
+    !isRejectedRequestConversation(conversation)
+  );
 }
 
 function getRequestDirection(
@@ -1872,11 +3168,39 @@ function canViewerRejectRequest(conversation: MessageConversation) {
   return getRequestDirection(conversation) === "incoming";
 }
 
+function isRejectedRequestConversation(conversation: MessageConversation) {
+  return (
+    conversation.request_status === "rejected" ||
+    (conversation.conversation_state === "disabled" &&
+      conversation.disable_reason === "inactive" &&
+      Boolean(conversation.request_id))
+  );
+}
+
+function canViewerReopenConversation(conversation: MessageConversation) {
+  return (
+    isRejectedRequestConversation(conversation) &&
+    conversation.viewer_can_reopen === true
+  );
+}
+
+function canUseReopenedConversation(conversation: MessageConversation) {
+  return (
+    conversation.request_status === "accepted" ||
+    conversation.conversation_state === "normal" ||
+    conversation.can_send
+  );
+}
+
 function formatConversationPreview(conversation: MessageConversation) {
   const requestDirection = getRequestDirection(conversation);
 
   if (conversation.blocked) {
     return "无法继续发送消息";
+  }
+
+  if (isRejectedRequestConversation(conversation)) {
+    return "已忽略这条陌生人消息";
   }
 
   if (requestDirection === "incoming") {
@@ -1932,7 +3256,7 @@ function formatComposerDisabledReason(
     case "request_pending":
       return "陌生人请求未接受前不能继续追发";
     case "inactive":
-      return "会话当前不可发送";
+      return "这条私信请求已忽略";
     default:
       return "当前不能继续发送私信";
   }
@@ -1991,6 +3315,36 @@ function formatShareMessageText(type: string) {
 
 function isRecalled(message: Message) {
   return message.status === "recalled" || Boolean(message.recalled_at);
+}
+
+function canRecallMessage(message: Message, now = Date.now()) {
+  if (isRecalled(message)) {
+    return false;
+  }
+
+  const deadline = getMessageRecallDeadlineMs(message);
+
+  return deadline !== null && now <= deadline;
+}
+
+function getMessageRecallDeadlineMs(message: Message) {
+  const createdAt = new Date(message.created_at).getTime();
+
+  if (Number.isNaN(createdAt)) {
+    return null;
+  }
+
+  return createdAt + MESSAGE_RECALL_WINDOW_MS;
+}
+
+function createPendingMessageUser(username: string): MessageUserSummary {
+  return {
+    avatar_url: "",
+    display_name: username,
+    id: `pending:${username}`,
+    status: "active",
+    username,
+  };
 }
 
 function getUserDisplayName(user: MessageUserSummary) {

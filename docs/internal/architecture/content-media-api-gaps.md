@@ -18,7 +18,7 @@
 - 旧内容或用户未插入正文的已绑定附件不再由 `ContentBody` 追加成正文外图集；发布态只渲染正文内 `nexus-attachment` marker 引用到的附件。
 - 帖子和评论图片均已接入；评论图片数量继续比帖子更克制。
 - 链接预览和播放器是两种能力：普通网页只做链接预览，Bilibili / 抖音 / 网易云音乐 / QQ 音乐只通过 provider 白名单 embed。
-- V2 前端已支持明确 canonical 裸链接的本地白名单识别和受控播放器渲染；后端现已提供 `/api/v1/embeds/resolve`、短链展开、元数据抓取和 `embeds` 持久化，前端只需要在发布 / 编辑时接入结构化 `embed.id`。
+- V2 前端已支持明确 canonical 裸链接的本地白名单识别和受控播放器渲染；后端现已提供 `/api/v1/embeds/resolve`、短链展开、元数据抓取和 `embeds` 持久化，前端只需要在发布和帖子编辑时接入结构化 `embed.id`。
 - 任意 iframe、用户 HTML、`data:` 图片和浏览器端抓第三方网页元数据都禁止。
 
 ## 当前已核对的图片合同
@@ -34,13 +34,13 @@
 - `POST /api/v1/posts/:id/comments` 已支持 `attachment_ids`，评论 flat list 和 `view=tree` 均返回 `attachments`。
 - 前端已按上述合同提示并拦截明显不合规输入；图片只通过写作器工具栏、粘贴或拖拽进入正文，未留在正文里的上传图片不会随内容提交。
 - 前端当前不直接删除对象、不生成缩略图、不伪造缺失的衍生图字段。
-- 编辑态附件重绑已接入：`PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 已接收可选 `attachment_ids`，前端编辑弹窗可以新增图片，并在保存时只提交正文实际引用到的图片 ID。
+- 帖子编辑态附件重绑已接入：`PATCH /api/v1/posts/:id` 已接收可选 `attachment_ids`，前端帖子编辑弹窗可以新增图片，并在保存时只提交正文实际引用到的图片 ID。评论不提供编辑入口，评论图片只在发布和回复时绑定。
 
 ## 后端 / API 剩余缺口
 
 ### CORS 方法
 
-浏览器端编辑帖子和评论需要调用 `PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id`。当前本地预检证据：
+浏览器端编辑帖子需要调用 `PATCH /api/v1/posts/:id`。当前本地预检证据：
 
 ```text
 OPTIONS /api/v1/posts/:id
@@ -56,7 +56,7 @@ Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
 Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
 ```
 
-结论：CORS 方法缺口已不再作为当前阻塞。前端仍必须用真实浏览器复验帖子编辑和评论编辑保存，因为 shell 直连成功不能覆盖浏览器预检、会话、TanStack Query 刷新和弹窗状态。
+结论：CORS 方法缺口已不再作为当前阻塞。前端仍必须用真实浏览器复验帖子编辑保存，因为 shell 直连成功不能覆盖浏览器预检、会话、TanStack Query 刷新和弹窗状态。评论不提供编辑入口。
 
 ### 对象存储配置
 
@@ -186,26 +186,24 @@ POST /api/v1/posts/:id/comments
 - 子评论和根评论使用同一绑定规则。
 - 外链预览和白名单 embed 不复用 `attachment_ids`；白名单 embed 现在走独立的 `embeds` 合同，发布 / 编辑时提交结构化 `embed.id`。
 
-### 编辑态附件重绑已接入
+### 帖子编辑态附件重绑已接入
 
 当前编辑接口：
 
 ```text
 PATCH /api/v1/posts/:id
-PATCH /api/v1/comments/:id
 ```
 
 当前后端源码和合同显示：
 
 - `PATCH /api/v1/posts/:id` 请求体为 `title`、`body` 和可选 `attachment_ids`。
-- `PATCH /api/v1/comments/:id` 请求体为 `body` 和可选 `attachment_ids`。
 - 不带 `attachment_ids` 时继续只更新正文；带 `attachment_ids` 时后端按作者和目标内容校验所有权，并替换当前内容绑定的图片集合。
 - 成功响应会继续返回最新 `attachments`。
 
-因此前端编辑弹窗当前支持：
+因此前端帖子编辑弹窗当前支持：
 
 - 打开编辑弹窗后直接显示渲染编辑面，不直接露出 Markdown 源码。
-- 在同一个渲染编辑面里修改正文和标题 / 评论内容。
+- 在同一个渲染编辑面里修改正文和标题。
 - 上传、粘贴或拖拽新增图片并插入正文位置。
 - 删除正文中的图片 marker 后阅读态不展示这张图片，保存时也不提交对应 `attachment_id`。
 - 保存时按正文实际引用顺序提交 `attachment_ids`，未引用图片不随内容绑定。
@@ -220,14 +218,7 @@ PATCH /api/v1/comments/:id
 }
 ```
 
-评论编辑同理：
-
-```json
-{
-  "body": "Reddit-style Markdown 评论",
-  "attachment_ids": ["uuid"]
-}
-```
+评论不提供编辑入口；评论图片绑定只通过发布根评论和回复评论的 `POST /api/v1/posts/:id/comments` 完成。
 
 规则：
 

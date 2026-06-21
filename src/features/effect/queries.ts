@@ -4,8 +4,22 @@ import { authQueryKeys } from "@/features/auth/query-keys";
 import type { GetMyPointsResponse } from "@/features/auth/types";
 import { commentQueryKeys } from "@/features/comment/queries";
 import { postQueryKeys } from "@/features/post/queries";
+import { refreshCurrentUserGrowthLedgers } from "@/features/progression/queries";
 
-import { applyCommentEffect, listEffectsCatalog } from "./api";
+import { applyCommentEffect, applyPostEffect, listEffectsCatalog } from "./api";
+import type {
+  ApplyCommentEffectResponse,
+  ApplyPostEffectResponse,
+} from "./types";
+
+type ApplyContentEffectResponse =
+  | ApplyCommentEffectResponse
+  | ApplyPostEffectResponse;
+
+type ApplyContentEffectVariables = {
+  effectId: string;
+  targetId: string;
+};
 
 export const effectQueryKeys = {
   all: ["effects"] as const,
@@ -28,31 +42,75 @@ export function useApplyCommentEffectMutation({
   postId: string;
   userCommentsUsername?: string;
 }) {
+  return useApplyContentEffectMutation({
+    postId,
+    targetType: "comment",
+    userCommentsUsername,
+  });
+}
+
+export function useApplyPostEffectMutation({ postId }: { postId: string }) {
+  return useApplyContentEffectMutation({
+    postId,
+    targetType: "post",
+  });
+}
+
+export function useApplyContentEffectMutation({
+  postId,
+  targetType,
+  userCommentsUsername,
+}: {
+  postId: string;
+  targetType: "comment" | "post";
+  userCommentsUsername?: string;
+}) {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({
-      commentId,
+  return useMutation<ApplyContentEffectResponse, Error, ApplyContentEffectVariables>({
+    mutationFn: async ({
+      targetId,
       effectId,
-    }: {
-      commentId: string;
-      effectId: string;
-    }) => applyCommentEffect(commentId, { effect_id: effectId }),
+    }: ApplyContentEffectVariables): Promise<ApplyContentEffectResponse> => {
+      if (targetType === "comment") {
+        return applyCommentEffect(targetId, { effect_id: effectId });
+      }
+
+      return applyPostEffect(targetId, { effect_id: effectId });
+    },
     onSuccess: (result) => {
       queryClient.setQueryData<GetMyPointsResponse>(authQueryKeys.points(), {
         points: result.points,
       });
-      void queryClient.invalidateQueries({
-        queryKey: commentQueryKeys.postCommentsPrefix(postId),
-      });
+      void refreshCurrentUserGrowthLedgers(queryClient);
       void queryClient.invalidateQueries({
         queryKey: postQueryKeys.detail(postId),
       });
-      if (userCommentsUsername) {
+
+      if (targetType === "comment") {
         void queryClient.invalidateQueries({
-          queryKey: commentQueryKeys.userCommentsPrefix(userCommentsUsername),
+          queryKey: commentQueryKeys.postCommentsPrefix(postId),
         });
+        if (userCommentsUsername) {
+          void queryClient.invalidateQueries({
+            queryKey: commentQueryKeys.userCommentsPrefix(userCommentsUsername),
+          });
+        }
+        return;
       }
+
+      void queryClient.invalidateQueries({
+        queryKey: postQueryKeys.latestPrefix(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: postQueryKeys.communityPostsAll(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: postQueryKeys.userPostsAll(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: postQueryKeys.savedPostsAll(),
+      });
     },
   });
 }

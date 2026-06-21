@@ -101,7 +101,7 @@ export function AdminDashboard() {
           <ReviewDeskState>
             <EmptyState
               title="登录后进入平台管理"
-              description="平台管理需要 owner、admin 或 staff 权限。登录后会自动确认角色。"
+              description="平台管理需要站点负责人、平台管理员或平台审核员权限。登录后会自动确认角色。"
               action={
                 <TextAction href={loginHref} tone="primary">
                   登录
@@ -289,7 +289,7 @@ function AdminDashboardWorkspace({
           value={`${reportsCount} 条待处理预览`}
         />
         <DashboardEntry
-          description="审核新社区申请，通过后创建社区并设置社区 owner。"
+          description="审核新社区申请，通过后创建社区并设置社区版主。"
           href="/admin/community-applications"
           icon={<ClipboardCheck className="size-4" aria-hidden="true" />}
           label="社区审批"
@@ -329,7 +329,7 @@ function AdminDashboardWorkspace({
       {canViewOperationalAdmin ? (
         <section className="grid gap-3 md:grid-cols-3">
           <DashboardEntry
-            description="暂停、恢复、归档社区，异常场景下接管社区 owner。"
+            description="暂停、恢复、归档社区，异常场景下接管社区版主关系。"
             href="/admin/communities"
             icon={<Hash className="size-4" aria-hidden="true" />}
             label="社区治理"
@@ -371,22 +371,22 @@ function AdminDashboardInspector({ settingsCount }: { settingsCount: number }) {
         <IndexedInfoRow
           index="02"
           title="能力分层"
-          text="owner/admin 才显示运行开关、用户治理和负责人交接。"
+          text="站点负责人和平台管理员才显示运行开关、用户治理和负责人交接。"
         />
         <IndexedInfoRow
           index="03"
           title="不伪造能力"
-          text="后端没有合同的 Modmail、Automod 和数据摘要只展示规划状态。"
+          text="后端没有协议的站内信、自动审核和数据摘要只展示规划状态。"
         />
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <DashboardGapItem
-          description="Modmail 需要会话、文件夹、回复、内部 note、归档和分配接口。"
+          description="管理信箱需要会话、文件夹、回复、内部备注、归档和分配接口。"
           icon={<Inbox className="size-4" aria-hidden="true" />}
-          title="Modmail"
+          title="管理信箱"
         />
         <DashboardGapItem
-          description="Automod、安全过滤和内容控制需要规则配置、版本历史、测试和审计。"
+          description="自动审核、安全过滤和内容控制需要规则配置、版本历史、测试和审计。"
           icon={<Bot className="size-4" aria-hidden="true" />}
           title="自动化与安全"
         />

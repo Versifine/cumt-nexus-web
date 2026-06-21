@@ -61,7 +61,7 @@ export function ReviewDeskMasthead({
   return (
     <section
       className={cn(
-        "nexus-soft-transition overflow-hidden rounded-lg bg-surface px-4 py-4 shadow-sm sm:px-5",
+        "nexus-soft-transition overflow-hidden rounded-lg bg-surface px-4 py-4 sm:px-5",
         className,
       )}
     >
@@ -125,7 +125,7 @@ export function ReviewDeskPanel({
   return (
     <section
       className={cn(
-        "nexus-soft-transition overflow-hidden rounded-lg bg-surface p-4 shadow-sm sm:p-5",
+        "nexus-soft-transition overflow-hidden rounded-lg bg-surface p-4 sm:p-5",
         className,
       )}
     >
@@ -160,7 +160,7 @@ export function ReviewDeskInspector({
   return (
     <section
       className={cn(
-        "nexus-soft-transition overflow-hidden rounded-lg bg-surface p-4 shadow-sm sm:p-5",
+        "nexus-soft-transition overflow-hidden rounded-lg bg-surface p-4 sm:p-5",
         className,
       )}
     >
@@ -187,7 +187,7 @@ export function ReviewDeskState({ children, className }: ReviewDeskStateProps) {
   return (
     <section
       className={cn(
-        "nexus-soft-transition overflow-hidden rounded-lg bg-surface p-6 shadow-sm",
+        "nexus-soft-transition overflow-hidden rounded-lg bg-surface p-6",
         className,
       )}
     >

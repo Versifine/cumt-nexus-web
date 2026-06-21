@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Hash } from "lucide-react";
+import { Hash, Settings2 } from "lucide-react";
 
 import { HoverPreview } from "@/components/ui/hover-preview";
 import { StatusToken } from "@/components/ui/data-display";
@@ -55,7 +55,7 @@ export function CommunityHoverPreview({
           setShouldLoadCommunity(true);
         }
       }}
-      panelClassName={cn("w-80", panelClassName)}
+      panelClassName={cn("w-[18rem]", panelClassName)}
       side={side}
       trigger={children}
     >
@@ -101,26 +101,29 @@ function CommunityHoverCard({
     (platformRole === "owner" && Boolean(liveSlug));
 
   return (
-    <span className="relative block min-h-44 overflow-hidden bg-background text-left shadow-[0_18px_48px_rgb(0_0_0/0.36)] ring-1 ring-border/70">
-      <CommunityPreviewBackdrop imageUrl={bannerUrl} />
+    <span className="nexus-soft-transition relative block overflow-hidden rounded-md bg-surface text-left shadow-[0_18px_44px_rgb(0_0_0/0.34)] ring-1 ring-border/80">
+      <CommunityPreviewCover imageUrl={bannerUrl} slug={liveSlug} />
 
-      <span className="relative z-10 flex min-h-44 flex-col justify-end p-4">
-        <span className="flex min-w-0 items-start gap-3">
+      <span className="relative block px-3 pb-3">
+        <span className="-mt-5 flex min-w-0 items-end justify-between gap-3">
           <CommunityHoverAvatar
             avatarUrl={avatarUrl}
-            className="relative z-10 ring-2 ring-background"
+            className="relative z-10 size-10 ring-2 ring-surface"
             label={name}
           />
+          {viewerIsFollowing ? (
+            <StatusToken className="mb-1 shrink-0 rounded-sm px-1.5 py-0 text-[11px]">
+              已关注
+            </StatusToken>
+          ) : null}
+        </span>
+
+        <span className="mt-2.5 flex min-w-0 items-start gap-3">
           <span className="min-w-0 flex-1">
-            <span className="flex min-w-0 items-center gap-2">
+            <span className="flex min-w-0 items-baseline gap-2">
               <span className="min-w-0 truncate text-sm font-semibold text-foreground">
                 {name}
               </span>
-              {viewerIsFollowing ? (
-                <StatusToken className="shrink-0 px-1.5 py-0 text-[11px]">
-                  已关注
-                </StatusToken>
-              ) : null}
             </span>
             <span className="mt-1 block truncate font-mono text-xs text-primary">
               {label}
@@ -129,32 +132,34 @@ function CommunityHoverCard({
         </span>
 
         {description ? (
-          <span className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
+          <span className="mt-1.5 line-clamp-1 text-xs leading-5 text-muted-foreground">
             {description}
           </span>
         ) : (
-          <span className="mt-2 block text-xs text-muted-foreground">
+          <span className="mt-1.5 block truncate text-xs text-muted-foreground">
             这个社区还没有填写简介。
           </span>
         )}
 
-        <span className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-border/70 pt-3">
-          <CommunityPreviewMetric
-            label="帖子"
-            value={formatCompactNumber(postCount)}
-          />
-          <CommunityPreviewMetric
-            label="成员"
-            value={formatCompactNumber(memberCount)}
-          />
+        <CommunityPreviewStats memberCount={memberCount} postCount={postCount} />
+
+        <span className="mt-2.5 flex items-center justify-between gap-3 border-t border-border/60 pt-2.5">
+          <span className="font-mono text-[10px] text-muted-foreground/70">
+            社区
+          </span>
           {liveSlug && canManage ? (
             <Link
               href={`/communities/${encodeURIComponent(liveSlug)}/manage`}
-              className="ml-auto text-xs font-semibold text-primary transition-colors hover:text-foreground"
+              className="inline-flex items-center gap-1.5 border-b border-transparent pb-0.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              管理
+              <Settings2 className="size-3.5" aria-hidden="true" />
+              管理社区
             </Link>
-          ) : null}
+          ) : (
+            <span className="font-mono text-[10px] text-muted-foreground/55">
+              {liveSlug ? `/${liveSlug}` : "公开信息"}
+            </span>
+          )}
         </span>
       </span>
     </span>
@@ -185,7 +190,7 @@ export function CommunityHoverAvatar({
         alt={`${label} 的社区头像`}
         className={cn(
           sizeClass,
-          "shrink-0 rounded-lg bg-background-soft object-cover ring-1 ring-border/70",
+          "shrink-0 rounded-md bg-background-soft object-cover ring-1 ring-border/70",
           className,
         )}
       />
@@ -196,7 +201,7 @@ export function CommunityHoverAvatar({
     <span
       className={cn(
         sizeClass,
-        "inline-flex shrink-0 items-center justify-center rounded-lg bg-background-soft text-primary ring-1 ring-border/70",
+        "inline-flex shrink-0 items-center justify-center rounded-md bg-background-soft text-primary ring-1 ring-border/70",
         className,
       )}
       aria-label={`${label} 的社区头像占位`}
@@ -206,39 +211,64 @@ export function CommunityHoverAvatar({
   );
 }
 
-function CommunityPreviewBackdrop({ imageUrl }: { imageUrl: string }) {
+function CommunityPreviewCover({
+  imageUrl,
+  slug,
+}: {
+  imageUrl: string;
+  slug: string;
+}) {
   return (
-    <span className="absolute inset-0 overflow-hidden">
+    <span
+      className="pointer-events-none relative block h-12 overflow-hidden bg-background-soft"
+      aria-hidden="true"
+    >
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={imageUrl}
           alt=""
-          className="size-full object-cover"
-          aria-hidden="true"
+          className="size-full object-cover opacity-85"
         />
       ) : (
         <span className="block size-full bg-background-soft" />
       )}
-      <span className="absolute inset-0 bg-background/82" />
+      <span className="absolute inset-0 bg-background/18" />
+      <span className="absolute inset-x-0 bottom-0 h-px bg-border/70" />
+      <span className="absolute left-3 top-3 h-4 w-px bg-primary/80" />
+      <span className="absolute left-5 top-3 h-px w-10 bg-border-strong/70" />
+      {slug ? (
+        <span className="absolute bottom-2 right-3 max-w-[10rem] truncate font-mono text-[10px] text-muted-foreground/75">
+          /{slug}
+        </span>
+      ) : null}
     </span>
   );
 }
 
-function CommunityPreviewMetric({
-  label,
-  value,
+function CommunityPreviewStats({
+  memberCount,
+  postCount,
 }: {
-  label: string;
-  value: string;
+  memberCount?: number;
+  postCount?: number;
 }) {
   return (
-    <span className="inline-flex min-w-0 items-baseline gap-1.5">
-      <span className="text-[11px] text-muted-foreground">
-        {label}
+    <span className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+      <span>
+        帖子{" "}
+        <span className="font-mono text-foreground">
+          {formatCompactNumber(postCount)}
+        </span>
       </span>
-      <span className="max-w-full truncate font-mono text-xs font-semibold text-foreground">
-        {value}
+      <span className="text-muted-foreground/45" aria-hidden="true">
+        ·
+      </span>
+      <span>
+        成员{" "}
+        <span className="font-mono text-foreground">
+          {formatCompactNumber(memberCount)}
+        </span>
       </span>
     </span>
   );

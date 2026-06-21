@@ -1,3 +1,5 @@
+import type { ResolvedContentEmbed } from "./api";
+
 export type WhitelistedMediaProvider =
   | "bilibili"
   | "douyin"
@@ -57,6 +59,62 @@ export function isWhitelistedMediaAutolink(
     normalizedHref === normalizedChildren &&
     Boolean(resolveWhitelistedMediaEmbed(href))
   );
+}
+
+export function isBackendResolvableMediaEmbedUrl(value: string) {
+  const url = parseHttpUrl(value);
+
+  if (!url) {
+    return false;
+  }
+
+  return isHost(url, [
+    "douyin.com",
+    "iesdouyin.com",
+    "open.douyin.com",
+    "v.douyin.com",
+  ]);
+}
+
+export function createWhitelistedMediaEmbedFromResolvedContentEmbed(
+  embed?: ResolvedContentEmbed | null,
+): WhitelistedMediaEmbed | null {
+  if (
+    !embed ||
+    embed.provider !== "douyin_video" ||
+    embed.iframe_allowed === false ||
+    (embed.status && embed.status !== "ready")
+  ) {
+    return null;
+  }
+
+  const resourceId =
+    embed.provider_ref?.trim() || embed.provider_resource_id?.trim() || "";
+  const embedUrl =
+    embed.embed_url?.trim() ||
+    (resourceId
+      ? `https://open.douyin.com/player/video?vid=${encodeURIComponent(resourceId)}&autoplay=0`
+      : "");
+
+  if (!embedUrl) {
+    return null;
+  }
+
+  return {
+    embedUrl,
+    iframeTitle: "抖音视频播放器",
+    kind: "video",
+    layout: "portrait-video",
+    originalUrl:
+      embed.canonical_url?.trim() ||
+      embed.url?.trim() ||
+      embed.original_url?.trim() ||
+      embedUrl,
+    provider: "douyin",
+    providerLabel: "抖音",
+    resourceId: resourceId || embed.id,
+    resourceType: "video",
+  };
 }
 
 function resolveBilibiliEmbed(

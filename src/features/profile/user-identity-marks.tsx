@@ -260,7 +260,7 @@ function buildIdentityMarks({
   addMark(marks, seen, "title", displayTitle);
 
   for (const role of roles) {
-    addMark(marks, seen, "role", role);
+    addMark(marks, seen, "role", formatIdentityRole(role));
   }
 
   for (const badge of badges) {
@@ -284,6 +284,22 @@ function addMark(
 
   seen.add(label);
   marks.push({ kind, label });
+}
+
+function formatIdentityRole(role: string) {
+  switch (role.trim().toLowerCase()) {
+    case "owner":
+    case "platform_owner":
+      return "平台负责人";
+    case "admin":
+    case "platform_admin":
+      return "平台管理员";
+    case "staff":
+    case "platform_staff":
+      return "平台管理";
+    default:
+      return role;
+  }
 }
 
 function formatXpLabel(level: UserLevelSummary) {

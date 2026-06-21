@@ -90,7 +90,7 @@ export function CommunityOwnerTransferAcceptPage({
 
   if (!isReady || (token && (currentUserQuery.isLoading || transferQuery.isLoading))) {
     return (
-      <section className="border-b border-border py-4">
+      <section className="rounded-lg bg-surface px-4 py-5 sm:px-5">
         <LoadingState rows={5} />
       </section>
     );
@@ -98,7 +98,7 @@ export function CommunityOwnerTransferAcceptPage({
 
   if (!token) {
     return (
-      <section className="border-b border-border py-4">
+      <section className="rounded-lg bg-surface px-4 py-5 sm:px-5">
         <EmptyState
           title="登录后接受社区版主交接"
           description="只有交接目标账号可以接受这次版主转让。登录后会回到当前页面。"
@@ -114,7 +114,7 @@ export function CommunityOwnerTransferAcceptPage({
 
   if (currentUserQuery.isError) {
     return (
-      <section className="border-b border-border py-4">
+      <section className="rounded-lg bg-surface px-4 py-5 sm:px-5">
         <ErrorState
           title="无法确认用户身份"
           description={getErrorDescription(currentUserQuery.error)}
@@ -135,7 +135,7 @@ export function CommunityOwnerTransferAcceptPage({
 
   if (transferQuery.isError) {
     return (
-      <section className="border-b border-border py-4">
+      <section className="rounded-lg bg-surface px-4 py-5 sm:px-5">
         <ErrorState
           title="无法读取版主交接"
           description={getErrorDescription(transferQuery.error)}
@@ -155,9 +155,9 @@ export function CommunityOwnerTransferAcceptPage({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-0 xl:grid-cols-[minmax(0,1fr)_280px]">
-      <section className="min-w-0">
-        <div className="border-b border-border py-4">
+    <div className="grid grid-cols-1 gap-4 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <section className="min-w-0 space-y-4">
+        <div className="rounded-lg bg-surface px-4 py-4 sm:px-5">
           <StatusToken tone="primary">社区版主交接</StatusToken>
           <h1 className="mt-3 text-xl font-semibold leading-7 tracking-normal sm:text-2xl">
             接受 /{slug} 版主交接
@@ -167,8 +167,8 @@ export function CommunityOwnerTransferAcceptPage({
           </p>
         </div>
 
-        <section className="border-b border-border py-4">
-          <div className="grid grid-cols-1 border-y border-border sm:grid-cols-2">
+        <section className="rounded-lg bg-surface px-4 py-4 sm:px-5">
+          <div className="grid grid-cols-1 rounded-md bg-surface-raised sm:grid-cols-2">
             <InfoRow label="社区" value={`/${slug}`} />
             <InfoRow label="交接编号" value={transferId} wrap />
             <InfoRow
@@ -182,7 +182,7 @@ export function CommunityOwnerTransferAcceptPage({
             />
           </div>
 
-          <div className="mt-4 grid gap-3 px-3">
+          <div className="mt-4 grid gap-3">
             {transfer && !isPendingTransfer ? (
               <Alert>
                 <AlertTitle>交接不可接受</AlertTitle>
@@ -232,7 +232,7 @@ export function CommunityOwnerTransferAcceptPage({
               </Alert>
             ) : null}
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 border-t border-border pt-3">
               {canShowSubmit ? (
                 <Button
                   type="button"

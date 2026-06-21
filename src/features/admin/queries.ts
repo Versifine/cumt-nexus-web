@@ -9,7 +9,10 @@ import {
 
 import { effectQueryKeys } from "@/features/effect/queries";
 import { notificationQueryKeys } from "@/features/notification/queries";
-import { progressionQueryKeys } from "@/features/progression/queries";
+import {
+  progressionQueryKeys,
+  refreshCurrentUserGrowthLedgers,
+} from "@/features/progression/queries";
 import { authQueryKeys } from "@/features/auth/query-keys";
 
 import {
@@ -453,9 +456,7 @@ export function useAdjustAdminUserPointsMutation() {
     onSuccess: () => {
       void Promise.all([
         queryClient.invalidateQueries({ queryKey: adminQueryKeys.all }),
-        queryClient.invalidateQueries({
-          queryKey: progressionQueryKeys.pointTransactions({}),
-        }),
+        refreshCurrentUserGrowthLedgers(queryClient),
       ]);
     },
   });

@@ -149,7 +149,7 @@ export function SearchPage({ initialSearchParams }: SearchPageProps) {
             <EmptyState
               title="输入关键词开始搜索"
               description="可以搜索用户、社区、slug、帖子标题和正文；结果会按相关度和新鲜度综合排序。"
-              className="bg-surface shadow-[inset_0_0_0_1px_var(--border)]"
+              className="bg-surface"
             />
           ) : null}
 
@@ -186,7 +186,7 @@ export function SearchPage({ initialSearchParams }: SearchPageProps) {
             <EmptyState
               title="没有找到结果"
               description="换一个更完整的关键词，或直接搜索用户名、社区 slug、帖子标题里的核心词。"
-              className="bg-surface shadow-[inset_0_0_0_1px_var(--border)]"
+              className="bg-surface"
             />
           ) : null}
 
@@ -296,7 +296,7 @@ function createUrlSearchParams(
 
 function SearchStatePanel({ children }: { children: ReactNode }) {
   return (
-    <section className="rounded-lg bg-surface p-4 shadow-[inset_0_0_0_1px_var(--border)]">
+    <section className="rounded-lg bg-surface p-4">
       {children}
     </section>
   );
@@ -438,7 +438,7 @@ function SearchSummaryBar({
   scope: SearchScope;
 }) {
   return (
-    <div className="grid gap-3 rounded-lg bg-surface px-4 py-3 shadow-[inset_0_0_0_1px_var(--border)] md:grid-cols-4">
+    <div className="grid gap-3 rounded-lg bg-surface px-4 py-3 md:grid-cols-4">
       <SearchMetric label="范围" value={formatScope(scope)} />
       <SearchMetric label="已加载" value={`${resultCount} 条`} />
       <SearchMetric label="页数" value={`${Math.max(loadedPages, 1)} 页`} />
@@ -499,7 +499,7 @@ function SearchResultSection({
   title: string;
 }) {
   return (
-    <section className="rounded-lg bg-surface p-3 shadow-[inset_0_0_0_1px_var(--border)]">
+    <section className="rounded-lg bg-surface p-3">
       <div className="flex items-center justify-between px-1 pb-3 text-xs">
         <h2 className="font-semibold text-foreground">{title}</h2>
         <span className="font-mono text-subtle-foreground">{count}</span>
@@ -712,7 +712,7 @@ const LoadMoreResults = forwardRef<HTMLDivElement, {
         ref={ref}
         className="text-center text-sm text-muted-foreground"
       >
-        <span className="inline-flex rounded-md bg-surface px-3 py-2 shadow-[inset_0_0_0_1px_var(--border)]">
+        <span className="inline-flex rounded-md bg-surface px-3 py-2">
           已显示当前可加载的全部结果。
         </span>
       </div>
@@ -896,4 +896,3 @@ function getErrorDescription(error: Error | null) {
 
   return "请求失败，请稍后重试。";
 }
-

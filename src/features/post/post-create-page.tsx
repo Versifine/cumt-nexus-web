@@ -41,6 +41,8 @@ export function PostCreatePage({
   const selectedCommunityQuery = useCommunityQuery(
     communitySlug,
     canLoadViewerData && Boolean(communitySlug),
+    undefined,
+    "public",
   );
   const followedCommunitiesQuery = useFollowedCommunitiesQuery(
     { limit: 5, offset: 0 },
@@ -85,6 +87,7 @@ export function PostCreatePage({
             <PostForm
               communitySlug={communitySlug}
               isSelectedCommunityLoading={selectedCommunityQuery.isLoading}
+              isAuthenticated={Boolean(token)}
               onCommunitySlugChange={setCommunitySlug}
               selectedCommunity={selectedCommunity}
               selectedCommunityError={selectedCommunityQuery.error}
@@ -272,15 +275,7 @@ function getCreateContext({
 }
 
 function canPublishToCommunity(community: Community) {
-  if (community.status !== "active") {
-    return false;
-  }
-
-  if (community.viewer_permissions) {
-    return community.viewer_permissions.can_post !== false;
-  }
-
-  return true;
+  return community.status === "active" && community.visibility === "public";
 }
 
 function normalizeCommunitySlug(value: string) {

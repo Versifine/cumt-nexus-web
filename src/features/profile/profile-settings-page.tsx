@@ -3,7 +3,6 @@
 import { useEffect, type ReactNode } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, RotateCcw, Save } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
@@ -117,7 +116,6 @@ function ProfileSettingsForm({
 }: {
   user: PublicUser;
 }) {
-  const router = useRouter();
   const updateMutation = useUpdateProfileMutation();
   const form = useForm<ProfileSettingsFormValues>({
     resolver: zodResolver(profileSettingsSchema),
@@ -136,11 +134,6 @@ function ProfileSettingsForm({
     const result = await updateMutation.mutateAsync(values);
 
     form.reset(getProfileFormValues(result.user));
-    router.push(getProfileHref(result.user.username));
-  }
-
-  function handleMediaSaved(nextUser: PublicUser) {
-    router.push(getProfileHref(nextUser.username));
   }
 
   function handleReset() {
@@ -149,9 +142,9 @@ function ProfileSettingsForm({
   }
 
   return (
-    <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
-      <section className="min-w-0 bg-background">
-        <div className="border-b border-border pb-4">
+    <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-4 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <section className="min-w-0 space-y-4 rounded-lg bg-surface px-4 py-5 sm:px-5">
+        <div>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="min-w-0">
               <StatusToken tone="primary">个人主页工作台</StatusToken>
@@ -173,14 +166,13 @@ function ProfileSettingsForm({
           </div>
         </div>
 
-        <section className="py-4">
-          <div className="overflow-hidden">
+        <section className="overflow-hidden rounded-lg bg-surface-raised">
+          <div>
             <div className="relative">
               <ProfileBanner user={user} />
               <div className="absolute bottom-3 right-3 z-20">
                 <ProfileMediaEditor
                   kind="banner"
-                  onSaved={handleMediaSaved}
                   triggerVariant="banner"
                   user={user}
                 />
@@ -194,7 +186,6 @@ function ProfileSettingsForm({
                   <ProfileMediaEditor
                     className="absolute -bottom-1 -right-1"
                     kind="avatar"
-                    onSaved={handleMediaSaved}
                     triggerLabel="更换头像"
                     triggerVariant="avatar"
                     user={user}
@@ -224,7 +215,7 @@ function ProfileSettingsForm({
           </div>
         </section>
 
-        <form className="py-4" onSubmit={form.handleSubmit(handleSubmit)}>
+        <form className="rounded-lg bg-surface-raised px-4 py-4" onSubmit={form.handleSubmit(handleSubmit)}>
           {updateMutation.isSuccess && !isDirty ? (
             <Alert variant="success" className="mb-4">
               <AlertTitle>文字资料已保存</AlertTitle>
@@ -252,7 +243,7 @@ function ProfileSettingsForm({
               </p>
             </div>
 
-            <div className="min-w-0 border-t border-border">
+            <div className="min-w-0 space-y-3">
               <ProfileSettingsField
                 description="展示在个人主页头像旁边。留空时使用用户名。"
                 htmlFor="profile-display-name"
@@ -262,7 +253,7 @@ function ProfileSettingsForm({
                 <Input
                   id="profile-display-name"
                   aria-invalid={Boolean(form.formState.errors.display_name)}
-                  className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 focus-visible:ring-0"
+                  className="h-11 border-border bg-background"
                   disabled={isSaving}
                   placeholder="你的展示名"
                   {...form.register("display_name")}
@@ -283,7 +274,7 @@ function ProfileSettingsForm({
                 <Input
                   id="profile-headline"
                   aria-invalid={Boolean(form.formState.errors.headline)}
-                  className="h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 focus-visible:ring-0"
+                  className="h-11 border-border bg-background"
                   disabled={isSaving}
                   placeholder="例如：关注校园生活和课程资料"
                   {...form.register("headline")}
@@ -396,7 +387,7 @@ function ProfileSettingsRail({
 
       <RightRailSection title="入口">
         <RightRailActionList>
-          <RightRailAction href={`/users/${encodeURIComponent(user.username)}`}>
+          <RightRailAction href={getProfileHref(user.username)}>
             查看个人主页
           </RightRailAction>
           <RightRailAction href="/saved">我的收藏</RightRailAction>
@@ -448,7 +439,7 @@ function ProfileSettingsField({
   title: string;
 }) {
   return (
-    <div className="grid gap-4 border-b border-border py-5 last:border-b-0 md:grid-cols-[160px_minmax(0,1fr)]">
+    <div className="grid gap-4 rounded-md bg-background px-3 py-4 md:grid-cols-[160px_minmax(0,1fr)]">
       <div>
         <label
           className="flex items-center gap-3 text-sm font-semibold text-foreground"
@@ -516,4 +507,3 @@ function getErrorDescription(error: Error | null) {
 
   return "当前账号已确认，但公开主页资料读取或保存失败。请稍后重试。";
 }
-

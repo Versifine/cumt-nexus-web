@@ -34,7 +34,6 @@ const requiredComposerConsumers = [
   "src/features/post/post-form.tsx",
   "src/features/comment/comment-form.tsx",
   "src/features/post/post-lifecycle-controls.tsx",
-  "src/features/comment/comment-lifecycle-controls.tsx",
 ];
 
 const requiredToolbarLabels = [
@@ -194,7 +193,9 @@ function checkWhitelistedMediaEmbedBoundary() {
       "suppressHydrationWarning",
       "sandbox={playerSandbox}",
       "allowFullScreen",
-      'referrerPolicy="strict-origin-when-cross-origin"',
+      "getPlayerReferrerPolicy",
+      '"strict-origin-when-cross-origin"',
+      '"unsafe-url"',
       "打开原链接",
       "data-media-provider",
     ]) {
@@ -211,7 +212,11 @@ function checkWhitelistedMediaEmbedBoundary() {
       "@/features/content/media-embed",
       "@/features/content/media-embed-player",
       "resolveWhitelistedMediaEmbed",
-      "<MediaEmbedPlayer embed={embed} />",
+      "isBackendResolvableMediaEmbedUrl",
+      "useContentEmbedResolveQuery",
+      "createWhitelistedMediaEmbedFromResolvedContentEmbed",
+      "<MediaEmbedPlayer embed={localEmbed} />",
+      "<MediaEmbedPlayer embed={backendEmbed} />",
     ]) {
       if (!contentBody.content.includes(token)) {
         problems.push(`ContentBody missing whitelist embed integration ${token}`);
@@ -379,20 +384,39 @@ function checkMarkdownComposerEntryPoint() {
     "MediaEmbedNode",
     "createMediaEmbedPlayerElement",
     "resolveWhitelistedMediaEmbed",
+    "resolveContentEmbed",
+    "createWhitelistedMediaEmbedFromResolvedContentEmbed",
+    "isBackendResolvableEditorMediaEmbedUrl",
+    "resolveEditorMediaEmbed",
+    "findEditorMediaEmbedOccurrence",
+    "stripTrailingEditorUrlPunctuation",
+    "editorBareUrlPattern",
     "syncWhitelistedMediaEmbeds",
     "data-media-editor-node",
     "InlineMathNode",
     "BlockMathNode",
+    "MathMarkdownSyncExtension",
     "katex.render",
     'markdownTokenName: "inlineMath"',
     'markdownTokenName: "math"',
     "createInlineMathTokenizer",
     "createBlockMathTokenizer",
-    "find: /^\\s*\\$\\$$/",
+    "collectInlineMathMarkdownReplacements",
+    "collectBlockMathMarkdownReplacements",
+    "findInlineMathSourceRanges",
+    "syncMathEditorEditingState",
+    "syncMathEditorControlSize",
+    'control.addEventListener("input", handleControlInput)',
+    "deleteMathNode",
+    "setEditing(true);",
   ]) {
     if (!composer.content.includes(token)) {
       composerProblems.push(`MarkdownComposerField rich editor missing ${token}`);
     }
+  }
+
+  if (/prompt\s*\([^)]*(?:公式|Formula)/.test(composer.content)) {
+    composerProblems.push("MarkdownComposerField formula editing must stay inline instead of using browser prompts");
   }
 
   if (composer.content.includes("x^2 + y^2 = z^2")) {
@@ -567,7 +591,6 @@ function checkLifecycleComposerDefaultMode() {
 
   for (const consumerPath of [
     "src/features/post/post-lifecycle-controls.tsx",
-    "src/features/comment/comment-lifecycle-controls.tsx",
   ]) {
     const consumer = sourceFiles.find((file) => file.path === consumerPath);
 
@@ -720,7 +743,10 @@ function checkPublishedAttachmentImageSizing() {
   } else {
     for (const token of [
       "resolveFirstContentMediaBlock",
+      "resolveFirstContentMediaPreviewBlock",
       "resolveImageMediaBlockFromMarkdownUrl",
+      "resolveBackendEmbedMediaBlockFromUrl",
+      "isBackendResolvableMediaEmbedUrl",
       "getAttachmentIdsFromMarkdownUrl",
       "isAttachmentGalleryMarkdownUrl",
       "thumbnail_url",
@@ -751,12 +777,17 @@ function checkPublishedAttachmentImageSizing() {
     problems.push("src/features/post/reddit-post-list-item.tsx is missing");
   } else {
     for (const token of [
-      "resolveFirstContentMediaBlock",
+      "resolveFirstContentMediaPreviewBlock",
       "resolveEmbedMediaBlockFromUrl",
+      "resolveBackendEmbedMediaBlockFromUrl",
+      "useContentEmbedResolveQuery",
+      "createWhitelistedMediaEmbedFromResolvedContentEmbed",
+      "backendEmbedQuery.isPending",
+      "mediaBlock.kind === \"backend-embed\"",
       "ContentImageGallery",
       "MediaEmbedPlayer",
       'variant="preview"',
-      "mediaBlock ? null : getPostLinkPreview(post)",
+      "? getPostLinkPreview(post)",
     ]) {
       if (!listItem.content.includes(token)) {
         problems.push(`post list item missing first media preview token ${token}`);
@@ -886,7 +917,6 @@ function checkComposerImageCopy() {
   ];
   const lifecycleForms = [
     "src/features/post/post-lifecycle-controls.tsx",
-    "src/features/comment/comment-lifecycle-controls.tsx",
   ];
 
   if (!composer) {
@@ -1163,7 +1193,7 @@ function checkComposerImageCopy() {
 
   addPass(
     "composer edit attachment binding",
-    "post and comment edit dialogs upload new images and submit only referenced attachment ids",
+    "post edit dialogs upload new images and submit only referenced attachment ids",
   );
 
   if (composer.content.includes('imageUpload && mode === "edit"')) {
@@ -1270,10 +1300,6 @@ function checkComposerReferencedImageLimit() {
     {
       path: "src/features/post/post-lifecycle-controls.tsx",
       token: "maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerPost}",
-    },
-    {
-      path: "src/features/comment/comment-lifecycle-controls.tsx",
-      token: "maxReferencedAttachments={IMAGE_UPLOAD_LIMITS.maxCountPerComment}",
     },
   ];
   const problems = [];

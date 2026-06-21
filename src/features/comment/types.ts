@@ -54,7 +54,10 @@ export type CommentAuthorSummary = {
   avatar_url: string;
   headline: string;
   badges: string[];
+  community_role?: string | null;
+  is_platform_staff?: boolean;
   level?: UserLevelSummary | null;
+  platform_role?: string | null;
   progression?: UserLevelSummary | null;
 };
 
@@ -62,6 +65,7 @@ export type CommentEffectSummary = {
   id: string;
   effect_id: string;
   name: string;
+  emoji?: string;
   asset_url: string;
   animation_key: string;
   applied_by_user: CommentAuthorSummary;
@@ -73,7 +77,6 @@ export type CommentViewerPermissions = {
   can_comment?: boolean;
   can_vote?: boolean;
   can_report?: boolean;
-  can_edit?: boolean;
   can_delete?: boolean;
   can_moderate?: boolean;
 };
@@ -97,14 +100,5 @@ export type PublishCommentInput = {
 };
 
 export type PublishCommentResponse = {
-  comment: Comment;
-};
-
-export type UpdateCommentInput = {
-  body: string;
-  attachment_ids?: string[];
-};
-
-export type UpdateCommentResponse = {
   comment: Comment;
 };

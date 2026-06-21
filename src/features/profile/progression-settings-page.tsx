@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Coins, Sparkles, Trophy } from "lucide-react";
+import { Check, Coins, Trophy } from "lucide-react";
 
 import {
   RightRail,
@@ -20,6 +20,7 @@ import { TextAction } from "@/components/ui/text-action";
 import { AuthRequired } from "@/features/auth/auth-required";
 import { useCurrentUserQuery, useMyPointsQuery } from "@/features/auth/queries";
 import type { PointAccount } from "@/features/auth/types";
+import { getContentEffectEmoji } from "@/features/effect/content-effect-emoji";
 import { useEffectsCatalogQuery } from "@/features/effect/queries";
 import type { Effect } from "@/features/effect/types";
 import {
@@ -184,9 +185,9 @@ function ProgressionOverview({
     effectsCatalogQuery.data?.effects.filter((effect) => effect.is_active) ?? [];
 
   return (
-    <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-0 py-2 xl:grid-cols-[minmax(0,1fr)_280px] xl:gap-8">
-      <section className="min-w-0 bg-background">
-        <div className="border-b border-border pb-4">
+    <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-4 py-2 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <section className="min-w-0 space-y-4 rounded-lg bg-surface px-4 py-5 sm:px-5">
+        <div>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="min-w-0">
               <StatusToken tone="primary">账号成长</StatusToken>
@@ -209,14 +210,14 @@ function ProgressionOverview({
           user={user}
         />
 
-        <section className="border-b border-border py-5">
+        <section className="rounded-lg bg-surface-raised px-4 py-4">
           <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
             <SectionIntro
               eyebrow="头衔和身份"
               title="公开展示"
               description="选择一个已获得头衔，并预览它在主页上的身份标记。"
             />
-            <div className="border-t border-border">
+            <div className="min-w-0">
               <PublicIdentityPreview progression={progression} user={user} />
               <TitleSelector
                 activeGrantId={progression.active_title?.grant_id ?? null}
@@ -230,12 +231,11 @@ function ProgressionOverview({
           </div>
         </section>
 
-        <section className="border-b border-border py-5">
+        <section className="rounded-lg bg-surface-raised px-4 py-4">
           <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
             <SectionIntro
               eyebrow="互动目录"
               title="积分消费项"
-              description="发送评论互动后由后端扣减积分并刷新评论效果。"
             />
             <EffectsCatalogPanel
               effects={activeEffects}
@@ -247,7 +247,7 @@ function ProgressionOverview({
           </div>
         </section>
 
-        <section className="grid gap-0 lg:grid-cols-2">
+        <section className="grid gap-4 lg:grid-cols-2">
           <LedgerPanel
             emptyText="还没有积分流水。"
             error={pointTransactionsError}
@@ -279,7 +279,7 @@ function SectionIntro({
   eyebrow,
   title,
 }: {
-  description: string;
+  description?: string;
   eyebrow: string;
   title: string;
 }) {
@@ -287,9 +287,11 @@ function SectionIntro({
     <div className="min-w-0">
       <StatusToken>{eyebrow}</StatusToken>
       <h2 className="mt-3 text-base font-semibold">{title}</h2>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        {description}
-      </p>
+      {description ? (
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {description}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -307,8 +309,8 @@ function AccountGrowthMasthead({
   const levelXp = getLevelXpProgress(progression);
 
   return (
-    <section className="border-b border-border py-5">
-      <div className="grid gap-0 border-y border-border lg:grid-cols-[minmax(0,1fr)_280px]">
+    <section>
+      <div className="grid gap-0 overflow-hidden rounded-lg bg-surface-raised lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="min-w-0 px-4 py-5 sm:px-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
@@ -323,7 +325,7 @@ function AccountGrowthMasthead({
                 {getDisplayName(user)} 的成长账户
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                等级按全站经验累计，积分独立入账并用于评论互动和身份表达。
+                等级按全站经验累计，积分独立入账并用于内容互动和身份表达。
               </p>
             </div>
             <div className="text-left sm:text-right">
@@ -353,7 +355,7 @@ function AccountGrowthMasthead({
           </div>
         </div>
 
-        <div className="grid border-t border-border sm:grid-cols-3 lg:grid-cols-1 lg:border-l lg:border-t-0">
+        <div className="grid border-t border-border bg-background/60 sm:grid-cols-3 lg:border-l lg:border-t-0 lg:grid-cols-1">
           <MetricBlock
             className="border-b border-r-0 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 lg:border-b lg:border-r-0 lg:last:border-b-0"
             label={
@@ -443,7 +445,7 @@ function TitleSelector({
 
   if (isLoading) {
     return (
-      <div className="border-t border-border py-4">
+      <div className="rounded-md bg-background px-3 py-4">
         <LoadingState rows={3} />
       </div>
     );
@@ -451,7 +453,7 @@ function TitleSelector({
 
   if (isError) {
     return (
-      <div className="border-t border-border py-4">
+      <div className="rounded-md bg-background px-3 py-4">
         <ErrorState
           title="无法加载头衔"
           description="已获得头衔暂时无法同步。"
@@ -466,7 +468,7 @@ function TitleSelector({
   }
 
   return (
-    <div className="divide-y divide-border border-t border-border">
+    <div className="grid gap-2">
       {localError ? (
         <Alert variant="destructive" className="my-4">
           <AlertTitle>头衔切换失败</AlertTitle>
@@ -495,7 +497,7 @@ function TitleSelector({
         />
       ))}
       {titles.length === 0 ? (
-        <p className="py-4 text-sm leading-6 text-muted-foreground">
+        <p className="rounded-md bg-background px-3 py-4 text-sm leading-6 text-muted-foreground">
           当前还没有可选择的头衔。
         </p>
       ) : null}
@@ -521,7 +523,7 @@ function TitleOption({
   return (
     <button
       type="button"
-      className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-4 px-3 py-4 text-left transition-colors hover:bg-background-soft/50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+      className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-4 rounded-md bg-background px-3 py-4 text-left transition-colors hover:bg-surface-hover hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
       disabled={disabled}
       onClick={onClick}
     >
@@ -558,7 +560,7 @@ function EffectsCatalogPanel({
 }) {
   if (isLoading) {
     return (
-      <div className="border-t border-border py-4">
+      <div className="rounded-md bg-background px-3 py-4">
         <LoadingState rows={3} />
       </div>
     );
@@ -566,7 +568,7 @@ function EffectsCatalogPanel({
 
   if (isError) {
     return (
-      <div className="border-t border-border py-4">
+      <div className="rounded-md bg-background px-3 py-4">
         <ErrorState
           title="互动目录暂时无法同步"
           description="积分余额仍可查看，互动目录稍后可以重试。"
@@ -582,35 +584,34 @@ function EffectsCatalogPanel({
 
   if (effects.length === 0) {
     return (
-      <div className="border-t border-border py-4">
+      <div className="rounded-md bg-background px-3 py-4">
         <div className="text-sm font-semibold">暂无可用互动</div>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          有可用评论互动后，会在这里展示名称和积分成本。
-        </p>
       </div>
     );
   }
 
   return (
-    <div className="divide-y divide-border border-t border-border">
+    <div className="grid gap-2">
       {effects
         .slice()
         .sort((left, right) => left.cost_points - right.cost_points)
         .map((effect) => (
           <div
             key={effect.id}
-            className="grid gap-3 px-3 py-4 transition-colors hover:bg-background-soft/50 sm:grid-cols-[minmax(0,1fr)_auto]"
+            className="grid gap-3 rounded-md bg-background px-3 py-4 transition-colors hover:bg-surface-hover sm:grid-cols-[minmax(0,1fr)_auto]"
           >
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
-                <Sparkles className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                <span
+                  className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-base"
+                  aria-hidden="true"
+                >
+                  {getContentEffectEmoji(effect) || "·"}
+                </span>
                 <div className="truncate text-sm font-semibold text-foreground">
                   {effect.name}
                 </div>
               </div>
-              <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
-                {effect.description || "给评论添加一次特殊互动。"}
-              </p>
             </div>
             <div className="self-center font-mono text-sm font-semibold text-primary">
               {formatCount(effect.cost_points)} 积分
@@ -644,7 +645,7 @@ function LedgerPanel({
   type: "points" | "xp";
 }) {
   return (
-    <section className="border-b border-border py-5 lg:border-r lg:px-4 lg:first:pl-0 lg:last:border-r-0 lg:last:pr-0">
+    <section className="rounded-lg bg-surface-raised px-4 py-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold">{title}</h2>
         <StatusToken>{type === "points" ? "积分" : "经验"}</StatusToken>
@@ -675,7 +676,7 @@ function LedgerPanel({
       ) : null}
 
       {!isLoading && !error && items.length > 0 ? (
-        <div className="mt-4 divide-y divide-border border-t border-border">
+        <div className="mt-4 grid gap-2">
           {items.map((item) => (
             <LedgerRow key={item.id} item={item} type={type} />
           ))}
@@ -699,7 +700,7 @@ function LedgerRow({
       : (item as XPEvent).xp_total_after;
 
   return (
-    <div className="grid gap-3 py-3 transition-colors hover:text-primary sm:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="grid gap-3 rounded-md bg-background px-3 py-3 transition-colors hover:bg-surface-hover sm:grid-cols-[minmax(0,1fr)_auto]">
       <div className="min-w-0">
         <div className="truncate text-sm font-semibold text-foreground">
           {formatLedgerReason(item.reason, item.source_type)}
@@ -752,9 +753,9 @@ function ProgressionRail({
       </RightRailSection>
 
       <RightRailSection title="积分用途">
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          当前积分可用于评论特殊互动。消费成功后，以账户余额和评论效果刷新为准。
-        </p>
+        <RightRailInfoList>
+          <RightRailInfoRow label="用途" value="内容互动" />
+        </RightRailInfoList>
         <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
           <Trophy className="size-4 text-primary" aria-hidden="true" />
           <span>等级只看经验，不购买权重。</span>

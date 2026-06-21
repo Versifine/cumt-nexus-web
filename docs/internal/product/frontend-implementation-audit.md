@@ -18,7 +18,7 @@
 
 - App Shell、基础路由、顶部搜索、顶部通知入口、头像菜单、最近访问社区、个人主页基础壳已经落地。
 - 未登录公开读取在前端意图上已经打开；搜索、首页、社区详情、帖子详情和评论读取都必须继续与后端 optional Bearer / 公开读取合同保持一致。
-- 帖子和评论 Markdown / 图片一体化已补齐统一入口；发帖、评论、回复、帖子编辑、评论编辑都复用同一 Tiptap 实时渲染写作器。发帖、评论发布和帖子 / 评论编辑都会提交正文引用到的 `attachment_ids`，正文内容仍以 Markdown 提交给后端。
+- 帖子和评论 Markdown / 图片一体化已补齐统一入口；发帖、评论、回复和帖子编辑都复用同一 Tiptap 实时渲染写作器。发帖、评论发布和帖子编辑都会提交正文引用到的 `attachment_ids`，正文内容仍以 Markdown 提交给后端；已发布评论不提供编辑入口。
 - Feed 规划仍未完整落地：前端已有 `best | hot | new | top | rising` 和推荐 / 全站 / 关注 source 的 URL / UI 基础；本地运行时已证明帖子五种排序可用。当前后端合同确认 `source=recommended|all`，关注流入口保留但不请求或展示普通公开帖子，避免伪造关注内容。
 - 保存收藏链路已接入当前后端合同；帖子列表和详情可以收藏 / 取消收藏，用户菜单进入 `/saved` 查看真实账号收藏列表。
 - 通知中心已按后端 `category` / `status` / `unread-summary` / `read-all` 合同接入：回复、@、赞、系统分类、分类未读摘要和全部标记已读都走真实接口；`/notifications/replies`、`/notifications/mentions`、`/notifications/likes`、`/notifications/system` 分类 URL 已落地并复用同一通知中心。前端已集中解析现有 `source_type/source_id`：帖子、社区和举报可直达，评论通知不会误链到错误页面，而是明确提示后端尚未返回所属帖子 ID。后续剩余风险主要是评论 target 精度和审核 / 社区申请类事件覆盖。
@@ -44,7 +44,7 @@
 | 评论 sort | 帖子详情已支持 Reddit 式 `?sort=best|top|new|old|controversial`，评论区有排序 tabs，树状评论层级保持不变；2026-06-09 复核本地后端 API，五种评论排序均返回 200；同时兼容旧规划中的 `comment_sort` query。 | 前端 URL / UI 和后端排序运行态已对齐。 | 后续只保留浏览器 QA 和更复杂数据下的排序体验复验。 |
 | 评论投票 | `src/features/vote/api.ts` 已接入 `PUT /api/v1/comments/:id/vote` 和 `DELETE /api/v1/comments/:id/vote`；`CommentTree` 和用户评论列表每条评论都复用 `RedditVoteControl targetType="comment"`，成功后刷新当前帖子评论树和用户评论列表；失败时统一弹出可见 toast，不只写入 `sr-only`。 | 登录态投票 / 取消 / 反对、真实后端失败回滚和移动端触控已完成浏览器 QA。 | 当前不做积分特效；后续只保留完整浏览器 QA 和更复杂数据下的回归复验。 |
 | Markdown 阅读态 | `ContentBody` 使用 `react-markdown` + `remark-gfm`，`skipHtml`，安全 URL，帖子和评论复用；移动端已用真实帖子验证宽表格、长代码块、任务列表和外部 Markdown 图片提示不会撑破页面，表格和代码块只在自身容器内横向滚动。`check:content-boundary` 已固化阅读态移动端溢出边界。 | 基础落地，移动端关键边界已有浏览器 QA。 | 仍需继续做更完整的 Reddit parity 用例审计，例如更多边界语法、深层评论组合和复杂嵌套内容。 |
-| Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复、帖子编辑、评论编辑，改为 Tiptap 单一实时渲染编辑面；工具栏对当前选区或当前块执行格式命令，覆盖行内代码和代码块。Markdown 源码不作为默认编辑 UI 暴露，`editor.getMarkdown()` 负责提交格式。 | 基础落地。 | 仍需继续做 Reddit parity 用例审计和移动端完整 QA。 |
+| Markdown 写作态 | `MarkdownComposerField` 已统一发帖、评论、回复和帖子编辑，改为 Tiptap 单一实时渲染编辑面；工具栏对当前选区或当前块执行格式命令，覆盖行内代码和代码块。Markdown 源码不作为默认编辑 UI 暴露，`editor.getMarkdown()` 负责提交格式；已发布评论不提供编辑入口。 | 基础落地。 | 仍需继续做 Reddit parity 用例审计和移动端完整 QA。 |
 | 图片与正文一体化 | 图片上传后进入 Tiptap image 节点并序列化为 `![说明](nexus-attachment:<id>)`；发布帖子、评论和编辑保存都会按正文出现顺序提交实际引用的 `attachment_ids`；阅读态只渲染正文内 marker 引用到的 attachments，不再把未引用附件追加成底部外置图集；外置图片管理组件已移除；上传中会保持最短可见等待提示并通过 `onUploadingChange` 禁用提交；`check:v2-path` 已覆盖正文内图片 marker 提交、读取保留、编辑替换图片和编辑删除图片后的解绑状态；`check:content-segments` 覆盖批量图片插入顺序和发布绑定过滤，`check:content-boundary` 固化 Tiptap 写作入口、剪贴板图片入口、编辑态新增图片绑定已接入、内联图片约束和上传等待态。 | 基础落地。 | 历史未插入正文的附件不会在发布态外挂展示；新增图片只通过编辑器正文位置进入内容，删除正文里的图片后不会随内容提交。 |
 | 普通外链 | Markdown 链接可渲染安全链接；信息流已有保守链接卡，优先消费后端 `preview.link`，否则只显示正文里首个安全外链的域名和链接文字。 | 基础落地。 | 完整网页标题、描述、缩略图和失败降级仍需要后端解析缓存；前端不抓取任意远端网页。 |
 | 白名单 embed | `ContentBody` 和 Tiptap 写作器会把裸贴的 Bilibili、抖音、网易云、QQ 音乐 canonical URL 渲染为受控播放器；自定义文字 Markdown 链接仍保持普通链接；源码中只允许白名单播放器组件使用 iframe。 | 前端基础落地。 | 后端已补 provider resolve、短链展开、元数据、审核状态和 `embed.id` 持久化；剩余是前端接线。 |
@@ -63,7 +63,7 @@
 - 根评论提交：评论树从空态变成 `TREE / 1 条评论`，评论中的 strong、table 和 spoiler 正常渲染，提交后编辑器清空。
 - 子评论回复：回复后评论树变成 `TREE / 2 条评论`，子评论深度为 1，spoiler 不露原始语法。
 - 帖子编辑弹窗：打开后直接是排版后的编辑器，可编辑当前正文；可见正文不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。
-- 评论编辑弹窗：打开后直接是排版后的编辑器，可编辑当前评论；可见正文不包含 `nexus-attachment:`、`![...]` 或 `>! ... !<` 源码。
+- 评论操作区：已发布评论不显示编辑入口，作者仍保留删除等允许的生命周期动作。
 - 发帖页剪贴板图片：登录测试账号后在 `/communities/public/new` 用系统剪贴板粘贴 PNG，写作器上传图片并在当前位置渲染图片节点；提交时仍序列化为 `nexus-attachment` Markdown marker 和 `attachment_ids`。
 - 评论区剪贴板图片：评论写作器同样支持粘贴 PNG，上传后在当前位置渲染图片节点；提交时仍序列化为 `nexus-attachment` Markdown marker 和 `attachment_ids`。
 - 本地运行时注意：后端源码和远端 `main` 已放行 CORS `PATCH`，但旧 Docker 容器曾返回 `GET, POST, PUT, DELETE, OPTIONS`，导致浏览器保存失败。重建 `cumt-nexus-api:local` 并按现有数据卷账号恢复 prod compose 后，`OPTIONS` 返回 `GET, POST, PUT, PATCH, DELETE, OPTIONS`，编辑保存通过。
@@ -80,8 +80,8 @@
 - 2026-06-10 评论投票浏览器 QA：用作者账号 `qavoteauthormq86k1mj9ivf` 创建帖子 `6aa741f3-e9f0-4284-885c-275d4932eac0` 和评论 `0eed8f16-e77f-46a3-8a42-cf80a35ada11`，再用登录 QA 账号 `qantmq86cevkgiry` 操作该评论。桌面 `/posts/6aa741f3-e9f0-4284-885c-275d4932eac0` 初始分数为 `0`，点击 `赞同` 后分数变为 `1`、赞同按钮 `aria-pressed=true`；再次点击赞同后分数回到 `0`；点击 `反对` 后分数变为 `-1`、反对按钮 `aria-pressed=true`。`390px` 移动端复验反对票取消后分数回到 `0`，两种视口均无横向溢出，控制台 error/warn 数为 0。
 - 2026-06-10 评论投票失败回滚 QA：先用真实后端确认已删除评论投票返回 `404 not_found`，再分别在桌面和 `390px` 移动端保留旧页面上的可见评论后由后端删除该评论并点击旧投票按钮。桌面帖子 `0eb0731e-9933-4803-a3bf-cc027750a722` / 评论 `391300c1-4b55-48ad-856b-eb089dba9d92`，移动端帖子 `3056aa94-3a56-40ad-a1a0-e0a6c444edee` / 评论 `195852ff-902c-4c72-8f52-0ed8d9bb2e32` 均显示可见 toast `没有找到对应内容。`，分数保持 `0`，赞同 / 反对按钮保持 `aria-pressed=false`，页面无横向溢出，控制台无 error/warn。`RedditVoteControl` 的可见 `toast.error` 和失败反馈边界已由 `check:actions` 固化。
 - 2026-06-10 Markdown 阅读态移动端边界 QA：用真实后端账号 `qamdb19eb2197f00` 创建帖子 `70d3e224-e88d-4876-845f-e339c80bca21` 和评论 `ecb61621-7f5e-44b2-8ec2-622a9189b659`，正文同时覆盖宽表格、fenced code 长行、任务列表、引用和外部 Markdown 图片。`390px` 视口打开帖子详情后，整页 `scrollWidth` 等于 `clientWidth`；帖子和评论各自的表格 wrapper 均为 `overflow-x: auto`，表格宽度 `560px` 只在 wrapper 内滚动；帖子代码块 `scrollWidth=1197/clientWidth=273`、评论代码块 `scrollWidth=766/clientWidth=287`，均只在 `pre` 内横向滚动；页面出现 2 处 `外部图片不会直接渲染；请上传图片后放入正文。`，任务列表 checkbox 带 `已完成 / 未完成` 中文 aria label，控制台 error/warn 数为 0。`check:content-boundary` 已新增阅读态移动端溢出边界。
-- 2026-06-10 编辑图片绑定回归：`check:v2-path` 已补充真实后端验收，覆盖帖子编辑替换图片、帖子编辑删除正文图片并提交空 `attachment_ids`、帖子详情不再返回旧图片 marker / attachment，评论编辑替换图片、评论编辑删除正文图片并提交空 `attachment_ids`、评论树不再返回已删除图片绑定；同轮严格 `npm run check:v2-path` 通过。
-- 2026-06-10 媒体编辑弹窗移动 QA：390px 移动端真实登录账号打开 `/communities/public/new`，正文工具栏 13 个按钮保留在单条横向滚动 toolbar 内，页面 `scrollWidth` 等于视口宽度。用真实后端数据创建带图片帖子和带图片评论后，打开帖子编辑弹窗和评论编辑弹窗均不再触发 Tiptap 图片解析崩溃；弹窗 `scrollWidth` 等于 `clientWidth`，工具栏 `overflow-x: auto`，删除正文图片后出现“已从正文删除的历史图片不会随本次保存继续绑定”提示，帖子和评论各自保留“删除正文里的图片并保存后会解绑”的保存前说明。
+- 2026-06-10 编辑图片绑定回归：`check:v2-path` 已补充真实后端验收，覆盖帖子编辑替换图片、帖子编辑删除正文图片并提交空 `attachment_ids`、帖子详情不再返回旧图片 marker / attachment；同轮严格 `npm run check:v2-path` 通过。已发布评论不提供编辑入口。
+- 2026-06-10 媒体编辑弹窗移动 QA：390px 移动端真实登录账号打开 `/communities/public/new`，正文工具栏 13 个按钮保留在单条横向滚动 toolbar 内，页面 `scrollWidth` 等于视口宽度。用真实后端数据创建带图片帖子后，打开帖子编辑弹窗不再触发 Tiptap 图片解析崩溃；弹窗 `scrollWidth` 等于 `clientWidth`，工具栏 `overflow-x: auto`，删除正文图片后出现“已从正文删除的历史图片不会随本次保存继续绑定”提示，帖子保留“删除正文里的图片并保存后会解绑”的保存前说明。
 - 2026-06-10 图片上传等待态代码回归：`MarkdownComposerField` 的文件选择、粘贴和拖放图片上传都会进入共享上传中状态，保持最短可见提示，上传完成前通过 `onUploadingChange` 让外层保存 / 发布按钮保持禁用；`npm run check:content-boundary` 已把等待态、正文图片入口和上传中禁用约束纳入静态验收。本条不替代真实系统文件选择浏览器 QA。
 - 2026-06-10 图片粘贴上传等待态浏览器 QA：375px 移动端真实登录账号打开 `/communities/public/new`，通过浏览器 PNG 剪贴板粘贴图片，上传中显示“正在上传图片，保存按钮会暂时禁用”，发布按钮变为“图片上传中...”且 disabled；完成后正文中出现真实后端图片 URL，不显示 `nexus-attachment` 源码，不出现未引用图片提示，`scrollWidth` 等于 `clientWidth`，测试开始后控制台 error 数为 0。
 - 2026-06-08 评论排序 UI 重测历史证据（已由 2026-06-09 回归覆盖）：当时本地 API 探测 `GET /api/v1/posts/:id/comments?sort=best|top|old|controversial` 均返回 `400 invalid_argument`，`sort=new` 成功；桌面打开 `/posts/ec895728-1533-4886-a9cb-f84cac830cf3?sort=top`，评论区显示最佳 / 最高 / 最新 / 最早 / 争议 tabs，最高 tab 选中，显示“后端暂未提供最高评论排序，当前展示最新评论。”，无横向溢出且控制台 error 数为 0；点击“最早”后 URL 变为 `?sort=old`，最早 tab 选中并显示对应降级提示。移动端 390px 同一路径无横向溢出。
@@ -105,7 +105,7 @@
 - 链接预览：普通网页解析、缓存、失败降级、图片安全策略。
 - 白名单 embed 后端合同：Bilibili、抖音、网易云、QQ 音乐 provider resolve、短链展开、元数据、审核状态和 `embed.id` 持久化；前端 canonical 裸链接播放器已先落地。
 - 图片后处理：缩略图 URL、对象物理删除、未绑定对象 TTL、失败对象回收。
-- 编辑绑定图片：2026-06-08 复核后端当前源码和合同，发布帖子 / 评论请求、`PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 均已支持 `attachment_ids`。编辑态新增图片绑定已接入，前端保存时按正文实际引用顺序提交图片 ID，后端按帖子 / 评论所有权重新绑定，响应继续返回最新 `attachments`。
+- 编辑绑定图片：2026-06-08 复核后端当前源码和合同，发布帖子 / 评论请求和 `PATCH /api/v1/posts/:id` 已支持 `attachment_ids`。编辑态新增图片绑定已接入帖子编辑，前端保存时按正文实际引用顺序提交图片 ID，后端按帖子所有权重新绑定，响应继续返回最新 `attachments`。已发布评论不提供编辑入口。
 
 ## 下一步建议
 

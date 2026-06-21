@@ -4,8 +4,12 @@ import { Check, Plus } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { TextAction } from "@/components/ui/text-action";
+import {
+  FollowActionButton,
+  FollowActionLink,
+  getFollowActionErrorMessage,
+  getFollowActionLabel,
+} from "@/components/social/follow-action";
 import { useAuthSession } from "@/features/auth/auth-session";
 import { useCurrentUserQuery } from "@/features/auth/queries";
 import { cn } from "@/lib/utils";
@@ -28,33 +32,42 @@ export function UserFollowButton({
   const currentUserQuery = useCurrentUserQuery();
   const mutation = useToggleUserFollowMutation();
   const [error, setError] = useState<string | null>(null);
-  const currentUsername = currentUserQuery.data?.username ?? "";
+  const currentUsername = currentUserQuery.data?.username.trim().toLowerCase() ?? "";
+  const targetUsername = username.trim().toLowerCase();
   const isOwnProfile =
-    currentUsername.trim().toLowerCase() === username.trim().toLowerCase();
+    Boolean(currentUsername) && currentUsername === targetUsername;
+  const isResolvingCurrentUser =
+    Boolean(token) && currentUserQuery.isFetching && !currentUserQuery.data;
   const isPending = mutation.isPending;
 
-  if (!isReady || isOwnProfile) {
+  if (!isReady || isResolvingCurrentUser || isOwnProfile) {
     return null;
   }
 
   if (!token) {
     return (
-      <TextAction
+      <FollowActionLink
         className={className}
         href={`/login?next=${encodeURIComponent(pathname || "/")}`}
-        tone="primary"
+        aria-label={`登录后关注 @${username}`}
       >
+        <Plus className="size-4" aria-hidden="true" />
         关注
-      </TextAction>
+      </FollowActionLink>
     );
   }
 
+  const label = getFollowActionLabel({
+    isFollowing: viewerIsFollowing,
+    isPending,
+  });
+  const Icon = viewerIsFollowing ? Check : Plus;
+
   return (
-    <div className={cn("flex flex-col items-end gap-1", className)}>
-      <Button
+    <div className={cn("min-w-0", className)}>
+      <FollowActionButton
         type="button"
-        size="sm"
-        variant={viewerIsFollowing ? "outline" : "default"}
+        isFollowing={viewerIsFollowing}
         disabled={isPending}
         onClick={async () => {
           setError(null);
@@ -64,19 +77,17 @@ export function UserFollowButton({
               username,
             });
           } catch (caught) {
-            setError(caught instanceof Error ? caught.message : "关注操作失败。");
+            setError(getFollowActionErrorMessage(caught));
           }
         }}
+        aria-pressed={viewerIsFollowing}
+        aria-label={`${label} @${username}`}
       >
-        {viewerIsFollowing ? (
-          <Check className="size-4" aria-hidden="true" />
-        ) : (
-          <Plus className="size-4" aria-hidden="true" />
-        )}
-        {isPending ? "处理中" : viewerIsFollowing ? "已关注" : "关注"}
-      </Button>
+        <Icon className="size-4" aria-hidden="true" />
+        {label}
+      </FollowActionButton>
       {error ? (
-        <p className="max-w-44 text-right text-xs leading-5 text-destructive">
+        <p className="mt-2 max-w-44 text-xs leading-5 text-destructive">
           {error}
         </p>
       ) : null}

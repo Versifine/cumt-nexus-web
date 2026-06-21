@@ -58,7 +58,7 @@ function AccountSecurityContent() {
 
   if (securityQuery.isLoading) {
     return (
-      <section className="space-y-3 border-y border-border py-5" aria-label="正在加载账号安全">
+      <section className="space-y-3 rounded-lg bg-surface px-4 py-5 sm:px-5" aria-label="正在加载账号安全">
         <div className="h-4 w-32 animate-pulse bg-muted" />
         <div className="h-6 w-56 max-w-full animate-pulse bg-muted" />
         <div className="h-4 w-80 max-w-full animate-pulse bg-muted" />
@@ -68,7 +68,7 @@ function AccountSecurityContent() {
 
   if (securityQuery.isError || !securityQuery.data) {
     return (
-      <section className="border-y border-border py-5">
+      <section className="rounded-lg bg-surface px-4 py-5 sm:px-5">
         <InlineFeedback
           title="无法读取账号安全信息"
           description="请重试当前请求，或重新登录后再打开账号安全。"
@@ -83,7 +83,7 @@ function AccountSecurityContent() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 py-2">
       <SecurityOverview data={securityQuery.data} />
       <ChangeEmailForm currentEmail={securityQuery.data.email} />
       <ChangePasswordForm />
@@ -105,7 +105,7 @@ function SecurityOverview({
   };
 }) {
   return (
-    <section className="border-y border-border py-5">
+    <section className="rounded-lg bg-surface px-4 py-5 sm:px-5">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={data.email_verified ? "success" : "warning"}>
           {data.email_verified ? "邮箱已验证" : "邮箱未验证"}
@@ -117,7 +117,7 @@ function SecurityOverview({
       <h2 className="mt-4 text-base font-semibold leading-6 tracking-normal">
         账号安全
       </h2>
-      <dl className="mt-4 divide-y divide-border border-t border-border text-sm">
+      <dl className="mt-4 divide-y divide-border rounded-md bg-surface-raised px-3 text-sm">
         <InfoRow label="绑定邮箱" value={data.email || "未绑定"} />
         <InfoRow
           label="邮箱验证时间"
@@ -128,7 +128,7 @@ function SecurityOverview({
           value={data.last_login_at ? formatDate(data.last_login_at) : "暂无记录"}
         />
       </dl>
-      <div className="mt-4 flex flex-col border-t border-border sm:flex-row sm:gap-6">
+      <div className="mt-4 grid overflow-hidden rounded-md bg-surface-raised sm:grid-cols-3">
         <TextAction href="#password" tone="primary" variant="bar">
           修改密码
         </TextAction>
@@ -187,7 +187,7 @@ function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
   return (
     <form
       id="email"
-      className="border-y border-border py-5"
+      className="rounded-lg bg-surface px-4 py-5 sm:px-5"
       method="post"
       onChangeCapture={() => {
         if (changeMutation.error) {
@@ -218,7 +218,7 @@ function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
       {changeMutation.isSuccess ? (
         <InlineAlert title="邮箱已更新" detail="新的邮箱已验证并绑定到当前账号。" />
       ) : null}
-      <div className="border-b border-border py-4">
+      <div className="mt-4 rounded-md bg-surface-raised px-3 py-4">
         <label className="text-sm font-semibold text-foreground" htmlFor="security-email">
           新邮箱
         </label>
@@ -229,7 +229,7 @@ function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
           aria-invalid={Boolean(form.formState.errors.new_email)}
           disabled={isLocked}
           placeholder="new@cumt.edu.cn"
-          className="mt-2 h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
+          className="mt-2 h-11 border-border bg-background text-base"
           {...form.register("new_email")}
         />
         <FieldMeta
@@ -278,7 +278,7 @@ function ChangePasswordForm() {
   return (
     <form
       id="password"
-      className="border-y border-border py-5"
+      className="rounded-lg bg-surface px-4 py-5 sm:px-5"
       method="post"
       onChangeCapture={() => {
         if (mutation.error) {
@@ -340,7 +340,7 @@ function LogoutAllPanel() {
   const submitError = getAuthSubmitError(mutation.error);
 
   return (
-    <section className="border-y border-border py-5">
+    <section className="rounded-lg bg-surface px-4 py-5 sm:px-5">
       <p className="font-mono text-xs text-destructive">会话</p>
       <h2 className="mt-3 text-base font-semibold leading-6 tracking-normal">
         退出所有会话
@@ -445,7 +445,7 @@ function DeleteAccountPanel({ currentEmail }: { currentEmail: string }) {
     <>
       <form
         id="delete-account"
-        className="border-y border-destructive/40 py-5"
+        className="rounded-lg bg-surface px-4 py-5 ring-1 ring-destructive/25 sm:px-5"
         method="post"
         onChangeCapture={() => {
           if (deleteMutation.error) {
@@ -468,7 +468,7 @@ function DeleteAccountPanel({ currentEmail }: { currentEmail: string }) {
         {sendError ? <InlineAlert title="验证码发送失败" detail={sendError} /> : null}
         {submitError ? <InlineAlert title="注销失败" detail={submitError} /> : null}
 
-        <div className="border-b border-border py-4">
+        <div className="mt-4 rounded-md bg-surface-raised px-3 py-4">
           <label className="text-sm font-semibold text-foreground" htmlFor="delete-account-email">
             当前邮箱
           </label>
@@ -478,7 +478,7 @@ function DeleteAccountPanel({ currentEmail }: { currentEmail: string }) {
             autoComplete="email"
             aria-invalid={Boolean(form.formState.errors.email)}
             disabled={isLocked}
-            className="mt-2 h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
+            className="mt-2 h-11 border-border bg-background text-base"
             {...form.register("email")}
           />
           <FieldMeta
@@ -512,7 +512,7 @@ function DeleteAccountPanel({ currentEmail }: { currentEmail: string }) {
           registration={form.register("current_password")}
         />
 
-        <div className="border-b border-border py-4">
+        <div className="mt-4 rounded-md bg-surface-raised px-3 py-4">
           <label className="text-sm font-semibold text-foreground" htmlFor="delete-confirmation">
             确认文本
           </label>
@@ -522,7 +522,7 @@ function DeleteAccountPanel({ currentEmail }: { currentEmail: string }) {
             aria-invalid={Boolean(form.formState.errors.confirmation)}
             disabled={isLocked}
             placeholder="输入 DELETE"
-            className="mt-2 h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 font-mono text-base focus-visible:ring-0"
+            className="mt-2 h-11 border-border bg-background font-mono text-base"
             {...form.register("confirmation")}
           />
           <FieldMeta
@@ -546,7 +546,7 @@ function DeleteAccountPanel({ currentEmail }: { currentEmail: string }) {
               这个操作会软删除当前账号、清理公开资料并让所有登录会话失效。历史内容和审计记录会按后端合同保留。
             </DialogDescription>
           </DialogHeader>
-          <div className="border-y border-border py-4 text-sm leading-6 text-muted-foreground">
+          <div className="rounded-md bg-surface-raised px-3 py-4 text-sm leading-6 text-muted-foreground">
             注销后原用户名和邮箱会释放，可用于重新注册。确认继续后，当前浏览器也会退出登录。
           </div>
           {submitError ? <InlineAlert title="注销失败" detail={submitError} /> : null}
@@ -592,7 +592,7 @@ function PasswordField({
   registration: UseFormRegisterReturn;
 }) {
   return (
-    <div className="border-b border-border py-4">
+    <div className="mt-4 rounded-md bg-surface-raised px-3 py-4">
       <label className="text-sm font-semibold text-foreground" htmlFor={id}>
         {label}
       </label>
@@ -603,7 +603,7 @@ function PasswordField({
         aria-invalid={Boolean(error)}
         disabled={disabled}
         placeholder={label}
-        className="mt-2 h-11 rounded-none border-x-0 border-t-0 border-border bg-transparent px-0 text-base focus-visible:ring-0"
+        className="mt-2 h-11 border-border bg-background text-base"
         {...registration}
       />
       <FieldMeta error={error} hint={hint} />

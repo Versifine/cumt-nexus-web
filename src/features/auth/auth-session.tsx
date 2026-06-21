@@ -39,6 +39,7 @@ export function AuthSessionProvider({ children }: AuthSessionProviderProps) {
     readAccessToken,
     () => null,
   );
+  const hasMountedRef = useRef(false);
   const previousTokenRef = useRef<string | null>(token);
 
   const setToken = useCallback((nextToken: string) => {
@@ -61,8 +62,14 @@ export function AuthSessionProvider({ children }: AuthSessionProviderProps) {
   }, [queryClient]);
 
   useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      previousTokenRef.current = token;
+      return;
+    }
+
     if (previousTokenRef.current !== token) {
-      queryClient.clear();
+      void queryClient.invalidateQueries();
       dispatchRecentCommunitiesChanged();
     }
 

@@ -1,11 +1,11 @@
 "use client";
 
 import { Send } from "lucide-react";
-import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 
-import { getMessageShareHref } from "./share";
+import { MessageDrawerAction } from "./message-drawer-action";
+import { getMessageShareSearchParams } from "./share";
 import type { MessageShareSnapshot } from "./types";
 
 type DisabledMessageShareActionProps = {
@@ -23,17 +23,20 @@ export function DisabledMessageShareAction({
 }: DisabledMessageShareActionProps) {
   if (share) {
     return (
-      <Link
-        href={getMessageShareHref(share)}
+      <MessageDrawerAction
         className={cn(
           "inline-flex h-7 items-center gap-1.5 px-1 text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           className,
         )}
+        initialSearchParams={Object.fromEntries(
+          getMessageShareSearchParams(share),
+        )}
         title="发送给好友"
+        triggerTitle="发送给好友"
       >
         <Send className={cn("size-3.5", iconClassName)} aria-hidden="true" />
         {label}
-      </Link>
+      </MessageDrawerAction>
     );
   }
 

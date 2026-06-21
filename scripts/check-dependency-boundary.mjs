@@ -54,6 +54,7 @@ const approvedDevDependencies = {
   "@types/react-dom": "^19",
   eslint: "^9",
   "eslint-config-next": "16.2.7",
+  playwright: "^1.61.0",
   tailwindcss: "^4",
   typescript: "^5",
 };

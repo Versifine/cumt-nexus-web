@@ -278,21 +278,21 @@ const communityToolGroups: Array<{
         value: "settings",
       },
       {
-        description: "Automod、关键词和自动化规则。",
+        description: "自动审核、关键词和自动化规则。",
         icon: Bot,
         label: "自动化",
         value: "automations",
       },
       {
-        description: "队列外沟通、内部 note 和归档。",
+        description: "队列外沟通、内部备注和归档。",
         icon: Inbox,
-        label: "Modmail",
+        label: "管理信箱",
         value: "modmail",
       },
       {
         description: "社区级操作日志和资源回看。",
         icon: FileClock,
-        label: "Mod Log",
+        label: "操作日志",
         value: "log",
       },
       {
@@ -1195,7 +1195,7 @@ function CommunityModToolsWorkspace({
       {activeTool === "users" ? (
         <div className="border-b border-border">
           <ManagePreviewSection
-            description="社区版主和平台 owner 覆盖可任免社区管理员；版主转让仍要求真实社区版主。"
+            description="社区版主和平台负责人覆盖可任免社区管理员；版主转让仍要求真实社区版主。"
             emptyText="暂无成员记录。"
             isError={membersQuery.isError}
             isEmpty={false}
@@ -1215,7 +1215,7 @@ function CommunityModToolsWorkspace({
             />
           </ManagePreviewSection>
           <ManagePreviewSection
-            description="真实社区版主使用双确认转让；平台 owner 覆盖使用异常接管。"
+            description="真实社区版主使用双确认转让；平台负责人覆盖使用异常接管。"
             emptyText="暂无版主交接。"
             isError={false}
             isEmpty={false}
@@ -1450,8 +1450,8 @@ function CommunityOverviewWorkspace({
     description: string;
     tool: CommunityManageTool;
   }> = [
-    { description: "Automod、关键词、测试和版本历史。", tool: "automations" },
-    { description: "管理团队收件箱、内部 note 和归档。", tool: "modmail" },
+    { description: "自动审核、关键词、测试和版本历史。", tool: "automations" },
+    { description: "管理团队收件箱、内部备注和归档。", tool: "modmail" },
     { description: "社区摘要、训练队列和趋势分析。", tool: "insights" },
   ];
 
@@ -1487,7 +1487,7 @@ function CommunityOverviewWorkspace({
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <StatusToken>{formatViewerRole(community.viewer_role)}</StatusToken>
           {hasPlatformOwnerOverride ? (
-            <StatusToken tone="primary">平台 owner 覆盖</StatusToken>
+            <StatusToken tone="primary">平台负责人覆盖</StatusToken>
           ) : null}
           <StatusToken tone={canEditSettings ? "success" : "default"}>
             资料{formatPermission(canEditSettings)}
@@ -2033,13 +2033,13 @@ function ManageAutomodPanel({
   return (
     <div className="space-y-4">
       <ManagePreviewSection
-        description="Automod 配置、结构化规则和版本历史已接入后端。"
-        emptyText="暂无 Automod 配置。"
+        description="自动审核配置、结构化规则和版本历史已接入后端。"
+        emptyText="暂无自动审核配置。"
         isError={configQuery.isError}
         isEmpty={!configQuery.data?.config}
         isLoading={configQuery.isPending}
         onRetry={configQuery.refetch}
-        title="Automod 配置"
+        title="自动审核配置"
       >
         {configQuery.data?.config ? (
           <AutomodEditor
@@ -2052,7 +2052,7 @@ function ManageAutomodPanel({
       </ManagePreviewSection>
       <AutomodDryRunPanel slug={slug} />
       <ManagePreviewSection
-        description="每次保存 Automod 都会形成版本。"
+        description="每次保存自动审核配置都会形成版本。"
         emptyText="暂无版本历史。"
         isError={versionsQuery.isError}
         isEmpty={(versionsQuery.data?.versions ?? []).length === 0}
@@ -2060,11 +2060,11 @@ function ManageAutomodPanel({
         onRetry={versionsQuery.refetch}
         title="版本历史"
       >
-        <div className="divide-y divide-border border-t border-border">
+        <div className="grid gap-2">
           {(versionsQuery.data?.versions ?? []).map((version) => (
             <div
               key={version.id}
-              className="grid gap-2 py-3 md:grid-cols-[80px_minmax(0,1fr)_auto]"
+              className="grid gap-2 rounded-md bg-background px-3 py-3 md:grid-cols-[80px_minmax(0,1fr)_auto]"
             >
               <span className="font-mono text-xs text-primary">
                 v{version.version}
@@ -2125,7 +2125,7 @@ function AutomodEditor({
       </div>
       {mutation.error ? (
         <Alert variant="destructive">
-          <AlertTitle>Automod 保存失败</AlertTitle>
+          <AlertTitle>自动审核保存失败</AlertTitle>
           <AlertDescription>{getErrorDescription(mutation.error)}</AlertDescription>
         </Alert>
       ) : null}
@@ -2153,7 +2153,7 @@ function AutomodEditor({
       />
       {canEdit ? (
         <Button type="submit" size="sm" disabled={mutation.isPending}>
-          {mutation.isPending ? "正在保存..." : "保存 Automod"}
+          {mutation.isPending ? "正在保存..." : "保存自动审核"}
         </Button>
       ) : null}
     </form>
@@ -2254,9 +2254,9 @@ function AutomodDryRunResult({ result }: { result: AutomodDryRunResponse }) {
           {result.reasons.join("；")}
         </p>
       ) : null}
-      <div className="mt-3 divide-y divide-border border-t border-border">
+      <div className="mt-3 grid gap-2">
         {result.matches.map((match, index) => (
-          <div key={`${match.rule}-${index}`} className="grid gap-2 py-3 md:grid-cols-[120px_minmax(0,1fr)]">
+          <div key={`${match.rule}-${index}`} className="grid gap-2 rounded-md bg-background px-3 py-3 md:grid-cols-[120px_minmax(0,1fr)]">
             <span className="text-sm font-semibold text-foreground">
               {match.rule}
             </span>
@@ -2306,7 +2306,7 @@ function ManageModmailPanel({
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
       <ReviewDeskPanel
-        title="Modmail 会话"
+        title="管理信箱会话"
         description="团队收件箱、待回复、处理中和归档文件夹。"
       >
         <div className="mb-3 flex flex-wrap gap-2">
@@ -2328,7 +2328,7 @@ function ManageModmailPanel({
         {conversationsQuery.isPending ? <LoadingState rows={4} /> : null}
         {conversationsQuery.isError ? (
           <ErrorState
-            title="无法加载 Modmail"
+            title="无法加载管理信箱"
             description={getErrorDescription(conversationsQuery.error)}
             action={<Button size="sm" variant="ghost" onClick={() => conversationsQuery.refetch()}>重试</Button>}
           />
@@ -2359,7 +2359,7 @@ function ManageModmailPanel({
         ) : null}
         {canEdit ? <CreateModmailConversationForm slug={slug} /> : null}
       </ReviewDeskPanel>
-      <ReviewDeskPanel title="会话详情" description="回复用户、写内部 note 或更新归档状态。">
+      <ReviewDeskPanel title="会话详情" description="回复用户、写内部备注或更新归档状态。">
         {selectedConversationId ? (
           <ModmailConversationDetail
             canEdit={canEdit}
@@ -2447,7 +2447,7 @@ function CreateModmailConversationForm({ slug }: { slug: string }) {
         selectedUser={selectedUser}
         onSelectedUserChange={setSelectedUser}
         placeholder="搜索用户、昵称或粘贴用户 ID"
-        description="搜索后选择账号，系统会用后端用户 ID 创建 Modmail 会话。"
+        description="搜索后选择账号，系统会用后端用户 ID 创建管理信箱会话。"
         preventEnterSubmit={false}
       />
       <Input className="border-border bg-background" placeholder="主题" value={subject} onChange={(event) => setSubject(event.target.value)} />
@@ -2543,18 +2543,18 @@ function ModmailConversationDetail({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <StatusToken tone="primary">{formatModmailFolder(conversation.folder)}</StatusToken>
-        <StatusToken>{conversation.status}</StatusToken>
+        <StatusToken>{formatModmailStatus(conversation.status)}</StatusToken>
         <StatusToken>{messages.length} 条消息</StatusToken>
       </div>
-      <div className="divide-y divide-border border-t border-border">
+      <div className="grid gap-2">
         {messages.map((message) => (
-          <div key={message.id} className="py-3">
+          <div key={message.id} className="rounded-md bg-background px-3 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-xs text-muted-foreground">
                 {formatShortId(message.author_id)}
               </span>
               {message.is_internal ? (
-                <StatusToken tone="warning">内部 note</StatusToken>
+                <StatusToken tone="warning">内部备注</StatusToken>
               ) : null}
               <span className="text-xs text-muted-foreground">
                 {formatDateTime(message.created_at)}
@@ -2605,9 +2605,9 @@ function ModmailConversationDetail({
               </Button>
             </form>
             <form className="space-y-3" onSubmit={submitNote}>
-              <Textarea className="min-h-24 border-border bg-background" placeholder="内部 note" value={note} onChange={(event) => setNote(event.target.value)} />
+              <Textarea className="min-h-24 border-border bg-background" placeholder="内部备注" value={note} onChange={(event) => setNote(event.target.value)} />
               <Button type="submit" size="sm" disabled={noteMutation.isPending || !note.trim()}>
-                {noteMutation.isPending ? "正在保存..." : "保存内部 note"}
+                {noteMutation.isPending ? "正在保存..." : "保存内部备注"}
               </Button>
             </form>
           </div>
@@ -2787,16 +2787,16 @@ function FlairManager({
           <AlertDescription>{getErrorDescription(error)}</AlertDescription>
         </Alert>
       ) : null}
-      <div className="divide-y divide-border border-t border-border">
+      <div className="grid gap-2">
         {flairs.length === 0 ? (
-          <p className="py-3 text-sm leading-6 text-muted-foreground">
+          <p className="rounded-md bg-background px-3 py-3 text-sm leading-6 text-muted-foreground">
             暂无 flair。
           </p>
         ) : null}
         {flairs.map((flair) => (
           <div
             key={flair.id}
-            className="grid gap-3 py-3 md:grid-cols-[minmax(0,1fr)_auto]"
+            className="grid gap-3 rounded-md bg-background px-3 py-3 md:grid-cols-[minmax(0,1fr)_auto]"
           >
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -2995,11 +2995,11 @@ function ScheduledPostsManager({
           <AlertDescription>{getErrorDescription(error)}</AlertDescription>
         </Alert>
       ) : null}
-      <div className="divide-y divide-border border-t border-border">
+      <div className="grid gap-2">
         {posts.map((post) => (
           <div
             key={post.id}
-            className="grid gap-3 py-3 md:grid-cols-[minmax(0,1fr)_auto]"
+            className="grid gap-3 rounded-md bg-background px-3 py-3 md:grid-cols-[minmax(0,1fr)_auto]"
           >
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -3170,11 +3170,11 @@ function GuidesManager({
           <AlertDescription>{getErrorDescription(error)}</AlertDescription>
         </Alert>
       ) : null}
-      <div className="divide-y divide-border border-t border-border">
+      <div className="grid gap-2">
         {guides.map((guide) => (
           <div
             key={guide.id}
-            className="grid gap-3 py-3 md:grid-cols-[minmax(0,1fr)_auto]"
+            className="grid gap-3 rounded-md bg-background px-3 py-3 md:grid-cols-[minmax(0,1fr)_auto]"
           >
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -3256,9 +3256,9 @@ function ModerationInsightsGrid({
 
 function TrainingQueueList({ items }: { items: CommunityTrainingQueueItem[] }) {
   return (
-    <div className="divide-y divide-border border-t border-border">
+    <div className="grid gap-2">
       {items.map((item) => (
-        <div key={item.id} className="grid gap-3 py-3 md:grid-cols-[120px_minmax(0,1fr)]">
+        <div key={item.id} className="grid gap-3 rounded-md bg-background px-3 py-3 md:grid-cols-[120px_minmax(0,1fr)]">
           <div className="flex flex-wrap items-center gap-2">
             <StatusToken>{formatTargetType(item.target_type)}</StatusToken>
             <StatusToken tone="primary">{item.suggested_action || "复核"}</StatusToken>
@@ -3399,7 +3399,7 @@ function ManageHeader({
       description={
         <>
           {community && canManageCommunity
-            ? `${community.name} 的社区管理入口。当前角色 ${formatViewerRole(community.viewer_role)}，成员 ${formatCount(community.member_count)}，帖子 ${formatCount(community.post_count)}。${hasPlatformOwnerOverride ? "当前通过平台 owner 覆盖进入，真实社区角色不变。" : ""}所有写操作仍由后端权限校验。`
+            ? `${community.name} 的社区管理入口。当前角色 ${formatViewerRole(community.viewer_role)}，成员 ${formatCount(community.member_count)}，帖子 ${formatCount(community.post_count)}。${hasPlatformOwnerOverride ? "当前通过平台负责人覆盖进入，真实社区角色不变。" : ""}所有写操作仍由后端权限校验。`
             : null}
           {community && !canManageCommunity
             ? formatCommunityManageForbiddenDescription({
@@ -3748,7 +3748,7 @@ function ManageUserStatesPanel({
   const activeQuery = queryByKind[activeKind];
 
   return (
-    <section className="min-w-0 border-b border-border py-5 last:border-b-0">
+    <section className="min-w-0 rounded-lg bg-surface-raised px-4 py-4 sm:px-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <h3 className="text-sm font-semibold">社区用户治理</h3>
@@ -3887,7 +3887,7 @@ function CommunityUserStateForm({
           id={`${kind}-reason`}
           value={reason}
           onChange={(event) => setReason(event.target.value)}
-          placeholder="写清社区治理依据，便于 Mod Log 回看。"
+          placeholder="写清社区治理依据，便于操作日志回看。"
           disabled={mutation.isPending}
         />
       </div>
@@ -3902,7 +3902,7 @@ function CommunityUserStateForm({
       {mutation.isSuccess && !mutation.error ? (
         <Alert>
           <AlertTitle>已提交</AlertTitle>
-          <AlertDescription>用户状态已更新，列表和 Mod Log 会自动刷新。</AlertDescription>
+          <AlertDescription>用户状态已更新，列表和操作日志会自动刷新。</AlertDescription>
         </Alert>
       ) : null}
       <div className="flex justify-end">
@@ -4015,7 +4015,7 @@ function CommunityUserStateRow({
             <DialogTitle>移除{formatUserStateKind(kind)}</DialogTitle>
             <DialogDescription>
               该操作会移除 @{user.username || user.user_id} 在本社区的
-              {formatUserStateKind(kind)}状态，并写入社区 Mod Log。
+              {formatUserStateKind(kind)}状态，并写入社区操作日志。
             </DialogDescription>
           </DialogHeader>
           {mutation.error ? (
@@ -4121,7 +4121,7 @@ function ManageUserProfilePanel({
     }
 
     if (!trimmedBody) {
-      setFormError("请填写 Mod Note 内容。");
+      setFormError("请填写管理备注内容。");
       return;
     }
 
@@ -4131,16 +4131,16 @@ function ManageUserProfilePanel({
       user_id: selectedUserId,
     });
     setNoteBody("");
-    setSuccessMessage("Mod Note 已保存。");
+    setSuccessMessage("管理备注已保存。");
   }
 
   return (
-    <section className="min-w-0 border-b border-border py-5 last:border-b-0">
+    <section className="min-w-0 rounded-lg bg-surface-raised px-4 py-4 sm:px-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <Users className="size-4 text-primary" aria-hidden="true" />
-            <h3 className="text-sm font-semibold">用户画像与 Mod Notes</h3>
+            <h3 className="text-sm font-semibold">用户画像与管理备注</h3>
           </div>
           <p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">
             查看用户在本社区的帖子、评论、举报、移除统计和团队备注。
@@ -4210,7 +4210,7 @@ function ManageUserProfilePanel({
           {selectedUserId ? (
             <form className="mt-4 grid gap-3" onSubmit={submitNote}>
               <label className="text-xs font-semibold" htmlFor="community-mod-note">
-                新增 Mod Note
+                新增管理备注
               </label>
               <Textarea
                 id="community-mod-note"
@@ -4233,7 +4233,7 @@ function ManageUserProfilePanel({
                   {noteBody.trim().length} / 1000
                 </span>
                 <Button type="submit" size="sm" disabled={createNoteMutation.isPending}>
-                  {createNoteMutation.isPending ? "保存中..." : "保存 Mod Note"}
+                  {createNoteMutation.isPending ? "保存中..." : "保存管理备注"}
                 </Button>
               </div>
             </form>
@@ -4368,7 +4368,7 @@ function ModeratorNotesList({
   if (isError) {
     return (
       <ErrorState
-        title="无法加载 Mod Notes"
+        title="无法加载管理备注"
         description={getErrorDescription(error)}
         action={
           <Button variant="ghost" size="sm" onClick={onRetry}>
@@ -4382,13 +4382,13 @@ function ModeratorNotesList({
   if (notes.length === 0) {
     return (
       <p className="mt-4 text-sm leading-6 text-muted-foreground">
-        暂无 Mod Note。
+        暂无管理备注。
       </p>
     );
   }
 
   return (
-    <div className="mt-4 divide-y divide-border border-t border-border">
+    <div className="mt-4 grid gap-2">
       {notes.map((note, index) => (
         <ModeratorNoteRow
           index={index + 1}
@@ -4423,7 +4423,7 @@ function ModeratorNoteRow({
   }
 
   return (
-    <div className="grid gap-3 py-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="grid gap-3 rounded-md bg-background px-3 py-4 lg:grid-cols-[minmax(0,1fr)_auto]">
       <IndexedInfoRow
         className="border-b-0 py-0"
         index={String(index).padStart(2, "0")}
@@ -4445,9 +4445,9 @@ function ModeratorNoteRow({
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>删除 Mod Note</DialogTitle>
+            <DialogTitle>删除管理备注</DialogTitle>
             <DialogDescription>
-              该操作会删除这条社区 Mod Note，并写入社区 Mod Log。
+              该操作会删除这条社区管理备注，并写入社区操作日志。
             </DialogDescription>
           </DialogHeader>
           {mutation.error ? (
@@ -4511,14 +4511,14 @@ function ManageModerationTemplatePanel({
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
-    <section className="min-w-0 border-b border-border py-5 last:border-b-0">
+    <section className="min-w-0 rounded-lg bg-surface-raised px-4 py-4 sm:px-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold">{title}</h3>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">
             {kind === "removal-reasons"
               ? "移除内容时可选择原因模板，并决定是否通知作者。"
-              : "保存常用回复，供管理团队沟通和后续 Modmail 接入复用。"}
+              : "保存常用回复，供管理团队沟通和后续管理信箱接入复用。"}
           </p>
         </div>
         {canEdit ? (
@@ -4554,7 +4554,7 @@ function ManageModerationTemplatePanel({
         <p className="py-4 text-sm leading-6 text-muted-foreground">{emptyText}</p>
       ) : null}
       {!query.isLoading && !query.isError && templates.length > 0 ? (
-        <div className="mt-4 divide-y divide-border border-t border-border">
+        <div className="mt-4 grid gap-2">
           {templates.map((template, index) => (
             <ModerationTemplateRow
               canEdit={canEdit}
@@ -4609,7 +4609,7 @@ function ModerationTemplateRow({
   }
 
   return (
-    <div className="grid gap-3 py-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="grid gap-3 rounded-md bg-background px-3 py-4 lg:grid-cols-[minmax(0,1fr)_auto]">
       <IndexedInfoRow
         className="border-b-0 py-0"
         index={String(index).padStart(2, "0")}
@@ -4866,12 +4866,12 @@ function ManageModLogPanel({
   }
 
   return (
-    <section className="border-b border-border py-5">
+    <section className="rounded-lg bg-surface-raised px-4 py-4 sm:px-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <FileClock className="size-4 text-primary" aria-hidden="true" />
-            <h3 className="text-sm font-semibold">社区 Mod Log</h3>
+            <h3 className="text-sm font-semibold">社区操作日志</h3>
           </div>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
             展示本社区最近审核、用户治理和模板变更，便于操作后回看。
@@ -4883,7 +4883,7 @@ function ManageModLogPanel({
       </div>
 
       <form
-        className="mt-4 grid gap-3 border-y border-border py-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
+        className="mt-4 grid gap-3 rounded-md bg-background px-3 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
         onSubmit={submitFilters}
       >
         <div className="space-y-2">
@@ -4899,7 +4899,7 @@ function ManageModLogPanel({
                 action: event.target.value,
               }))
             }
-            placeholder="remove / approve"
+            placeholder="输入操作类型"
             disabled={query.isLoading}
           />
         </div>
@@ -4933,7 +4933,7 @@ function ManageModLogPanel({
                 targetType: event.target.value,
               }))
             }
-            placeholder="post / comment"
+            placeholder="帖子或评论"
             disabled={query.isLoading}
           />
         </div>
@@ -4989,7 +4989,7 @@ function ManageModLogPanel({
       {query.isLoading ? <LoadingState rows={5} /> : null}
       {query.isError ? (
         <ErrorState
-          title="无法加载 Mod Log"
+          title="无法加载操作日志"
           description="请稍后重试。"
           action={
             <Button variant="ghost" size="sm" onClick={() => query.refetch()}>
@@ -5006,11 +5006,11 @@ function ManageModLogPanel({
         </p>
       ) : null}
       {!query.isLoading && !query.isError && logs.length > 0 ? (
-        <div className="mt-4 divide-y divide-border border-t border-border">
+        <div className="mt-4 grid gap-2">
           {logs.map((log, index) => (
             <div
               key={log.id}
-              className="grid gap-3 py-4 lg:grid-cols-[minmax(0,1fr)_auto]"
+              className="grid gap-3 rounded-md bg-background px-3 py-4 lg:grid-cols-[minmax(0,1fr)_auto]"
             >
               <IndexedInfoRow
                 className="border-b-0 py-0"
@@ -5354,7 +5354,7 @@ function ManageOwnerTransferPanel({
         {transferQuery.isLoading ? <LoadingState rows={2} /> : null}
 
         {pendingTransfer ? (
-          <div className="min-w-0 border-y border-border py-3">
+          <div className="min-w-0 rounded-md bg-surface-raised px-3 py-3">
             <div className="grid gap-3 md:grid-cols-2">
               <TransferFact label="状态" value={formatTransferStatus(pendingTransfer.status)} />
               <TransferFact label="新版主" value={`@${getTransferTargetLabel(pendingTransfer)}`} />
@@ -5433,7 +5433,7 @@ function ManageOwnerTransferPanel({
             </ResponsiveActionRow>
           </div>
         ) : (
-          <p className="border-y border-border py-3 text-sm leading-6 text-muted-foreground">
+          <p className="rounded-md bg-surface-raised px-3 py-3 text-sm leading-6 text-muted-foreground">
             当前没有待接受的版主交接。
           </p>
         )}
@@ -5491,7 +5491,7 @@ function PlatformOwnerTakeoverPanel({ community }: { community: Community }) {
     }
 
     if (!confirmed) {
-      setFormError("请确认这是平台 owner 异常接管，不是普通版主交接。");
+      setFormError("请确认这是平台负责人异常接管，不是普通版主交接。");
       return;
     }
 
@@ -5567,7 +5567,7 @@ function PlatformOwnerTakeoverPanel({ community }: { community: Community }) {
           onChange={(event) => setConfirmed(event.target.checked)}
         />
         <span>
-          我确认这是平台 owner 异常接管，会直接替换真实社区版主，并应写入平台管理审计。
+          我确认这是平台负责人异常接管，会直接替换真实社区版主，并应写入平台管理审计。
         </span>
       </label>
 
@@ -5955,7 +5955,7 @@ function ManageSettingsEditor({
           />
         </dl>
         <p className="text-xs leading-5 text-muted-foreground">
-          只有社区版主或平台 owner 覆盖可以修改名称、简介、头像和背景图；社区管理员可以查看资料和维护规则。
+          只有社区版主或平台负责人覆盖可以修改名称、简介、头像和背景图；社区管理员可以查看资料和维护规则。
         </p>
       </div>
     );
@@ -6071,7 +6071,7 @@ function CommunityMediaPreview({
   const bannerUrl = settings.banner_url?.trim();
 
   return (
-    <section className="min-w-0 rounded-md bg-background px-3 py-3 shadow-[inset_0_0_0_1px_var(--border)]">
+    <section className="min-w-0 rounded-md bg-background px-3 py-3">
       {bannerUrl ? (
         <div className="relative mb-3 aspect-[16/5] max-h-56 overflow-hidden rounded-md bg-background-soft">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -6084,7 +6084,7 @@ function CommunityMediaPreview({
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-[64px_minmax(0,1fr)] sm:items-center">
-        <div className="flex size-14 items-center justify-center overflow-hidden rounded-md bg-primary-muted text-primary shadow-[inset_0_0_0_1px_var(--border)] sm:size-16">
+        <div className="flex size-14 items-center justify-center overflow-hidden rounded-md bg-primary-muted text-primary sm:size-16">
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -6627,7 +6627,7 @@ function getErrorDescription(error: Error | null) {
 
 function getOwnerTakeoverErrorDescription(error: unknown) {
   if (error instanceof ApiError && error.code === "not_found") {
-    return "后端没有找到当前社区、目标用户或当前 active 版主。若这个社区本来就没有版主，当前后端接管接口仍要求先找到现任 active 版主，不能完成无版主社区接管；已记录为后端缺口。";
+    return "后端没有找到当前社区、目标用户或当前生效版主。若这个社区本来就没有版主，当前后端接管接口仍要求先找到现任生效版主，不能完成无版主社区接管；已记录为后端缺口。";
   }
 
   if (error instanceof Error) {
@@ -6650,15 +6650,15 @@ function formatCommunityManageForbiddenDescription({
   const communityName = community?.name ?? "这个社区";
 
   if (platformRole === "owner") {
-    return `${baseDescription} 当前账号是平台 owner，但 ${communityName} 没有返回平台 owner 覆盖权限。请刷新登录状态，或确认后端已部署返回 viewer_permissions.platform_owner_override=true 的合同。`;
+    return `${baseDescription} 当前账号是平台负责人，但 ${communityName} 没有返回平台负责人覆盖权限。请刷新登录状态，或确认后端已部署返回 viewer_permissions.platform_owner_override=true 的协议。`;
   }
 
   if (platformRole) {
     const inferredNotice = platformRoleIsInferred
-      ? "当前用户接口未返回具体 platform_role，前端只能把账号识别为平台工作人员；"
+      ? "当前用户接口未返回具体平台角色，前端只能把账号识别为平台工作人员；"
       : "";
 
-    return `${baseDescription} ${inferredNotice}当前账号具有${formatPlatformRole(platformRole)}身份，但平台 admin/staff 不自动获得 ${communityName} 的社区管理权限。`;
+    return `${baseDescription} ${inferredNotice}当前账号具有${formatPlatformRole(platformRole)}身份，但平台管理员和平台审核员不自动获得 ${communityName} 的社区管理权限。`;
   }
 
   return baseDescription;
@@ -6667,11 +6667,11 @@ function formatCommunityManageForbiddenDescription({
 function formatPlatformRole(role: PlatformRole) {
   switch (role) {
     case "owner":
-      return "平台 owner";
+      return "平台负责人";
     case "admin":
-      return "平台 admin";
+      return "平台管理员";
     case "staff":
-      return "平台 staff";
+      return "平台审核员";
     default:
       return role;
   }
@@ -6959,6 +6959,21 @@ function formatModmailFolder(folder: string) {
   }
 }
 
+function formatModmailStatus(status: string) {
+  switch (status) {
+    case "open":
+      return "未处理";
+    case "in_progress":
+      return "处理中";
+    case "archived":
+      return "已归档";
+    case "closed":
+      return "已关闭";
+    default:
+      return status || "未知";
+  }
+}
+
 function formatScheduledStatus(status: string) {
   switch (status) {
     case "scheduled":
@@ -7026,4 +7041,3 @@ function normalizeReportTargetType(targetType: string): "post" | "comment" {
 function getModQueueTargetKey(item: ModQueueItem) {
   return `${item.target_type}:${item.target_id}`;
 }
-

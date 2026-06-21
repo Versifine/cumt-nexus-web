@@ -80,7 +80,7 @@ Reddit-style campus community content system
 - 回复评论。
 - Reddit-style 评论树展示。
 - 折叠和展开评论分支。
-- 作者编辑评论。
+- 评论不提供编辑入口。
 - 作者软删除评论。
 
 ### 内容编辑与渲染
@@ -92,7 +92,7 @@ Reddit-style campus community content system
 - 支持 GFM 表格、任务列表、删除线、代码块、引用、列表和标题。
 - 支持 Reddit-style spoiler / 涂黑语法 `>! ... !<`。
 - 支持 Reddit-style 上标预处理。
-- 发帖、根评论、回复评论、帖子编辑和评论编辑使用单一写作面板，不提供编辑 / 预览双模式。
+- 发帖、根评论、回复评论和帖子编辑使用单一写作面板，不提供编辑 / 预览双模式；评论不提供编辑入口。
 - 写作面板提供加粗、斜体、引用、代码、链接和涂黑格式工具动作。
 - 用户内容渲染边界自检，禁止原始 HTML、未批准 iframe、`rehype-raw` 和 `dangerouslySetInnerHTML`。
 

@@ -95,6 +95,7 @@ export type MessageConversation = {
   viewer_can_reject_request?: boolean;
   request_created_by_me?: boolean;
   request_to_me?: boolean;
+  viewer_can_reopen?: boolean;
   conversation_state?:
     | "normal"
     | "incoming_request"

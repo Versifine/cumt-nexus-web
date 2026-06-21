@@ -31,6 +31,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
 import { InlineFeedback } from "@/components/feedback/inline-feedback";
 import { LoadingState } from "@/components/feedback/loading-state";
+import { NexusBrandMark } from "@/components/brand/nexus-brand-mark";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -352,7 +353,7 @@ function showToast(kind: "success" | "error") {
               全量索引覆盖路由、壳层、业务组件、Provider 和基础组件；视觉修复优先沉淀到基础 UI，再处理业务局部差异。
             </p>
           </div>
-          <div className="mt-4 divide-y divide-border border-t border-border">
+          <div className="mt-4 grid gap-2">
             <InfoRow label="当前文件" value={`${inventory.summary.fileCount} 个`} />
             <InfoRow label="主要组件名" value={`${inventory.summary.componentCount} 个`} />
             <InfoRow label="搜索结果" value={`${filteredFileCount} 个文件`} />
@@ -372,7 +373,7 @@ function showToast(kind: "success" | "error") {
             </div>
             <StatusToken tone="primary">当前基础集</StatusToken>
           </div>
-          <div className="divide-y divide-border border-b border-border">
+          <div className="grid gap-2">
             {componentCatalog.map((item) => (
               <a
                 key={item.id}
@@ -400,7 +401,7 @@ function showToast(kind: "success" | "error") {
               如果某个组件展示不满意，优先调整 `src/components/ui` 或反馈组件，不在页面里复制新风格。
             </p>
           </div>
-          <div className="mt-4 divide-y divide-border border-t border-border">
+          <div className="mt-4 grid gap-2">
             <InfoRow label="视觉方向" value="暗色编辑产品" wrap />
             <InfoRow label="组件来源" value="shadcn/ui + Radix" wrap />
             <InfoRow label="图标来源" value="lucide-react" wrap />
@@ -808,12 +809,25 @@ function showToast(kind: "success" | "error") {
               </button>
             }
           >
-            <div className="rounded-lg border border-border bg-card p-3 text-card-foreground shadow-[0_12px_40px_rgb(0_0_0/0.35)]">
-              <div className="text-sm font-semibold">命名规则</div>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                基础组件使用功能名，业务组件使用业务语义，避免页面里出现难复用的临时命名。
-              </p>
-            </div>
+            <span className="block overflow-hidden rounded-md bg-surface text-foreground shadow-[0_24px_64px_rgb(0_0_0/0.38)] ring-1 ring-border/80">
+              <span className="block h-9 bg-background-soft px-3 py-2">
+                <span className="inline-flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
+                  <span className="h-3.5 w-px bg-primary/80" aria-hidden="true" />
+                  组件预览
+                </span>
+              </span>
+              <span className="block p-3">
+                <span className="block text-sm font-semibold">命名规则</span>
+                <span className="mt-2 block text-sm leading-6 text-muted-foreground">
+                  基础组件使用功能名，业务组件使用业务语义，避免页面里出现难复用的临时命名。
+                </span>
+                <span className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                  <span>类型 <span className="font-semibold text-foreground">基础组件</span></span>
+                  <span className="text-muted-foreground/45" aria-hidden="true">·</span>
+                  <span>状态 <span className="font-semibold text-foreground">可复用</span></span>
+                </span>
+              </span>
+            </span>
           </HoverPreview>
         </ExamplePanel>
       </ComponentSection>
@@ -930,9 +944,7 @@ function InkPreviewSection() {
       <div className="grid lg:grid-cols-[232px_minmax(0,1fr)]">
         <aside className="hidden bg-background-soft p-5 lg:block">
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-md bg-surface-raised text-sm font-semibold text-primary">
-              CN
-            </span>
+            <NexusBrandMark className="size-8 text-primary" />
             <span className="min-w-0">
               <span className="block text-sm font-semibold">CUMT Nexus</span>
               <span className="block text-xs text-subtle-foreground">校园社区</span>
@@ -1204,7 +1216,7 @@ function ComponentSection({
             <h2 className="text-lg font-semibold">{title}</h2>
             <StatusToken className="break-all">{file}</StatusToken>
           </div>
-          <div className="mt-4 divide-y divide-border border-y border-border">
+          <div className="mt-4 grid gap-2">
             <InfoRow
               icon={<FileText className="size-4" aria-hidden="true" />}
               label="功能"
@@ -1257,7 +1269,7 @@ function ComponentInventory({
         </span>
         <span className="font-mono text-xs text-primary">{fileCount} 个文件</span>
       </div>
-      <div className="divide-y divide-border border-t border-border">
+      <div className="grid gap-3">
         {groups.map((group) => (
           <section key={group.id} className="py-5">
             <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -1271,11 +1283,11 @@ function ComponentInventory({
               </div>
               <StatusToken tone="primary">{group.items.length} 个文件</StatusToken>
             </div>
-            <div className="mt-4 divide-y divide-border border-y border-border">
+            <div className="mt-4 grid gap-2">
               {group.items.map((item) => (
                 <div
                   key={item.file}
-                  className="grid gap-3 py-3 text-sm lg:grid-cols-[minmax(220px,0.9fr)_minmax(0,1.1fr)]"
+                  className="grid gap-3 rounded-md bg-surface-raised px-3 py-3 text-sm lg:grid-cols-[minmax(220px,0.9fr)_minmax(0,1.1fr)]"
                 >
                   <div className="min-w-0">
                     <div className="break-all font-mono text-xs text-primary">

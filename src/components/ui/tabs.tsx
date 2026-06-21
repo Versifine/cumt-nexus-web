@@ -41,7 +41,7 @@ function TabsTrigger({
       className={cn(
         "nexus-micro-lift inline-flex h-8 items-center justify-center rounded-md px-3 text-sm font-medium whitespace-nowrap outline-none",
         "focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
-        "hover:bg-surface-hover/70 data-[state=active]:bg-surface-hover data-[state=active]:text-foreground data-[state=active]:shadow-[inset_0_0_0_1px_var(--border)]",
+        "hover:bg-surface-hover/70 data-[state=active]:bg-surface-hover data-[state=active]:text-foreground",
         className,
       )}
       {...props}

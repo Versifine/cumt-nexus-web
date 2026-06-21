@@ -16,6 +16,7 @@ import {
   UserHoverPreview,
   type UserHoverIdentity,
 } from "@/features/profile/user-hover-card";
+import { AuthorRoleBadges } from "@/features/profile/author-role-badges";
 import { UserInlineIdentity } from "@/features/profile/user-identity-marks";
 import type { UserLevelSummary } from "@/features/profile/types";
 import { cn } from "@/lib/utils";
@@ -45,9 +46,12 @@ export type PostIdentity = {
 type PostAuthorProfile = PostIdentity & {
   badges: string[];
   bannerUrl: string;
+  communityRole?: string | null;
   displayTitle?: string | null;
   headline: string;
+  isPlatformStaff?: boolean;
   level?: UserLevelSummary | null;
+  platformRole?: string | null;
 };
 
 type PostCommunityProfile = PostIdentity &
@@ -168,6 +172,14 @@ export function PostAuthorIdentity({
           username={author.slug}
           size="sm"
         />
+        <AuthorRoleBadges
+          source={{
+            community_role: author.communityRole,
+            is_platform_staff: author.isPlatformStaff,
+            platform_role: author.platformRole,
+          }}
+          size="xs"
+        />
       </div>
 
       {meta ? <div className="mt-0.5 min-w-0">{meta}</div> : null}
@@ -229,7 +241,7 @@ function PostAuthorName({ author }: { author: PostAuthorProfile }) {
       <UserHoverPreview
         className="min-w-0"
         user={hoverUser}
-        panelClassName="w-72"
+        panelClassName="w-[17.5rem]"
       >
         <Link href={author.href} className={nameClassName}>
           {author.name}
@@ -242,7 +254,7 @@ function PostAuthorName({ author }: { author: PostAuthorProfile }) {
     <UserHoverPreview
       className="min-w-0"
       user={hoverUser}
-      panelClassName="w-72"
+      panelClassName="w-[17.5rem]"
     >
       <span className={nameClassName}>{author.name}</span>
     </UserHoverPreview>
@@ -295,8 +307,17 @@ function getPostAuthorHoverIdentity(
     displayTitle: author.displayTitle,
     headline: author.headline,
     level: author.level,
+    roles: getAuthorPlatformRoles(author),
     username: author.slug,
   };
+}
+
+function getAuthorPlatformRoles(author: PostAuthorProfile) {
+  if (author.platformRole) {
+    return [author.platformRole];
+  }
+
+  return author.isPlatformStaff ? ["staff"] : [];
 }
 
 function PostCommunityContext({ community }: { community: PostCommunityProfile }) {
@@ -332,6 +353,26 @@ function PostSourceLine({
       {showCommunity ? <PostCommunityLink community={community} /> : null}
       {showCommunity ? <Dot /> : null}
       <time dateTime={post.created_at}>{formatPostDate(post.created_at, dateFormat)}</time>
+      {post.flair_text ? (
+        <StatusToken className="max-w-[160px] truncate px-1.5 py-0 text-[11px]">
+          {post.flair_text}
+        </StatusToken>
+      ) : null}
+      {post.is_locked ? (
+        <StatusToken className="px-1.5 py-0 text-[11px]" tone="warning">
+          已锁定
+        </StatusToken>
+      ) : null}
+      {post.is_nsfw ? (
+        <StatusToken className="px-1.5 py-0 text-[11px]" tone="danger">
+          NSFW
+        </StatusToken>
+      ) : null}
+      {post.is_spoiler ? (
+        <StatusToken className="px-1.5 py-0 text-[11px]" tone="warning">
+          剧透
+        </StatusToken>
+      ) : null}
       {post.status !== "visible" ? (
         <StatusToken
           className="px-1.5 py-0 text-[11px]"
@@ -383,7 +424,7 @@ function PostCommunityLink({
     return (
       <CommunityHoverPreview
         community={community}
-        panelClassName="w-80"
+        panelClassName="w-[18rem]"
       >
         <Link href={community.href} className={className}>
           {content}
@@ -395,7 +436,7 @@ function PostCommunityLink({
   return (
     <CommunityHoverPreview
       community={community}
-      panelClassName="w-80"
+      panelClassName="w-[18rem]"
     >
       <span className={className}>{content}</span>
     </CommunityHoverPreview>
@@ -442,12 +483,15 @@ function getPostAuthorProfile(
     ...identity,
     badges: post.author?.badges?.filter(Boolean) ?? [],
     bannerUrl: post.author?.banner_url?.trim() || "",
+    communityRole: post.author?.community_role ?? null,
     displayTitle:
       post.author?.progression?.active_title?.name?.trim() ||
       post.author?.display_title?.trim() ||
       null,
     headline: post.author?.headline?.trim() || "",
+    isPlatformStaff: post.author?.is_platform_staff,
     level: post.author?.progression ?? post.author?.level ?? null,
+    platformRole: post.author?.platform_role ?? null,
   };
 }
 

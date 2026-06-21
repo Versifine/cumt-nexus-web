@@ -126,10 +126,9 @@ export function MessagePrivacySettingsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl sm:px-4 sm:py-4 lg:px-0">
-      <div className="overflow-hidden border-border bg-background sm:border-x lg:border-y">
-        <div className="grid min-h-[calc(100vh-104px)] lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="border-b border-border bg-background px-4 py-5 lg:border-b-0 lg:border-r">
+    <div className="mx-auto w-full max-w-6xl py-2 sm:px-4 sm:py-4 lg:px-0">
+      <div className="grid min-h-[calc(100vh-104px)] gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="rounded-lg bg-surface px-4 py-5">
             <TextAction href="/messages" direction="back">
               私信
             </TextAction>
@@ -145,7 +144,7 @@ export function MessagePrivacySettingsPage() {
               </p>
             </div>
 
-            <div className="mt-6 border-y border-border">
+            <div className="mt-6 grid gap-2">
               <SettingStat
                 label="私信权限"
                 value={formatAllowLabel(allowMessages)}
@@ -157,14 +156,14 @@ export function MessagePrivacySettingsPage() {
             </div>
           </aside>
 
-          <form className="flex min-w-0 flex-col" onSubmit={submit}>
-            <main className="min-w-0 flex-1 px-4 py-5 sm:px-6">
+          <form className="flex min-w-0 flex-col overflow-hidden rounded-lg bg-surface" onSubmit={submit}>
+            <main className="min-w-0 flex-1 space-y-4 px-4 py-5 sm:px-5">
               <SettingSection
                 description="陌生人请求未接受前不能连续追发，拉黑后双方不能继续发送。"
                 icon={ShieldAlert}
                 title="谁可以发起私信"
               >
-                <div className="divide-y divide-border border-y border-border">
+                <div className="grid gap-2">
                   {allowOptions.map((option) => (
                     <PermissionOption
                       key={option.value}
@@ -181,12 +180,11 @@ export function MessagePrivacySettingsPage() {
               </SettingSection>
 
               <SettingSection
-                className="mt-8"
                 description="默认关闭。开启后也只对互关用户展示；关闭后你也不能查看对方在线状态。"
                 icon={MessageCircle}
                 title="在线状态"
               >
-                <label className="flex cursor-pointer items-center justify-between gap-4 border-y border-border py-4">
+                <label className="flex cursor-pointer items-center justify-between gap-4 rounded-md bg-background px-3 py-4">
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold text-foreground">
                       展示在线状态
@@ -222,7 +220,7 @@ export function MessagePrivacySettingsPage() {
               </SettingSection>
             </main>
 
-            <footer className="border-t border-border bg-background px-4 py-4 sm:px-6">
+            <footer className="bg-surface-raised px-4 py-4 sm:px-5">
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   {privacyMutation.isError ? (
@@ -250,7 +248,6 @@ export function MessagePrivacySettingsPage() {
               </div>
             </footer>
           </form>
-        </div>
       </div>
     </div>
   );
@@ -276,7 +273,7 @@ function PermissionOption({
   return (
     <label
       className={cn(
-        "grid cursor-pointer grid-cols-[32px_minmax(0,1fr)_24px] gap-3 py-4 transition-colors hover:bg-surface-hover/40 sm:px-3",
+        "grid cursor-pointer grid-cols-[32px_minmax(0,1fr)_24px] gap-3 rounded-md bg-background px-3 py-4 transition-colors hover:bg-surface-hover",
         checked ? "bg-primary/10" : "",
       )}
     >
@@ -334,7 +331,7 @@ function SettingSection({
   title: string;
 }) {
   return (
-    <section className={cn(className)}>
+    <section className={cn("rounded-lg bg-surface-raised px-4 py-4", className)}>
       <div className="mb-3 flex items-start gap-3">
         <span className="inline-flex size-9 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
           <Icon className="size-4" aria-hidden="true" />
@@ -353,7 +350,7 @@ function SettingSection({
 
 function SettingStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border py-3 last:border-b-0">
+    <div className="flex items-center justify-between gap-3 rounded-md bg-surface-raised px-3 py-3">
       <span className="text-sm text-muted-foreground">{label}</span>
       <span className="text-sm font-semibold text-foreground">{value}</span>
     </div>

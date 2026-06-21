@@ -137,13 +137,11 @@ async function checkUploadPostAndComments() {
   const rootAttachment = await uploadImage(reporter.token, "v2 root comment image");
   const childAttachment = await uploadImage(reporter.token, "v2 child comment image");
   const postEditAttachment = await uploadImage(reporter.token, "v2 edited post image");
-  const rootEditAttachment = await uploadImage(reporter.token, "v2 edited root comment image");
   if (
     !postAttachment.id ||
     !rootAttachment.id ||
     !childAttachment.id ||
-    !postEditAttachment.id ||
-    !rootEditAttachment.id
+    !postEditAttachment.id
   ) {
     return;
   }
@@ -163,10 +161,6 @@ async function checkUploadPostAndComments() {
   const postEditAttachmentMarkdown = createSmokeAttachmentMarkdown(
     postEditAttachment.id,
     "v2 edited post image",
-  );
-  const rootEditAttachmentMarkdown = createSmokeAttachmentMarkdown(
-    rootEditAttachment.id,
-    "v2 edited root comment image",
   );
 
   const postResponse = await request("/api/v1/communities/public/posts", {
@@ -347,54 +341,6 @@ async function checkUploadPostAndComments() {
 
   rootCommentId = rootComment.id;
 
-  const rootEditResponse = await request(`/api/v1/comments/${encodeURIComponent(rootCommentId)}`, {
-    body: {
-      attachment_ids: [rootEditAttachment.id],
-      body: `${marker} root comment edited\n\n${rootEditAttachmentMarkdown}`,
-    },
-    method: "PATCH",
-    token: reporter.token,
-  });
-
-  if (!expectOk(rootEditResponse, "edit root comment replaces image attachments")) {
-    return;
-  }
-
-  const editedRootComment = rootEditResponse.json?.comment;
-  if (
-    !editedRootComment?.body?.includes(rootEditAttachmentMarkdown) ||
-    editedRootComment.body.includes(rootAttachmentMarkdown) ||
-    !editedRootComment.attachments?.some((attachment) => attachment?.id === rootEditAttachment.id) ||
-    editedRootComment.attachments?.some((attachment) => attachment?.id === rootAttachment.id)
-  ) {
-    addFail("edit root comment replaces image attachments", `unexpected response payload: ${preview(rootEditResponse.bodyText)}`);
-    return;
-  }
-
-  const rootRemoveImageResponse = await request(`/api/v1/comments/${encodeURIComponent(rootCommentId)}`, {
-    body: {
-      attachment_ids: [],
-      body: `${marker} root comment image removed`,
-    },
-    method: "PATCH",
-    token: reporter.token,
-  });
-
-  if (!expectOk(rootRemoveImageResponse, "edit root comment removes image attachments")) {
-    return;
-  }
-
-  const rootCommentWithoutImage = rootRemoveImageResponse.json?.comment;
-  if (
-    !rootCommentWithoutImage?.body?.includes("root comment image removed") ||
-    rootCommentWithoutImage.body.includes(rootAttachmentMarkdown) ||
-    rootCommentWithoutImage.body.includes(rootEditAttachmentMarkdown) ||
-    rootCommentWithoutImage.attachments?.length
-  ) {
-    addFail("edit root comment removes image attachments", `unexpected response payload: ${preview(rootRemoveImageResponse.bodyText)}`);
-    return;
-  }
-
   const childResponse = await request(`/api/v1/posts/${encodeURIComponent(postId)}/comments`, {
     body: {
       attachment_ids: [childAttachment.id],
@@ -440,32 +386,27 @@ async function checkUploadPostAndComments() {
     : null;
 
   if (
-    !rootFromTree?.body?.includes("root comment image removed") ||
-    rootFromTree?.body?.includes(rootAttachmentMarkdown) ||
-    rootFromTree?.body?.includes(rootEditAttachmentMarkdown) ||
+    !rootFromTree?.body?.includes(rootAttachmentMarkdown) ||
+    !rootFromTree?.attachments?.some((attachment) => attachment?.id === rootAttachment.id) ||
     !childFromTree?.body?.includes(childAttachmentMarkdown) ||
     !childFromTree?.attachments?.length ||
-    rootFromTree?.attachments?.length
+    !childFromTree.attachments?.some((attachment) => attachment?.id === childAttachment.id)
   ) {
     addFail("comment tree with attachments", `attachments missing from tree: ${preview(treeResponse.bodyText)}`);
     return;
   }
 
-  addPass("content media path", `created, edited and removed inline images for post ${postId}, root comment ${rootCommentId} and child comment ${childCommentId}`);
+  addPass("content media path", `created comment images and edited post images for post ${postId}, root comment ${rootCommentId} and child comment ${childCommentId}`);
 }
 
 async function checkBrowserEditCors() {
-  if (!postId || !rootCommentId) {
-    addFail("browser edit CORS", "post/comment smoke content was not created");
+  if (!postId) {
+    addFail("browser edit CORS", "post smoke content was not created");
     return;
   }
 
   const postPreflight = await corsPreflight(
     `/api/v1/posts/${encodeURIComponent(postId)}`,
-    "PATCH",
-  );
-  const commentPreflight = await corsPreflight(
-    `/api/v1/comments/${encodeURIComponent(rootCommentId)}`,
     "PATCH",
   );
 
@@ -474,19 +415,14 @@ async function checkBrowserEditCors() {
     "browser edit CORS post PATCH",
     "PATCH",
   );
-  const commentOk = expectCorsPreflight(
-    commentPreflight,
-    "browser edit CORS comment PATCH",
-    "PATCH",
-  );
 
-  if (!postOk || !commentOk) {
+  if (!postOk) {
     return;
   }
 
   addPass(
     "browser edit CORS",
-    `PATCH preflight allows ${frontendOrigin} for post and comment edit endpoints`,
+    `PATCH preflight allows ${frontendOrigin} for post edit endpoints`,
   );
 }
 

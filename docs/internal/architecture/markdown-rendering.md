@@ -21,7 +21,7 @@ Reddit-style Markdown parity
 
 已实现：
 
-- 发帖、根评论、回复评论、帖子编辑和评论编辑使用单一写作面板。
+- 发帖、根评论、回复评论和帖子编辑使用单一写作面板；评论不提供编辑入口。
 - 写作器基于 Tiptap，提供加粗、斜体、标题、删除线、引用、无序列表、有序列表、行内代码、代码块、链接、涂黑、数学公式、表格、图片和白名单媒体嵌入。
 - 写作器工具栏不再向 textarea 插入 Markdown 字符串，而是对当前选区或当前块执行 Tiptap command；`editor.getMarkdown()` 负责把编辑内容序列化为提交给后端的 Markdown。
 - 帖子正文和评论正文通过 `src/features/content/content-body.tsx` 渲染。
@@ -39,9 +39,9 @@ Reddit-style Markdown parity
 - 评论树在移动端使用窄缩进，避免深层回复挤压 Markdown 正文、图片、表格和代码块。
 - 写作器编辑区直接显示排版后的内容；Markdown 源码只作为提交 / 存储格式存在，不作为默认 UI。
 - 写作器会识别外部 Markdown 图片语法，并提示作者这类图片不会作为正文图片保存；正文图片必须走上传、粘贴图片文件或拖拽图片文件入口。
-- UI smoke 已验证发帖、根评论、子评论回复、帖子编辑保存和评论编辑保存可以提交并在阅读态渲染 Markdown。
-- 发帖、根评论、回复评论、帖子编辑和评论编辑都已接入同一 Tiptap 写作器；图片入口只存在于工具栏、粘贴和拖拽，不再在编辑器外展示正文图片清单。
-- 当前后端 `PATCH /api/v1/posts/:id` 和 `PATCH /api/v1/comments/:id` 已接收可选 `attachment_ids`；编辑弹窗支持新增图片、粘贴图片和拖拽图片，保存时只提交正文实际引用到的图片 ID。
+- UI smoke 已验证发帖、根评论、子评论回复和帖子编辑保存可以提交并在阅读态渲染 Markdown。
+- 发帖、根评论、回复评论和帖子编辑都已接入同一 Tiptap 写作器；图片入口只存在于工具栏、粘贴和拖拽，不再在编辑器外展示正文图片清单。
+- 当前后端 `PATCH /api/v1/posts/:id` 已接收可选 `attachment_ids`；帖子编辑弹窗支持新增图片、粘贴图片和拖拽图片，保存时只提交正文实际引用到的图片 ID。
 - 不使用 `dangerouslySetInnerHTML`。
 - 不存用户 HTML。
 - 不使用 `rehype-raw`。

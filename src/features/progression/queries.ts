@@ -1,6 +1,11 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { authQueryKeys } from "@/features/auth/query-keys";
 import { profileQueryKeys } from "@/features/profile/queries";
@@ -22,18 +27,33 @@ type ListInput = {
 export const progressionQueryKeys = {
   all: ["progression"] as const,
   me: () => [...progressionQueryKeys.all, "me"] as const,
+  xpEventsAll: () => [...progressionQueryKeys.all, "xp-events"] as const,
   xpEvents: (input: ListInput) =>
-    [...progressionQueryKeys.all, "xp-events", input.limit ?? 20, input.offset ?? 0] as const,
+    [...progressionQueryKeys.xpEventsAll(), input.limit ?? 20, input.offset ?? 0] as const,
   titles: (input: ListInput) =>
     [...progressionQueryKeys.all, "titles", input.limit ?? 20, input.offset ?? 0] as const,
+  pointTransactionsAll: () =>
+    [...progressionQueryKeys.all, "point-transactions"] as const,
   pointTransactions: (input: ListInput) =>
     [
-      ...progressionQueryKeys.all,
-      "point-transactions",
+      ...progressionQueryKeys.pointTransactionsAll(),
       input.limit ?? 20,
       input.offset ?? 0,
     ] as const,
 };
+
+export function refreshCurrentUserGrowthLedgers(queryClient: QueryClient) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: authQueryKeys.points() }),
+    queryClient.invalidateQueries({ queryKey: progressionQueryKeys.me() }),
+    queryClient.invalidateQueries({
+      queryKey: progressionQueryKeys.xpEventsAll(),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: progressionQueryKeys.pointTransactionsAll(),
+    }),
+  ]);
+}
 
 export function useMyProgressionQuery(enabled = true) {
   return useQuery({
