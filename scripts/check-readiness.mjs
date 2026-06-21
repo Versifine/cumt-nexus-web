@@ -33,7 +33,7 @@ console.log(`mode:     ${allowDegraded ? "local degraded allowed" : "strict"}`);
 console.log("");
 
 await checkFrontendHealth();
-await checkBackendHealth();
+await checkBackendPublicApiRead();
 await checkBackendCors();
 await checkReadyz();
 await checkPublicEntrypoints();
@@ -122,19 +122,20 @@ async function checkFrontendHealth() {
   addFail("frontend health", `/healthz returned unexpected payload: ${response.preview}`);
 }
 
-async function checkBackendHealth() {
-  const response = await fetchText(`${apiBaseUrl}/healthz`);
+async function checkBackendPublicApiRead() {
+  const response = await fetchText(`${apiBaseUrl}/api/v1/posts?source=all&sort=new&limit=1&offset=0`);
   if (!response.ok) {
-    addBackendUnavailable("backend health", response.detail);
+    addBackendUnavailable("backend API read", response.detail);
     return;
   }
 
-  if (response.status >= 200 && response.status < 300) {
-    addPass("backend health", "/healthz is reachable");
+  const json = parseJson(response.body);
+  if (response.status === 200 && Array.isArray(json?.posts)) {
+    addPass("backend API read", "public posts endpoint is reachable through the configured API origin");
     return;
   }
 
-  addBackendUnavailable("backend health", `/healthz returned HTTP ${response.status}`);
+  addBackendUnavailable("backend API read", `/api/v1/posts returned HTTP ${response.status}: ${response.preview}`);
 }
 
 async function checkBackendCors() {

@@ -1,6 +1,13 @@
+import { createLatestPostsPath, listLatestPosts } from "@/features/post/api";
 import { getApiBaseUrl } from "@/lib/api/client";
 
 const BACKEND_HEALTH_TIMEOUT_MS = 3_000;
+const BACKEND_READINESS_CHECK = {
+  limit: 1,
+  offset: 0,
+  sort: "new",
+  source: "all",
+} as const;
 
 type BackendCheck =
   | {
@@ -41,37 +48,32 @@ export async function GET() {
 }
 
 async function checkBackend(): Promise<BackendCheck> {
-  const url = new URL("/healthz", getApiBaseUrl()).toString();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    controller.abort();
-  }, BACKEND_HEALTH_TIMEOUT_MS);
+  const path = createLatestPostsPath(BACKEND_READINESS_CHECK);
+  const url = new URL(path, getApiBaseUrl()).toString();
 
   try {
-    const response = await fetch(url, {
-      cache: "no-store",
-      signal: controller.signal,
-    });
-
-    if (response.ok) {
-      return {
-        status: "ok",
-        url,
-      };
-    }
+    await listLatestPosts(
+      BACKEND_READINESS_CHECK.limit,
+      BACKEND_READINESS_CHECK.offset,
+      BACKEND_READINESS_CHECK.sort,
+      {
+        cache: "no-store",
+        fallbackSort: null,
+        source: BACKEND_READINESS_CHECK.source,
+        timeoutMs: BACKEND_HEALTH_TIMEOUT_MS,
+        token: null,
+      },
+    );
 
     return {
-      message: `backend health check returned ${response.status}`,
-      status: "unavailable",
+      status: "ok",
       url,
     };
   } catch {
     return {
-      message: "backend health check is not reachable",
+      message: "backend public API read is not reachable",
       status: "unavailable",
       url,
     };
-  } finally {
-    clearTimeout(timeoutId);
   }
 }

@@ -68,6 +68,7 @@ API 错误结构按后端约定处理：
 ```bash
 npm run dev
 npm run build
+npm run deploy:bundle
 npm run lint
 npm run typecheck
 ```
@@ -81,9 +82,13 @@ npm run check:content-boundary
 npm run check:content-segments
 npm run check:copy
 npm run check:dependencies
+npm run check:deploy
+npm run check:deploy-env -- --env-file .env.production
 npm run check:docs
 npm run check:env
 npm run check:main-path
+SITE_URL=https://<your-real-domain>
+npm run check:post-deploy -- --site-url="$SITE_URL"
 npm run check:readiness
 npm run check:routes
 npm run check:static
@@ -119,6 +124,9 @@ src/
 - `docs/design/DESIGN.md`：视觉方向和设计原则。
 - `docs/internal/README.md`：内部产品、架构、工程文档索引。
 - `docs/internal/engineering/workflow.md`：开发、验证和协作流程。
+- `docs/internal/engineering/deployment.md`：生产部署、环境变量、CORS、发布后验证和回滚标准。
+- `docs/internal/engineering/server-docker-runbook.md`：单服务器 Docker 拉镜像部署、Caddy 反代、发布和回滚命令清单。
+- `.github/workflows/post-deploy-check.yml`：手动触发的公网发布后检查，填写真实域名后运行 `check:post-deploy`。
 
 ## 协作边界
 

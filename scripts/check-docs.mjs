@@ -41,6 +41,7 @@ const requiredRootDocs = [
   "docs/internal/engineering/linux-development.md",
   "docs/internal/engineering/launch-readiness.md",
   "docs/internal/engineering/deployment.md",
+  "docs/internal/engineering/server-docker-runbook.md",
   "docs/internal/engineering/browser-qa.md",
 ];
 
@@ -50,6 +51,8 @@ const readmeIndexedDocs = [
   "docs/design/DESIGN.md",
   "docs/internal/README.md",
   "docs/internal/engineering/workflow.md",
+  "docs/internal/engineering/deployment.md",
+  "docs/internal/engineering/server-docker-runbook.md",
 ];
 
 const docsReadmeIndexedDocs = [
@@ -90,6 +93,7 @@ const internalIndexedDocs = [
   "engineering/linux-development.md",
   "engineering/launch-readiness.md",
   "engineering/deployment.md",
+  "engineering/server-docker-runbook.md",
   "engineering/browser-qa.md",
 ];
 
@@ -237,6 +241,8 @@ function checkValidationCommandDocumented() {
     "check:actions",
     "check:docs",
     "check:copy",
+    "check:deploy",
+    "check:post-deploy",
     "check:static",
     "check:ui-primitives",
   ];
@@ -263,6 +269,22 @@ function checkValidationCommandDocumented() {
 
   if (!workflow.includes("npm run check:docs")) {
     missing.push("docs/internal/engineering/workflow.md: npm run check:docs");
+  }
+
+  if (!readme.includes("npm run check:deploy")) {
+    missing.push("README.md: npm run check:deploy");
+  }
+
+  if (!workflow.includes("npm run check:deploy")) {
+    missing.push("docs/internal/engineering/workflow.md: npm run check:deploy");
+  }
+
+  if (!readme.includes("npm run check:post-deploy")) {
+    missing.push("README.md: npm run check:post-deploy");
+  }
+
+  if (!workflow.includes("npm run check:post-deploy")) {
+    missing.push("docs/internal/engineering/workflow.md: npm run check:post-deploy");
   }
 
   if (!readme.includes("npm run check:copy")) {
@@ -294,7 +316,7 @@ function checkValidationCommandDocumented() {
     return;
   }
 
-  addPass("check command documentation", "action, documentation, copy, UI primitive and static sync checks are documented");
+  addPass("check command documentation", "action, documentation, deployment, copy, UI primitive and static sync checks are documented");
 }
 
 function readTextFile(path) {

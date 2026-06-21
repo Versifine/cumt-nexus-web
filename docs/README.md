@@ -31,7 +31,7 @@
 1. 实现或调整 UI：先读 `../AGENTS.md`、`design/DESIGN.md`、`design/page-patterns.md`、`design/component-rules.md`。
 2. 做产品能力：再读 `internal/product/product-targets.md` 和对应功能设计文档。
 3. 涉及后端合同：读相关 `internal/architecture/*`，必要时同步根目录 `backend-api-needs.md`。
-4. 上线或验收：读 `internal/engineering/workflow.md`、`internal/engineering/launch-readiness.md` 和 `internal/engineering/browser-qa.md`。
+4. 上线或验收：读 `internal/engineering/workflow.md`、`internal/engineering/launch-readiness.md`、`internal/engineering/deployment.md`、`internal/engineering/server-docker-runbook.md` 和 `internal/engineering/browser-qa.md`。
 
 新增、删除或重命名文档后，必须同步更新：
 

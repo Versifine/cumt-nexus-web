@@ -1,0 +1,100 @@
+name: Publish Docker image
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to publish, for example v0.1.0 or staging-20260622"
+        required: true
+        type: string
+      site_url:
+        description: "Public frontend origin, for example https://nexus.cumt.edu.cn"
+        required: true
+        type: string
+      api_base_url:
+        description: "Public API origin, for example https://nexus.cumt.edu.cn"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Build and push frontend image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Resolve release configuration
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.image_tag }}"
+            site_url="${{ inputs.site_url }}"
+            api_base_url="${{ inputs.api_base_url }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+            site_url="${{ vars.NEXT_PUBLIC_SITE_URL }}"
+            api_base_url="${{ vars.NEXT_PUBLIC_API_BASE_URL }}"
+          fi
+
+          if [ -z "${site_url}" ] || [ -z "${api_base_url}" ]; then
+            echo "NEXT_PUBLIC_SITE_URL and NEXT_PUBLIC_API_BASE_URL are required." >&2
+            echo "For tag pushes, configure repository variables with those names." >&2
+            exit 1
+          fi
+
+          if [ "${tag}" = "latest" ]; then
+            echo "Refusing to publish mutable image tag: latest" >&2
+            exit 1
+          fi
+
+          if ! [[ "${tag}" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "Image tag may only contain letters, numbers, dots, underscores and hyphens." >&2
+            exit 1
+          fi
+
+          echo "NEXT_PUBLIC_SITE_URL=${site_url}" >> "${GITHUB_ENV}"
+          echo "NEXT_PUBLIC_API_BASE_URL=${api_base_url}" >> "${GITHUB_ENV}"
+          echo "image=${image}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "full_image=${image}:${tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Validate production environment shape
+        run: npm run check:env:production
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL}" \
+            --build-arg NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL}" \
+            -t "${{ steps.meta.outputs.full_image }}" \
+            .
+
+      - name: Push image
+        run: docker push "${{ steps.meta.outputs.full_image }}"
+
+      - name: Summary
+        run: |
+          echo "Published image: ${{ steps.meta.outputs.full_image }}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}" >> "${GITHUB_STEP_SUMMARY}"

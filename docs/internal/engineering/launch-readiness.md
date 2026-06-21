@@ -98,7 +98,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 `scripts/check-readiness.mjs` 当前检查：
 
 - 前端 `/healthz` 是否返回 `cumt-nexus-web` 和 `ok`。
-- 后端 `NEXT_PUBLIC_API_BASE_URL/healthz` 是否可达。
+- 后端 `NEXT_PUBLIC_API_BASE_URL/api/v1/posts?source=all&sort=new&limit=1&offset=0` 是否可读，用于证明生产 API origin、反向代理和数据库读路径可达。
 - 后端 `OPTIONS /api/v1/posts` 是否允许当前 `NEXT_PUBLIC_SITE_URL` origin、`GET` 方法和 `Authorization` 请求头。
 - 前端 `/readyz` 是否返回 `ready`；严格模式下 degraded 是阻塞。
 - `robots.txt` 是否包含 sitemap 声明。
@@ -119,7 +119,7 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 `scripts/check-api-boundary.mjs` 当前检查：
 
 - `src/` 是否存在，并扫描所有 `.ts` 和 `.tsx` 源码文件。
-- `fetch()` 是否只出现在批准位置：`src/lib/api/client.ts` 和 `src/app/readyz/route.ts`。
+- `fetch()` 是否只出现在批准位置：`src/lib/api/client.ts`。
 - `NEXT_PUBLIC_API_BASE_URL` 是否只由 `src/lib/api/client.ts` 读取。
 - `/api/v1` 后端路径是否只出现在 `src/features/*/api.ts`。
 - feature API 模块里的 `apiRequest(...)` 路径是否都以 `/api/v1` 开头。
@@ -429,6 +429,18 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - 本地后端以 `HTTP_CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000` 启动后，严格 `npm run check:readiness` 已通过，后端 CORS 预检允许 `http://localhost:3000`。
 - 浏览器端到端已验证：注册成功后进入首页，进入 `/communities/public/new` 发帖，成功跳转帖子详情，发表评论，upvote，再次点击取消投票；帖子详情保留首页、社区索引和社区申请出口。
 
+## 最新部署准备记录
+
+2026-06-22 Docker 镜像部署准备记录：
+
+- 前端已补齐生产镜像链路：`next.config.ts` 使用 standalone 输出，`Dockerfile` 构建 Next.js standalone 镜像，`docker-compose.prod.yml` 支持 `WEB_IMAGE` 拉取远端镜像并默认只绑定 `127.0.0.1`，`.env.production.example` 固定 `WEB_IMAGE`、`WEB_BIND_HOST`、`WEB_PORT`、`NEXT_PUBLIC_SITE_URL` 和 `NEXT_PUBLIC_API_BASE_URL`。
+- 已补齐 GHCR 发布与服务器部署材料：`.github/workflows/publish-docker.yml` 支持 tag 或手动 workflow 发布镜像，固定 Node 22 运行生产 env 校验，并拒绝 `latest` 或非法镜像 tag；`deploy/Caddyfile.example` 覆盖同域名 `/api/*` 和 `/uploads/*` 反代，`npm run deploy:bundle` 生成 `dist/deploy/cumt-nexus-web/` 上传包。
+- 已只读核对后端仓库生产配置：后端 `docker-compose.prod.yml` 包含 `postgres`、`migrate` 和 `api` 服务；后端 CORS 变量为 `HTTP_CORS_ALLOWED_ORIGINS`；后端 `APP_ENV` 只接受 `local/dev/test/prod`；后端端口可通过 `API_PORT=127.0.0.1:8080` 只绑定本机，前端 runbook 示例已使用 `APP_ENV=prod` 和该端口绑定方式。
+- 同域名部署的 readiness 证据已收紧：前端 `/readyz` 和 `scripts/check-readiness.mjs` 都通过 `/api/v1/posts?source=all&sort=new&limit=1&offset=0` 验证后端 API、反向代理和数据库读路径，不再把公网 `/healthz` 当作后端健康证据。
+- 已补齐手动 GitHub Actions 发布后检查：`.github/workflows/post-deploy-check.yml` 可填写真实 `site_url` 和可选 `api_base_url`，从 GitHub Actions 公网网络视角运行 `npm run check:post-deploy`。
+- 本轮已复验：`npm run check:deploy`、`npm run check:docs`、使用临时真实形态 env 的 `npm run check:deploy-env -- --env-file <tmp>`、`npm run check:static` 和 `npm run deploy:bundle` 通过。`check:static` 仍有已知 Turbopack NFT warning，来自 style-guide component inventory 的动态文件扫描提示，不是部署链路失败。
+- 本条不代表真实公网生产已完成：仍缺正式域名、真实 `.env.production`、前后端 GHCR 镜像 tag、服务器 GHCR 登录、后端生产密钥、邮件/对象存储配置、Caddy TLS 实机验证、严格生产 readiness/main-path 验证和浏览器人工 QA。
+
 ## 上线阻塞项
 
 以下任意一项未完成时，不允许把目标标记为可上线：
@@ -438,15 +450,21 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 - `npm run build` 未通过。
 - `npm run check:api-boundary` 未通过。
 - `npm run check:dependencies` 未通过。
+- `npm run check:deploy` 未通过。
+- 基于真实前端 `.env.production` 的 `npm run check:deploy-env -- --env-file .env.production` 未通过。
 - `npm run check:env` 未通过。
 - `npm run check:main-path` 未通过。
 - `npm run check:routes` 未通过。
 - `npm run check:readiness` 未通过。
-- 后端 `/healthz` 不可达，或前端 `/readyz` 仍为 degraded。
+- 后端公网 `/api/v1/posts?source=all&sort=new&limit=1&offset=0` 不可读，或前端 `/readyz` 仍为 degraded。
 - 后端 CORS 未允许当前前端 origin、`GET` 方法或 `Authorization` 请求头，导致浏览器无法访问 API。
 - 注册、登录、获取当前用户、社区列表、社区详情、发帖、帖子详情、评论、投票主链路没有用真实后端验证。
 - 生产环境未配置正式 `NEXT_PUBLIC_API_BASE_URL`。
 - 生产环境未配置正式 `NEXT_PUBLIC_SITE_URL`。
+- 前后端生产镜像没有发布为明确 tag，或服务器不能 `docker compose pull` 对应 tag。
+- Caddy/Nginx 未完成公网 HTTPS、`/api/*` 和 `/uploads/*` 反向代理验证。
+- 前端 3000 或后端 8080 仍直接监听公网网卡，而不是只绑定 `127.0.0.1` 后由 Caddy/Nginx 暴露。
+- 后端生产密钥、邮件发送、对象存储和数据库备份策略未确认。
 - 主要页面没有完成桌面和移动端人工检查。
 - 登录后首页、社区详情、发帖、帖子详情、评论和投票还没有在真实可输入浏览器中完成端到端人工 QA。
 - `docs/internal/engineering/deployment.md` 中的生产部署前检查、发布后验证和回滚标准没有完成。
@@ -504,4 +522,4 @@ node scripts/check-public-routes.mjs --frontend-url=http://localhost:3000 --time
 
 ## 后端联调要求
 
-严格上线验收要求后端服务已启动，并且 `http://localhost:8080/healthz` 或目标环境的后端健康检查可达。本地联调时，后端还需要配置 `HTTP_CORS_ALLOWED_ORIGINS=http://localhost:3000` 或对应前端地址。后端不可达或 CORS 预检失败时，`npm run check:readiness` 和 `npm run check:main-path` 都不能作为通过证据。
+严格上线验收要求后端服务已启动，并且本地 `http://localhost:8080/healthz` 或目标环境的公网 `/api/v1/posts?source=all&sort=new&limit=1&offset=0` 可达。本地联调时，后端还需要配置 `HTTP_CORS_ALLOWED_ORIGINS=http://localhost:3000` 或对应前端地址。后端 API 读路径不可达或 CORS 预检失败时，`npm run check:readiness` 和 `npm run check:main-path` 都不能作为通过证据。

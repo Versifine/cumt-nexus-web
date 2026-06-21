@@ -89,10 +89,10 @@ function checkRuntimeEnv() {
   const apiBaseUrl = runtimeEnv.NEXT_PUBLIC_API_BASE_URL;
   if (apiBaseUrl) {
     const parsed = parseUrl(apiBaseUrl);
-    if (parsed && parsed.pathname !== "/") {
+    if (parsed && !isOriginOnly(apiBaseUrl, parsed)) {
       addFail(
         "NEXT_PUBLIC_API_BASE_URL",
-        "must be an origin only; do not include /api/v1 because client paths already include it",
+        "must be an origin only without path, query, hash or trailing slash; do not include /api/v1 because client paths already include it",
       );
     }
   }
@@ -100,8 +100,11 @@ function checkRuntimeEnv() {
   const siteUrl = runtimeEnv.NEXT_PUBLIC_SITE_URL;
   if (siteUrl) {
     const parsed = parseUrl(siteUrl);
-    if (parsed && parsed.pathname !== "/") {
-      addFail("NEXT_PUBLIC_SITE_URL", "must be a site origin without a path");
+    if (parsed && !isOriginOnly(siteUrl, parsed)) {
+      addFail(
+        "NEXT_PUBLIC_SITE_URL",
+        "must be a site origin without path, query, hash or trailing slash",
+      );
     }
   }
 
@@ -132,6 +135,10 @@ function validateUrl(name, value, options) {
   if (!options.allowLocalhost && isLocalhost(parsed.hostname)) {
     addFail(name, "production URL must not use localhost or loopback");
   }
+
+  if (production && isPlaceholderHost(parsed.hostname)) {
+    addFail(name, "production URL must not use placeholder or example hostnames");
+  }
 }
 
 function parseUrl(value) {
@@ -149,6 +156,19 @@ function isLocalhost(hostname) {
     hostname === "::1" ||
     hostname.endsWith(".localhost")
   );
+}
+
+function isPlaceholderHost(hostname) {
+  return [
+    /example\.com/i,
+    /your[-_ ]/i,
+    /changeme/i,
+    /todo/i,
+  ].some((pattern) => pattern.test(hostname));
+}
+
+function isOriginOnly(value, parsed) {
+  return value.trim() === parsed.origin;
 }
 
 function hasLocalRuntimeEnv() {

@@ -101,7 +101,34 @@ npm run typecheck
 npm run check:static
 ```
 
-`check:static` 聚合 lint、typecheck、build、文档、动作边界、依赖、API、内容、中文文案边界、UI 基础件复用和本地环境检查。它不请求真实后端，不替代 `npm run check:main-path`、`npm run check:v2-path`、`npm run check:readiness` 和浏览器 QA。
+`check:static` 聚合 lint、typecheck、build、文档、动作边界、依赖、部署文件、API、内容、中文文案边界、UI 基础件复用和本地环境检查。它不请求真实后端，不替代 `npm run check:main-path`、`npm run check:v2-path`、`npm run check:readiness` 和浏览器 QA。
+
+部署文件边界检查：
+
+```powershell
+npm run check:deploy
+```
+
+`check:deploy` 用于确认前端 Dockerfile、生产 compose、生产 env 模板、GHCR 镜像发布 workflow、部署手册和单服务器 runbook 保持一致。它不拉镜像、不访问 Docker daemon，也不替代真实服务器上的 `docker compose pull/up` 和发布后 readiness 检查。
+
+真实生产 env 检查：
+
+```powershell
+npm run check:deploy-env -- --env-file .env.production
+```
+
+`check:deploy-env` 用于检查即将上传服务器的前端 `.env.production`，阻止示例占位符、`latest` 镜像 tag、localhost、非 HTTPS origin 和把 `/api/v1` 写进 `NEXT_PUBLIC_API_BASE_URL`。它需要真实 env 文件，不纳入 `check:static`。
+
+发布后公网检查：
+
+```powershell
+$env:SITE_URL='https://<your-real-domain>'
+npm run check:post-deploy -- --site-url=$env:SITE_URL
+```
+
+`check:post-deploy` 要求生产 HTTPS origin，默认 API origin 与站点 origin 相同，适合同域名 Caddy/Nginx 反代部署。独立 API 域名时设置真实 `API_URL` 并加 `--api-base-url=$env:API_URL`。它会串跑严格 readiness 和公开路由检查；不写入 smoke 数据，不替代真实浏览器人工 QA。
+
+CI 中也可以手动运行 `.github/workflows/post-deploy-check.yml` 的 `Post-deploy check`，填写真实 `site_url` 和可选 `api_base_url`，从 GitHub Actions 的公网网络视角验证部署结果。
 
 V2 后端能力收口可以运行：
 

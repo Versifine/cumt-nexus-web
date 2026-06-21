@@ -15,7 +15,6 @@ const sourceFiles = existsSync(sourceRoot)
   : [];
 
 const allowedFetchFiles = new Set([
-  "src/app/readyz/route.ts",
   "src/lib/api/client.ts",
 ]);
 const allowedEnvFiles = new Set(["src/lib/api/client.ts"]);

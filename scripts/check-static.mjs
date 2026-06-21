@@ -11,6 +11,7 @@ const checks = [
   "check:docs",
   "check:actions",
   "check:dependencies",
+  "check:deploy",
   "check:api-boundary",
   "check:content-boundary",
   "check:content-segments",

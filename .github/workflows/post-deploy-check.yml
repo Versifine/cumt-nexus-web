@@ -1,0 +1,65 @@
+name: Post-deploy check
+
+on:
+  workflow_dispatch:
+    inputs:
+      site_url:
+        description: "Production site origin, for example https://nexus.cumt.edu.cn"
+        required: true
+        type: string
+      api_base_url:
+        description: "Production API origin. Leave blank when it is the same as site_url."
+        required: false
+        type: string
+      timeout_ms:
+        default: "8000"
+        description: "Request timeout in milliseconds"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Verify deployed site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run post-deploy check
+        shell: bash
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url }}
+          SITE_URL: ${{ inputs.site_url }}
+          TIMEOUT_MS: ${{ inputs.timeout_ms }}
+        run: |
+          set -euo pipefail
+
+          args=(
+            "--site-url=${SITE_URL}"
+            "--timeout-ms=${TIMEOUT_MS}"
+          )
+
+          if [ -n "${API_BASE_URL}" ]; then
+            args+=("--api-base-url=${API_BASE_URL}")
+          fi
+
+          npm run check:post-deploy -- "${args[@]}"
+
+      - name: Summary
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url }}
+          SITE_URL: ${{ inputs.site_url }}
+        run: |
+          {
+            echo "Post-deploy check passed."
+            echo "Site: ${SITE_URL}"
+            echo "API: ${API_BASE_URL:-${SITE_URL}}"
+          } >> "${GITHUB_STEP_SUMMARY}"

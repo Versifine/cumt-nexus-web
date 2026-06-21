@@ -47,6 +47,13 @@ type ListLatestPostsOptions = {
   token?: string | null;
 };
 
+type ListLatestPostsPathInput = {
+  limit?: number;
+  offset?: number;
+  sort?: PostSort;
+  source?: ReadableFeedSource;
+};
+
 type ListSavedPostsInput = {
   cache?: RequestCache;
   limit?: number;
@@ -97,10 +104,12 @@ export function listLatestPosts(
   return listPostsWithSortFallback({
     fallbackSort: options.fallbackSort ?? DEFAULT_SORT_FALLBACK,
     request: (effectiveSort) => {
-      const params = createListPostsParams(limit, offset, effectiveSort);
-      params.set("source", source);
-
-      return apiRequest<ListPostsResponse>(`/api/v1/posts?${params.toString()}`, {
+      return apiRequest<ListPostsResponse>(createLatestPostsPath({
+        limit,
+        offset,
+        sort: effectiveSort,
+        source,
+      }), {
         cache: options.cache,
         timeoutMs: options.timeoutMs,
         token: options.token,
@@ -109,6 +118,18 @@ export function listLatestPosts(
     sort,
     source,
   });
+}
+
+export function createLatestPostsPath({
+  limit = 20,
+  offset = 0,
+  sort = "new",
+  source = "recommended",
+}: ListLatestPostsPathInput = {}) {
+  const params = createListPostsParams(limit, offset, sort);
+  params.set("source", source);
+
+  return `/api/v1/posts?${params.toString()}`;
 }
 
 export function listUserPosts({
